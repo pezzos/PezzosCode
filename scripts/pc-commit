@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/pc-commit [options]
+
+Options:
+  --allow <path>    Allow changed path (repeatable)
+  --message <msg>   Use full commit message (skip prompts)
+  --type <type>     Commit type: feat|fix|docs|chore
+  --scope <scope>   Commit scope (required unless --message)
+  --summary <text>  Commit summary (required unless --message)
+  --dry-run         Show actions without executing
+  --yes             Skip confirmation prompt
+  -h, --help        Show help
+USAGE
+}
+
+dry_run=false
+assume_yes=false
+message=""
+type=""
+scope=""
+summary=""
+allow_paths=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --allow)
+      allow_paths+=("$2")
+      shift 2
+      ;;
+    --message)
+      message="$2"
+      shift 2
+      ;;
+    --type)
+      type="$2"
+      shift 2
+      ;;
+    --scope)
+      scope="$2"
+      shift 2
+      ;;
+    --summary)
+      summary="$2"
+      shift 2
+      ;;
+    --dry-run)
+      dry_run=true
+      shift
+      ;;
+    --yes)
+      assume_yes=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Not inside a git repository." >&2
+  exit 1
+fi
+
+if [[ ${#allow_paths[@]} -eq 0 ]]; then
+  mapfile -t staged_paths < <(git diff --cached --name-only)
+  allow_paths=("${staged_paths[@]}")
+fi
+
+if [[ ${#allow_paths[@]} -eq 0 ]]; then
+  echo "No staged changes detected. Stage files or use --allow." >&2
+  exit 1
+fi
+
+is_allowed_path() {
+  local path="$1"
+  local allowed_path
+  for allowed_path in "${allow_paths[@]}"; do
+    if [[ "$path" == "$allowed_path" || "$path" == "$allowed_path/"* ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+disallowed=()
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  path="${line:3}"
+  if [[ "$path" == *" -> "* ]]; then
+    path="${path##* -> }"
+  fi
+  if ! is_allowed_path "$path"; then
+    disallowed+=("$path")
+  fi
+done < <(git status --porcelain)
+
+if [[ ${#disallowed[@]} -gt 0 ]]; then
+  echo "Unexpected changes detected:" >&2
+  printf ' - %s\n' "${disallowed[@]}" >&2
+  echo "Use --allow <path> to permit expected files." >&2
+  exit 1
+fi
+
+if [[ "$dry_run" == true ]]; then
+  echo "[dry-run] make check"
+else
+  make check
+fi
+
+allowed_types=("feat" "fix" "docs" "chore")
+
+contains_type() {
+  local candidate="$1"
+  local t
+  for t in "${allowed_types[@]}"; do
+    if [[ "$candidate" == "$t" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [[ -z "$message" ]]; then
+  if [[ -z "$type" ]]; then
+    read -r -p "Type (feat/fix/docs/chore) [feat]: " type
+    type="${type:-feat}"
+  fi
+  if ! contains_type "$type"; then
+    echo "Invalid type: $type" >&2
+    exit 1
+  fi
+  while [[ -z "$scope" ]]; do
+    read -r -p "Scope (required): " scope
+  done
+  while [[ -z "$summary" ]]; do
+    read -r -p "Summary (required): " summary
+  done
+  message="${type}(${scope}): ${summary}"
+fi
+
+echo "Proposed commit message:"
+echo "$message"
+
+if [[ "$dry_run" == true ]]; then
+  echo "[dry-run] git commit -m \"$message\""
+  exit 0
+fi
+
+if [[ "$assume_yes" != true ]]; then
+  read -r -p "Proceed with commit? [y/N] " confirm
+  case "$confirm" in
+    y|Y|yes|YES) ;;
+    *) echo "Aborted."; exit 1 ;;
+  esac
+fi
+
+git commit -m "$message"
