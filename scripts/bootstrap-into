@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $(basename "$0") <target-repo-path>" >&2
+  exit 1
+fi
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+target_repo="$1"
+
+if [[ ! -d "$target_repo" ]]; then
+  echo "Target repo does not exist: $target_repo" >&2
+  exit 1
+fi
+
+cp -R "$repo_root/docs" "$target_repo/"
+cp "$repo_root/AGENTS.md" "$target_repo/"
+cp "$repo_root/Makefile" "$target_repo/"
+
+if [[ -e "$repo_root/tools/pp" ]]; then
+  mkdir -p "$target_repo/tools"
+  cp -R "$repo_root/tools/pp" "$target_repo/tools/pp"
+else
+  echo "Warning: tools/pp not found in kit; skipping." >&2
+fi

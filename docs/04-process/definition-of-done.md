@@ -47,6 +47,7 @@ Clear "done" criteria ensure:
 - [ ] Unit tests written for business logic
 - [ ] Integration tests written for APIs
 - [ ] E2E tests written for critical user paths
+- [ ] Anti-hardcode tests present for key endpoints
 - [ ] All tests passing in CI
 - [ ] Lint passing in CI (or locally if no CI)
 - [ ] Code coverage meets target (typically 80%+)
