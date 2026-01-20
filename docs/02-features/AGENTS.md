@@ -10,6 +10,7 @@ Structure:
   - `tech-design.md`
   - `dev-tasks.md`
   - `test-plan.md`
+- Feature tickets live at `docs/02-features/<feature>/ticket-TASK-XXX.md` and follow `docs/04-process/ticket-template.md`.
 
 Selection rule for skills:
 - Read `docs/01-product/prd.md` and relevant context to determine product surfaces (CLI/TUI/API/UI).
