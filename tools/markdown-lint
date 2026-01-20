@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+
+
+def list_markdown_files() -> list[str]:
+    try:
+        output = subprocess.check_output(
+            ["rg", "--files", "-g", "*.md"], text=True
+        ).strip()
+        return [line for line in output.splitlines() if line]
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        matches = []
+        for root, _, files in os.walk("."):
+            for name in files:
+                if name.endswith(".md"):
+                    matches.append(os.path.join(root, name))
+        return matches
+
+
+def lint_file(path: str) -> list[str]:
+    issues = []
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+    except OSError as exc:
+        return [f"{path}: unable to read file ({exc})"]
+
+    if b"\r\n" in raw or b"\r" in raw:
+        issues.append(f"{path}: contains CRLF/CR line endings")
+
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        issues.append(f"{path}: not valid UTF-8")
+        return issues
+
+    lines = text.split("\n")
+    for index, line in enumerate(lines, start=1):
+        if line.endswith(" ") or line.endswith("\t"):
+            issues.append(f"{path}:{index}: trailing whitespace")
+
+    if text and not text.endswith("\n"):
+        issues.append(f"{path}: missing trailing newline")
+
+    return issues
+
+
+def main() -> int:
+    files = list_markdown_files()
+    if not files:
+        print("No markdown files found.")
+        return 0
+
+    all_issues: list[str] = []
+    for path in files:
+        all_issues.extend(lint_file(path))
+
+    if all_issues:
+        print("Markdown lint issues found:", file=sys.stderr)
+        for issue in all_issues:
+            print(f"- {issue}", file=sys.stderr)
+        return 1
+
+    print(f"Markdown lint OK ({len(files)} files).")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

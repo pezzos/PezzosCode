@@ -17,8 +17,8 @@
 - Out of scope:
 
 ## Success Criteria
-- [ ] 
-- [ ] 
+- [ ]
+- [ ]
 
 ## Plan (Draft)
 - Approach:

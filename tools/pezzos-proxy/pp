@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+import hashlib
+import os
+import subprocess
+import sys
+
+
+DEFAULTS = {
+    "threshold_lines": 200,
+    "head_lines": 20,
+    "tail_lines": 20,
+    "always_offload": [],
+}
+
+
+def load_config(path: str) -> dict:
+    if not os.path.exists(path):
+        return dict(DEFAULTS)
+
+    config = dict(DEFAULTS)
+    current_list = None
+
+    with open(path, "r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            if line.startswith("- "):
+                if current_list is None:
+                    raise ValueError("List item found without a list key.")
+                config[current_list].append(line[2:].strip())
+                continue
+
+            current_list = None
+            if ":" not in line:
+                raise ValueError(f"Invalid config line: {raw_line.rstrip()}")
+
+            key, value = line.split(":", 1)
+            key = key.strip()
+            value = value.strip()
+
+            if value == "":
+                if key not in config or not isinstance(config[key], list):
+                    config[key] = []
+                current_list = key
+                continue
+
+            if key in ("threshold_lines", "head_lines", "tail_lines"):
+                config[key] = int(value)
+            elif key == "always_offload":
+                config[key] = [value]
+            else:
+                config[key] = value
+
+    return config
+
+
+def should_offload(cmdline: str, output_lines: int, config: dict) -> bool:
+    for prefix in config.get("always_offload", []):
+        if cmdline.startswith(prefix):
+            return True
+    return output_lines > int(config["threshold_lines"])
+
+
+def offload_output(output: str) -> str:
+    digest = hashlib.sha256(output.encode("utf-8")).hexdigest()
+    target_dir = os.path.join(".offload")
+    os.makedirs(target_dir, exist_ok=True)
+    path = os.path.join(target_dir, f"{digest}.txt")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(output)
+    return digest
+
+
+def print_head_tail(lines: list[str], head_lines: int, tail_lines: int) -> None:
+    head = lines[:head_lines]
+    tail = lines[-tail_lines:] if tail_lines > 0 else []
+
+    if head:
+        print("\n".join(head))
+    if tail_lines > 0 and len(lines) > head_lines:
+        print("...")
+        print("\n".join(tail))
+
+
+def main() -> int:
+    if len(sys.argv) < 2:
+        print("Usage: pp <command> [args...]", file=sys.stderr)
+        return 2
+
+    config_path = os.environ.get("PP_CONFIG", "pp.yml")
+    try:
+        config = load_config(config_path)
+    except ValueError as exc:
+        print(f"pp: invalid config: {exc}", file=sys.stderr)
+        return 2
+
+    cmd = sys.argv[1:]
+    cmdline = " ".join(cmd)
+
+    completed = subprocess.run(
+        cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
+    output = completed.stdout or ""
+    lines = output.splitlines()
+
+    if should_offload(cmdline, len(lines), config):
+        pointer_id = offload_output(output)
+        print(f"[pp] offloaded output id: {pointer_id}")
+        print_head_tail(lines, int(config["head_lines"]), int(config["tail_lines"]))
+    else:
+        print(output, end="" if output.endswith("\n") else "\n")
+
+    return completed.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

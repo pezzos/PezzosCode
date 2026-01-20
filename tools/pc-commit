@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+# Purpose: Run checks, enforce allowed paths, and guide standardized commits.
 set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/pc-commit [options]
+Usage: tools/pc-commit [options]
 
 Options:
   --allow <path>    Allow changed path (repeatable)

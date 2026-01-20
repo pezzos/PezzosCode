@@ -60,14 +60,14 @@ Clear "done" criteria ensure:
 - [ ] System map updated (if architecture changes)
 - [ ] README updated (if setup/usage changes)
 - [ ] Implementation log updated (what changed and why)
- - [ ] Relevant logs updated (decisions, bugs, validation)
+- [ ] Relevant logs updated (decisions, bugs, validation)
 
 ### Review Complete
 - [ ] Code reviewed by at least one other developer
 - [ ] All review comments addressed or discussed
 - [ ] Changes approved by reviewer
 - [ ] No unresolved discussions
- - [ ] Commit created with formatted message
+- [ ] Commit created with formatted message
 
 ### Deployment Complete
 - [ ] Merged to main branch
@@ -105,7 +105,7 @@ Clear "done" criteria ensure:
 - [ ] Test fails on old code, passes on new code
 - [ ] Regression tests pass
 - [ ] All tests passing in CI
- - [ ] Lint passing in CI (or locally if no CI)
+- [ ] Lint passing in CI (or locally if no CI)
 
 ### Documentation Complete
 - [ ] Bug log updated with:
@@ -113,12 +113,12 @@ Clear "done" criteria ensure:
   - How it was fixed
   - How to prevent similar bugs
 - [ ] Implementation log updated (if significant change)
- - [ ] Relevant logs updated (decisions, validation)
+- [ ] Relevant logs updated (decisions, validation)
 
 ### Review Complete
 - [ ] Code reviewed
 - [ ] Fix verified by reviewer
- - [ ] Commit created with formatted message
+- [ ] Commit created with formatted message
 
 ### Deployment Complete
 - [ ] Merged and deployed
@@ -145,13 +145,13 @@ Clear "done" criteria ensure:
 - [ ] Spelling and grammar are correct
 - [ ] Formatting is consistent
 - [ ] Code examples are properly formatted
- - [ ] Relevant logs updated (implementation, decisions)
+- [ ] Relevant logs updated (implementation, decisions)
 
 ### Review Complete
 - [ ] Reviewed by at least one other person
 - [ ] Technical accuracy verified
 - [ ] Clarity verified (would a new team member understand?)
- - [ ] Commit created with formatted message
+- [ ] Commit created with formatted message
 
 ### Accessibility Complete
 - [ ] Organized with clear headings
@@ -173,7 +173,7 @@ Clear "done" criteria ensure:
 - [ ] All existing tests still pass
 - [ ] No new tests needed (behavior unchanged)
 - [ ] Code coverage same or improved
- - [ ] Lint passes
+- [ ] Lint passes
 
 ### Documentation Complete
 - [ ] Implementation log updated with:
@@ -181,12 +181,12 @@ Clear "done" criteria ensure:
   - Why it was refactored
   - What improved
 - [ ] Code comments updated (if old comments now incorrect)
- - [ ] Relevant logs updated (decisions, validation if needed)
+- [ ] Relevant logs updated (decisions, validation if needed)
 
 ### Review Complete
 - [ ] Reviewed by another developer
 - [ ] Reviewer confirms code is clearer/better
- - [ ] Commit created with formatted message
+- [ ] Commit created with formatted message
 
 ### Deployment Complete
 - [ ] Deployed to production
@@ -206,7 +206,7 @@ Clear "done" criteria ensure:
 - [ ] Tests updated for new approach
 - [ ] All tests passing
 - [ ] Coverage maintained or improved
- - [ ] Lint passes
+- [ ] Lint passes
 
 ### Documentation Complete
 - [ ] Technical debt log updated (moved from "current" to "resolved")
@@ -217,7 +217,7 @@ Clear "done" criteria ensure:
 ### Review Complete
 - [ ] Reviewed by another developer
 - [ ] Reviewer confirms debt is resolved
- - [ ] Commit created with formatted message
+- [ ] Commit created with formatted message
 
 ### Team Informed
 - [ ] Team notified of changes

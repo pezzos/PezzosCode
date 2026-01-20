@@ -18,7 +18,7 @@
    - Modify, test locally
    - `git add -p` for a clean commit
 3. **Check and commit**
-   - `scripts/pc-commit` (checks status, runs `make check`, suggests message)
+   - `tools/pc-commit` (checks status, runs `make check`, suggests message)
 4. **Push**
    - `git push`
 
@@ -45,7 +45,7 @@ Installation: see `docs/04-process/gitmessage-install.md`.
 
 ## Commit Script
 
-`scripts/pc-commit`:
+`tools/pc-commit`:
 -  checks that the git status is clean except for expected files
 -  runs `make check`
 -  suggests a formatted commit message
@@ -53,8 +53,8 @@ Installation: see `docs/04-process/gitmessage-install.md`.
 
 Examples:
 ```bash
-scripts/pc-commit --allow docs/04-process/git-workflow.md
-scripts/pc-commit --allow docs/04-process --dry-run
+tools/pc-commit --allow docs/04-process/git-workflow.md
+tools/pc-commit --allow docs/04-process --dry-run
 ```
 
 ---

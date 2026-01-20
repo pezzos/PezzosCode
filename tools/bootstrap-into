@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Purpose: Copy repo docs and tooling into another repo for bootstrapping.
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -18,9 +19,9 @@ cp -R "$repo_root/docs" "$target_repo/"
 cp "$repo_root/AGENTS.md" "$target_repo/"
 cp "$repo_root/Makefile" "$target_repo/"
 
-if [[ -e "$repo_root/tools/pp" ]]; then
+if [[ -e "$repo_root/tools/offload-proxy" ]]; then
   mkdir -p "$target_repo/tools"
-  cp -R "$repo_root/tools/pp" "$target_repo/tools/pp"
+  cp -R "$repo_root/tools/offload-proxy" "$target_repo/tools/offload-proxy"
 else
-  echo "Warning: tools/pp not found in kit; skipping." >&2
+  echo "Warning: tools/offload-proxy not found in kit; skipping." >&2
 fi

@@ -1,0 +1,7 @@
+threshold_lines: 200
+head_lines: 20
+tail_lines: 20
+always_offload:
+  - git diff
+  - rg
+  - cat
