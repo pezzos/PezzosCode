@@ -63,11 +63,16 @@ append_marker() {
 prompt_action() {
   local dest="$1"
   local choice
+  local prompt_in="/dev/tty"
+
+  if [[ ! -r "$prompt_in" ]]; then
+    prompt_in="/dev/stdin"
+  fi
 
   while true; do
-    echo "File exists: $dest"
-    echo "Choose action: [o]verwrite, [m]erge (codex), [s]kip"
-    read -r -p "Selection: " choice
+    echo "File exists: $dest" >&2
+    echo "Choose action: [o]verwrite, [m]erge (codex), [s]kip" >&2
+    read -r -p "Selection: " choice < "$prompt_in"
     case "$choice" in
       o|O)
         echo "overwrite"
@@ -118,13 +123,13 @@ EOF
   fi
 
   if command -v rg >/dev/null 2>&1; then
-    if rg -q "^```" "$tmp_output"; then
+    if rg -q '^```' "$tmp_output"; then
       awk 'BEGIN{in=0} /^```/{if(in==0){in=1;next}else{exit}} {if(in) print}' "$tmp_output" > "$tmp_merged"
     else
       cp "$tmp_output" "$tmp_merged"
     fi
   else
-    if grep -q "^```" "$tmp_output"; then
+    if grep -q '^```' "$tmp_output"; then
       awk 'BEGIN{in=0} /^```/{if(in==0){in=1;next}else{exit}} {if(in) print}' "$tmp_output" > "$tmp_merged"
     else
       cp "$tmp_output" "$tmp_merged"
@@ -151,6 +156,11 @@ copy_file() {
   if [[ -f "$dest" ]]; then
     if has_marker "$dest"; then
       echo "Skipping (already bootstrapped): $dest"
+      return 0
+    fi
+
+    if cmp -s "$src" "$dest"; then
+      echo "Skipping (no changes): $dest"
       return 0
     fi
 
