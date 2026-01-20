@@ -55,7 +55,7 @@ git clone [repo-url]
 
 ### 2. Start with Context
 
-Fill out these three files first:
+Fill out these four files first:
 
 1. **`docs/00-context/vision.md`**
    - Why does your product exist?
@@ -67,7 +67,12 @@ Fill out these three files first:
    - How is it deployed?
    - What's the tech stack?
 
-3. **`docs/01-product/prd.md`**
+3. **`docs/00-context/users.md`**
+   - Who uses the product?
+   - What do they need most?
+   - What does success look like for them?
+
+4. **`docs/01-product/prd.md`**
    - What are you building next?
    - What are the requirements?
    - How will you measure success?

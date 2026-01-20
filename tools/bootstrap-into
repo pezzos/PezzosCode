@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Purpose: Copy repo docs and tooling into another repo for bootstrapping.
+# Purpose: Copy repo docs, skills, and tooling into another repo for bootstrapping.
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -15,13 +15,186 @@ if [[ ! -d "$target_repo" ]]; then
   exit 1
 fi
 
-cp -R "$repo_root/docs" "$target_repo/"
-cp "$repo_root/AGENTS.md" "$target_repo/"
-cp "$repo_root/Makefile" "$target_repo/"
+marker_for_file() {
+  local file="$1"
+  local base
+  base="$(basename "$file")"
 
-if [[ -e "$repo_root/tools/offload-proxy" ]]; then
-  mkdir -p "$target_repo/tools"
-  cp -R "$repo_root/tools/offload-proxy" "$target_repo/tools/offload-proxy"
-else
-  echo "Warning: tools/offload-proxy not found in kit; skipping." >&2
-fi
+  if [[ "$base" == "Makefile" ]]; then
+    echo "# PezzosCode bootstrap"
+    return
+  fi
+
+  case "${file##*.}" in
+    md)
+      echo "<!-- PezzosCode bootstrap -->"
+      ;;
+    sh|bash|zsh|yml|yaml|toml|txt)
+      echo "# PezzosCode bootstrap"
+      ;;
+    *)
+      echo "# PezzosCode bootstrap"
+      ;;
+  esac
+}
+
+has_marker() {
+  local file="$1"
+  local marker
+  marker="$(marker_for_file "$file")"
+
+  [[ -f "$file" ]] || return 1
+  [[ "$(tail -n 1 "$file" 2>/dev/null || true)" == "$marker" ]]
+}
+
+append_marker() {
+  local file="$1"
+  local marker
+  marker="$(marker_for_file "$file")"
+
+  if [[ -f "$file" ]]; then
+    if [[ "$(tail -n 1 "$file" 2>/dev/null || true)" == "$marker" ]]; then
+      return
+    fi
+    printf "\n%s\n" "$marker" >> "$file"
+  fi
+}
+
+prompt_action() {
+  local dest="$1"
+  local choice
+
+  while true; do
+    echo "File exists: $dest"
+    echo "Choose action: [o]verwrite, [m]erge (codex), [s]kip"
+    read -r -p "Selection: " choice
+    case "$choice" in
+      o|O)
+        echo "overwrite"
+        return
+        ;;
+      m|M)
+        echo "merge"
+        return
+        ;;
+      s|S|"")
+        echo "skip"
+        return
+        ;;
+      *)
+        echo "Invalid choice."
+        ;;
+    esac
+  done
+}
+
+codex_merge_file() {
+  local src="$1"
+  local dest="$2"
+  local tmp_output
+  local tmp_merged
+  local prompt
+
+  if ! command -v codex >/dev/null 2>&1; then
+    echo "Codex CLI not found. Skipping merge for $dest." >&2
+    return 1
+  fi
+
+  tmp_output="$(mktemp)"
+  tmp_merged="$(mktemp)"
+  prompt=$(
+    cat <<EOF
+Merge the source file into the destination file. Preserve destination edits unless the source has clearer, newer structure.
+Source file: $src
+Destination file: $dest
+Output ONLY the merged file content, no explanations, no code fences.
+EOF
+  )
+
+  if ! codex exec --skip-git-repo-check --output-last-message "$tmp_output" --full-auto --dangerously-bypass-approvals-and-sandbox "$prompt"; then
+    echo "Codex merge failed; skipping $dest." >&2
+    rm -f "$tmp_output" "$tmp_merged"
+    return 1
+  fi
+
+  if command -v rg >/dev/null 2>&1; then
+    if rg -q "^```" "$tmp_output"; then
+      awk 'BEGIN{in=0} /^```/{if(in==0){in=1;next}else{exit}} {if(in) print}' "$tmp_output" > "$tmp_merged"
+    else
+      cp "$tmp_output" "$tmp_merged"
+    fi
+  else
+    if grep -q "^```" "$tmp_output"; then
+      awk 'BEGIN{in=0} /^```/{if(in==0){in=1;next}else{exit}} {if(in) print}' "$tmp_output" > "$tmp_merged"
+    else
+      cp "$tmp_output" "$tmp_merged"
+    fi
+  fi
+
+  if [[ ! -s "$tmp_merged" ]]; then
+    echo "Codex merge produced empty output; skipping $dest." >&2
+    rm -f "$tmp_output" "$tmp_merged"
+    return 1
+  fi
+
+  mkdir -p "$(dirname "$dest")"
+  cp "$tmp_merged" "$dest"
+  rm -f "$tmp_output" "$tmp_merged"
+  return 0
+}
+
+copy_file() {
+  local src="$1"
+  local dest="$2"
+  local action
+
+  if [[ -f "$dest" ]]; then
+    if has_marker "$dest"; then
+      echo "Skipping (already bootstrapped): $dest"
+      return 0
+    fi
+
+    action="$(prompt_action "$dest")"
+    case "$action" in
+      overwrite)
+        mkdir -p "$(dirname "$dest")"
+        cp "$src" "$dest"
+        append_marker "$dest"
+        ;;
+      merge)
+        if codex_merge_file "$src" "$dest"; then
+          append_marker "$dest"
+        else
+          echo "Skipped (merge failed): $dest"
+        fi
+        ;;
+      skip)
+        echo "Skipped: $dest"
+        ;;
+    esac
+  else
+    mkdir -p "$(dirname "$dest")"
+    cp "$src" "$dest"
+    append_marker "$dest"
+  fi
+}
+
+copy_dir_files() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  local src_file
+  local rel
+
+  [[ -d "$src_dir" ]] || return 0
+
+  while IFS= read -r -d '' src_file; do
+    rel="${src_file#$src_dir/}"
+    copy_file "$src_file" "$dest_dir/$rel"
+  done < <(find "$src_dir" -type f -print0)
+}
+
+copy_dir_files "$repo_root/docs" "$target_repo/docs"
+copy_dir_files "$repo_root/skills" "$target_repo/skills"
+copy_dir_files "$repo_root/tools" "$target_repo/tools"
+copy_file "$repo_root/AGENTS.md" "$target_repo/AGENTS.md"
+copy_file "$repo_root/Makefile" "$target_repo/Makefile"

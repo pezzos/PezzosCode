@@ -1,27 +1,17 @@
 [![CI](https://github.com/pezzos/PezzosCode/actions/workflows/ci.yml/badge.svg)](https://github.com/pezzos/PezzosCode/actions/workflows/ci.yml)
 
-# Docs That Remember 🧠
+# PezzosCode bootstrap
 
-> A documentation system that captures what you built, why you built it, and what you learned. Designed for human-LLM collaboration.
+> A simple, reusable bootstrap for starting new projects or upgrading existing ones with a docs system, skills, and lightweight tools.
 
-## The Problem
+## Purpose
 
-Most development teams have one of two problems:
+This repo is a template kit for human + LLM development:
 
-1. **No documentation** - Everything lives in people's heads. LLMs have no context. New team members are lost.
-2. **Stale documentation** - Tons of outdated docs scattered across tools that nobody maintains.
-
-## The Solution
-
-**Docs That Remember** is different. It's a documentation system that captures:
-
-- **WHY** things exist (vision, decisions)
-- **WHAT** you're building (product specs, features)
-- **HOW** you built it (implementation, design)
-- **WHAT HAPPENED** when you shipped (validation, bugs)
-- **WHAT YOU LEARNED** (insights that compound over time)
-
-It's the **MEMORY** that most teams miss.
+- A structured docs system in `docs/` for vision, requirements, features, and logs.
+- A small set of tools in `tools/` for linting and workflow helpers.
+- Reusable skills in `skills/` for repeatable tasks.
+- A ready-to-copy `AGENTS.md` for AI usage rules.
 
 ## Structure
 
@@ -77,32 +67,53 @@ Don't document everything upfront. Document before (specs), during (decisions), 
 
 ## Quick Start
 
-### 1. Bootstrap the kit into your repo
+### 1. Bootstrap a new project from this repo
 
-Use the helper script from this repo:
-
-```bash
-./tools/bootstrap-into /path/to/your/project
-```
-
-Or copy the core files manually:
+Option A: clone and start fresh.
 
 ```bash
-cp -R docs /path/to/your/project/
-cp AGENTS.md /path/to/your/project/
-cp Makefile /path/to/your/project/
-cp -R tools/offload-proxy /path/to/your/project/tools/offload-proxy
+git clone https://github.com/pezzos/PezzosCode my-new-project
+cd my-new-project
+rm -rf .git
+git init
 ```
 
-### 2. Fill Out Your Context (30 minutes)
+Then customize:
+- Update `docs/00-context/vision.md`
+- Update `docs/00-context/system-map.md`
+- Update `docs/00-context/users.md`
+- Update `docs/01-product/prd.md`
 
-Start with these three files:
+Option B: use this repo as a GitHub template and clone your new repo.
+
+### 2. Improve an existing project by adding the kit
+
+Use the helper script to copy the docs, skills, tools, and workflow files. The
+script prompts per existing file to overwrite, merge with Codex, or skip. It
+also appends a small marker comment to files it updates; if the marker is
+present, future runs skip that file even if it differs:
+
+```bash
+./tools/bootstrap-into /path/to/your/existing-project
+```
+
+This will bring in:
+- `docs/`
+- `skills/`
+- `tools/`
+- `AGENTS.md`
+- `Makefile`
+
+### 3. Fill Out Your Context (30 minutes)
+
+Start with these four files:
 
 1. **`docs/00-context/vision.md`** - Why your product exists
 2. **`docs/00-context/system-map.md`** - What's running right now
-3. **`docs/01-product/prd.md`** - What you're building
+3. **`docs/00-context/users.md`** - Who the product is for
+4. **`docs/01-product/prd.md`** - What you're building
 
-### 3. Build Your First Feature
+### 4. Build Your First Feature
 
 Create a feature folder:
 
@@ -118,7 +129,7 @@ Fill out:
 - `dev-tasks.md` - Task breakdown
 - `test-plan.md` - How you'll validate it
 
-### 4. Ship and Learn
+### 5. Ship and Learn
 
 After shipping, update:
 
@@ -214,12 +225,6 @@ Don't overthink it. Start small:
 
 **Day 5+:** Track outcomes and extract insights - This is where magic happens
 
-## What People Are Saying
-
-> "Finally, documentation that doesn't feel like busywork. The logs are gold." - [Your testimonial here]
-
-> "My AI assistant is 10x more helpful with this context." - [Your testimonial here]
-
 ## Contributing
 
 This is a template meant to be customized. Fork it, make it yours, share improvements.
@@ -232,8 +237,6 @@ MIT License - Use freely, modify as needed, share improvements.
 
 ---
 
-**Stop forgetting why you built what you built.**
+Start using PezzosCode bootstrap today.
 
-Start using Docs That Remember today.
-
-[⭐ Star this repo](https://github.com/VaclavRut/docs-that-remember) | [📖 Full Documentation](docs/README.md) | [🐛 Issues](https://github.com/VaclavRut/docs-that-remember/issues)
+[⭐ Star this repo](https://github.com/pezzos/PezzosCode) | [📖 Full Documentation](docs/README.md) | [🐛 Issues](https://github.com/pezzos/PezzosCode/issues)

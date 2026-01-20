@@ -16,7 +16,10 @@ tools/pc-commit [options]
 
 ## `tools/bootstrap-into`
 
-Purpose: Copy the documentation system and core tooling into a target repo.
+Purpose: Copy the docs system, skills, and tooling into a target repo. Prompts
+per file to overwrite, merge with Codex, or skip. Adds a marker comment so
+future runs skip already-bootstrapped files, even if they differ.
+The merge option requires the `codex` CLI.
 
 Usage:
 
