@@ -92,10 +92,12 @@ Option B: use this repo as a GitHub template and clone your new repo.
 Use the helper script to copy the docs, skills, tools, and workflow files. The
 script prompts per existing file to overwrite, merge with Codex, or skip. It
 also appends a small marker comment to files it updates; if the marker is
-present, future runs skip that file even if it differs:
+present, future runs skip that file even if it differs unless you pass
+`--reapply`:
 
 ```bash
 ./tools/bootstrap-into /path/to/your/existing-project
+./tools/bootstrap-into --reapply /path/to/your/existing-project
 ```
 
 This will bring in:

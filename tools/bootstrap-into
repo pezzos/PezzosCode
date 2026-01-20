@@ -2,8 +2,43 @@
 # Purpose: Copy repo docs, skills, and tooling into another repo for bootstrapping.
 set -euo pipefail
 
+usage() {
+  cat <<'EOF' >&2
+Usage: bootstrap-into [--reapply] <target-repo-path>
+
+Options:
+  --reapply   For files that differ, prompt even if a bootstrap marker exists.
+EOF
+}
+
+reapply=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --reapply)
+      reapply=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
 if [[ $# -ne 1 ]]; then
-  echo "Usage: $(basename "$0") <target-repo-path>" >&2
+  usage
   exit 1
 fi
 
@@ -58,6 +93,45 @@ append_marker() {
     fi
     printf "\n%s\n" "$marker" >> "$file"
   fi
+}
+
+normalize_for_compare() {
+  local file="$1"
+  local out="$2"
+  local marker
+
+  marker="$(marker_for_file "$file")"
+
+  awk -v marker="$marker" '
+  { lines[NR] = $0 }
+  END {
+    n = NR
+    while (n > 0 && lines[n] ~ /^[[:space:]]*$/) { n-- }
+    if (n > 0 && lines[n] == marker) { n-- }
+    while (n > 0 && lines[n] ~ /^[[:space:]]*$/) { n-- }
+    for (i = 1; i <= n; i++) { print lines[i] }
+  }' "$file" > "$out"
+}
+
+files_equal_ignoring_marker() {
+  local src="$1"
+  local dest="$2"
+  local tmp_src
+  local tmp_dest
+
+  tmp_src="$(mktemp)"
+  tmp_dest="$(mktemp)"
+
+  normalize_for_compare "$src" "$tmp_src"
+  normalize_for_compare "$dest" "$tmp_dest"
+
+  if cmp -s "$tmp_src" "$tmp_dest"; then
+    rm -f "$tmp_src" "$tmp_dest"
+    return 0
+  fi
+
+  rm -f "$tmp_src" "$tmp_dest"
+  return 1
 }
 
 prompt_action() {
@@ -154,14 +228,18 @@ copy_file() {
   local action
 
   if [[ -f "$dest" ]]; then
-    if has_marker "$dest"; then
+    if ! "$reapply" && has_marker "$dest"; then
       echo "Skipping (already bootstrapped): $dest"
       return 0
     fi
 
-    if cmp -s "$src" "$dest"; then
+    if files_equal_ignoring_marker "$src" "$dest"; then
       echo "Skipping (no changes): $dest"
       return 0
+    fi
+
+    if "$reapply" && has_marker "$dest"; then
+      echo "Reapply enabled; existing marker ignored for: $dest"
     fi
 
     action="$(prompt_action "$dest")"

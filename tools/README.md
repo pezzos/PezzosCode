@@ -27,6 +27,12 @@ Usage:
 tools/bootstrap-into <target-repo-path>
 ```
 
+To reapply template updates to already-bootstrapped files:
+
+```bash
+tools/bootstrap-into --reapply <target-repo-path>
+```
+
 ## `tools/markdown-lint`
 
 Purpose: Lint Markdown files for line endings, trailing whitespace, and missing
