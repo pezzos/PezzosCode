@@ -21,6 +21,16 @@ Provide guardrails that keep the PRD aligned with an intentional, manual workflo
 - UI (web or desktop).
 - Windows support.
 
+## Anti-Patterns (Failure Modes)
+- Turning ConfVault into a background agent, daemon, or scheduler.
+- Adding automatic discovery of files to track.
+- Adding “smart” inference/heuristics to decide what to collect.
+- Introducing cloud sync, remote state, or SaaS concepts.
+- Expanding into general backup or snapshot tooling.
+- Reducing safety gates to reduce friction (fail-open behavior).
+- Adding UI layers beyond basic CLI output.
+- Adding Windows support.
+
 ## Operating Model
 - User intentionally runs the CLI to collect specific config files.
 - The tool performs secret detection and sanitization before any commit attempt.
@@ -28,6 +38,12 @@ Provide guardrails that keep the PRD aligned with an intentional, manual workflo
 - The user is expected to review sanitized output and metadata.
 - Git history is the source of truth; the tool does not manage Git workflows.
 - Restore is an explicit, user-triggered action based on metadata.
+
+## Product Stance
+- Safety > convenience.
+- False positives are acceptable.
+- Manual review is a feature, not a bug.
+- Friction is allowed when it prevents leaks.
 
 ## MVP Definition of Done
 - [ ] Manual CLI flow can collect selected config files on macOS and Linux.
@@ -37,10 +53,16 @@ Provide guardrails that keep the PRD aligned with an intentional, manual workflo
 - [ ] No secrets can be pushed accidentally using the default workflow.
 - [ ] MVP is considered complete even if no further features are added.
 
+## Explicit Stop Condition
+- Once all P0 requirements and MVP DoD items are met, implementation stops.
+- No additional refactors or optimizations are required to call MVP done.
+- Further work requires a new PRD or version bump.
+
 ## If you are unsure
 - Prefer failing safely over proceeding with partial information.
 - Ask for clarification rather than guessing.
 - Do not expand scope beyond the stated boundaries.
 - Do not invent features, automation paths, or future use cases.
+- Do not optimize away safety or add convenience features not explicitly required.
 
 <!-- PezzosCode bootstrap -->
