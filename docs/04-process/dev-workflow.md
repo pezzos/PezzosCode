@@ -24,6 +24,23 @@ Idea/Task → Plan → Implement → Test → Review → Deploy → Validate →
      └────────────────────── Feedback Loop ─────────────────────────┘
 ```
 
+## Documentation Workflow (Template Bootstrapping)
+
+Use this sequence when starting a new project with this template:
+
+1. **Context first (`docs/00-context/`)**
+   - Fill `vision.md`, `users.md`, `system-map.md`, and `assumptions.md`.
+   - Ensure user definitions and boundaries are explicit.
+2. **Product definition (`docs/01-product/prd.md`)**
+   - Populate success metrics, non-goals, scope boundaries, and the prioritized feature list.
+   - Tie each feature to user outcomes and context.
+3. **Feature specs (`docs/02-features/`)**
+   - For each P0/P1 feature, create a folder from the template.
+   - Fully fill `feature-spec.md`, `tech-design.md`, `dev-tasks.md`, and `test-plan.md`.
+4. **Validate completeness**
+   - Confirm no TODOs remain in the generated feature docs.
+   - Cross-check PRD scope against feature folders.
+
 ## Ticket Scope (Hard Rule)
 
 - **1 ticket = 1 feature folder** (new feature spec, design, tasks, tests in `docs/02-features/<feature-name>/`)

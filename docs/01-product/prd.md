@@ -40,6 +40,11 @@
 | [Metric 1] | [baseline] | [goal] | [how we measure] |
 | [Metric 2] | [baseline] | [goal] | [how we measure] |
 
+### Success Metrics (Template)
+<!-- List the specific, trackable outcomes that define success -->
+- **[Metric Name]:** baseline [value], target [value], timeframe [e.g., 30 days], data source [where it comes from]
+- **[Metric Name]:** baseline [value], target [value], timeframe [e.g., 90 days], data source [where it comes from]
+
 ## Users & Use Cases
 
 ### Target Users
@@ -85,6 +90,14 @@
 2. System [response]
 
 **Postconditions:** [what is true after]
+
+## Prioritized Feature List (Template)
+<!-- Ordered list of features tied to the PRD scope -->
+| Priority | Feature | Outcome | Notes |
+|----------|---------|---------|-------|
+| P0 | [Feature name] | [user outcome] | [dependencies/risks] |
+| P1 | [Feature name] | [user outcome] | [dependencies/risks] |
+| P2 | [Feature name] | [user outcome] | [dependencies/risks] |
 
 ## Requirements
 
@@ -169,6 +182,18 @@
 | [Error condition] | [what user sees] | [what system does] |
 
 ## Scope
+
+### Scope Boundaries (Template)
+<!-- Define what this PRD covers and what it explicitly avoids -->
+- **System boundaries:** [what systems/services are included]
+- **User boundaries:** [which user groups are included/excluded]
+- **Data boundaries:** [which data is in/out]
+- **Platform boundaries:** [web/mobile/desktop, etc.]
+
+### Non-Goals (Template)
+<!-- Explicitly state what this PRD is not trying to achieve -->
+- [Non-goal 1]
+- [Non-goal 2]
 
 ### In Scope
 - [Feature/capability 1]
