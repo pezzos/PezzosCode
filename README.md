@@ -10,7 +10,7 @@ This repo is a template kit for human + LLM development:
 
 - A structured docs system in `docs/` for vision, requirements, features, and logs.
 - A small set of tools in `tools/` for linting and workflow helpers.
-- Reusable skills in `skills/` for repeatable tasks.
+- Reusable skills in `.codex/skills/` for repeatable tasks.
 - A ready-to-copy `AGENTS.md` for AI usage rules.
 
 ## Structure
@@ -79,6 +79,7 @@ git init
 ```
 
 Then customize:
+
 - Update `docs/00-context/vision.md`
 - Update `docs/00-context/system-map.md`
 - Update `docs/00-context/users.md`
@@ -98,8 +99,9 @@ present, future runs skip that file even if it differs:
 ```
 
 This will bring in:
+
 - `docs/`
-- `skills/`
+- `.codex/skills/`
 - `tools/`
 - `AGENTS.md`
 - `Makefile`

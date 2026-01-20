@@ -1,23 +1,30 @@
-Goal
+---
+name: update-docs
+description: Update documentation logs so decisions and changes remain traceable. Use when a user asks to update implementation, decision, bug, or validation logs after changes.
+---
+
+# Update Docs That Remember
+
+## Overview
 Update logs and docs so decisions and changes remain traceable.
 
-Inputs
+## Inputs
 - What changed and why.
 - Related feature or bug references.
 
-Steps
+## Steps
 1) Update `docs/03-logs/implementation-log.md` with a concise entry.
 2) Update `docs/03-logs/decision-log.md` if a decision was made.
 3) Update `docs/03-logs/bug-log.md` if a bug was fixed.
 4) Update `docs/03-logs/validation-log.md` if validation was performed.
-5) Ensure links or references are accurate.
+5) Ensure references are accurate and concise.
 
-Commands
+## Commands
 - None
 
-Output
+## Output
 - Logs reflect the change and rationale.
 
-DoD
+## DoD
 - Logs are updated where applicable.
 - Entries are concise and accurate.

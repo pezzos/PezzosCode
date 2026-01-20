@@ -194,7 +194,7 @@ copy_dir_files() {
 }
 
 copy_dir_files "$repo_root/docs" "$target_repo/docs"
-copy_dir_files "$repo_root/skills" "$target_repo/skills"
+copy_dir_files "$repo_root/.codex/skills" "$target_repo/.codex/skills"
 copy_dir_files "$repo_root/tools" "$target_repo/tools"
 copy_file "$repo_root/AGENTS.md" "$target_repo/AGENTS.md"
 copy_file "$repo_root/Makefile" "$target_repo/Makefile"
