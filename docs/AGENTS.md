@@ -7,6 +7,7 @@ Start here:
 
 Find the right document by topic:
 - Product vision, boundaries, and system state: `docs/00-context/`
+- Context boundaries and operating model: `docs/00-context/context-boundaries-operating-model.md`
 - Requirements and success criteria: `docs/01-product/`
 - Feature-specific work: `docs/02-features/`
 - Decisions, bugs, validation, and learnings: `docs/03-logs/`

@@ -6,5 +6,6 @@ Purpose of this folder:
 Key files:
 - `docs/00-context/vision.md`: product purpose, scope, and anchor principles.
 - `docs/00-context/system-map.md`: current architecture and deployment map.
+- `docs/00-context/context-boundaries-operating-model.md`: scope boundaries, operating model, and MVP stop conditions.
 - `docs/00-context/assumptions.md`: assumptions, risks, unknowns, validation.
 - `docs/00-context/users.md`: users, personas, and use cases.

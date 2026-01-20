@@ -55,7 +55,7 @@ git clone [repo-url]
 
 ### 2. Start with Context
 
-Fill out these four files first:
+Fill out these files first:
 
 1. **`docs/00-context/vision.md`**
    - Why does your product exist?
@@ -72,7 +72,12 @@ Fill out these four files first:
    - What do they need most?
    - What does success look like for them?
 
-4. **`docs/01-product/prd.md`**
+4. **`docs/00-context/context-boundaries-operating-model.md`**
+   - What is explicitly in scope and out of scope?
+   - How do users actually operate the tool?
+   - What are the MVP stop conditions?
+
+5. **`docs/01-product/prd.md`**
    - What are you building next?
    - What are the requirements?
    - How will you measure success?
