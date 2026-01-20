@@ -64,6 +64,15 @@
 
 ### User Experience Requirements
 
+### Product Surfaces
+<!-- Select all that apply and delete the rest -->
+- [ ] CLI
+- [ ] TUI
+- [ ] API
+- [ ] Web UI
+- [ ] Desktop UI
+- [ ] Mobile UI
+
 #### User Flow
 ```
 [Entry Point] → [Action 1] → [Action 2] → [Completion]
@@ -80,6 +89,30 @@
 - **Interactions:** [how user interacts]
 - **Feedback:** [what user sees/hears]
 - **Accessibility:** [a11y requirements]
+
+<!-- Optional: CLI expectations (uncomment if CLI is in scope)
+#### CLI Expectations
+- **Command(s):** [command names]
+- **Flags/Options:** [flags and defaults]
+- **Output format:** [text/json/etc]
+- **Exit codes:** [success/error behavior]
+- **Error messages:** [how errors are shown]
+-->
+
+<!-- Optional: TUI expectations (uncomment if TUI is in scope)
+#### TUI Expectations
+- **Navigation:** [keys/shortcuts]
+- **Views:** [screens/panels]
+- **States:** [loading/error/success]
+-->
+
+<!-- Optional: API expectations (uncomment if API is in scope)
+#### API Expectations
+- **Endpoints:** [list of endpoints]
+- **Auth:** [auth requirements]
+- **Rate limits:** [limits]
+- **Error shapes:** [standard error format]
+-->
 
 #### Error Handling
 | Scenario | User Sees | System Does | Recovery Path |

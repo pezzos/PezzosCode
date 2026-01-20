@@ -15,6 +15,7 @@
 **Last Updated:** [YYYY-MM-DD]
 
 ## Task Breakdown
+<!-- Use only the sections that apply to this feature. Uncomment relevant blocks and delete the rest. -->
 
 ### Setup & Infrastructure
 <!-- Preparation work before feature development -->
@@ -34,6 +35,39 @@
   - **Files:** `migrations/[timestamp]_[migration_name].sql`
   - **Estimate:** [time estimate]
 
+<!-- Optional: CLI Development (uncomment if CLI is in scope)
+### CLI Development
+
+- [ ] **TASK-101: Define CLI command(s)**
+  - Specify command names, flags, and defaults
+  - Define stdout/stderr formats
+  - **Acceptance:** Commands and flags defined
+  - **Estimate:** [time estimate]
+
+- [ ] **TASK-102: Implement CLI workflow**
+  - Implement core command behavior
+  - Handle error paths and exit codes
+  - **Acceptance:** Core workflow works end-to-end
+  - **Estimate:** [time estimate]
+-->
+
+<!-- Optional: TUI Development (uncomment if TUI is in scope)
+### TUI Development
+
+- [ ] **TASK-111: Define TUI views**
+  - List screens/panels and navigation
+  - Define key bindings
+  - **Acceptance:** Views and navigation defined
+  - **Estimate:** [time estimate]
+
+- [ ] **TASK-112: Implement TUI views**
+  - Build main views and interactions
+  - Handle loading/error states
+  - **Acceptance:** Views render and navigate correctly
+  - **Estimate:** [time estimate]
+-->
+
+<!-- Optional: Backend Development (uncomment if backend is in scope)
 ### Backend Development
 
 - [ ] **TASK-101: Create data model**
@@ -80,7 +114,9 @@
   - **Tests:** `src/routes/[resource].test.ts`
   - **Dependencies:** TASK-102
   - **Estimate:** [time estimate]
+-->
 
+<!-- Optional: Frontend Development (uncomment if UI is in scope)
 ### Frontend Development
 
 - [ ] **TASK-201: Create [ComponentName] component**
@@ -137,7 +173,9 @@
   - **Files:** `src/components/[ComponentName]/styles.css`
   - **Dependencies:** TASK-201
   - **Estimate:** [time estimate]
+-->
 
+<!-- Optional: Integration & Polish (uncomment if UI or multi-component is in scope)
 ### Integration & Polish
 
 - [ ] **TASK-301: Integrate [ComponentName] into [ParentComponent]**
@@ -176,6 +214,7 @@
   - **Acceptance:** Events fire correctly, data captured
   - **Files:** `src/analytics/[feature-name].ts`
   - **Estimate:** [time estimate]
+-->
 
 ### Testing
 
@@ -244,6 +283,7 @@
   - **Dependencies:** All development tasks
   - **Estimate:** [time estimate]
 
+<!-- Optional: Deployment (uncomment if deployable service/app is in scope)
 ### Deployment
 
 - [ ] **TASK-601: Create feature flag**
@@ -272,6 +312,7 @@
   - **Acceptance:** Feature live in production, no critical errors
   - **Dependencies:** TASK-602, all testing complete
   - **Estimate:** [time estimate]
+-->
 
 ## Task Summary
 

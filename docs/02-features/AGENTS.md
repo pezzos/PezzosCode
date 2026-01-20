@@ -10,3 +10,8 @@ Structure:
   - `tech-design.md`
   - `dev-tasks.md`
   - `test-plan.md`
+
+Selection rule for skills:
+- Read `docs/01-product/prd.md` and relevant context to determine product surfaces (CLI/TUI/API/UI).
+- Only uncomment and fill template sections that match those surfaces; keep others commented out.
+- If a new surface is introduced later, uncomment and complete only the newly relevant blocks.

@@ -14,6 +14,15 @@
 
 **Last Updated:** [YYYY-MM-DD]
 
+### Product Surfaces
+<!-- Select all that apply and delete the rest -->
+- [ ] CLI
+- [ ] TUI
+- [ ] API
+- [ ] Web UI
+- [ ] Desktop UI
+- [ ] Mobile UI
+
 ### Test Objectives
 - Verify all functional requirements are met
 - Ensure system handles edge cases gracefully
@@ -60,6 +69,14 @@
 - **Coverage Target:** Full feature walkthrough
 - **Tools:** Manual testing in browsers/devices
 - **Responsibility:** QA team
+
+<!-- Optional: CLI/TUI tests (uncomment if CLI/TUI is in scope)
+#### CLI/TUI Tests
+- **Purpose:** Validate command behavior, exit codes, and terminal UX
+- **Coverage Target:** All commands and flags
+- **Tools:** Shell scripts, golden files, snapshot testing
+- **Responsibility:** Developers
+-->
 
 ## Test Cases
 
@@ -409,6 +426,7 @@
 
 ### Compatibility Tests
 
+<!-- Optional: Browser/UI compatibility (uncomment if UI is in scope) -->
 #### TC-COMPAT001: [Browser Compatibility]
 **Objective:** Verify cross-browser functionality
 
@@ -449,6 +467,8 @@
 - ✅ Performance acceptable on mobile
 
 **Priority:** P0
+
+<!-- Optional: Browser/UI compatibility block ends here -->
 
 ### Regression Tests
 

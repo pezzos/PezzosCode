@@ -17,6 +17,15 @@
 
 [High-level technical description of how this will be built]
 
+### Product Surfaces
+<!-- Select all that apply and delete the rest -->
+- [ ] CLI
+- [ ] TUI
+- [ ] API
+- [ ] Web UI
+- [ ] Desktop UI
+- [ ] Mobile UI
+
 ## Technical Requirements
 
 ### From Feature Spec
@@ -44,6 +53,22 @@
 
 ### Component Design
 
+<!-- Optional: CLI design (uncomment if CLI is in scope)
+#### CLI Commands
+- **Command:** `[cmd]`
+  - **Inputs:** [flags/args]
+  - **Outputs:** [stdout/stderr format]
+  - **Exit codes:** [0/1/etc]
+-->
+
+<!-- Optional: TUI design (uncomment if TUI is in scope)
+#### TUI Views
+- **View:** [name]
+  - **Purpose:** [what it does]
+  - **Navigation:** [keys/flows]
+-->
+
+<!-- Optional: Frontend design (uncomment if UI is in scope)
 #### Frontend Components
 ```
 ┌─────────────────────────────────────┐
@@ -65,7 +90,9 @@
 - **`[ExistingComponent]`**
   - **Changes:** [what needs to change]
   - **Impact:** [what might break]
+-->
 
+<!-- Optional: Backend services (uncomment if backend is in scope)
 #### Backend Services
 
 **New Services/Functions:**
@@ -79,6 +106,7 @@
 - **`[ExistingService]`**
   - **Changes:** [what needs to change]
   - **Backward compatibility:** [yes/no and why]
+-->
 
 ### Data Model
 
@@ -116,6 +144,7 @@ interface [ModelName] {
 
 ### API Design
 
+<!-- Optional: API design (uncomment if API is in scope)
 #### New Endpoints
 
 **`POST /api/[resource]`**
@@ -158,6 +187,7 @@ interface [ModelName] {
   - **Changes:** [what's different]
   - **Backward compatibility:** [breaking/non-breaking]
   - **Migration plan:** [if breaking]
+-->
 
 ### Integration Points
 
