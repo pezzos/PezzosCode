@@ -1,0 +1,26 @@
+# Codex per-project overrides mirror ~/.codex/config.toml.
+# Add MCP servers under [mcp_servers.<name>] to extend Codex.
+#
+# Example:
+# [mcp_servers.playwright]
+# command = "/opt/homebrew/bin/npx"
+# args = ["-y", "@playwright/mcp@latest"]
+# optional = true
+# autostart = false
+# startup_timeout_ms = 30_000
+# request_timeout_ms = 30_000
+# 
+# [mcp_servers.notionMCP]
+# command = "/opt/homebrew/bin/npx"
+# args = ["-y", "mcp-remote", "https://mcp.notion.com/mcp"]
+# 
+# [notify]
+# # Each entry can be:
+# #   - A single string command (split with shell-like rules)
+# #   - A list of arguments (executed without a shell)
+# #   - An inline table with a `cmd` field (string of args)
+# commands = [
+#   "npm run test",
+#   ["npm", "run", "lint"],
+#   { cmd = "pytest -q" },
+# ]
