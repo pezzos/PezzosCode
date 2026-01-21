@@ -173,6 +173,9 @@ codex_merge_file() {
   local tmp_output
   local tmp_merged
   local prompt
+  local git_log
+  local git_blame
+  local git_context=""
 
   if ! command -v codex >/dev/null 2>&1; then
     echo "Codex CLI not found. Skipping merge for $dest." >&2
@@ -181,16 +184,37 @@ codex_merge_file() {
 
   tmp_output="$(mktemp)"
   tmp_merged="$(mktemp)"
+
+  if git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git_log="$(git -C "$repo_root" log -n 5 --pretty=format:'%h %ad %s' --date=short -- "$src" 2>/dev/null || true)"
+    git_blame="$(git -C "$repo_root" blame -n -- "$src" 2>/dev/null | head -n 120 || true)"
+    if [[ -n "$git_log" || -n "$git_blame" ]]; then
+      git_context=$(
+        cat <<EOF
+
+Template file history (for context only):
+Git log (last 5):
+${git_log:-[no log available]}
+
+Git blame (first 120 lines):
+${git_blame:-[no blame available]}
+EOF
+      )
+    fi
+  fi
+
   prompt=$(
     cat <<EOF
 Merge the source file into the destination file. Preserve destination edits unless the source has clearer, newer structure.
 Source file: $src
 Destination file: $dest
+The destination file is an active project document, not a template. Keep its content and only add missing or improved sections from the source template that do not exist yet.
 Output ONLY the merged file content, no explanations, no code fences.
+$git_context
 EOF
   )
 
-  if ! codex exec --skip-git-repo-check --output-last-message "$tmp_output" --full-auto --dangerously-bypass-approvals-and-sandbox "$prompt"; then
+  if ! codex exec --skip-git-repo-check --output-last-message "$tmp_output" --dangerously-bypass-approvals-and-sandbox "$prompt" >/dev/null 2>/dev/null; then
     echo "Codex merge failed; skipping $dest." >&2
     rm -f "$tmp_output" "$tmp_merged"
     return 1
