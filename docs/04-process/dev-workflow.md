@@ -24,6 +24,8 @@ Idea/Task → Plan → Implement → Test → Review → Deploy → Validate →
      └────────────────────── Feedback Loop ─────────────────────────┘
 ```
 
+For ticket implementation, follow the canonical protocol in `docs/04-process/ticket-execution-protocol.md`.
+
 ## Documentation Workflow (Template Bootstrapping)
 
 Use this sequence when starting a new project with this template:

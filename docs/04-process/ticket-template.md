@@ -30,6 +30,10 @@
 - Risks/assumptions:
 - Tests to run:
 
+## Risk Classification
+- Risk level: [LOW|HIGH]
+- Triggers (if HIGH):
+
 ## Change Budget
 - Max files:
 - Max new modules:

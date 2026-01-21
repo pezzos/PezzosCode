@@ -1,4 +1,4 @@
-.PHONY: fmt lint test check docs-check skills-check
+.PHONY: fmt lint test check docs-check skills-check ticket-check ci
 
 fmt:
 	@echo "TODO: define formatting command (language/tooling TBD)"
@@ -9,6 +9,29 @@ lint:
 test:
 	@$(MAKE) skills-check
 	@$(MAKE) docs-check
+	@$(MAKE) ticket-check
+
+ticket-check:
+	@bash -euo pipefail -c '\
+		root="docs/02-features"; \
+		found=0; \
+		while IFS= read -r -d "" file; do \
+			found=1; \
+			if ! rg -q "^## Risk Classification" "$$file"; then \
+				echo "ticket-check: missing Risk Classification in $$file"; exit 1; \
+			fi; \
+			if ! rg -q "^- Risk level:" "$$file"; then \
+				echo "ticket-check: missing Risk level in $$file"; exit 1; \
+			fi; \
+			if ! rg -q "^## Docs Updated" "$$file"; then \
+				echo "ticket-check: missing Docs Updated section in $$file"; exit 1; \
+			fi; \
+		done < <(find "$$root" -type f -name "ticket-TASK-*.md" -print0); \
+		if [[ "$$found" -eq 0 ]]; then \
+			echo "ticket-check: no tickets found (ok)"; \
+		else \
+			echo "ticket-check: ok"; \
+		fi'
 
 skills-check:
 	@bash -euo pipefail -c '\
@@ -63,5 +86,8 @@ skills-check:
 docs-check:
 	@echo "docs-check covered by markdown lint"
 
-check: fmt lint test docs-check
+check: fmt lint test
 	@echo "TODO: replace with real checks once tooling is chosen"
+
+ci: check
+	@echo "ci: ok"

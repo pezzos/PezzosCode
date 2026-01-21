@@ -8,7 +8,7 @@ of context for AI-assisted work. The source of truth is:
 - `docs/01-product/` for requirements and success criteria
 - `docs/02-features/` for feature-level specs, designs, tasks, and tests
 - `docs/03-logs/` for decisions, implementation notes, bugs, and validation
-- `docs/04-process/` for workflow and quality standards
+- `docs/04-process/` for workflow and quality standards (ticket implementation must follow `docs/04-process/ticket-execution-protocol.md`)
 
 Rules:
 - Keep diffs small and focused.
