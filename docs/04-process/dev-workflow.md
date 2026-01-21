@@ -67,6 +67,7 @@ Use this sequence when starting a new project with this template:
 6. **Finalize**
    - Update logs and documentation.
    - Create commit with the agreed message format.
+   - Run `make test` before closing the ticket.
 
 ## Human Gates (Required)
 

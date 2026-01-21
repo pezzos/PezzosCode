@@ -16,6 +16,10 @@
 - In scope:
 - Out of scope:
 
+## PRD Traceability
+- PRD feature/order:
+- Link to PRD section:
+
 ## Success Criteria
 - [ ]
 - [ ]
@@ -25,6 +29,11 @@
 - Files to change:
 - Risks/assumptions:
 - Tests to run:
+
+## Change Budget
+- Max files:
+- Max new modules:
+- Max lines changed (estimate):
 
 ## Human Gates
 - [ ] Plan validated
@@ -44,6 +53,11 @@
 - [ ] Decision log (if needed)
 - [ ] Bug log (if needed)
 - [ ] Validation log (if needed)
+
+## Docs Updated
+- [ ] Feature docs (feature-spec/tech-design/dev-tasks/test-plan)
+- [ ] PRD (if scope/priority changed)
+- [ ] Other: [list]
 
 ## Commit
 - Message:

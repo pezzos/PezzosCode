@@ -8,6 +8,7 @@ lint:
 
 test:
 	@$(MAKE) skills-check
+	@$(MAKE) docs-check
 
 skills-check:
 	@bash -euo pipefail -c '\
