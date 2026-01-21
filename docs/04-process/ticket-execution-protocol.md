@@ -13,6 +13,7 @@
 
 ## End-to-End Workflow
 1) **Ticket Ingestion**
+   - Run `make ticket T=<id>` to bootstrap and locate the ticket/worklog.
    - Open the ticket file: `docs/02-features/<feature>/ticket-TASK-XXX.md`.
    - Confirm scope, success criteria, and change budget.
 
@@ -25,6 +26,7 @@
 4) **Approval Gate (HIGH Risk Only)**
    - If HIGH, stop after Preflight and request PO approval.
    - No implementation work until approval is explicitly granted.
+   - Set ticket status to **Awaiting PO Approval** in frontmatter.
 
 5) **TDD Cycle**
    - Write tests first.

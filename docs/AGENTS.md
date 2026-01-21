@@ -13,4 +13,8 @@ Find the right document by topic:
 - Decisions, bugs, validation, and learnings: `docs/03-logs/`
 - Workflow and standards: `docs/04-process/` (use `docs/04-process/ticket-execution-protocol.md` for ticket implementation)
 
+Ticket implementation entrypoint:
+- Run `make ticket T=<id>` before executing a ticket.
+- If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
+
 If you are unsure where to look, read `docs/README.md` first.

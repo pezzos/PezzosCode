@@ -1,3 +1,13 @@
+---
+id: T-XXXX
+title: "<short>"
+prd_ref: "<FR-XXX or feature id>"
+status: "To Do"  # allowed: To Do | Ongoing | Done | Fail | Awaiting PO Approval
+change_budget:
+  max_files: 10
+  max_new_modules: 2
+---
+
 # Ticket Template
 
 > Simple, consistent ticket format for 1 feature folder or 1 mini change.

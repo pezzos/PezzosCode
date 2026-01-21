@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: $(basename "$0") T=<ticket-id> [--verify]" >&2
+  exit 1
+}
+
+if [[ $# -lt 1 ]]; then
+  usage
+fi
+
+ticket_id=""
+mode="bootstrap"
+
+for arg in "$@"; do
+  case "$arg" in
+    T=*)
+      ticket_id="${arg#T=}"
+      ;;
+    --verify)
+      mode="verify"
+      ;;
+    *)
+      ;;
+  esac
+done
+
+if [[ -z "$ticket_id" ]]; then
+  usage
+fi
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ticket_file=""
+
+extract_frontmatter() {
+  local file="$1"
+  awk '
+    BEGIN{in=0}
+    $0=="---" {if(in==0){in=1;next}else{exit}}
+    in {print}
+  ' "$file"
+}
+
+get_frontmatter_value() {
+  local file="$1"
+  local key="$2"
+  awk -v k="$key" '
+    BEGIN{in=0}
+    $0=="---" {if(in==0){in=1;next}else{exit}}
+    in && $1==k":" {
+      sub("^"k":[[:space:]]*","")
+      print
+      exit
+    }
+  ' "$file"
+}
+
+while IFS= read -r -d '' file; do
+  id="$(get_frontmatter_value "$file" "id" || true)"
+  if [[ "$id" == "$ticket_id" ]]; then
+    ticket_file="$file"
+    break
+  fi
+done < <(find "$repo_root/docs/02-features" -type f -name "ticket-*.md" -print0)
+
+if [[ -z "$ticket_file" ]]; then
+  echo "ticket-bootstrap: ticket not found for id $ticket_id" >&2
+  exit 1
+fi
+
+frontmatter="$(extract_frontmatter "$ticket_file")"
+if [[ -z "$frontmatter" ]]; then
+  echo "ticket-bootstrap: missing frontmatter in $ticket_file" >&2
+  exit 1
+fi
+
+title="$(get_frontmatter_value "$ticket_file" "title" || true)"
+prd_ref="$(get_frontmatter_value "$ticket_file" "prd_ref" || true)"
+status="$(get_frontmatter_value "$ticket_file" "status" || true)"
+
+if [[ -z "$title" || -z "$prd_ref" || -z "$status" ]]; then
+  echo "ticket-bootstrap: missing required frontmatter fields in $ticket_file" >&2
+  exit 1
+fi
+
+case "$status" in
+  "To Do"|"Ongoing"|"Done"|"Fail"|"Awaiting PO Approval")
+    ;;
+  *)
+    echo "ticket-bootstrap: invalid status '$status' in $ticket_file" >&2
+    exit 1
+    ;;
+esac
+
+if ! awk '
+  BEGIN{in=0; mf=0; mnm=0}
+  $0=="---" {if(in==0){in=1;next}else{exit}}
+  in && $1=="max_files:" {mf=1}
+  in && $1=="max_new_modules:" {mnm=1}
+  END{exit !(mf && mnm)}
+' "$ticket_file"; then
+  echo "ticket-bootstrap: missing change_budget fields in $ticket_file" >&2
+  exit 1
+fi
+
+slug="$title"
+slug="$(printf "%s" "$slug" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+if [[ -z "$slug" ]]; then
+  slug="$(basename "$ticket_file" .md)"
+fi
+
+worklog_dir="$repo_root/docs/03-logs/tickets"
+worklog_template="$worklog_dir/worklog-template.md"
+worklog_file="$worklog_dir/${ticket_id}--${slug}.md"
+
+mkdir -p "$worklog_dir"
+
+if [[ ! -f "$worklog_template" ]]; then
+  echo "ticket-bootstrap: missing worklog template at $worklog_template" >&2
+  exit 1
+fi
+
+if [[ "$mode" == "bootstrap" ]]; then
+  if [[ ! -f "$worklog_file" ]]; then
+    cp "$worklog_template" "$worklog_file"
+    sed -i.bak \
+      -e "s/\\[TICKET_ID\\]/$ticket_id/g" \
+      -e "s/\\[TITLE\\]/$title/g" \
+      "$worklog_file"
+    rm -f "$worklog_file.bak"
+  fi
+fi
+
+if [[ ! -f "$worklog_file" ]]; then
+  echo "ticket-bootstrap: worklog missing at $worklog_file" >&2
+  exit 1
+fi
+
+if ! rg -q "^## Docs Updated" "$worklog_file"; then
+  echo "ticket-bootstrap: worklog missing Docs Updated section in $worklog_file" >&2
+  exit 1
+fi
+if ! rg -q "Risk level:" "$worklog_file"; then
+  echo "ticket-bootstrap: worklog missing Risk level line in $worklog_file" >&2
+  exit 1
+fi
+if ! rg -q "Commit message:" "$worklog_file"; then
+  echo "ticket-bootstrap: worklog missing Commit message line in $worklog_file" >&2
+  exit 1
+fi
+
+if [[ "$mode" == "verify" ]]; then
+  echo "ticket-bootstrap: verify ok"
+  exit 0
+fi
+
+cat <<EOF
+ticket-bootstrap: ok
+ticket: $ticket_file
+worklog: $worklog_file
+
+next steps:
+1) Open the ticket and worklog.
+2) Produce the Preflight Report in the worklog.
+3) Follow Ticket Execution Protocol: docs/04-process/ticket-execution-protocol.md
+4) If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
+
+codex prompt snippet:
+Follow docs/04-process/ticket-execution-protocol.md.
+Ticket: $ticket_file
+Worklog: $worklog_file
+Start with the mandatory Preflight Report in the worklog.
+EOF

@@ -9,3 +9,7 @@ Key files:
 - `docs/04-process/llm-prompts.md`: prompt templates and guidance.
 - `docs/04-process/ticket-template.md`: ticket format with PRD traceability, change budget, and docs update checklist.
 - `docs/04-process/ticket-execution-protocol.md`: canonical ticket implementation workflow (TDD + gates).
+
+Ticket entrypoint:
+- Run `make ticket T=<id>` before executing any ticket.
+- If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".

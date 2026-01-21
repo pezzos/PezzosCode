@@ -15,6 +15,8 @@ Rules:
 - Perform a systematic review: list executed commands and summarize results.
 - If context is missing or unclear, ask for the relevant document rather than
   guessing.
+- For any ticket implementation, run `make ticket T=<id>` and follow `docs/04-process/ticket-execution-protocol.md`.
+- If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
 
 ## Setup commands
 - None defined. Ask if project-specific setup is required.

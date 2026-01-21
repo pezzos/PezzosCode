@@ -9,3 +9,4 @@ Key files:
 - `docs/03-logs/bug-log.md`: bugs, fixes, and prevention.
 - `docs/03-logs/validation-log.md`: post-launch outcomes.
 - `docs/03-logs/insights.md`: distilled learnings and patterns.
+- `docs/03-logs/tickets/`: per-ticket worklogs (use `worklog-template.md`).

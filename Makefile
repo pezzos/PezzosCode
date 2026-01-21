@@ -1,4 +1,4 @@
-.PHONY: fmt lint test check docs-check skills-check ticket-check ci
+.PHONY: fmt lint test check docs-check skills-check ticket-check ticket ticket-ci ticket-verify ci
 
 fmt:
 	@echo "TODO: define formatting command (language/tooling TBD)"
@@ -32,6 +32,16 @@ ticket-check:
 		else \
 			echo "ticket-check: ok"; \
 		fi'
+
+ticket:
+	@tools/ticket-bootstrap T=$(T)
+
+ticket-verify:
+	@tools/ticket-bootstrap T=$(T) --verify
+
+ticket-ci:
+	@tools/ticket-bootstrap T=$(T)
+	@$(MAKE) ci
 
 skills-check:
 	@bash -euo pipefail -c '\
