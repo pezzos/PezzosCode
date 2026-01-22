@@ -153,6 +153,15 @@ codex -C .
 
 If you use profiles or overrides, add them to `.codex.toml`.
 
+## PO Loop (Skills, Update-in-Place)
+
+Use the skills to update existing docs in place (no duplicates):
+- `context-to-product` updates `docs/01-product/prd.md` from `docs/00-context/*`.
+- `prd-to-features` updates `docs/02-features/` (incremental mode is default for existing projects).
+- `next-feature-ticket` creates the next `ticket-TASK-XXX.md` for the next un-ticketed feature.
+
+Ticket implementation must follow `docs/04-process/ticket-execution-protocol.md`.
+
 ## Workflow Ticket
 
 Use this template to keep work scoped and traceable:

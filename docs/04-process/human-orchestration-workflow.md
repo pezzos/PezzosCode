@@ -27,7 +27,7 @@
 2) **Update PRD (context-to-product)**
    - Run the skill `context-to-product` to update `docs/01-product/prd.md` in place.
 3) **Incremental Features (prd-to-features)**
-   - Run the skill `prd-to-features` to add only missing features.
+   - Run the skill `prd-to-features` in incremental mode (default for existing projects) to add only missing features.
    - The skill uses `docs/03-logs/implementation-log.md` and `docs/03-logs/decision-log.md` to avoid re-adding completed or rejected items.
 4) **Generate Next Ticket**
    - Run the skill `next-feature-ticket` to create the next ticket for the first un-ticketed feature.
