@@ -161,6 +161,7 @@ Use the skills to update existing docs in place (no duplicates):
 - `next-feature-ticket` creates the next `ticket-TASK-XXX.md` for the next un-ticketed feature.
 
 Ticket implementation must follow `docs/04-process/ticket-execution-protocol.md`.
+Start ticket execution with `make ticket T=<id>`.
 
 ## Workflow Ticket
 
