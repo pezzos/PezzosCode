@@ -12,6 +12,7 @@ Find the right document by topic:
 - Feature-specific work: `docs/02-features/`
 - Decisions, bugs, validation, and learnings: `docs/03-logs/`
 - Workflow and standards: `docs/04-process/` (use `docs/04-process/ticket-execution-protocol.md` for ticket implementation)
+- PO loop: `docs/04-process/human-orchestration-workflow.md`
 
 Ticket implementation entrypoint:
 - Run `make ticket T=<id>` before executing a ticket.
