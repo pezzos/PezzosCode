@@ -26,7 +26,7 @@ ticket-check:
 			if ! rg -q "^## Docs Updated" "$$file"; then \
 				echo "ticket-check: missing Docs Updated section in $$file"; exit 1; \
 			fi; \
-		done < <(find "$$root" -type f -name "ticket-TASK-*.md" -print0); \
+		done < <(find "$$root" -type f \\( -name "TASK-*.md" -o -name "ticket-TASK-*.md" \\) -print0); \
 		if [[ "$$found" -eq 0 ]]; then \
 			echo "ticket-check: no tickets found (ok)"; \
 		else \

@@ -14,7 +14,7 @@
 ## End-to-End Workflow
 1) **Ticket Ingestion**
    - Run `make ticket T=<id>` to bootstrap and locate the ticket/worklog.
-   - Open the ticket file: `docs/02-features/<feature>/ticket-TASK-XXX.md`.
+   - Open the ticket file: `docs/02-features/<feature>/TASK-XXX.md`.
    - Confirm scope, success criteria, and change budget.
 
 2) **Preflight Report (Mandatory)**

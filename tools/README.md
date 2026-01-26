@@ -14,6 +14,23 @@ Usage:
 tools/pc-commit [options]
 ```
 
+## `tools/pc-ticket`
+
+Purpose: Orchestrate the Ticket Execution Protocol (TDD + gates + docs + commit)
+with Codex as the primary and secondary agent.
+
+Usage:
+
+```bash
+tools/pc-ticket F=01 T=001
+```
+
+Configuration:
+
+```text
+tools/pc-ticket-config.json
+```
+
 ## `tools/bootstrap-into`
 
 Purpose: Copy the docs system, skills, and tooling into a target repo. Prompts

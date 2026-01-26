@@ -1,0 +1,518 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from typing import Dict, List, Optional
+
+DEFAULT_CONFIG = {
+    "test_cmd": "make test",
+    "ci_cmd": "make ci",
+}
+
+SENSITIVE_DIRS = (
+    "sanitizer/",
+    "detectors/",
+    "restore/",
+    "git_ops/",
+    "metadata/",
+)
+
+
+def die(message: str) -> None:
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
+
+def run(cmd: List[str], *, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, text=True, capture_output=capture, check=check)
+
+
+def run_shell(cmd: str, *, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, shell=True, text=True, capture_output=capture, check=check)
+
+
+def repo_root() -> str:
+    try:
+        result = run(["git", "rev-parse", "--show-toplevel"], capture=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return os.getcwd()
+
+
+def load_config(path: Optional[str]) -> Dict:
+    config = DEFAULT_CONFIG.copy()
+    if path:
+        config_path = path
+    else:
+        config_path = os.path.join(repo_root(), "tools", "pc-ticket-config.json")
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as handle:
+            config.update(json.load(handle))
+    return config
+
+
+def parse_inputs(args: List[str]) -> Dict[str, Optional[str]]:
+    feature_id = None
+    task_id = None
+    positional = []
+    for arg in args:
+        if arg.startswith("F="):
+            feature_id = arg.split("=", 1)[1]
+        elif arg.startswith("T="):
+            task_id = arg.split("=", 1)[1]
+        elif arg.startswith("-"):
+            continue
+        else:
+            positional.append(arg)
+    if feature_id is None and len(positional) >= 1:
+        feature_id = positional[0]
+    if task_id is None and len(positional) >= 2:
+        task_id = positional[1]
+    return {"feature_id": feature_id, "task_id": task_id}
+
+
+def normalize_ticket_id(task_id: Optional[str]) -> str:
+    if not task_id:
+        die("Usage: tools/pc-ticket F=01 T=001 [--config path]")
+    if task_id.startswith("T-"):
+        return task_id
+    if task_id.startswith("TASK-"):
+        return f"T-{task_id.split('-', 1)[1]}"
+    if re.fullmatch(r"\d+", task_id):
+        return f"T-{task_id}"
+    die("pc-ticket: invalid task id; expected T-001, TASK-001, or 001")
+
+
+def read_file(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def write_file(path: str, content: str) -> None:
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(content)
+
+
+def find_feature_dir(root: str, feature_id: Optional[str]) -> str:
+    base = os.path.join(root, "docs", "02-features")
+    if not feature_id:
+        return base
+    for name in os.listdir(base):
+        if name.startswith(f"{feature_id}-"):
+            return os.path.join(base, name)
+    die(f"pc-ticket: feature folder not found for id {feature_id}")
+
+
+def is_ticket_filename(name: str) -> bool:
+    return name.endswith(".md") and (
+        name.startswith("TASK-") or name.startswith("ticket-TASK-")
+    )
+
+
+def find_ticket_file(ticket_id: str, root: str, feature_id: Optional[str]) -> str:
+    base = find_feature_dir(root, feature_id)
+    for dirpath, _, filenames in os.walk(base):
+        for name in filenames:
+            if not is_ticket_filename(name):
+                continue
+            path = os.path.join(dirpath, name)
+            frontmatter = parse_frontmatter(path)
+            if frontmatter.get("id") == ticket_id:
+                return path
+    die(f"pc-ticket: ticket not found for id {ticket_id}")
+
+
+def parse_frontmatter(path: str) -> Dict[str, str]:
+    content = read_file(path).splitlines()
+    if not content or content[0].strip() != "---":
+        return {}
+    data = {}
+    for line in content[1:]:
+        if line.strip() == "---":
+            break
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        data[key.strip()] = value.strip().strip('"')
+    return data
+
+
+def parse_change_budget(path: str) -> Dict[str, int]:
+    content = read_file(path)
+    max_files = None
+    max_new_modules = None
+    for line in content.splitlines():
+        if "max_files:" in line:
+            try:
+                max_files = int(line.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+        if "max_new_modules:" in line:
+            try:
+                max_new_modules = int(line.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+        if max_files is not None and max_new_modules is not None:
+            break
+    if max_files is None or max_new_modules is None:
+        die("pc-ticket: missing change_budget in ticket frontmatter")
+    return {"max_files": max_files, "max_new_modules": max_new_modules}
+
+
+def slugify(text: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", text.strip().lower())
+    slug = re.sub(r"^-+|-+$", "", slug)
+    return slug or "ticket"
+
+
+def find_worklog(ticket_id: str, title: str, root: str) -> str:
+    slug = slugify(title)
+    return os.path.join(root, "docs", "03-logs", "tickets", f"{ticket_id}--{slug}.md")
+
+
+def replace_section(content: str, header: str, body: str) -> str:
+    pattern = rf"(^## {re.escape(header)}\n)(.*?)(?=^## |\Z)"
+    match = re.search(pattern, content, flags=re.MULTILINE | re.DOTALL)
+    if not match:
+        die(f"pc-ticket: missing section {header} in worklog")
+    body = body.rstrip() + "\n\n"
+    return content[: match.start(2)] + body + content[match.end(2) :]
+
+
+def append_section(content: str, header: str, body: str) -> str:
+    if f"## {header}" in content:
+        return replace_section(content, header, body)
+    return content.rstrip() + f"\n\n## {header}\n" + body.rstrip() + "\n"
+
+
+def codex_exec(prompt: str, *, capture_output: bool = True) -> str:
+    if shutil.which("codex") is None:
+        die("pc-ticket: codex CLI not found in PATH")
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        output_path = tmp.name
+    cmd = [
+        "codex",
+        "exec",
+        "--skip-git-repo-check",
+        "--output-last-message",
+        output_path,
+        "--dangerously-bypass-approvals-and-sandbox",
+        prompt,
+    ]
+    try:
+        run(cmd, check=True)
+    except subprocess.CalledProcessError:
+        os.unlink(output_path)
+        die("pc-ticket: codex exec failed")
+    output = read_file(output_path)
+    os.unlink(output_path)
+    if not capture_output:
+        return ""
+    return strip_fence(output.strip())
+
+
+def strip_fence(text: str) -> str:
+    if text.startswith("```"):
+        lines = text.splitlines()
+        stripped = []
+        in_block = False
+        for line in lines:
+            if line.startswith("```"):
+                if not in_block:
+                    in_block = True
+                    continue
+                break
+            if in_block:
+                stripped.append(line)
+        return "\n".join(stripped).strip()
+    return text
+
+
+def build_preflight_block(data: Dict, ticket_id: str, change_budget: Dict, risk: str, triggers: List[str]) -> str:
+    files = data.get("files_to_change", [])
+    tests = data.get("tdd_tests", [])
+    doc_updates = data.get("doc_updates", [])
+    return "\n".join(
+        [
+            f"Ticket ID: {ticket_id}",
+            f"PRD reference / feature mapping: {data.get('prd_ref', '')}",
+            f"Risk level: {risk} (triggers: {', '.join(triggers) if triggers else 'none'})",
+            f"Scope summary (in/out): In: {data.get('scope_in', '')} | Out: {data.get('scope_out', '')}",
+            f"Non-goals reminder: {data.get('non_goals_reminder', '')}",
+            f"Files to change: {', '.join(files) if files else 'TBD'}",
+            f"Change budget: max_files: {change_budget['max_files']}, max_new_modules: {change_budget['max_new_modules']}",
+            f"TDD plan: tests to write first: {', '.join(tests) if tests else 'TBD'}",
+            f"Doc updates planned: {', '.join(doc_updates) if doc_updates else 'TBD'}",
+        ]
+    )
+
+
+def build_tdd_plan_block(tests: List[str]) -> str:
+    if not tests:
+        return "- Tests to write first:"
+    lines = ["- Tests to write first:"]
+    for test in tests:
+        lines.append(f"  - {test}")
+    return "\n".join(lines)
+
+
+def build_files_block(files: List[str], change_budget: Dict) -> str:
+    lines = ["- Files:"]
+    if files:
+        for path in files:
+            lines.append(f"  - {path}")
+    else:
+        lines.append("  - TBD")
+    lines.append(
+        f"- Change budget: max_files: {change_budget['max_files']}, max_new_modules: {change_budget['max_new_modules']}"
+    )
+    return "\n".join(lines)
+
+
+def build_docs_block(doc_updates: List[str]) -> str:
+    defaults = [
+        "Implementation log",
+        "Decision log (if needed)",
+        "Bug log (if needed)",
+        "Validation log (if needed)",
+        "Feature docs",
+        "PRD (if needed)",
+    ]
+    items = list(defaults)
+    for item in doc_updates or []:
+        if item not in items:
+            items.append(f"Other: {item}")
+    return "\n".join([f"- [ ] {item}" for item in items])
+
+
+def classify_risk(data: Dict, change_budget: Dict) -> (str, List[str]):
+    triggers = []
+    files = data.get("files_to_change", [])
+    for path in files:
+        for sensitive in SENSITIVE_DIRS:
+            if path.startswith(sensitive):
+                triggers.append(f"touches {sensitive}")
+                break
+    if data.get("touches_secret_blocking"):
+        triggers.append("modifies secret-blocking behavior")
+    if data.get("touches_restore"):
+        triggers.append("affects restore apply semantics or permissions")
+    if data.get("touches_secret_scanning"):
+        triggers.append("modifies secret scanning dependencies/policies")
+    cross_modules = int(data.get("cross_cutting_refactor_modules", 0) or 0)
+    if cross_modules >= 3:
+        triggers.append("cross-cutting refactor impacting 3+ modules")
+    if len(files) > change_budget["max_files"]:
+        triggers.append("change budget exceeded: max files")
+    if int(data.get("planned_new_modules", 0) or 0) > change_budget["max_new_modules"]:
+        triggers.append("change budget exceeded: new modules")
+    if triggers:
+        return "HIGH", triggers
+    return "LOW", []
+
+
+def update_ticket_status(ticket_path: str, status: str) -> None:
+    content = read_file(ticket_path)
+    lines = content.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return
+    updated = []
+    in_frontmatter = False
+    for idx, line in enumerate(lines):
+        if line.strip() == "---":
+            updated.append(line)
+            if in_frontmatter:
+                updated.extend(lines[idx + 1 :])
+                break
+            in_frontmatter = True
+            continue
+        if in_frontmatter and line.startswith("status:"):
+            updated.append(f"status: \"{status}\"")
+        else:
+            updated.append(line)
+    write_file(ticket_path, "\n".join(updated) + "\n")
+
+
+def gate_prompt(message: str) -> None:
+    print(message)
+    response = input("Type 'approve' to continue: ").strip().lower()
+    if response != "approve":
+        die("pc-ticket: approval not granted")
+
+
+def secondary_review(prompt: str) -> None:
+    response = codex_exec(prompt).strip()
+    if response.upper().startswith("APPROVE"):
+        return
+    if response.upper().startswith("BLOCK"):
+        die(f"pc-ticket: secondary agent blocked\n{response}")
+    die(f"pc-ticket: unexpected secondary agent response\n{response}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--config", dest="config")
+    parser.add_argument("-h", "--help", action="store_true")
+    args, _ = parser.parse_known_args()
+    if args.help:
+        print("Usage: tools/pc-ticket F=01 T=001 [--config path]")
+        sys.exit(0)
+
+    inputs = parse_inputs(sys.argv[1:])
+    ticket_id = normalize_ticket_id(inputs["task_id"])
+    config = load_config(args.config)
+
+    root = repo_root()
+    os.chdir(root)
+
+    run_shell(f"make ticket T={ticket_id}")
+
+    ticket_path = find_ticket_file(ticket_id, root, inputs["feature_id"])
+    ticket_frontmatter = parse_frontmatter(ticket_path)
+    title = ticket_frontmatter.get("title", "")
+    prd_ref = ticket_frontmatter.get("prd_ref", "")
+    change_budget = parse_change_budget(ticket_path)
+    worklog_path = find_worklog(ticket_id, title, root)
+
+    ticket_body = read_file(ticket_path)
+
+    preflight_prompt = (
+        "You are preparing preflight data for a ticket execution.\n"
+        "Return ONLY valid JSON with keys: prd_ref, scope_in, scope_out, non_goals_reminder, "
+        "files_to_change (array), planned_new_modules (int), touches_secret_blocking (bool), "
+        "touches_restore (bool), touches_secret_scanning (bool), cross_cutting_refactor_modules (int), "
+        "tdd_tests (array), doc_updates (array).\n"
+        f"Ticket ID: {ticket_id}\n"
+        f"Ticket content:\n{ticket_body}\n"
+    )
+
+    preflight_raw = codex_exec(preflight_prompt)
+    try:
+        preflight_data = json.loads(preflight_raw)
+    except json.JSONDecodeError:
+        die(f"pc-ticket: failed to parse preflight JSON\n{preflight_raw}")
+
+    preflight_data.setdefault("prd_ref", prd_ref)
+
+    risk_level, triggers = classify_risk(preflight_data, change_budget)
+
+    worklog = read_file(worklog_path)
+    worklog = replace_section(
+        worklog,
+        "Preflight Report",
+        build_preflight_block(preflight_data, ticket_id, change_budget, risk_level, triggers),
+    )
+    worklog = replace_section(worklog, "TDD Plan", build_tdd_plan_block(preflight_data.get("tdd_tests", [])))
+    worklog = replace_section(
+        worklog,
+        "Files to Change + Change Budget",
+        build_files_block(preflight_data.get("files_to_change", []), change_budget),
+    )
+    worklog = replace_section(worklog, "Docs Updated", build_docs_block(preflight_data.get("doc_updates", [])))
+    write_file(worklog_path, worklog)
+
+    if risk_level == "HIGH":
+        update_ticket_status(ticket_path, "Awaiting PO Approval")
+        preflight_block = build_preflight_block(preflight_data, ticket_id, change_budget, risk_level, triggers)
+        gate_prompt(f"HIGH RISK ticket. Review Preflight Report:\n\n{preflight_block}\n")
+        update_ticket_status(ticket_path, "Ongoing")
+
+    tests_prompt = (
+        "Follow docs/04-process/ticket-execution-protocol.md.\n"
+        "Write tests first for this ticket and do not implement production code yet.\n"
+        "Update test files only. Keep changes minimal.\n"
+        f"Ticket: {ticket_path}\n"
+        f"Worklog: {worklog_path}\n"
+        f"Ticket content:\n{ticket_body}\n"
+    )
+    codex_exec(tests_prompt, capture_output=False)
+
+    test_cmd = config["test_cmd"]
+    test_result = run_shell(test_cmd, capture=True, check=False)
+    if test_result.returncode == 0:
+        die("pc-ticket: tests passed but should fail for TDD")
+
+    impl_prompt = (
+        "Follow docs/04-process/ticket-execution-protocol.md.\n"
+        "Implement the minimal production changes to make the new tests pass.\n"
+        "Update docs/logs per ticket template and keep diffs small.\n"
+        f"Ticket: {ticket_path}\n"
+        f"Worklog: {worklog_path}\n"
+        f"Ticket content:\n{ticket_body}\n"
+    )
+    codex_exec(impl_prompt, capture_output=False)
+
+    diff = run(["git", "diff"], capture=True).stdout
+    review_prompt = (
+        "You are a secondary agent performing a focused diff scan.\n"
+        "Review for correctness, scope creep, and obvious regressions.\n"
+        "Output ONLY one line: 'APPROVE' or 'BLOCK: <reason>'.\n"
+        f"Diff:\n{diff}\n"
+    )
+    secondary_review(review_prompt)
+
+    ci_cmd = config["ci_cmd"]
+    ci_result = run_shell(ci_cmd, capture=True, check=False)
+    ci_output = (ci_result.stdout + "\n" + ci_result.stderr).strip()
+    ci_status = "PASS" if ci_result.returncode == 0 else "FAIL"
+
+    worklog = read_file(worklog_path)
+    worklog = replace_section(worklog, "Gates", f"- make ci: {ci_status}")
+    write_file(worklog_path, worklog)
+
+    if ci_result.returncode != 0:
+        die("pc-ticket: make ci failed; fix and rerun")
+
+    if risk_level == "HIGH":
+        gate_prompt(f"HIGH RISK ticket. Review test results:\n\n{ci_output}\n")
+    else:
+        test_review_prompt = (
+            "You are a secondary agent validating test results.\n"
+            "Output ONLY one line: 'APPROVE' or 'BLOCK: <reason>'.\n"
+            f"make ci output:\n{ci_output}\n"
+        )
+        secondary_review(test_review_prompt)
+
+    commit_prompt = (
+        "Suggest a commit message in the format 'type(scope): summary'.\n"
+        "Use types: feat, fix, docs, chore. Output ONLY the message.\n"
+        f"Ticket: {ticket_path}\n"
+        f"Diff:\n{diff}\n"
+    )
+    commit_message = codex_exec(commit_prompt).strip()
+    if not commit_message:
+        die("pc-ticket: empty commit message from agent")
+
+    worklog = read_file(worklog_path)
+    worklog = replace_section(worklog, "Commit", f"- Commit message: {commit_message}")
+    changed_files = run(["git", "diff", "--name-only"], capture=True).stdout.strip().splitlines()
+    final_report = "\n".join(
+        [
+            "What changed (files):",
+            ", ".join(changed_files) if changed_files else "(none)",
+            "Tests written (names) + results:",
+            f"{', '.join(preflight_data.get('tdd_tests', []))} | {test_cmd}: fail, {ci_cmd}: {ci_status}",
+            "Docs/logs updated checklist:",
+            ", ".join(preflight_data.get("doc_updates", [])) if preflight_data.get("doc_updates") else "(see worklog)",
+            "make ci results:",
+            ci_status,
+            "Commit message:",
+            commit_message,
+        ]
+    )
+    worklog = append_section(worklog, "Final Report", final_report)
+    write_file(worklog_path, worklog)
+
+    run(["git", "add", "-A"])
+    run(["tools/pc-commit", "--message", commit_message])
+
+    print("pc-ticket: complete")
+
+
+if __name__ == "__main__":
+    main()

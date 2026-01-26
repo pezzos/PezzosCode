@@ -15,7 +15,7 @@
    - Run the skill `prd-to-features` to update `docs/02-features/` in place.
    - No duplicate feature folders.
 4) **Generate Next Ticket (next-feature-ticket)**
-   - Run the skill `next-feature-ticket` to create the next `ticket-TASK-XXX.md` under the next numbered feature folder.
+   - Run the skill `next-feature-ticket` to create the next `TASK-XXX.md` under the next numbered feature folder.
 5) **Execute Ticket**
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
 6) **Repeat**
@@ -42,7 +42,7 @@ Context docs → PRD → Feature folders → Tickets → Worklogs → Implementa
 ## Update-in-Place Rules (by skill)
 - **context-to-product:** update `docs/01-product/prd.md` only; do not create a new PRD file.
 - **prd-to-features:** update existing `docs/02-features/` and add only missing folders; do not duplicate.
-- **next-feature-ticket:** create `docs/02-features/<feature>/ticket-TASK-XXX.md` only.
+- **next-feature-ticket:** create `docs/02-features/<feature>/TASK-XXX.md` only.
 
 ## Skill Invocation Guide
 - **context-to-product**
@@ -55,7 +55,7 @@ Context docs → PRD → Feature folders → Tickets → Worklogs → Implementa
   - Logs: update `docs/03-logs/implementation-log.md` when new features are added
 - **next-feature-ticket**
   - Reads: `docs/02-features/`, `docs/04-process/ticket-template.md`
-  - Writes: `docs/02-features/<feature>/ticket-TASK-XXX.md`
+  - Writes: `docs/02-features/<feature>/TASK-XXX.md`
   - Logs: worklog lives in `docs/03-logs/tickets/`
 
 ## Definition of Done for a Ticket

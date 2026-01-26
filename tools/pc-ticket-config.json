@@ -1,0 +1,4 @@
+{
+  "test_cmd": "make test",
+  "ci_cmd": "make ci"
+}
