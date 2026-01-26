@@ -78,6 +78,8 @@ fi
 title="$(get_frontmatter_value "$ticket_file" "title" || true)"
 prd_ref="$(get_frontmatter_value "$ticket_file" "prd_ref" || true)"
 status="$(get_frontmatter_value "$ticket_file" "status" || true)"
+status="${status%\"}"
+status="${status#\"}"
 
 if [[ -z "$title" || -z "$prd_ref" || -z "$status" ]]; then
   echo "ticket-bootstrap: missing required frontmatter fields in $ticket_file" >&2
