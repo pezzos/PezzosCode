@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $(basename "$0") T=<ticket-id> [--verify]" >&2
+  echo "Usage: $(basename "$0") T=<ticket-id> [F=<feature-id>] [--verify]" >&2
   exit 1
 }
 
@@ -11,12 +11,16 @@ if [[ $# -lt 1 ]]; then
 fi
 
 ticket_id=""
+feature_id=""
 mode="bootstrap"
 
 for arg in "$@"; do
   case "$arg" in
     T=*)
       ticket_id="${arg#T=}"
+      ;;
+    F=*)
+      feature_id="${arg#F=}"
       ;;
     --verify)
       mode="verify"
@@ -32,6 +36,16 @@ fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ticket_file=""
+search_root="$repo_root/docs/02-features"
+
+if [[ -n "$feature_id" ]]; then
+  match="$(find "$search_root" -maxdepth 1 -type d -name "${feature_id}-*" -print -quit)"
+  if [[ -z "$match" ]]; then
+    echo "ticket-bootstrap: feature folder not found for id $feature_id" >&2
+    exit 1
+  fi
+  search_root="$match"
+fi
 
 extract_frontmatter() {
   local file="$1"
@@ -62,7 +76,7 @@ while IFS= read -r -d '' file; do
     ticket_file="$file"
     break
   fi
-done < <(find "$repo_root/docs/02-features" -type f \( -name "TASK-*.md" -o -name "ticket-TASK-*.md" \) -print0)
+done < <(find "$search_root" -type f \( -name "TASK-*.md" -o -name "ticket-TASK-*.md" \) -print0)
 
 if [[ -z "$ticket_file" ]]; then
   echo "ticket-bootstrap: ticket not found for id $ticket_id" >&2
@@ -126,11 +140,19 @@ fi
 if [[ "$mode" == "bootstrap" ]]; then
   if [[ ! -f "$worklog_file" ]]; then
     cp "$worklog_template" "$worklog_file"
-    sed -i.bak \
-      -e "s/\\[TICKET_ID\\]/$ticket_id/g" \
-      -e "s/\\[TITLE\\]/$title/g" \
-      "$worklog_file"
-    rm -f "$worklog_file.bak"
+    python3 - "$worklog_file" "$ticket_id" "$title" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+ticket_id = sys.argv[2]
+title = sys.argv[3]
+
+text = path.read_text()
+text = text.replace("[TICKET_ID]", ticket_id)
+text = text.replace("[TITLE]", title)
+path.write_text(text)
+PY
   fi
 fi
 

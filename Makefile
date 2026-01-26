@@ -34,13 +34,13 @@ ticket-check:
 		fi'
 
 ticket:
-	@tools/ticket-bootstrap T=$(T)
+	@tools/ticket-bootstrap T=$(T) F=$(F)
 
 ticket-verify:
-	@tools/ticket-bootstrap T=$(T) --verify
+	@tools/ticket-bootstrap T=$(T) F=$(F) --verify
 
 ticket-ci:
-	@tools/ticket-bootstrap T=$(T)
+	@tools/ticket-bootstrap T=$(T) F=$(F)
 	@$(MAKE) ci
 
 skills-check:

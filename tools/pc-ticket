@@ -370,9 +370,13 @@ def main() -> None:
     root = repo_root()
     os.chdir(root)
 
-    run_shell(f"make ticket T={ticket_id}")
+    feature_id = inputs["feature_id"]
+    if feature_id:
+        run_shell(f"make ticket T={ticket_id} F={feature_id}")
+    else:
+        run_shell(f"make ticket T={ticket_id}")
 
-    ticket_path = find_ticket_file(ticket_id, root, inputs["feature_id"])
+    ticket_path = find_ticket_file(ticket_id, root, feature_id)
     ticket_frontmatter = parse_frontmatter(ticket_path)
     title = ticket_frontmatter.get("title", "")
     prd_ref = ticket_frontmatter.get("prd_ref", "")
