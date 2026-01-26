@@ -36,9 +36,9 @@ ticket_file=""
 extract_frontmatter() {
   local file="$1"
   awk '
-    BEGIN{in=0}
-    $0=="---" {if(in==0){in=1;next}else{exit}}
-    in {print}
+    BEGIN{in_fm=0}
+    $0=="---" {if(in_fm==0){in_fm=1;next}else{exit}}
+    in_fm {print}
   ' "$file"
 }
 
@@ -46,9 +46,9 @@ get_frontmatter_value() {
   local file="$1"
   local key="$2"
   awk -v k="$key" '
-    BEGIN{in=0}
-    $0=="---" {if(in==0){in=1;next}else{exit}}
-    in && $1==k":" {
+    BEGIN{in_fm=0}
+    $0=="---" {if(in_fm==0){in_fm=1;next}else{exit}}
+    in_fm && $1==k":" {
       sub("^"k":[[:space:]]*","")
       print
       exit
@@ -94,10 +94,10 @@ case "$status" in
 esac
 
 if ! awk '
-  BEGIN{in=0; mf=0; mnm=0}
-  $0=="---" {if(in==0){in=1;next}else{exit}}
-  in && $1=="max_files:" {mf=1}
-  in && $1=="max_new_modules:" {mnm=1}
+  BEGIN{in_fm=0; mf=0; mnm=0}
+  $0=="---" {if(in_fm==0){in_fm=1;next}else{exit}}
+  in_fm && $1=="max_files:" {mf=1}
+  in_fm && $1=="max_new_modules:" {mnm=1}
   END{exit !(mf && mnm)}
 ' "$ticket_file"; then
   echo "ticket-bootstrap: missing change_budget fields in $ticket_file" >&2
