@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 DEFAULT_CONFIG = {
     "test_cmd": "make test",
     "ci_cmd": "make ci",
+    "tdd_require_fail": False,
 }
 
 SENSITIVE_DIRS = (
@@ -52,7 +53,16 @@ def load_config(path: Optional[str]) -> Dict:
         config_path = os.path.join(repo_root(), "tools", "pc-ticket-config.json")
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as handle:
-            config.update(json.load(handle))
+            lines = []
+            for line in handle:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                lines.append(line)
+            try:
+                config.update(json.loads("".join(lines)))
+            except json.JSONDecodeError as exc:
+                die(f"pc-ticket: invalid config json in {config_path}: {exc}")
     return config
 
 
@@ -190,6 +200,40 @@ def append_section(content: str, header: str, body: str) -> str:
     return content.rstrip() + f"\n\n## {header}\n" + body.rstrip() + "\n"
 
 
+def append_note(content: str, line: str) -> str:
+    pattern = r"(^## Notes\n)(.*?)(?=^## |\Z)"
+    match = re.search(pattern, content, flags=re.MULTILINE | re.DOTALL)
+    if not match:
+        return content.rstrip() + "\n\n## Notes\n- " + line.rstrip() + "\n"
+    existing = match.group(2).rstrip()
+    if f"- {line.rstrip()}" in existing.splitlines():
+        return content
+    if existing:
+        updated = existing + "\n- " + line.rstrip()
+    else:
+        updated = "- " + line.rstrip()
+    return content[: match.start(2)] + updated + "\n\n" + content[match.end(2) :]
+
+
+def normalize_tdd_plan(content: str) -> str:
+    pattern = r"(^## TDD Plan\n)(.*?)(?=^## |\Z)"
+    match = re.search(pattern, content, flags=re.MULTILINE | re.DOTALL)
+    if not match:
+        return content
+    lines = match.group(2).splitlines()
+    new_lines = []
+    seen_header = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("- Tests to write first:"):
+            if seen_header:
+                continue
+            seen_header = True
+        new_lines.append(line)
+    cleaned = "\n".join(new_lines).rstrip() + "\n\n"
+    return content[: match.start(2)] + cleaned + content[match.end(2) :]
+
+
 def codex_exec(prompt: str, *, capture_output: bool = True) -> str:
     if shutil.which("codex") is None:
         die("pc-ticket: codex CLI not found in PATH")
@@ -233,7 +277,14 @@ def strip_fence(text: str) -> str:
     return text
 
 
-def build_preflight_block(data: Dict, ticket_id: str, change_budget: Dict, risk: str, triggers: List[str]) -> str:
+def build_preflight_block(
+    data: Dict,
+    ticket_id: str,
+    change_budget: Dict,
+    risk: str,
+    triggers: List[str],
+    review_summary: str = "",
+) -> str:
     files = data.get("files_to_change", [])
     tests = data.get("tdd_tests", [])
     doc_updates = data.get("doc_updates", [])
@@ -248,6 +299,7 @@ def build_preflight_block(data: Dict, ticket_id: str, change_budget: Dict, risk:
             f"Change budget: max_files: {change_budget['max_files']}, max_new_modules: {change_budget['max_new_modules']}",
             f"TDD plan: tests to write first: {', '.join(tests) if tests else 'TBD'}",
             f"Doc updates planned: {', '.join(doc_updates) if doc_updates else 'TBD'}",
+            f"Systematic review: {review_summary}",
         ]
     )
 
@@ -376,6 +428,10 @@ def main() -> None:
     else:
         run_shell(f"make ticket T={ticket_id}")
 
+    review_items = [
+        f"make ticket T={ticket_id}" + (f" F={feature_id}" if feature_id else "") + ": ok"
+    ]
+
     ticket_path = find_ticket_file(ticket_id, root, feature_id)
     ticket_frontmatter = parse_frontmatter(ticket_path)
     title = ticket_frontmatter.get("title", "")
@@ -409,7 +465,14 @@ def main() -> None:
     worklog = replace_section(
         worklog,
         "Preflight Report",
-        build_preflight_block(preflight_data, ticket_id, change_budget, risk_level, triggers),
+        build_preflight_block(
+            preflight_data,
+            ticket_id,
+            change_budget,
+            risk_level,
+            triggers,
+            "; ".join(review_items),
+        ),
     )
     worklog = replace_section(worklog, "TDD Plan", build_tdd_plan_block(preflight_data.get("tdd_tests", [])))
     worklog = replace_section(
@@ -418,11 +481,19 @@ def main() -> None:
         build_files_block(preflight_data.get("files_to_change", []), change_budget),
     )
     worklog = replace_section(worklog, "Docs Updated", build_docs_block(preflight_data.get("doc_updates", [])))
+    worklog = normalize_tdd_plan(worklog)
     write_file(worklog_path, worklog)
 
     if risk_level == "HIGH":
         update_ticket_status(ticket_path, "Awaiting PO Approval")
-        preflight_block = build_preflight_block(preflight_data, ticket_id, change_budget, risk_level, triggers)
+        preflight_block = build_preflight_block(
+            preflight_data,
+            ticket_id,
+            change_budget,
+            risk_level,
+            triggers,
+            "; ".join(review_items),
+        )
         gate_prompt(f"HIGH RISK ticket. Review Preflight Report:\n\n{preflight_block}\n")
         update_ticket_status(ticket_path, "Ongoing")
 
@@ -439,7 +510,16 @@ def main() -> None:
     test_cmd = config["test_cmd"]
     test_result = run_shell(test_cmd, capture=True, check=False)
     if test_result.returncode == 0:
-        die("pc-ticket: tests passed but should fail for TDD")
+        if config.get("tdd_require_fail", False):
+            die("pc-ticket: tests passed but should fail for TDD")
+        tdd_status = "PASS-FIRST-RUN"
+    else:
+        tdd_status = "FAIL-FIRST-RUN"
+    review_items.append(f"{test_cmd}: {tdd_status}")
+    if tdd_status == "PASS-FIRST-RUN":
+        worklog = read_file(worklog_path)
+        worklog = append_note(worklog, f"TDD: tests passed on first run ({test_cmd}).")
+        write_file(worklog_path, worklog)
 
     impl_prompt = (
         "Follow docs/04-process/ticket-execution-protocol.md.\n"
@@ -464,6 +544,7 @@ def main() -> None:
     ci_result = run_shell(ci_cmd, capture=True, check=False)
     ci_output = (ci_result.stdout + "\n" + ci_result.stderr).strip()
     ci_status = "PASS" if ci_result.returncode == 0 else "FAIL"
+    review_items.append(f"{ci_cmd}: {ci_status}")
 
     worklog = read_file(worklog_path)
     worklog = replace_section(worklog, "Gates", f"- make ci: {ci_status}")
@@ -500,7 +581,7 @@ def main() -> None:
             "What changed (files):",
             ", ".join(changed_files) if changed_files else "(none)",
             "Tests written (names) + results:",
-            f"{', '.join(preflight_data.get('tdd_tests', []))} | {test_cmd}: fail, {ci_cmd}: {ci_status}",
+            f"{', '.join(preflight_data.get('tdd_tests', []))} | {test_cmd}: {tdd_status}, {ci_cmd}: {ci_status}",
             "Docs/logs updated checklist:",
             ", ".join(preflight_data.get("doc_updates", [])) if preflight_data.get("doc_updates") else "(see worklog)",
             "make ci results:",

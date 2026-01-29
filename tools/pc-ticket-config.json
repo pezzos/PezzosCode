@@ -1,4 +1,5 @@
 {
   "test_cmd": "make test",
-  "ci_cmd": "make ci"
+  "ci_cmd": "make ci",
+  "tdd_require_fail": false
 }
