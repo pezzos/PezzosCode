@@ -34,6 +34,7 @@ list), the full output is stored in:
 - Wrap noisy commands: `rg`, `git diff`, long `cat`, or build logs.
 - Share the pointer id when discussing large outputs.
 - Add frequently noisy commands to the always-offload list in `pp.yml`.
+- Prefer offloading over pasting large outputs into prompts to reduce token usage.
 
 ## Configuration (pp.yml)
 

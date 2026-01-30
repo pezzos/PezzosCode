@@ -9,6 +9,8 @@
 -  **Single branch:** `main`
 -  **Atomic commits:** one commit = one clear intention, a limited scope
 -  **1 ticket = 1 commit** (unless explicitly stated)
+-  **Commit convention enforced:** `type(scope): summary` via `tools/pc-commit`
+-  **Hooks over AI for checks:** linting and checks live in git hooks where possible
 
 ### Steps
 
@@ -50,6 +52,7 @@ Installation: see `docs/04-process/gitmessage-install.md`.
 -  runs `make check`
 -  suggests a formatted commit message
 -  supports `--dry-run`
+-  enforces the commit message convention
 
 Examples:
 ```bash

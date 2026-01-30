@@ -274,7 +274,7 @@ is_syncable_path() {
     return
   fi
 
-  if [[ "$rel" == "docs/"*"/AGENTS.md" ]]; then
+  if [[ "$rel" == "docs/AGENTS.md" || "$rel" == "docs/"*"/AGENTS.md" ]]; then
     echo "sync"
     return
   fi

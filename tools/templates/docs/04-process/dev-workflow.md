@@ -25,6 +25,7 @@ Idea/Task → Plan → Implement → Test → Review → Deploy → Validate →
 ```
 
 For ticket implementation, follow the canonical protocol in `docs/04-process/ticket-execution-protocol.md`.
+Prefer Serena for symbol-aware navigation and edits when available.
 
 ## Documentation Workflow (Template Bootstrapping)
 
