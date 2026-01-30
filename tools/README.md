@@ -42,13 +42,14 @@ Usage:
 
 ```bash
 tools/bootstrap-into <target-repo-path>
+tools/bootstrap-into --self
 ```
 
-To reapply template updates to already-bootstrapped files:
-
-```bash
-tools/bootstrap-into --reapply <target-repo-path>
-```
+Behavior:
+- Templates live in `tools/templates/docs` and are the source of truth.
+- The script updates only syncable template/guidance files.
+- Real content is never overwritten after bootstrap.
+- `tools/bootstrap-into` itself is not synced into other repos.
 
 ## `tools/markdown-lint`
 

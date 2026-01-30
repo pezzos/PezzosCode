@@ -4,18 +4,17 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF' >&2
-Usage: bootstrap-into [--reapply] <target-repo-path>
-
-Options:
-  --reapply   For files that differ, prompt even if a bootstrap marker exists.
+Usage: bootstrap-into [--self] <target-repo-path>
 EOF
 }
-
-reapply=false
+use_self=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --self)
+      use_self=true
+      shift
+      ;;
     --reapply)
-      reapply=true
       shift
       ;;
     -h|--help)
@@ -37,13 +36,17 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ $# -ne 1 ]]; then
+if ! "$use_self" && [[ $# -ne 1 ]]; then
   usage
   exit 1
 fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-target_repo="$1"
+if "$use_self"; then
+  target_repo="$repo_root"
+else
+  target_repo="$1"
+fi
 
 if [[ ! -d "$target_repo" ]]; then
   echo "Target repo does not exist: $target_repo" >&2
@@ -51,6 +54,46 @@ if [[ ! -d "$target_repo" ]]; then
 fi
 
 marker_for_file() {
+  local file="$1"
+  local hash="$2"
+  local base
+  base="$(basename "$file")"
+
+  if [[ "$base" == "Makefile" ]]; then
+    if [[ -n "$hash" ]]; then
+      echo "# PezzosCode bootstrap sha256:${hash}"
+    else
+      echo "# PezzosCode bootstrap"
+    fi
+    return
+  fi
+
+  case "${file##*.}" in
+    md)
+      if [[ -n "$hash" ]]; then
+        echo "<!-- PezzosCode bootstrap sha256:${hash} -->"
+      else
+        echo "<!-- PezzosCode bootstrap -->"
+      fi
+      ;;
+    sh|bash|zsh|yml|yaml|toml|txt)
+      if [[ -n "$hash" ]]; then
+        echo "# PezzosCode bootstrap sha256:${hash}"
+      else
+        echo "# PezzosCode bootstrap"
+      fi
+      ;;
+    *)
+      if [[ -n "$hash" ]]; then
+        echo "# PezzosCode bootstrap sha256:${hash}"
+      else
+        echo "# PezzosCode bootstrap"
+      fi
+      ;;
+  esac
+}
+
+marker_prefix_for_file() {
   local file="$1"
   local base
   base="$(basename "$file")"
@@ -62,7 +105,7 @@ marker_for_file() {
 
   case "${file##*.}" in
     md)
-      echo "<!-- PezzosCode bootstrap -->"
+      echo "<!-- PezzosCode bootstrap"
       ;;
     sh|bash|zsh|yml|yaml|toml|txt)
       echo "# PezzosCode bootstrap"
@@ -75,20 +118,24 @@ marker_for_file() {
 
 has_marker() {
   local file="$1"
-  local marker
-  marker="$(marker_for_file "$file")"
+  local marker_prefix
+  marker_prefix="$(marker_prefix_for_file "$file")"
 
   [[ -f "$file" ]] || return 1
-  [[ "$(tail -n 1 "$file" 2>/dev/null || true)" == "$marker" ]]
+  local last
+  last="$(awk 'NF {line=$0} END {print line}' "$file" 2>/dev/null || true)"
+  [[ "$last" == "$marker_prefix"* ]]
 }
 
 append_marker() {
   local file="$1"
   local marker
-  marker="$(marker_for_file "$file")"
+  local hash
+  hash="$(file_hash_without_marker "$file")"
+  marker="$(marker_for_file "$file" "$hash")"
 
   if [[ -f "$file" ]]; then
-    if [[ "$(tail -n 1 "$file" 2>/dev/null || true)" == "$marker" ]]; then
+    if has_marker "$file"; then
       return
     fi
     printf "\n%s\n" "$marker" >> "$file"
@@ -98,19 +145,42 @@ append_marker() {
 normalize_for_compare() {
   local file="$1"
   local out="$2"
-  local marker
+  local marker_prefix
 
-  marker="$(marker_for_file "$file")"
+  marker_prefix="$(marker_prefix_for_file "$file")"
 
-  awk -v marker="$marker" '
+  awk -v marker_prefix="$marker_prefix" '
   { lines[NR] = $0 }
   END {
     n = NR
     while (n > 0 && lines[n] ~ /^[[:space:]]*$/) { n-- }
-    if (n > 0 && lines[n] == marker) { n-- }
+    if (n > 0 && index(lines[n], marker_prefix) == 1) { n-- }
     while (n > 0 && lines[n] ~ /^[[:space:]]*$/) { n-- }
     for (i = 1; i <= n; i++) { print lines[i] }
   }' "$file" > "$out"
+}
+
+file_hash_without_marker() {
+  local file="$1"
+  local tmp
+  tmp="$(mktemp)"
+  normalize_for_compare "$file" "$tmp"
+  local hash
+  hash="$(shasum -a 256 "$tmp" | awk '{print $1}')"
+  rm -f "$tmp"
+  echo "$hash"
+}
+
+marker_hash_from_file() {
+  local file="$1"
+  local marker_prefix
+  marker_prefix="$(marker_prefix_for_file "$file")"
+  local last
+  last="$(awk 'NF {line=$0} END {print line}' "$file" 2>/dev/null || true)"
+  if [[ "$last" != "$marker_prefix"* ]]; then
+    return
+  fi
+  echo "$last" | awk -F 'sha256:' 'NF>1 {print $2}' | awk '{gsub(/[^0-9a-f]/,"",$0); print}'
 }
 
 files_equal_ignoring_marker() {
@@ -167,153 +237,162 @@ prompt_action() {
   done
 }
 
-codex_merge_file() {
-  local src="$1"
-  local dest="$2"
-  local tmp_output
-  local tmp_merged
-  local prompt
-  local git_log
-  local git_blame
-  local git_context=""
+is_syncable_path() {
+  local rel="$1"
 
-  if ! command -v codex >/dev/null 2>&1; then
-    echo "Codex CLI not found. Skipping merge for $dest." >&2
-    return 1
+  if [[ "$rel" == "AGENTS.md" || "$rel" == ".codex.toml" ]]; then
+    echo "conditional"
+    return
   fi
 
-  tmp_output="$(mktemp)"
-  tmp_merged="$(mktemp)"
-
-  if git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    git_log="$(git -C "$repo_root" log -n 5 --pretty=format:'%h %ad %s' --date=short -- "$src" 2>/dev/null || true)"
-    git_blame="$(git -C "$repo_root" blame -n -- "$src" 2>/dev/null | head -n 120 || true)"
-    if [[ -n "$git_log" || -n "$git_blame" ]]; then
-      git_context=$(
-        cat <<EOF
-
-Template file history (for context only):
-Git log (last 5):
-${git_log:-[no log available]}
-
-Git blame (first 120 lines):
-${git_blame:-[no blame available]}
-EOF
-      )
-    fi
-  fi
-
-  prompt=$(
-    cat <<EOF
-Merge the source file into the destination file. Preserve destination edits unless the source has clearer, newer structure.
-Source file: $src
-Destination file: $dest
-The destination file is an active project document, not a template. Keep its content and only add missing or improved sections from the source template that do not exist yet.
-Output ONLY the merged file content, no explanations, no code fences.
-$git_context
-EOF
-  )
-
-  if ! codex exec --skip-git-repo-check --output-last-message "$tmp_output" --dangerously-bypass-approvals-and-sandbox "$prompt" >/dev/null 2>/dev/null; then
-    echo "Codex merge failed; skipping $dest." >&2
-    rm -f "$tmp_output" "$tmp_merged"
-    return 1
-  fi
-
-  if command -v rg >/dev/null 2>&1; then
-    if rg -q '^```' "$tmp_output"; then
-      awk 'BEGIN{in=0} /^```/{if(in==0){in=1;next}else{exit}} {if(in) print}' "$tmp_output" > "$tmp_merged"
+  if [[ "$rel" == "tools/"* || "$rel" == ".codex/skills/"* ]]; then
+    if [[ "$rel" == "tools/bootstrap-into" ]]; then
+      echo "never"
     else
-      cp "$tmp_output" "$tmp_merged"
+      echo "sync"
     fi
-  else
-    if grep -q '^```' "$tmp_output"; then
-      awk 'BEGIN{in=0} /^```/{if(in==0){in=1;next}else{exit}} {if(in) print}' "$tmp_output" > "$tmp_merged"
-    else
-      cp "$tmp_output" "$tmp_merged"
-    fi
+    return
   fi
 
-  if [[ ! -s "$tmp_merged" ]]; then
-    echo "Codex merge produced empty output; skipping $dest." >&2
-    rm -f "$tmp_output" "$tmp_merged"
-    return 1
+  if [[ "$rel" == "docs/04-process/"* ]]; then
+    echo "sync"
+    return
   fi
 
-  mkdir -p "$(dirname "$dest")"
-  cp "$tmp_merged" "$dest"
-  rm -f "$tmp_output" "$tmp_merged"
-  return 0
+  if [[ "$rel" == "docs/02-features/feature-template/"* ]]; then
+    echo "sync"
+    return
+  fi
+
+  if [[ "$rel" == "docs/03-logs/tickets/worklog-template.md" ]]; then
+    echo "sync"
+    return
+  fi
+
+  if [[ "$rel" == "docs/README.md" ]]; then
+    echo "sync"
+    return
+  fi
+
+  if [[ "$rel" == "docs/"*"/AGENTS.md" ]]; then
+    echo "sync"
+    return
+  fi
+
+  if [[ "$rel" == "docs/01-product/AGENTS.md" ]]; then
+    echo "sync"
+    return
+  fi
+
+  if [[ "$rel" == "docs/02-features/AGENTS.md" ]]; then
+    echo "sync"
+    return
+  fi
+
+  if [[ "$rel" == "docs/03-logs/AGENTS.md" ]]; then
+    echo "sync"
+    return
+  fi
+
+  if [[ "$rel" == "docs/00-context/"* ]]; then
+    echo "protected"
+    return
+  fi
+
+  if [[ "$rel" == "docs/01-product/prd.md" ]]; then
+    echo "protected"
+    return
+  fi
+
+  if [[ "$rel" == "docs/02-features/"* ]]; then
+    echo "protected"
+    return
+  fi
+
+  if [[ "$rel" == "docs/03-logs/"* ]]; then
+    echo "protected"
+    return
+  fi
+
+  if [[ "$rel" == ".gitmessage" || "$rel" == "LICENSE" || "$rel" == "Makefile" || "$rel" == "pp.yml" ]]; then
+    echo "sync"
+    return
+  fi
+
+  echo "protected"
 }
 
 copy_file() {
   local src="$1"
   local dest="$2"
-  local action
+  local rel="$3"
+  local policy
 
-  if [[ -f "$dest" ]]; then
-    if ! "$reapply" && has_marker "$dest"; then
-      echo "Skipping (already bootstrapped): $dest"
-      return 0
-    fi
+  policy="$(is_syncable_path "$rel")"
 
-    if files_equal_ignoring_marker "$src" "$dest"; then
-      echo "Skipping (no changes): $dest"
-      return 0
-    fi
-
-    if "$reapply" && has_marker "$dest"; then
-      echo "Reapply enabled; existing marker ignored for: $dest"
-    fi
-
-    action="$(prompt_action "$dest")"
-    case "$action" in
-      overwrite)
-        mkdir -p "$(dirname "$dest")"
-        cp "$src" "$dest"
-        append_marker "$dest"
-        ;;
-      merge)
-        if codex_merge_file "$src" "$dest"; then
-          append_marker "$dest"
-        else
-          echo "Skipped (merge failed): $dest"
-        fi
-        ;;
-      skip)
-        echo "Skipped: $dest"
-        ;;
-    esac
-  else
-    mkdir -p "$(dirname "$dest")"
-    cp "$src" "$dest"
-    append_marker "$dest"
+  if [[ "$policy" == "never" ]]; then
+    echo "Skipping (excluded): $dest"
+    return 0
   fi
+
+  if [[ "$policy" == "protected" && -f "$dest" ]]; then
+    echo "Skipping (protected): $dest"
+    return 0
+  fi
+
+  if [[ "$policy" == "conditional" && -f "$dest" ]]; then
+    local marker_hash
+    local current_hash
+    marker_hash="$(marker_hash_from_file "$dest")"
+    current_hash="$(file_hash_without_marker "$dest")"
+    if [[ -n "$marker_hash" && "$marker_hash" == "$current_hash" ]]; then
+      if files_equal_ignoring_marker "$src" "$dest"; then
+        echo "Skipping (no changes): $dest"
+        return 0
+      fi
+    else
+      echo "Skipping (locally modified): $dest"
+      return 0
+    fi
+  fi
+
+  if [[ -f "$dest" ]] && files_equal_ignoring_marker "$src" "$dest"; then
+    echo "Skipping (no changes): $dest"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$dest")"
+  cp "$src" "$dest"
+  append_marker "$dest"
 }
 
 copy_dir_files() {
   local src_dir="$1"
   local dest_dir="$2"
+  local rel_prefix="$3"
   local src_file
   local rel
+  local dest_rel
 
   [[ -d "$src_dir" ]] || return 0
 
   while IFS= read -r -d '' src_file; do
     rel="${src_file#$src_dir/}"
+    dest_rel="$rel_prefix/$rel"
     if [[ "$rel" == *"/__pycache__/"* || "$rel" == *".pyc" ]]; then
       continue
     fi
-    copy_file "$src_file" "$dest_dir/$rel"
+    copy_file "$src_file" "$dest_dir/$rel" "$dest_rel"
   done < <(find "$src_dir" -type f -print0)
 }
 
-copy_dir_files "$repo_root/tools/templates/docs" "$target_repo/docs"
-copy_dir_files "$repo_root/.codex/skills" "$target_repo/.codex/skills"
-copy_dir_files "$repo_root/tools" "$target_repo/tools"
-copy_file "$repo_root/AGENTS.md" "$target_repo/AGENTS.md"
-copy_file "$repo_root/.gitignore" "$target_repo/.gitignore"
-copy_file "$repo_root/.gitmessage" "$target_repo/.gitmessage"
-copy_file "$repo_root/LICENSE" "$target_repo/LICENSE"
-copy_file "$repo_root/Makefile" "$target_repo/Makefile"
-copy_file "$repo_root/pp.yml" "$target_repo/pp.yml"
+copy_dir_files "$repo_root/tools/templates/docs" "$target_repo/docs" "docs"
+copy_dir_files "$repo_root/.codex/skills" "$target_repo/.codex/skills" ".codex/skills"
+copy_dir_files "$repo_root/tools" "$target_repo/tools" "tools"
+copy_file "$repo_root/AGENTS.md" "$target_repo/AGENTS.md" "AGENTS.md"
+copy_file "$repo_root/.codex.toml" "$target_repo/.codex.toml" ".codex.toml"
+copy_file "$repo_root/.gitignore" "$target_repo/.gitignore" ".gitignore"
+copy_file "$repo_root/.gitmessage" "$target_repo/.gitmessage" ".gitmessage"
+copy_file "$repo_root/LICENSE" "$target_repo/LICENSE" "LICENSE"
+copy_file "$repo_root/Makefile" "$target_repo/Makefile" "Makefile"
+copy_file "$repo_root/pp.yml" "$target_repo/pp.yml" "pp.yml"

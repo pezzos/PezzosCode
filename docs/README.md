@@ -46,11 +46,9 @@ This system solves both by providing:
 ### 1. Copy This Template
 
 ```bash
-# Copy the /docs folder to your project
-cp -r docs /path/to/your/project/
-
-# Or clone this repo and copy what you need
-git clone [repo-url]
+# Use bootstrap-into to seed or update a project
+tools/bootstrap-into /path/to/your/project
+tools/bootstrap-into --self
 ```
 
 ### 2. Start with Context
@@ -108,6 +106,32 @@ After shipping:
 As bugs come up, track them in **`docs/03-logs/bug-log.md`**.
 
 For big decisions, document them in **`docs/03-logs/decision-log.md`**.
+
+## Template Sync Rules (Source of Truth)
+
+Templates live in `tools/templates/docs` and are the source of truth for
+template/guidance files. `tools/bootstrap-into` updates only the syncable files
+below and never overwrites real content.
+
+**Always sync (templates/guidance):**
+- Any `docs/**/AGENTS.md`
+- `docs/README.md`
+- `docs/04-process/**`
+- `docs/02-features/feature-template/**`
+- `docs/03-logs/tickets/worklog-template.md`
+
+**Sync only if unchanged locally (bootstrapped once):**
+- `AGENTS.md`
+- `.codex.toml`
+
+**Never overwrite real content (skip if exists):**
+- `docs/00-context/**` (except `AGENTS.md`)
+- `docs/01-product/prd.md`
+- `docs/02-features/**` (except `feature-template/**` and `AGENTS.md`)
+- `docs/03-logs/**` (except `AGENTS.md` and `tickets/worklog-template.md`)
+
+**Tools:**
+- All `tools/*` sync except `tools/bootstrap-into` (kept local to the tooling repo).
 
 ## Folder Structure
 
