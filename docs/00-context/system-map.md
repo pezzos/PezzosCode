@@ -7,115 +7,113 @@
 ## System Overview
 
 ```
-┌─────────────┐         ┌─────────────┐         ┌─────────────┐
-│   Client    │────────▶│   Backend   │────────▶│  Database   │
-│             │         │             │         │             │
-└─────────────┘         └─────────────┘         └─────────────┘
+┌──────────────┐   bootstrap/update   ┌──────────────────────┐
+│  User (PO)   │────────────────────▶│  Target Project Repo  │
+└──────────────┘                      │  (bootstrapped docs, │
+          │                           │   tools, skills)     │
+          │ execute tickets           └──────────────────────┘
+          ▼
+┌────────────────────────┐
+│ PezzosCode Tooling Repo │
+│ (templates + tools)     │
+└────────────────────────┘
 ```
 
 <!-- Replace with your actual architecture diagram -->
 
 ## Components
 
-### Frontend/Client
-- **Technology:** [Framework/language]
-- **Hosting:** [Where it's deployed]
-- **Entry Points:** [URLs/endpoints]
+### Template + Docs System
+- **Technology:** Markdown docs + templates.
+- **Entry Points:** `docs/` (templates live in `tools/templates/docs`).
 - **Key Files/Modules:**
-  - `[path]`: [purpose]
-  - `[path]`: [purpose]
+  - `docs/00-context/`: vision, users, assumptions, system map.
+  - `docs/01-product/`: PRD.
+  - `docs/02-features/`: feature folders + tickets.
+  - `docs/03-logs/`: decisions, implementation notes, validation.
+  - `docs/04-process/`: process rules and workflow.
 
-### Backend/API
-- **Technology:** [Framework/language]
-- **Hosting:** [Where it's deployed]
-- **Entry Points:** [URLs/endpoints]
+### Tools (CLI scripts)
+- **Technology:** Bash + Python.
+- **Entry Points:** `tools/bootstrap-into`, `tools/pc-ticket`, `tools/ticket-bootstrap`, `tools/pc-commit`.
 - **Key Files/Modules:**
-  - `[path]`: [purpose]
-  - `[path]`: [purpose]
+  - `tools/bootstrap-into`: copy templates into target repo.
+  - `tools/pc-ticket`: execute ticket workflow end-to-end.
+  - `tools/ticket-bootstrap`: create tickets/worklogs.
+  - `tools/pc-commit`: validate and commit changes.
 
-### Database
-- **Technology:** [Database type/version]
-- **Hosting:** [Where it's deployed]
-- **Key Tables/Collections:**
-  - `[name]`: [purpose and key fields]
-  - `[name]`: [purpose and key fields]
+### Skills (Codex helpers)
+- **Technology:** Markdown skill files in `.codex/skills/`.
+- **Entry Points:** `context-to-product`, `prd-to-features`, `next-feature-ticket`, etc.
 
 ### External Services
-- **Service Name:** [Provider]
-  - **Purpose:** [What it does]
-  - **Integration:** [How we connect]
-  - **Credentials:** [Where stored]
+- **Codex CLI:** Executes prompts for tests/implementation/merge tasks.
+- **Git:** Version control and change tracking.
+- **Make:** Standard entry point for tests/CI.
+- **Language runtimes:** Python, Node/TS, Rust, Go as needed per project.
 
 ## Data Flow
 
 ### Critical User Flows
-1. **[Flow Name]**
-   - User action: [what user does]
-   - System flow: [component 1] → [component 2] → [component 3]
-   - Data touched: [what data is read/written]
+1. **Bootstrap a project**
+   - User action: run bootstrap/update command.
+   - System flow: tools/bootstrap-into → target repo docs/tools/skills.
+   - Data touched: template files, docs, tools, skills.
 
-2. **[Flow Name]**
-   - User action: [what user does]
-   - System flow: [component 1] → [component 2] → [component 3]
-   - Data touched: [what data is read/written]
+2. **Execute approved tickets**
+   - User action: run ticket commands in the bootstrapped repo.
+   - System flow: tools/pc-ticket → Codex CLI → tests/CI → logs.
+   - Data touched: tickets, worklogs, docs/logs, git changes.
 
 ## Deployment
 
 ### Environments
 | Environment | Purpose | URL | Status |
 |-------------|---------|-----|--------|
-| Production  | Live users | [url] | 🟢 Active |
-| Staging     | Pre-release testing | [url] | 🟢 Active |
-| Development | Local development | localhost | 🟢 Active |
+| Local | Personal development | n/a | 🟢 Active |
 
 ### Build & Deploy Process
-1. [Step 1]: [description]
-2. [Step 2]: [description]
-3. [Step 3]: [description]
+1. Run tools/bootstrap-into to seed a target repo.
+2. Use ticket workflow to execute features locally.
 
 ## Configuration
 
 ### Environment Variables
-| Variable | Purpose | Required | Set In |
-|----------|---------|----------|--------|
-| `[VAR_NAME]` | [what it does] | Yes/No | [where it's set] |
+None required; depends on target project.
 
 ### Feature Flags
-| Flag | Purpose | Status | Controls |
-|------|---------|--------|----------|
-| `[flag_name]` | [what it enables] | On/Off | [what code/feature] |
+None.
 
 ## Dependencies
 
 ### Runtime Dependencies
-- [Package/Library]: [version] - [purpose]
-- [Package/Library]: [version] - [purpose]
+- Git - repo management and diffing.
+- Codex CLI - AI execution.
+- Make - test/CI entry points.
+- Language runtimes - Python/Node/Rust/Go depending on repo.
 
 ### Build Dependencies
-- [Package/Library]: [version] - [purpose]
-- [Package/Library]: [version] - [purpose]
+- None beyond runtime dependencies.
 
 ## Monitoring & Observability
 
 ### Logs
-- **Location:** [where logs are stored]
-- **Key Events:** [what we log]
+- **Location:** `docs/03-logs/`.
+- **Key Events:** ticket execution, decisions, validations.
 
 ### Metrics
-- **Tool:** [monitoring tool]
-- **Key Metrics:** [what we track]
+- **Tool:** none (manual).
+- **Key Metrics:** successful bootstrap; successful ticket execution with minimal manual intervention.
 
 ### Alerts
-- **Tool:** [alerting tool]
-- **Critical Alerts:** [what triggers pages]
+- **Tool:** none.
+- **Critical Alerts:** none (manual review).
 
 ## Known Issues & Debt
 
-- [ ] [Technical debt item]: [why it exists, impact]
-- [ ] [Known bug]: [workaround if any]
-- [ ] [Performance issue]: [current state]
+- [ ] Keep tools idempotent across reruns to avoid state corruption.
 
 ---
 
-**Last Updated:** [YYYY-MM-DD]
-**Updated By:** [Name/Team]
+**Last Updated:** 2026-01-30
+**Updated By:** Primary user (developer/PO)

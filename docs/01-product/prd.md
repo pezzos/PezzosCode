@@ -6,248 +6,245 @@
 
 ## Overview
 
-**Product Name:** [Product Name]
+**Product Name:** PezzosCode
 
-**Version:** [Version Number]
+**Version:** 0.1
 
-**Last Updated:** [YYYY-MM-DD]
+**Last Updated:** 2026-01-30
 
-**Status:** [Draft | In Review | Approved | Implemented]
+**Status:** Draft
 
 ### Executive Summary
 <!-- 2-3 sentences describing what this product/feature does and why it matters -->
 
-[Brief description of the product and its core value proposition]
+PezzosCode bootstraps a new project with a standardized, AI-first workflow and tooling.
+It enables a single developer/PO to describe features and let AI execute tickets with minimal manual setup.
+The focus is simplicity, robustness, and idempotent re-runs.
 
 ## Problem Statement
 
 ### User Pain Points
-1. **[Pain Point 1]**
-   - Who experiences it: [target user]
-   - Current workaround: [how they deal with it now]
-   - Impact: [why it matters]
+1. **Bootstrapping AI-first projects is manual and inconsistent**
+   - Who experiences it: single developer/PO.
+   - Current workaround: manual setup and ad-hoc templates.
+   - Impact: wasted time, inconsistent process, broken AI workflows.
 
-2. **[Pain Point 2]**
-   - Who experiences it: [target user]
-   - Current workaround: [how they deal with it now]
-   - Impact: [why it matters]
+2. **AI workflows break on small issues**
+   - Who experiences it: single developer/PO.
+   - Current workaround: manual fixes and repeated setup.
+   - Impact: token waste, loss of momentum, unreliable execution.
 
 ### Success Criteria
 <!-- How we'll know if we've solved the problem -->
 
 | Metric | Current | Target | Measure |
 |--------|---------|--------|---------|
-| [Metric 1] | [baseline] | [goal] | [how we measure] |
-| [Metric 2] | [baseline] | [goal] | [how we measure] |
+| Bootstrap in one command | Manual setup | One command | Manual verification |
+| Ticket execution reliability | Inconsistent | Minimal failures | Worklog + user confirmation |
 
 ### Success Metrics (Template)
 <!-- List the specific, trackable outcomes that define success -->
-- **[Metric Name]:** baseline [value], target [value], timeframe [e.g., 30 days], data source [where it comes from]
-- **[Metric Name]:** baseline [value], target [value], timeframe [e.g., 90 days], data source [where it comes from]
+- **Bootstrap time:** baseline manual, target one command, timeframe immediate, data source user confirmation.
+- **Ticket execution success rate:** baseline inconsistent, target reliable for approved tickets, data source worklogs.
+- **Idempotent reruns:** baseline manual recovery, target safe rerun without duplication, data source worklogs.
 
 ## Users & Use Cases
 
 ### Target Users
 
-**Primary Persona: [Name/Type]**
-- **Who they are:** [description]
-- **Goals:** [what they want to achieve]
-- **Frustrations:** [current pain points]
-- **Technical level:** [beginner/intermediate/expert]
+**Primary Persona: Developer/PO (single user)**
+- **Who they are:** Entrepreneur building multiple projects with Codex as the executor.
+- **Goals:** Bootstrap projects fast; describe features and let AI implement.
+- **Frustrations:** Manual setup, workflow breaks, inconsistent process adherence.
+- **Technical level:** Intermediate to advanced (workflow should still be simple).
 
-**Secondary Persona: [Name/Type]**
-- **Who they are:** [description]
-- **Goals:** [what they want to achieve]
-- **Frustrations:** [current pain points]
-- **Technical level:** [beginner/intermediate/expert]
+**Secondary Persona:** None (single-user focus).
 
 ### Core Use Cases
 
-#### Use Case 1: [Name]
-**Actor:** [who performs this]
+#### Use Case 1: Bootstrap a project
+**Actor:** Developer/PO
 
-**Preconditions:** [what must be true before]
+**Preconditions:** Target repo exists (new or existing).
 
 **Main Flow:**
-1. User [action]
-2. System [response]
-3. User [action]
-4. System [response]
+1. User runs bootstrap command.
+2. System copies templates/tools into target repo.
+3. User begins filling context docs.
 
-**Postconditions:** [what is true after]
+**Postconditions:** Repo is ready for PezzosCode workflow.
 
 **Alternative Flows:**
-- **Alt 1:** [scenario and how it's handled]
-- **Alt 2:** [scenario and how it's handled]
+- **Alt 1:** Existing files conflict; user chooses overwrite/merge/skip.
 
-#### Use Case 2: [Name]
-**Actor:** [who performs this]
+#### Use Case 2: Execute approved tickets
+**Actor:** Developer/PO
 
-**Preconditions:** [what must be true before]
+**Preconditions:** Context, PRD, features, and tickets are defined.
 
 **Main Flow:**
-1. User [action]
-2. System [response]
+1. User runs ticket execution command.
+2. System generates preflight, runs TDD, implements, and logs results.
+3. User approves gates when required.
 
-**Postconditions:** [what is true after]
+**Postconditions:** Ticket is implemented and documented.
 
 ## Prioritized Feature List (Template)
 <!-- Ordered list of features tied to the PRD scope -->
 | Priority | Feature | Outcome | Notes |
 |----------|---------|---------|-------|
-| P0 | [Feature name] | [user outcome] | [dependencies/risks] |
-| P1 | [Feature name] | [user outcome] | [dependencies/risks] |
-| P2 | [Feature name] | [user outcome] | [dependencies/risks] |
+| P0 | Bootstrap templates into a repo | Project is ready for AI workflow | Idempotency required |
+| P0 | Execute ticket workflow | AI can implement approved tasks reliably | Requires Codex CLI |
+| P1 | Update/reapply templates | Existing repos stay in sync | Avoid conflicts |
+| P2 | Optional CLI/TUI wrapper | Faster iteration for user | Separate project if UI |
 
 ## Requirements
 
 ### Functional Requirements
 
 #### Must Have (P0)
-- [ ] **FR-001:** [Requirement description]
-  - **Rationale:** [why this is needed]
-  - **Acceptance Criteria:** [how we verify it works]
+- [ ] **FR-001:** Bootstrap a project with PezzosCode templates in one command.
+  - **Rationale:** Eliminates manual setup and inconsistency.
+  - **Acceptance Criteria:** Templates, tools, and docs are copied into a target repo.
 
-- [ ] **FR-002:** [Requirement description]
-  - **Rationale:** [why this is needed]
-  - **Acceptance Criteria:** [how we verify it works]
+- [ ] **FR-002:** Execute a ticket end-to-end with AI and minimal manual work.
+  - **Rationale:** Primary user goal is AI execution with minimal intervention.
+  - **Acceptance Criteria:** Preflight → tests → implementation → logs → gates.
 
 #### Should Have (P1)
-- [ ] **FR-101:** [Requirement description]
-  - **Rationale:** [why this is valuable]
-  - **Acceptance Criteria:** [how we verify it works]
+- [ ] **FR-101:** Reapply templates to existing repos safely.
+  - **Rationale:** Enables template evolution without losing local edits.
+  - **Acceptance Criteria:** Conflicts handled by overwrite/merge/skip; idempotent reruns.
 
 #### Nice to Have (P2)
-- [ ] **FR-201:** [Requirement description]
-  - **Rationale:** [why this could be useful]
-  - **Acceptance Criteria:** [how we verify it works]
+- [ ] **FR-201:** Single command to loop over approved features/tickets.
+  - **Rationale:** Reduce manual step orchestration.
+  - **Acceptance Criteria:** CLI can run the standard loop with user approvals.
 
 ### Non-Functional Requirements
 
 #### Performance
-- [ ] **NFR-001:** [Performance requirement]
-  - **Metric:** [what we measure]
-  - **Target:** [specific number/threshold]
+- [ ] **NFR-001:** Commands should complete promptly for small/medium repos.
+  - **Metric:** Runtime of bootstrap/ticket workflows.
+  - **Target:** Reasonable for local developer workflow.
 
 #### Security
-- [ ] **NFR-101:** [Security requirement]
-  - **Rationale:** [why this matters]
-  - **Compliance:** [any relevant standards]
+- [ ] **NFR-101:** No remote/cloud data transfer.
+  - **Rationale:** Keep workflow local and predictable.
+  - **Compliance:** None.
 
 #### Usability
-- [ ] **NFR-201:** [Usability requirement]
-  - **Metric:** [how we measure]
-  - **Target:** [specific goal]
+- [ ] **NFR-201:** CLI-only with minimal prompts.
+  - **Metric:** Number of required prompts per workflow.
+  - **Target:** Only necessary gates (e.g., HIGH-risk approvals).
 
 #### Reliability
-- [ ] **NFR-301:** [Reliability requirement]
-  - **Metric:** [uptime/error rate/etc]
-  - **Target:** [specific SLA]
+- [ ] **NFR-301:** Idempotent reruns and recoverable failures.
+  - **Metric:** Ability to rerun after error without corruption.
+  - **Target:** No duplicate worklog sections or inconsistent status.
 
 ### Constraints
 
 **Technical Constraints:**
-- [Constraint 1]: [description and impact]
-- [Constraint 2]: [description and impact]
+- macOS-first support; no Windows support.
+- CLI-only; no UI in this project.
+- Requires git, codex, make, and language runtimes as needed.
 
 **Business Constraints:**
-- [Constraint 1]: [description and impact]
-- [Constraint 2]: [description and impact]
+- Personal use; optimize for simplicity and robustness.
 
 **Regulatory/Compliance:**
-- [Requirement 1]: [description and impact]
+- None.
 
 ## User Experience
 
 ### User Journey
 ```
-[Entry Point] → [Step 1] → [Step 2] → [Step 3] → [Outcome]
+Bootstrap → Context/PRD → Features → Tickets → Execute → Repeat
 ```
 
 ### Key Screens/Interactions
-1. **[Screen/Page Name]**
-   - Purpose: [what user accomplishes here]
-   - Key elements: [main UI components]
-   - Actions: [what user can do]
+1. **CLI: Bootstrap**
+   - Purpose: Seed a repo with templates/tools.
+   - Key elements: Command output and optional overwrite/merge/skip prompts.
+   - Actions: Run bootstrap/update.
 
-2. **[Screen/Page Name]**
-   - Purpose: [what user accomplishes here]
-   - Key elements: [main UI components]
-   - Actions: [what user can do]
+2. **CLI: Execute Ticket**
+   - Purpose: Run the ticket workflow with AI.
+   - Key elements: Preflight, gates, test results, commit suggestion.
+   - Actions: Approve gates when required.
 
 ### Error States
 | Scenario | User Experience | System Behavior |
 |----------|----------------|-----------------|
-| [Error condition] | [what user sees] | [what system does] |
-| [Error condition] | [what user sees] | [what system does] |
+| Missing dependencies | Clear error | Fail fast with instructions |
+| HIGH-risk ticket without approval | Blocked | Stop after preflight |
+| Rerun after partial failure | Resume safely | Replace-in-place updates |
 
 ## Scope
 
 ### Scope Boundaries (Template)
 <!-- Define what this PRD covers and what it explicitly avoids -->
-- **System boundaries:** [what systems/services are included]
-- **User boundaries:** [which user groups are included/excluded]
-- **Data boundaries:** [which data is in/out]
-- **Platform boundaries:** [web/mobile/desktop, etc.]
+- **System boundaries:** local CLI tools, templates, and docs.
+- **User boundaries:** single developer/PO; no secondary users.
+- **Data boundaries:** local repos and docs only; no remote storage.
+- **Platform boundaries:** macOS CLI.
 
 ### Non-Goals (Template)
 <!-- Explicitly state what this PRD is not trying to achieve -->
-- [Non-goal 1]
-- [Non-goal 2]
+- Cloud services or remote state.
+- UI or multi-user collaboration.
+- Windows support.
+- Extra complexity or configuration beyond essentials.
 
 ### In Scope
-- [Feature/capability 1]
-- [Feature/capability 2]
-- [Feature/capability 3]
+- Bootstrap templates into repos.
+- Update/reapply templates safely.
+- Execute ticket workflow with AI.
 
 ### Out of Scope
-- [Feature/capability NOT included]
-- [Feature/capability deferred to future]
-- [Feature/capability not planned]
+- UI/desktop/web interfaces.
+- Cloud sync or remote storage.
+- Windows support.
 
 ### Future Considerations
-- [Possible future enhancement 1]
-- [Possible future enhancement 2]
+- Optional CLI/TUI wrapper for looping approved tickets.
 
 ## Dependencies
 
 ### Internal Dependencies
-- **[Team/System]:** [what we need and when]
-- **[Team/System]:** [what we need and when]
+- **Docs/templates:** in `tools/templates/docs`.
+- **Tools:** CLI scripts in `tools/`.
 
 ### External Dependencies
-- **[Vendor/Service]:** [what we need and when]
-- **[Vendor/Service]:** [what we need and when]
+- **Codex CLI:** required for AI execution.
+- **Git/Make:** required for workflow and tests.
+- **Language runtimes:** Python/Node/Rust/Go as needed.
 
 ## Risks & Mitigations
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| [Risk description] | High/Med/Low | High/Med/Low | [How we'll handle it] |
-| [Risk description] | High/Med/Low | High/Med/Low | [How we'll handle it] |
+| Tooling is not idempotent and re-runs corrupt state | High | Medium | Replace-in-place updates; tests for idempotency |
+| Template updates are hard to propagate | High | Medium | Safe reapply with skip/merge |
+| AI workflow burns tokens on repeatable steps | High | Medium | Keep prompts minimal; skip completed work |
+| Missing dependencies cause failures | Med | Medium | Preflight checks and clear errors |
 
 ## Open Questions
 
-- [ ] **Q1:** [Question]
-  - **Impact:** [why this matters]
-  - **Owner:** [who will answer]
-  - **Deadline:** [when we need to know]
-
-- [ ] **Q2:** [Question]
-  - **Impact:** [why this matters]
-  - **Owner:** [who will answer]
-  - **Deadline:** [when we need to know]
+- None currently. Dependencies are assumed to exist locally (git, codex, make), and HIGH-risk approvals are handled via a prompt with optional `approval: "granted"` in ticket frontmatter.
 
 ## Appendix
 
 ### Related Documents
-- [Link to design mockups]
-- [Link to technical specs]
-- [Link to user research]
+- docs/00-context/vision.md
+- docs/00-context/users.md
+- docs/00-context/system-map.md
+- docs/00-context/assumptions.md
+- docs/00-context/context-boundaries-operating-model.md
 
 ### Change Log
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
-| YYYY-MM-DD | 0.1 | Initial draft | [Name] |
-| YYYY-MM-DD | 1.0 | Approved version | [Name] |
+| 2026-01-30 | 0.1 | Draft PRD from context docs | Primary user |

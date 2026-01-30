@@ -44,6 +44,11 @@
 8) **Commit**
    - 1 ticket = 1 commit.
    - Follow commit rules in `docs/04-process/git-workflow.md`.
+   - Use `tools/pc-commit` to enforce convention and checks.
+
+9) **AI Tooling (preferred)**
+   - Use Serena for code navigation and symbol-aware edits when available.
+   - Offload large outputs using `tools/offload-proxy/pp` to reduce token usage.
 
 ---
 
