@@ -3,6 +3,7 @@ id: T-XXXX
 title: "<short>"
 prd_ref: "<FR-XXX or feature id>"
 status: "To Do"  # allowed: To Do | Ongoing | Done | Fail | Awaiting PO Approval
+approval: ""     # set to "granted" to resume HIGH risk tickets
 change_budget:
   max_files: 10
   max_new_modules: 2

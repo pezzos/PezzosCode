@@ -301,6 +301,9 @@ copy_dir_files() {
 
   while IFS= read -r -d '' src_file; do
     rel="${src_file#$src_dir/}"
+    if [[ "$rel" == *"/__pycache__/"* || "$rel" == *".pyc" ]]; then
+      continue
+    fi
     copy_file "$src_file" "$dest_dir/$rel"
   done < <(find "$src_dir" -type f -print0)
 }

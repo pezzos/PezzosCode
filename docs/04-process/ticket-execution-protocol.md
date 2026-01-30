@@ -16,6 +16,7 @@
    - Run `make ticket T=<id> [F=<feature-id>]` to bootstrap and locate the ticket/worklog.
    - Open the ticket file: `docs/02-features/<feature>/TASK-XXX.md`.
    - Confirm scope, success criteria, and change budget.
+   - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.
 
 2) **Preflight Report (Mandatory)**
    - Produce the Preflight Report exactly in the format below.

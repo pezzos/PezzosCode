@@ -277,6 +277,11 @@ def strip_fence(text: str) -> str:
     return text
 
 
+def format_review_item(command: str, returncode: int) -> str:
+    status = "ok" if returncode == 0 else "FAIL"
+    return f"{command}: {status}"
+
+
 def build_preflight_block(
     data: Dict,
     ticket_id: str,
@@ -342,6 +347,10 @@ def build_docs_block(doc_updates: List[str]) -> str:
     return "\n".join([f"- [ ] {item}" for item in items])
 
 
+def build_gates_block(ci_cmd: str, ci_status: str) -> str:
+    return f"- {ci_cmd}: {ci_status}"
+
+
 def classify_risk(data: Dict, change_budget: Dict) -> (str, List[str]):
     triggers = []
     files = data.get("files_to_change", [])
@@ -390,6 +399,10 @@ def update_ticket_status(ticket_path: str, status: str) -> None:
     write_file(ticket_path, "\n".join(updated) + "\n")
 
 
+def is_approval_granted(frontmatter: Dict[str, str]) -> bool:
+    return frontmatter.get("approval", "").strip().lower() == "granted"
+
+
 def gate_prompt(message: str) -> None:
     print(message)
     response = input("Type 'approve' to continue: ").strip().lower()
@@ -423,14 +436,12 @@ def main() -> None:
     os.chdir(root)
 
     feature_id = inputs["feature_id"]
-    if feature_id:
-        run_shell(f"make ticket T={ticket_id} F={feature_id}")
-    else:
-        run_shell(f"make ticket T={ticket_id}")
-
-    review_items = [
-        f"make ticket T={ticket_id}" + (f" F={feature_id}" if feature_id else "") + ": ok"
-    ]
+    ticket_cmd = f"make ticket T={ticket_id}" + (f" F={feature_id}" if feature_id else "")
+    ticket_result = run_shell(ticket_cmd, capture=True, check=False)
+    review_items = [format_review_item(ticket_cmd, ticket_result.returncode)]
+    if ticket_result.returncode != 0:
+        combined = (ticket_result.stdout + "\n" + ticket_result.stderr).strip()
+        die(f"pc-ticket: {ticket_cmd} failed\n{combined}".strip())
 
     ticket_path = find_ticket_file(ticket_id, root, feature_id)
     ticket_frontmatter = parse_frontmatter(ticket_path)
@@ -438,6 +449,11 @@ def main() -> None:
     prd_ref = ticket_frontmatter.get("prd_ref", "")
     change_budget = parse_change_budget(ticket_path)
     worklog_path = find_worklog(ticket_id, title, root)
+
+    if ticket_frontmatter.get("status") == "Awaiting PO Approval" and not is_approval_granted(
+        ticket_frontmatter
+    ):
+        die("pc-ticket: awaiting PO approval; set approval: \"granted\" to proceed")
 
     ticket_body = read_file(ticket_path)
 
@@ -486,15 +502,20 @@ def main() -> None:
 
     if risk_level == "HIGH":
         update_ticket_status(ticket_path, "Awaiting PO Approval")
-        preflight_block = build_preflight_block(
-            preflight_data,
-            ticket_id,
-            change_budget,
-            risk_level,
-            triggers,
-            "; ".join(review_items),
-        )
-        gate_prompt(f"HIGH RISK ticket. Review Preflight Report:\n\n{preflight_block}\n")
+        if not is_approval_granted(ticket_frontmatter):
+            preflight_block = build_preflight_block(
+                preflight_data,
+                ticket_id,
+                change_budget,
+                risk_level,
+                triggers,
+                "; ".join(review_items),
+            )
+            die(
+                "pc-ticket: high-risk ticket requires PO approval.\n"
+                f"Review Preflight Report:\n\n{preflight_block}\n"
+                "Set approval: \"granted\" in ticket frontmatter to proceed."
+            )
         update_ticket_status(ticket_path, "Ongoing")
 
     tests_prompt = (
@@ -538,7 +559,8 @@ def main() -> None:
         "Output ONLY one line: 'APPROVE' or 'BLOCK: <reason>'.\n"
         f"Diff:\n{diff}\n"
     )
-    secondary_review(review_prompt)
+    if diff.strip():
+        secondary_review(review_prompt)
 
     ci_cmd = config["ci_cmd"]
     ci_result = run_shell(ci_cmd, capture=True, check=False)
@@ -547,7 +569,7 @@ def main() -> None:
     review_items.append(f"{ci_cmd}: {ci_status}")
 
     worklog = read_file(worklog_path)
-    worklog = replace_section(worklog, "Gates", f"- make ci: {ci_status}")
+    worklog = replace_section(worklog, "Gates", build_gates_block(ci_cmd, ci_status))
     write_file(worklog_path, worklog)
 
     if ci_result.returncode != 0:
@@ -559,9 +581,14 @@ def main() -> None:
         test_review_prompt = (
             "You are a secondary agent validating test results.\n"
             "Output ONLY one line: 'APPROVE' or 'BLOCK: <reason>'.\n"
-            f"make ci output:\n{ci_output}\n"
+            f"{ci_cmd} output:\n{ci_output}\n"
         )
         secondary_review(test_review_prompt)
+
+    diff = run(["git", "diff"], capture=True).stdout
+    if not diff.strip():
+        print("pc-ticket: no changes detected; skipping commit")
+        return
 
     commit_prompt = (
         "Suggest a commit message in the format 'type(scope): summary'.\n"
