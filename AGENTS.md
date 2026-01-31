@@ -17,7 +17,9 @@ Rules:
   guessing.
 - For any ticket implementation, run `make ticket T=<id>` and follow `docs/04-process/ticket-execution-protocol.md`.
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
-- Prefer Serena for symbol-aware navigation and edits when available.
+- Codex MUST use Serena for symbol-aware navigation and edits when available.
+- Codex MUST use `tools/offload-proxy/pp` for commands that can produce large output (e.g., `rg`, `sed` on large ranges, tests, or logs).
+- Codex MUST update `docs/03-logs/*.md` to record decisions, implementation changes, bugs, validations, and insights. If no log entry is needed, explicitly state why in the response.
 
 ## Setup commands
 - None defined. Ask if project-specific setup is required.

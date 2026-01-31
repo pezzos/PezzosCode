@@ -43,6 +43,10 @@ This system solves both by providing:
 
 ## Quick Start
 
+### 0. Read the AI usage rules
+
+Before starting any work, read `AGENTS.md` at the repo root and in `docs/`. These files enforce Serena usage, `tools/offload-proxy/pp` for large outputs, and mandatory updates to `docs/03-logs/*.md`.
+
 ### 1. Copy This Template
 
 ```bash
