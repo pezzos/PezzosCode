@@ -25,6 +25,76 @@ This helps with:
 
 ## Log Entries
 
+### 2026-01-31 - Fix readme-sync skill frontmatter
+
+**Feature/Bug:** Skill validation
+
+**Changed Files:**
+- `.codex/skills/readme-sync/SKILL.md` - Remove extra frontmatter lines to match skills-check expectations
+
+**What Changed:**
+Adjusted the skill header to the required 4-line frontmatter format so `make test` passes.
+
+**Why:**
+The skills check enforces a strict frontmatter layout for SKILL.md files.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-01-31 - Add pp write avoidance note
+
+**Feature/Bug:** Process guardrail
+
+**Changed Files:**
+- `AGENTS.md` - Clarify pp is for large-output reads, not filesystem writes
+- `.codex/skills/readme-sync/SKILL.md` - Add pp usage note for write operations
+
+**What Changed:**
+Added a brief note to avoid using `tools/offload-proxy/pp` for write commands to reduce unnecessary escalation prompts.
+
+**Why:**
+`pp` is intended for large output reads; using it for write commands can trigger avoidable permissions flow.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-01-31 - Add README sync skill
+
+**Feature/Bug:** Skill addition
+
+**Changed Files:**
+- `.codex/skills/readme-sync/SKILL.md` - New skill to update README files with minimal duplication
+
+**What Changed:**
+Added a skill that scans non-template README files, applies a standardized structure, and reduces duplication with concise summaries.
+
+**Why:**
+Keep README content current and minimal for both humans (root) and AI (all others).
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-01-31 - Sync root template guardrails to live config
 
 **Feature/Bug:** Template parity

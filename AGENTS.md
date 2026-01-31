@@ -19,6 +19,7 @@ Rules:
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
 - Codex MUST use Serena for symbol-aware navigation and edits when available.
 - Codex MUST use `tools/offload-proxy/pp` for commands that can produce large output (e.g., `rg`, `sed` on large ranges, tests, or logs).
+- Do not use `tools/offload-proxy/pp` for filesystem write commands (e.g., `mkdir`, `cp`, `mv`, `rm`) to avoid unnecessary escalation.
 - Codex MUST update `docs/03-logs/*.md` to record decisions, implementation changes, bugs, validations, and insights. If no log entry is needed, explicitly state why in the response.
 
 ## Setup commands
