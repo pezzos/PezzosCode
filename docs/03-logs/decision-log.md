@@ -93,6 +93,60 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-002] - Force early LSP override load via shell env + add ping diagnostics
+
+**Date:** 2026-01-31
+
+**Status:** Implemented
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Taplo (and previously YAML) sometimes reported `workspace/configuration` not handled before Serena’s log initialization, indicating the override env from `.codex.toml` was applied too late.
+
+**Problem Statement:**
+How do we ensure LSP overrides load before any language server startup, and how do we verify config handling without restarting?
+
+**Options Considered:**
+
+#### Option 1: Keep only `.codex.toml` env
+**Pros:**
+- Centralized per-project config
+**Cons:**
+- Loads after Codex starts; too late for earliest LSP startup messages
+
+#### Option 2: Export override env in shell startup
+**Pros:**
+- Applies before Codex launches
+- Eliminates early-start race
+**Cons:**
+- Global to shell sessions
+
+#### Option 3: Add import banner and manual ping diagnostics
+**Pros:**
+- Confirms early-load behavior
+- Allows in-session verification
+**Cons:**
+- Adds minor diagnostic code
+
+**Decision:**
+We chose **Option 2 + Option 3**: export override env in shell startup, and add an opt-in import banner + ping mechanism.
+
+**Rationale:**
+The failure happens before `.codex.toml` applies, so shell env is the earliest reliable injection point. Diagnostics allow validation without restart.
+
+**Implications:**
+- Override must be present in shell env for earliest LSP startup
+- Use ping files to verify config handler behavior on demand
+
+**Success Criteria:**
+- No `workspace/configuration not handled` errors on startup
+- Ping logs confirm handler execution in-session
+
+**Review Date:** 2026-02-14
+
+**Actual Outcome:** _Pending_
+
 ### [DEC-001] - Choice of Frontend Framework
 
 **Date:** 2025-01-10

@@ -25,6 +25,34 @@ This helps with:
 
 ## Log Entries
 
+### 2026-01-31 - Serena LSP workspace/configuration diagnostics and early-load guard
+
+**Feature/Bug:** LSP stability (Taplo/YAML startup errors)
+
+**Changed Files:**
+- `tools/serena/solidlsp_override/solidlsp/ls_handler.py` - Added ping watcher, import banner, and richer workspace/configuration logging
+- `.codex.toml` - Added `SERENA_LSP_CONFIG_PING_DIR=/tmp` for manual pings
+
+**What Changed:**
+Added an opt-in, file-triggered ping mechanism to exercise the `workspace/configuration` handler and send `workspace/didChangeConfiguration`. Added an early import banner (guarded by `SERENA_LSP_IMPORT_BANNER=1`) to prove the override is loaded before any LSP errors print, and included request_id/item count in the request log for correlation.
+
+**Why:**
+Taplo intermittently logs `method 'workspace/configuration' not handled on client` before the Serena log file exists. This indicates the error is emitted before `.codex.toml` env overrides are applied, so we needed a way to validate early-load behavior and manually trigger config handling in-session.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same (ping watcher is opt-in, dormant unless env set)
+- **Dependencies:** None
+
+**Testing:**
+- Manual: `touch /tmp/ping_workspace_configuration.toml` and verified log lines for ping/handler
+
+**Notes:**
+- If the same issue occurs for another language, set override env in the shell (e.g., `.zshrc`) so it applies before Codex starts, then use `touch /tmp/ping_workspace_configuration.<language>` to trigger a ping and confirm handler behavior in logs.
+- If the error still appears before logs, enable `SERENA_LSP_IMPORT_BANNER=1` to verify whether the override is imported early enough.
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-01-31 - Root templates and bootstrap sync updates
 
 **Feature/Bug:** Internal tooling update

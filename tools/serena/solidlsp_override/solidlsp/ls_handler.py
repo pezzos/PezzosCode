@@ -4,6 +4,7 @@ import logging
 import os
 import platform
 import subprocess
+import sys
 import threading
 import time
 import traceback
@@ -37,6 +38,10 @@ from solidlsp.lsp_protocol_handler.server import (
 from solidlsp.util.subprocess_util import quote_arg, subprocess_kwargs
 
 log = logging.getLogger(__name__)
+
+if os.environ.get("SERENA_LSP_IMPORT_BANNER") == "1":
+    sys.stderr.write(f"SolidLSP ls_handler override imported: {__file__}\n")
+    sys.stderr.flush()
 
 
 class LanguageServerTerminatedException(Exception):
@@ -177,6 +182,88 @@ class SolidLanguageServerHandler:
 
         # Register a safe default; language servers can override this later.
         self.on_request_handlers["workspace/configuration"] = default_workspace_configuration_handler
+
+        # Optional: allow manual, file-triggered pings to verify config handling without restart.
+        self._maybe_start_workspace_configuration_ping_thread()
+
+    def _maybe_start_workspace_configuration_ping_thread(self) -> None:
+        """
+        If SERENA_LSP_CONFIG_PING_DIR is set, watch for a sentinel file and trigger a config ping.
+        This is a lightweight, opt-in health check for workspace/configuration handling.
+        """
+        ping_dir = os.environ.get("SERENA_LSP_CONFIG_PING_DIR")
+        if not ping_dir:
+            return
+        ping_path = os.path.join(ping_dir, f"ping_workspace_configuration.{self.language}")
+
+        def _ping_loop() -> None:
+            log.info(
+                "workspace/configuration ping watcher enabled; language=%s path=%s",
+                self.language,
+                ping_path,
+            )
+            while True:
+                if self._is_shutting_down:
+                    return
+                try:
+                    if os.path.exists(ping_path):
+                        try:
+                            os.remove(ping_path)
+                        except OSError as ex:
+                            log.warning("Failed to remove ping file %s: %s", ping_path, ex)
+                        self._run_workspace_configuration_ping(reason="file")
+                except Exception as ex:
+                    log.warning("workspace/configuration ping watcher error: %s", ex)
+                time.sleep(1.0)
+
+        thread = threading.Thread(target=_ping_loop, name=f"lsp-config-ping-{self.language}", daemon=True)
+        thread.start()
+
+    def _run_workspace_configuration_ping(self, reason: str) -> None:
+        """
+        Manually exercise the workspace/configuration handler and prompt the server to refresh.
+        """
+        handler = self.on_request_handlers.get("workspace/configuration")
+        handler_name = getattr(handler, "__qualname__", repr(handler))
+        log.info(
+            "workspace/configuration ping; reason=%s language=%s handler=%s handler_id=%s",
+            reason,
+            self.language,
+            handler_name,
+            id(self),
+        )
+        try:
+            # Local handler sanity check (does not involve the server).
+            params = {"items": [{"section": str(self.language)}]}
+            if handler:
+                _ = handler(params)
+                log.info(
+                    "workspace/configuration ping local handler ok; language=%s handler=%s",
+                    self.language,
+                    handler_name,
+                )
+            else:
+                log.warning("workspace/configuration ping local handler missing; language=%s", self.language)
+        except Exception as ex:
+            log.warning(
+                "workspace/configuration ping local handler failed; language=%s handler=%s err=%s",
+                self.language,
+                handler_name,
+                ex,
+                exc_info=ex,
+            )
+
+        try:
+            # Prompt servers that react to config changes to request fresh config.
+            self.send_notification("workspace/didChangeConfiguration", {"settings": {}})
+            log.info("workspace/configuration ping sent workspace/didChangeConfiguration; language=%s", self.language)
+        except Exception as ex:
+            log.warning(
+                "workspace/configuration ping failed to send didChangeConfiguration; language=%s err=%s",
+                self.language,
+                ex,
+                exc_info=ex,
+            )
 
     def set_request_timeout(self, timeout: float | None) -> None:
         """
@@ -575,10 +662,12 @@ class SolidLanguageServerHandler:
         request_id = response.get("id")
         if method == "workspace/configuration":
             log.info(
-                "Received workspace/configuration; handlers=%s module=%s handler_id=%s",
+                "Received workspace/configuration; handlers=%s module=%s handler_id=%s request_id=%s items=%s",
                 sorted(self.on_request_handlers.keys()),
                 __file__,
                 id(self),
+                request_id,
+                len(params.get("items", [])) if isinstance(params, dict) else "n/a",
             )
         handler = self.on_request_handlers.get(method)
         if not handler:
