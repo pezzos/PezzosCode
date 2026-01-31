@@ -1,0 +1,1 @@
+Definition of done: Global checklist requires tests pass, lint pass, logs updated, commit created. Feature/bug/doc/refactor/tech-debt DoD criteria are defined in docs/04-process/definition-of-done.md and include acceptance criteria met, tests (unit/integration/E2E), updated docs/logs, review approval, and deployment/validation steps.

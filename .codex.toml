@@ -47,6 +47,10 @@ notify = [ ]
 # Mark specific worktrees as trusted or untrusted.
 trust_level = "trusted"  # or "untrusted"
 
+# Serena MCP override: force SolidLSP from repo-local override (Taplo fix).
+[mcp_servers.serena]
+env = { PYTHONPATH = "/Users/alexandrepezzotta/repos/PezzosCode/tools/serena/solidlsp_override" }
+
 # Add MCP servers under [mcp_servers.<name>] to extend Codex.
 #
 # Example:
