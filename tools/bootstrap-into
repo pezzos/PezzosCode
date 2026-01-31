@@ -4,14 +4,19 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF' >&2
-Usage: bootstrap-into [--self] <target-repo-path>
+Usage: bootstrap-into [--self] [-v|--verbose] <target-repo-path>
 EOF
 }
 use_self=false
+verbose=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --self)
       use_self=true
+      shift
+      ;;
+    -v|--verbose)
+      verbose=true
       shift
       ;;
     --reapply)
@@ -183,6 +188,13 @@ marker_hash_from_file() {
   echo "$last" | awk -F 'sha256:' 'NF>1 {print $2}' | awk '{gsub(/[^0-9a-f]/,"",$0); print}'
 }
 
+log_skip() {
+  local message="$1"
+  if "$verbose"; then
+    echo "$message"
+  fi
+}
+
 files_equal_ignoring_marker() {
   local src="$1"
   local dest="$2"
@@ -331,12 +343,12 @@ copy_file() {
   policy="$(is_syncable_path "$rel")"
 
   if [[ "$policy" == "never" ]]; then
-    echo "Skipping (excluded): $dest"
+    log_skip "Skipping (excluded): $dest"
     return 0
   fi
 
   if [[ "$policy" == "protected" && -f "$dest" ]]; then
-    echo "Skipping (protected): $dest"
+    log_skip "Skipping (protected): $dest"
     return 0
   fi
 
@@ -347,23 +359,24 @@ copy_file() {
     current_hash="$(file_hash_without_marker "$dest")"
     if [[ -n "$marker_hash" && "$marker_hash" == "$current_hash" ]]; then
       if files_equal_ignoring_marker "$src" "$dest"; then
-        echo "Skipping (no changes): $dest"
+        log_skip "Skipping (no changes): $dest"
         return 0
       fi
     else
-      echo "Skipping (locally modified): $dest"
+      log_skip "Skipping (locally modified): $dest"
       return 0
     fi
   fi
 
   if [[ -f "$dest" ]] && files_equal_ignoring_marker "$src" "$dest"; then
-    echo "Skipping (no changes): $dest"
+    log_skip "Skipping (no changes): $dest"
     return 0
   fi
 
   mkdir -p "$(dirname "$dest")"
   cp "$src" "$dest"
   append_marker "$dest"
+  echo "Updated: $dest"
 }
 
 copy_dir_files() {

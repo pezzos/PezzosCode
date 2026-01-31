@@ -43,6 +43,7 @@ Usage:
 ```bash
 tools/bootstrap-into <target-repo-path>
 tools/bootstrap-into --self
+tools/bootstrap-into -v <target-repo-path>
 ```
 
 Behavior:
