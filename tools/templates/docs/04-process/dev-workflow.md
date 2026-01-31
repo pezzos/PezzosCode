@@ -44,6 +44,13 @@ Use this sequence when starting a new project with this template:
    - Confirm no TODOs remain in the generated feature docs.
    - Cross-check PRD scope against feature folders.
 
+## Root File Sync (After Context/PRD Changes)
+
+When project context or the PRD changes, update the live root files (e.g. `AGENTS.md`,
+`.codex.toml`, `.serena/project.yml`) to match the real project. Use the
+`sync-root-from-context` skill to read `docs/00-context/` and `docs/01-product/prd.md`,
+then align the live root files without modifying templates.
+
 ## Ticket Scope (Hard Rule)
 
 - **1 ticket = 1 feature folder** (new feature spec, design, tasks, tests in `docs/02-features/<feature-name>/`)
