@@ -25,6 +25,84 @@ This helps with:
 
 ## Log Entries
 
+### 2026-01-31 - Sync root template guardrails to live config
+
+**Feature/Bug:** Template parity
+
+**Changed Files:**
+- `tools/templates/root/Makefile` - Add Python unit tests to `make test`, make `check` a real gate
+- `tools/templates/root/.githooks/pre-commit` - Run `make test` directly
+- `tools/templates/root/.codex.toml` - Add approval policy guardrail note
+- `tools/templates/root/.serena/project.yml` - Add unique-list note and include Python
+
+**What Changed:**
+Aligned root templates with the current live root files and guardrail comments to keep future bootstraps consistent.
+
+**Why:**
+Templates should mirror the working repo so new projects inherit the correct checks and safety notes.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-01-31 - Sync skill guardrails for approval policy and language list
+
+**Feature/Bug:** Skill behavior guardrails
+
+**Changed Files:**
+- `.codex/skills/sync-root-from-context/SKILL.md` - Preserve approval policy unless explicitly requested; enforce unique language list.
+- `.codex.toml` - Add note to keep approval policy unchanged unless requested.
+- `.serena/project.yml` - Add note to keep language list unique.
+
+**What Changed:**
+Updated the sync skill and root-file comments to prevent unintended approval policy changes and duplicate language entries on future runs.
+
+**Why:**
+The sync behavior should preserve AI-first defaults and avoid accidental config drift.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-01-31 - Sync live root tooling with current project context
+
+**Feature/Bug:** Internal tooling sync
+
+**Changed Files:**
+- `Makefile` - Run Python unit tests as part of `make test`, make `check` a real gate
+- `.githooks/pre-commit` - Use `make test` for a single source of truth
+- `.serena/project.yml` - Include TOML and bash in language servers (no duplicates)
+- `tools/bootstrap-into` - Add preflight command checks and `--dry-run`
+- `tools/ticket-bootstrap` - Add preflight command checks and `--dry-run`
+
+**What Changed:**
+Aligned the live root files with the current repo context by ensuring tests run consistently and Serena indexes the repo’s actual file types. Added preflight validations to bootstrap scripts and a `--dry-run` mode to show planned actions without writing. Kept Codex approval policy at "never" after feedback and removed duplicate language entries.
+
+**Why:**
+The repo is a tooling/template bootstrap. Root files should reflect the actual workflows and file types used here, and safety defaults should be aligned with the documented process.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-01-31 - Serena LSP workspace/configuration diagnostics and early-load guard
 
 **Feature/Bug:** LSP stability (Taplo/YAML startup errors)

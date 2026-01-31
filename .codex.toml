@@ -27,6 +27,7 @@ model_verbosity = "low"
 # - on-failure: auto-run in sandbox; prompt only on failure for escalation
 # - on-request: model decides when to ask (default)
 # - never: never prompt (risky)
+# Note: keep approval_policy unchanged unless the user explicitly requests a change.
 approval_policy = "never"
 
 # Filesystem/network sandbox policy for tool calls:

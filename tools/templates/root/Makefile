@@ -7,6 +7,7 @@ lint:
 	@tools/markdown-lint
 
 test:
+	@python -m unittest discover -s tests -p "test_*.py"
 	@$(MAKE) skills-check
 	@$(MAKE) docs-check
 	@$(MAKE) ticket-check
@@ -96,8 +97,8 @@ skills-check:
 docs-check:
 	@echo "docs-check covered by markdown lint"
 
-check: fmt lint test
-	@echo "TODO: replace with real checks once tooling is chosen"
+check: lint test
+	@echo "check: ok"
 
 ci: check
 	@echo "ci: ok"

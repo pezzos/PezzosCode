@@ -4,15 +4,20 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF' >&2
-Usage: bootstrap-into [--self] [-v|--verbose] <target-repo-path>
+Usage: bootstrap-into [--self] [--dry-run] [-v|--verbose] <target-repo-path>
 EOF
 }
 use_self=false
 verbose=false
+dry_run=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --self)
       use_self=true
+      shift
+      ;;
+    --dry-run)
+      dry_run=true
       shift
       ;;
     -v|--verbose)
@@ -57,6 +62,18 @@ if [[ ! -d "$target_repo" ]]; then
   echo "Target repo does not exist: $target_repo" >&2
   exit 1
 fi
+
+require_cmd() {
+  local cmd="$1"
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "bootstrap-into: missing required command: $cmd" >&2
+    exit 1
+  fi
+}
+
+for cmd in awk cmp find mktemp shasum; do
+  require_cmd "$cmd"
+done
 
 marker_for_file() {
   local file="$1"
@@ -374,6 +391,11 @@ copy_file() {
 
   if [[ -f "$dest" ]] && files_equal_ignoring_marker "$src" "$dest"; then
     log_skip "Skipping (no changes): $dest"
+    return 0
+  fi
+
+  if "$dry_run"; then
+    echo "Dry-run: would update: $dest"
     return 0
   fi
 

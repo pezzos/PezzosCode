@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $(basename "$0") T=<ticket-id> [F=<feature-id>] [--verify]" >&2
+  echo "Usage: $(basename "$0") T=<ticket-id> [F=<feature-id>] [--verify] [--dry-run]" >&2
   exit 1
 }
 
@@ -25,6 +25,9 @@ for arg in "$@"; do
     --verify)
       mode="verify"
       ;;
+    --dry-run)
+      mode="dry-run"
+      ;;
     *)
       ;;
   esac
@@ -33,6 +36,18 @@ done
 if [[ -z "$ticket_id" ]]; then
   usage
 fi
+
+require_cmd() {
+  local cmd="$1"
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "ticket-bootstrap: missing required command: $cmd" >&2
+    exit 1
+  fi
+}
+
+for cmd in awk find rg sed tr python3; do
+  require_cmd "$cmd"
+done
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ticket_file=""
@@ -130,12 +145,21 @@ worklog_dir="$repo_root/docs/03-logs/tickets"
 worklog_template="$worklog_dir/worklog-template.md"
 worklog_file="$worklog_dir/${ticket_id}--${slug}.md"
 
-mkdir -p "$worklog_dir"
-
 if [[ ! -f "$worklog_template" ]]; then
   echo "ticket-bootstrap: missing worklog template at $worklog_template" >&2
   exit 1
 fi
+
+if [[ "$mode" == "dry-run" ]]; then
+  cat <<EOF
+ticket-bootstrap: dry-run ok
+ticket: $ticket_file
+worklog (would create if missing): $worklog_file
+EOF
+  exit 0
+fi
+
+mkdir -p "$worklog_dir"
 
 if [[ "$mode" == "bootstrap" ]]; then
   if [[ ! -f "$worklog_file" ]]; then

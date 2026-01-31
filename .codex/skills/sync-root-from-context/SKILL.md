@@ -32,10 +32,12 @@ live versions in this repo must be updated to match this project:
 2) Update the live root files to reflect the actual project:
    - `AGENTS.md`: describe this repo and its docs system accurately; keep
      rules aligned with docs/04-process.
-   - `.codex.toml`: set approval policy, trust level, and defaults appropriate
-     for this repo.
+   - `.codex.toml`: keep existing approval policy unless docs or the user
+     explicitly request a change; adjust trust level/defaults only when
+     supported by context.
    - `.serena/project.yml`: set `project_name`, `initial_prompt`, and
-     `languages` based on this repo’s stack and files.
+     `languages` based on this repo’s stack and files. Ensure the list is
+     unique (no duplicates) before saving.
    - `Makefile`: keep commands aligned with actual tools and tests present.
    - `.githooks/pre-commit`: run the correct test or check command if defined.
    - `LICENSE`: ensure the copyright holder/year match this repo.
@@ -43,7 +45,10 @@ live versions in this repo must be updated to match this project:
    - `pp.yml`: ensure offload rules match repo tooling.
 3) If any file can’t be safely inferred from docs, ask a targeted question
    before editing.
-4) Keep diffs small and focused; do not change `tools/templates/root/*` here.
+4) Validate edits before saving:
+   - `.codex.toml`: verify `approval_policy` unchanged unless explicitly requested.
+   - `.serena/project.yml`: re-check `languages` for duplicates.
+5) Keep diffs small and focused; do not change `tools/templates/root/*` here.
 
 ## Output checklist
 - All live root files reflect the project context and PRD.

@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ -f Makefile ]]; then
-  make test
-else
-  echo "pre-commit: no Makefile found, skipping tests"
-fi
+make test
