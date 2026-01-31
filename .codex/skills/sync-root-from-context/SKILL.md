@@ -1,0 +1,51 @@
+---
+name: sync-root-from-context
+description: Read docs/00-context and docs/01-product/prd.md, then update live root files (bootstrapped from tools/templates/root/) to match the project.
+---
+
+# Sync Root Files From Context
+
+Use this skill when the project context or PRD changes and the live root files
+need to reflect the real project (not the generic templates).
+
+## Inputs to read
+1) `docs/00-context/` (vision, system map, users, assumptions, context boundaries)
+2) `docs/01-product/prd.md`
+
+## Files to update (live root)
+These files are copied into other repos from `tools/templates/root/`, but the
+live versions in this repo must be updated to match this project:
+- `AGENTS.md`
+- `.codex.toml`
+- `.gitignore`
+- `.gitmessage`
+- `LICENSE`
+- `Makefile`
+- `pp.yml`
+- `.serena/project.yml`
+- `.serena/.gitignore`
+- `.githooks/pre-commit`
+
+## Workflow
+1) Read the context and PRD. Summarize the project purpose, scope, platforms,
+   and key workflows in 5-10 bullets.
+2) Update the live root files to reflect the actual project:
+   - `AGENTS.md`: describe this repo and its docs system accurately; keep
+     rules aligned with docs/04-process.
+   - `.codex.toml`: set approval policy, trust level, and defaults appropriate
+     for this repo.
+   - `.serena/project.yml`: set `project_name`, `initial_prompt`, and
+     `languages` based on this repo’s stack and files.
+   - `Makefile`: keep commands aligned with actual tools and tests present.
+   - `.githooks/pre-commit`: run the correct test or check command if defined.
+   - `LICENSE`: ensure the copyright holder/year match this repo.
+   - `.gitignore` and `.serena/.gitignore`: reflect real ignored artifacts.
+   - `pp.yml`: ensure offload rules match repo tooling.
+3) If any file can’t be safely inferred from docs, ask a targeted question
+   before editing.
+4) Keep diffs small and focused; do not change `tools/templates/root/*` here.
+
+## Output checklist
+- All live root files reflect the project context and PRD.
+- No changes to template files unless explicitly asked.
+- Brief summary of edits and any assumptions made.
