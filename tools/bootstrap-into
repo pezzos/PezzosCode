@@ -391,7 +391,11 @@ copy_dir_files() {
 
   while IFS= read -r -d '' src_file; do
     rel="${src_file#$src_dir/}"
-    dest_rel="$rel_prefix/$rel"
+    if [[ -z "$rel_prefix" ]]; then
+      dest_rel="$rel"
+    else
+      dest_rel="$rel_prefix/$rel"
+    fi
     if [[ "$rel" == *"/__pycache__/"* || "$rel" == *".pyc" ]]; then
       continue
     fi
@@ -399,13 +403,7 @@ copy_dir_files() {
   done < <(find "$src_dir" -type f -print0)
 }
 
+copy_dir_files "$repo_root/tools/templates/root" "$target_repo" ""
 copy_dir_files "$repo_root/tools/templates/docs" "$target_repo/docs" "docs"
 copy_dir_files "$repo_root/.codex/skills" "$target_repo/.codex/skills" ".codex/skills"
 copy_dir_files "$repo_root/tools" "$target_repo/tools" "tools"
-copy_file "$repo_root/AGENTS.md" "$target_repo/AGENTS.md" "AGENTS.md"
-copy_file "$repo_root/.codex.toml" "$target_repo/.codex.toml" ".codex.toml"
-copy_file "$repo_root/.gitignore" "$target_repo/.gitignore" ".gitignore"
-copy_file "$repo_root/.gitmessage" "$target_repo/.gitmessage" ".gitmessage"
-copy_file "$repo_root/LICENSE" "$target_repo/LICENSE" "LICENSE"
-copy_file "$repo_root/Makefile" "$target_repo/Makefile" "Makefile"
-copy_file "$repo_root/pp.yml" "$target_repo/pp.yml" "pp.yml"
