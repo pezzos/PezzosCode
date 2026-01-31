@@ -25,7 +25,7 @@
 
 ### Template + Docs System
 - **Technology:** Markdown docs + templates.
-- **Entry Points:** `docs/` (templates live in `tools/templates/docs`).
+- **Entry Points:** `docs/` (templates live in `tools/templates/docs`) and root templates in `tools/templates/root`.
 - **Key Files/Modules:**
   - `docs/00-context/`: vision, users, assumptions, system map.
   - `docs/01-product/`: PRD.
@@ -44,7 +44,7 @@
 
 ### Skills (Codex helpers)
 - **Technology:** Markdown skill files in `.codex/skills/`.
-- **Entry Points:** `context-to-product`, `prd-to-features`, `next-feature-ticket`, etc.
+- **Entry Points:** `context-to-product`, `prd-to-features`, `next-feature-ticket`, `sync-root-from-context`, etc.
 
 ### External Services
 - **Codex CLI:** Executes prompts for tests/implementation/merge tasks.
@@ -57,8 +57,8 @@
 ### Critical User Flows
 1. **Bootstrap a project**
    - User action: run bootstrap/update command.
-   - System flow: tools/bootstrap-into → target repo docs/tools/skills.
-   - Data touched: template files, docs, tools, skills.
+   - System flow: tools/bootstrap-into → target repo docs/tools/skills/root files.
+   - Data touched: template files, docs, tools, skills, root templates.
 
 2. **Execute approved tickets**
    - User action: run ticket commands in the bootstrapped repo.
@@ -115,5 +115,5 @@ None.
 
 ---
 
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-01-31
 **Updated By:** Primary user (developer/PO)

@@ -25,6 +25,36 @@ This helps with:
 
 ## Log Entries
 
+### 2026-01-31 - Root templates and bootstrap sync updates
+
+**Feature/Bug:** Internal tooling update
+
+**Changed Files:**
+- `tools/templates/root/*` - Added top-level templates (root files, .serena, .githooks)
+- `tools/bootstrap-into` - Copy root templates and treat them as conditional updates
+- `.codex/skills/sync-root-from-context/SKILL.md` - New skill to sync live root files from docs context
+- `docs/00-context/system-map.md` - System map updated
+
+**What Changed:**
+Created a dedicated root template directory and updated bootstrap logic to copy those templates into target repos with safe, conditional updates. Added a new skill to keep live root files in sync with project context and PRD.
+
+**Why:**
+We needed a clean separation between generic bootstrapped root files and this repo’s project-specific root files.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Manual: ran `tools/bootstrap-into --self --verbose`
+
+**Notes:**
+- Root templates now live in `tools/templates/root/`.
+- Live root files are project-specific and updated via the new skill.
+
+**Author:** Alexandre Pezzotta
+
 ### [YYYY-MM-DD] - [Brief Description of Change]
 
 **Feature/Bug:** [Link to feature or bug ticket]
