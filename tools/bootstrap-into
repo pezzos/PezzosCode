@@ -252,7 +252,7 @@ prompt_action() {
 is_syncable_path() {
   local rel="$1"
 
-  if [[ "$rel" == "AGENTS.md" || "$rel" == ".codex.toml" ]]; then
+  if [[ "$rel" == "AGENTS.md" || "$rel" == ".codex.toml" || "$rel" == ".gitignore" || "$rel" == ".gitmessage" || "$rel" == "LICENSE" || "$rel" == "Makefile" || "$rel" == "pp.yml" || "$rel" == ".serena/"* || "$rel" == ".githooks/"* ]]; then
     echo "conditional"
     return
   fi
@@ -326,11 +326,6 @@ is_syncable_path() {
     return
   fi
 
-  if [[ "$rel" == ".gitmessage" || "$rel" == "LICENSE" || "$rel" == "Makefile" || "$rel" == "pp.yml" ]]; then
-    echo "sync"
-    return
-  fi
-
   echo "protected"
 }
 
@@ -357,12 +352,21 @@ copy_file() {
     local current_hash
     marker_hash="$(marker_hash_from_file "$dest")"
     current_hash="$(file_hash_without_marker "$dest")"
-    if [[ -n "$marker_hash" && "$marker_hash" == "$current_hash" ]]; then
+    if [[ -n "$marker_hash" ]]; then
+      if [[ "$marker_hash" == "$current_hash" ]]; then
+        if files_equal_ignoring_marker "$src" "$dest"; then
+          log_skip "Skipping (no changes): $dest"
+          return 0
+        fi
+      else
+        log_skip "Skipping (locally modified): $dest"
+        return 0
+      fi
+    else
       if files_equal_ignoring_marker "$src" "$dest"; then
         log_skip "Skipping (no changes): $dest"
         return 0
       fi
-    else
       log_skip "Skipping (locally modified): $dest"
       return 0
     fi

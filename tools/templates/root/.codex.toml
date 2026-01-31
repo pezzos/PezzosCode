@@ -11,20 +11,23 @@ review_model = "gpt-5.2-codex"
 model_provider = "openai"
 
 # Reasoning effort: minimal | low | medium | high | xhigh (default: medium; xhigh on gpt-5.2-codex and gpt-5.2)
-model_reasoning_effort = "medium"
+model_reasoning_effort = "low"
 
 # Reasoning summary: auto | concise | detailed | none (default: auto)
-model_reasoning_summary = "auto"
+model_reasoning_summary = "none"
 
 # Text verbosity for GPT-5 family (Responses API): low | medium | high (default: medium)
-model_verbosity = "medium"
+model_verbosity = "low"
+
+# Force-enable reasoning summaries for current model (default: false)
+# model_supports_reasoning_summaries = false
 
 # When to ask for command approval:
 # - untrusted: only known-safe read-only commands auto-run; others prompt
 # - on-failure: auto-run in sandbox; prompt only on failure for escalation
 # - on-request: model decides when to ask (default)
 # - never: never prompt (risky)
-approval_policy = "on-request"
+approval_policy = "never"
 
 # Filesystem/network sandbox policy for tool calls:
 # - read-only (default)
@@ -34,7 +37,7 @@ sandbox_mode = "workspace-write"
 network_access = false
 
 # URI scheme for clickable citations: vscode (default) | vscode-insiders | windsurf | cursor | none
-file_opener = "vscode"
+file_opener = "cursor"
 
 # External notifier program (argv array). When unset: disabled.
 # Example: notify = ["notify-send", "Codex"]
@@ -42,7 +45,7 @@ notify = [ ]
 
 [projects]
 # Mark specific worktrees as trusted or untrusted.
-trust_level = "untrusted"  # or "trusted"
+trust_level = "trusted"  # or "untrusted"
 
 # Add MCP servers under [mcp_servers.<name>] to extend Codex.
 #
