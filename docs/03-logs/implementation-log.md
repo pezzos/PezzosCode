@@ -25,6 +25,35 @@ This helps with:
 
 ## Log Entries
 
+### 2026-01-31 - Sync README files
+
+**Feature/Bug:** Documentation maintenance
+
+**Changed Files:**
+- `README.md` - Shorten root readme and point to canonical docs
+- `docs/README.md` - Condense to AI-focused structure and remove duplication
+- `tools/README.md` - Standardize structure and reduce repetition
+- `tools/serena/solidlsp_override/README.md` - Clarify override purpose and refresh steps
+- `tools/serena/solidlsp_override/solidlsp/language_servers/elixir_tools/README.md` - Compress integration notes
+
+**What Changed:**
+Rewrote README files to follow a consistent structure, reduce overlap, and keep
+the root README human-focused while keeping the rest AI-friendly.
+
+**Why:**
+The README sync workflow requires concise, non-duplicative docs that point to
+canonical sources.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-01-31 - Fix readme-sync skill frontmatter
 
 **Feature/Bug:** Skill validation

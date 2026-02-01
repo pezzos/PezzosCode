@@ -1,18 +1,23 @@
-# SolidLSP override for Serena
+# SolidLSP Override for Serena
 
-This folder vendors a frozen snapshot of SolidLSP from Serena's uv cache
-(2026-01-26) to provide a stable local override for Taplo/TOML support.
+## Purpose
 
-Why this exists
-- Serena updates may change SolidLSP behavior or clear cache copies.
-- We need a durable local copy with a small Taplo LSP fix.
+Provide a stable local override of SolidLSP (cached snapshot from 2026-01-26)
+with a small Taplo/TOML fix, so Serena behavior does not drift with cache
+updates.
 
-Patch applied
-- Added a `workspace/configuration` handler in
-  `solidlsp/language_servers/taplo_server.py` to satisfy Taplo 0.10.0.
+## Structure / Map
 
-Wiring
-- `.codex.toml` sets `mcp_servers.serena.env.PYTHONPATH` to this folder.
+- `solidlsp/` - Vendored SolidLSP snapshot.
+- `solidlsp/language_servers/taplo_server.py` - Taplo `workspace/configuration` fix.
+- `.codex.toml` - Sets `mcp_servers.serena.env.PYTHONPATH` to this folder.
 
-If you want to refresh the vendor copy in the future:
-- Replace `solidlsp/` with a new snapshot, then re-apply the Taplo patch.
+## Workflow
+
+To refresh the vendor copy:
+1. Replace `solidlsp/` with a new snapshot.
+2. Re-apply the Taplo patch in `taplo_server.py`.
+
+## Related Docs
+
+- `.codex.toml`
