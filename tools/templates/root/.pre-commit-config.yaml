@@ -1,0 +1,83 @@
+default_language_version:
+  python: python3
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        stages: [pre-commit, manual]
+
+  - repo: local
+    hooks:
+      - id: markdown-lint
+        name: markdown-lint
+        entry: tools/markdown-lint
+        language: system
+        pass_filenames: false
+
+      - id: shellcheck
+        name: shellcheck
+        entry: bash -c 'command -v shellcheck >/dev/null 2>&1 || exit 0; shellcheck "$@"' --
+        language: system
+        types: [shell]
+
+      - id: shfmt
+        name: shfmt
+        entry: bash -c 'command -v shfmt >/dev/null 2>&1 || exit 0; shfmt -w "$@"' --
+        language: system
+        types: [shell]
+        stages: [pre-commit, manual]
+
+      - id: taplo
+        name: taplo fmt
+        entry: bash -c 'command -v taplo >/dev/null 2>&1 || exit 0; taplo fmt "$@"' --
+        language: system
+        types: [toml]
+        stages: [pre-commit, manual]
+
+      - id: gofmt
+        name: gofmt
+        entry: bash -c 'command -v gofmt >/dev/null 2>&1 || exit 0; gofmt -w "$@"' --
+        language: system
+        types: [go]
+        stages: [pre-commit, manual]
+
+      - id: rustfmt
+        name: rustfmt
+        entry: bash -c 'command -v rustfmt >/dev/null 2>&1 || exit 0; rustfmt "$@"' --
+        language: system
+        types: [rust]
+        stages: [pre-commit, manual]
+
+      - id: prettier
+        name: prettier
+        entry: bash -c 'command -v prettier >/dev/null 2>&1 || exit 0; prettier --write "$@"' --
+        language: system
+        types_or: [javascript, jsx, ts, tsx, json, css, html, yaml, markdown]
+        stages: [pre-commit, manual]
+
+      - id: tests
+        name: tests
+        entry: make test
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

@@ -269,7 +269,7 @@ prompt_action() {
 is_syncable_path() {
   local rel="$1"
 
-  if [[ "$rel" == "AGENTS.md" || "$rel" == ".codex.toml" || "$rel" == ".gitignore" || "$rel" == ".gitmessage" || "$rel" == "LICENSE" || "$rel" == "Makefile" || "$rel" == "pp.yml" || "$rel" == ".serena/"* || "$rel" == ".githooks/"* ]]; then
+  if [[ "$rel" == "AGENTS.md" || "$rel" == ".codex.toml" || "$rel" == ".editorconfig" || "$rel" == ".gitignore" || "$rel" == ".gitmessage" || "$rel" == "LICENSE" || "$rel" == "Makefile" || "$rel" == "pp.yml" || "$rel" == ".pre-commit-config.yaml" || "$rel" == ".serena/"* || "$rel" == ".githooks/"* ]]; then
     echo "conditional"
     return
   fi
@@ -433,3 +433,15 @@ copy_dir_files "$repo_root/tools/templates/root" "$target_repo" ""
 copy_dir_files "$repo_root/tools/templates/docs" "$target_repo/docs" "docs"
 copy_dir_files "$repo_root/.codex/skills" "$target_repo/.codex/skills" ".codex/skills"
 copy_dir_files "$repo_root/tools" "$target_repo/tools" "tools"
+
+if ! "$dry_run"; then
+  if [[ -d "$target_repo/.git" ]]; then
+    if command -v pre-commit >/dev/null 2>&1; then
+      (cd "$target_repo" && pre-commit install --hook-type pre-commit --hook-type pre-push)
+    else
+      echo "Warning: pre-commit not installed; skipping hook install." >&2
+    fi
+  else
+    echo "Warning: target repo is not a git repository; skipping hook install." >&2
+  fi
+fi

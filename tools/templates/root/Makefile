@@ -1,10 +1,10 @@
 .PHONY: fmt lint test check docs-check skills-check ticket-check ticket ticket-ci ticket-verify ci
 
 fmt:
-	@echo "TODO: define formatting command (language/tooling TBD)"
+	@pre-commit run --all-files --hook-stage manual
 
 lint:
-	@tools/markdown-lint
+	@pre-commit run --all-files --hook-stage pre-commit
 
 test:
 	@python -m unittest discover -s tests -p "test_*.py"

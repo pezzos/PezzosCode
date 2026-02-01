@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-make test
+if ! command -v pre-commit >/dev/null 2>&1; then
+  echo "pre-commit not installed. Install with: pipx install pre-commit" >&2
+  exit 1
+fi
+
+pre-commit run --hook-stage pre-commit

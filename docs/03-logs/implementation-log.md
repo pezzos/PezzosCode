@@ -9,6 +9,7 @@
 ## Purpose
 
 This log captures:
+
 - **What** code was changed
 - **Why** the change was made
 - **How** it was implemented
@@ -16,6 +17,7 @@ This log captures:
 - **Lessons learned**
 
 This helps with:
+
 - Understanding the evolution of the codebase
 - Debugging when things break
 - Onboarding new team members
@@ -25,11 +27,77 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-01 - Install pre-commit hooks during bootstrap
+
+**Feature/Bug:** Tooling and workflow
+
+**Changed Files:**
+
+- `tools/bootstrap-into` - Add pre-commit hook install after bootstrap
+
+**What Changed:**
+Bootstrap now installs pre-commit hooks (pre-commit and pre-push) when the
+target repo is a git repository and `pre-commit` is available.
+
+**Why:**
+Ensure linting and test hooks are active immediately after bootstrap.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal; only runs once during bootstrap
+- **Dependencies:** `pre-commit` is required to auto-install hooks
+
+**Testing:**
+
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-01 - Add pre-commit linting and editorconfig templates
+
+**Feature/Bug:** Tooling and workflow
+
+**Changed Files:**
+
+- `.editorconfig` - New root editorconfig with language sections
+- `.pre-commit-config.yaml` - New pre-commit hook set for linting and tests
+- `.githooks/pre-commit` - Run pre-commit stage hooks
+- `.githooks/pre-push` - Run pre-push stage hooks (tests)
+- `Makefile` - Use pre-commit for lint and formatting
+- `.codex/skills/sync-root-from-context/SKILL.md` - Include new root files and hook guidance
+- `tools/templates/root/.editorconfig` - Template editorconfig
+- `tools/templates/root/.pre-commit-config.yaml` - Template pre-commit config
+- `tools/templates/root/.githooks/pre-commit` - Template pre-commit hook
+- `tools/templates/root/.githooks/pre-push` - Template pre-push hook
+- `tools/templates/root/Makefile` - Use pre-commit for lint and formatting
+
+**What Changed:**
+Added editorconfig and pre-commit configuration to both the live repo and
+template root, shifted linting to pre-commit, and moved tests to pre-push.
+
+**Why:**
+Standardize linting across languages before commit, while keeping tests gated
+on push to reduce commit latency.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Pre-commit now runs lint/format; tests run on pre-push
+- **Dependencies:** `pre-commit` and optional language tools (black, ruff, etc.)
+
+**Testing:**
+
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-01 - Align README sync with context/log sources
 
 **Feature/Bug:** Documentation maintenance
 
 **Changed Files:**
+
 - `.codex/skills/readme-sync/SKILL.md` - Require context/log reconciliation and exclude PRD as a source
 - `README.md` - Update core context list and keep PRD as a separate step
 - `docs/README.md` - Soften source-of-truth phrasing to avoid unsupported claims
@@ -46,11 +114,13 @@ README content should reflect current, authoritative context and logs rather
 than inferred or PRD-only details.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Not run (not requested)
 
 **Author:** Alexandre Pezzotta
@@ -60,6 +130,7 @@ than inferred or PRD-only details.
 **Feature/Bug:** Documentation maintenance
 
 **Changed Files:**
+
 - `README.md` - Shorten root readme and point to canonical docs
 - `docs/README.md` - Condense to AI-focused structure and remove duplication
 - `tools/README.md` - Standardize structure and reduce repetition
@@ -75,11 +146,13 @@ The README sync workflow requires concise, non-duplicative docs that point to
 canonical sources.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Not run (not requested)
 
 **Author:** Alexandre Pezzotta
@@ -89,6 +162,7 @@ canonical sources.
 **Feature/Bug:** Skill validation
 
 **Changed Files:**
+
 - `.codex/skills/readme-sync/SKILL.md` - Remove extra frontmatter lines to match skills-check expectations
 
 **What Changed:**
@@ -98,11 +172,13 @@ Adjusted the skill header to the required 4-line frontmatter format so `make tes
 The skills check enforces a strict frontmatter layout for SKILL.md files.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Not run (not requested)
 
 **Author:** Alexandre Pezzotta
@@ -112,6 +188,7 @@ The skills check enforces a strict frontmatter layout for SKILL.md files.
 **Feature/Bug:** Process guardrail
 
 **Changed Files:**
+
 - `AGENTS.md` - Clarify pp is for large-output reads, not filesystem writes
 - `.codex/skills/readme-sync/SKILL.md` - Add pp usage note for write operations
 
@@ -122,11 +199,13 @@ Added a brief note to avoid using `tools/offload-proxy/pp` for write commands to
 `pp` is intended for large output reads; using it for write commands can trigger avoidable permissions flow.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Not run (not requested)
 
 **Author:** Alexandre Pezzotta
@@ -136,6 +215,7 @@ Added a brief note to avoid using `tools/offload-proxy/pp` for write commands to
 **Feature/Bug:** Skill addition
 
 **Changed Files:**
+
 - `.codex/skills/readme-sync/SKILL.md` - New skill to update README files with minimal duplication
 
 **What Changed:**
@@ -145,11 +225,13 @@ Added a skill that scans non-template README files, applies a standardized struc
 Keep README content current and minimal for both humans (root) and AI (all others).
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Not run (not requested)
 
 **Author:** Alexandre Pezzotta
@@ -159,6 +241,7 @@ Keep README content current and minimal for both humans (root) and AI (all other
 **Feature/Bug:** Template parity
 
 **Changed Files:**
+
 - `tools/templates/root/Makefile` - Add Python unit tests to `make test`, make `check` a real gate
 - `tools/templates/root/.githooks/pre-commit` - Run `make test` directly
 - `tools/templates/root/.codex.toml` - Add approval policy guardrail note
@@ -171,11 +254,13 @@ Aligned root templates with the current live root files and guardrail comments t
 Templates should mirror the working repo so new projects inherit the correct checks and safety notes.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Not run (not requested)
 
 **Author:** Alexandre Pezzotta
@@ -185,6 +270,7 @@ Templates should mirror the working repo so new projects inherit the correct che
 **Feature/Bug:** Skill behavior guardrails
 
 **Changed Files:**
+
 - `.codex/skills/sync-root-from-context/SKILL.md` - Preserve approval policy unless explicitly requested; enforce unique language list.
 - `.codex.toml` - Add note to keep approval policy unchanged unless requested.
 - `.serena/project.yml` - Add note to keep language list unique.
@@ -196,11 +282,13 @@ Updated the sync skill and root-file comments to prevent unintended approval pol
 The sync behavior should preserve AI-first defaults and avoid accidental config drift.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Not run (not requested)
 
 **Author:** Alexandre Pezzotta
@@ -210,6 +298,7 @@ The sync behavior should preserve AI-first defaults and avoid accidental config 
 **Feature/Bug:** Internal tooling sync
 
 **Changed Files:**
+
 - `Makefile` - Run Python unit tests as part of `make test`, make `check` a real gate
 - `.githooks/pre-commit` - Use `make test` for a single source of truth
 - `.serena/project.yml` - Include TOML and bash in language servers (no duplicates)
@@ -223,11 +312,13 @@ Aligned the live root files with the current repo context by ensuring tests run 
 The repo is a tooling/template bootstrap. Root files should reflect the actual workflows and file types used here, and safety defaults should be aligned with the documented process.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Not run (not requested)
 
 **Author:** Alexandre Pezzotta
@@ -237,6 +328,7 @@ The repo is a tooling/template bootstrap. Root files should reflect the actual w
 **Feature/Bug:** LSP stability (Taplo/YAML startup errors)
 
 **Changed Files:**
+
 - `tools/serena/solidlsp_override/solidlsp/ls_handler.py` - Added ping watcher, import banner, and richer workspace/configuration logging
 - `.codex.toml` - Added `SERENA_LSP_CONFIG_PING_DIR=/tmp` for manual pings
 
@@ -247,14 +339,17 @@ Added an opt-in, file-triggered ping mechanism to exercise the `workspace/config
 Taplo intermittently logs `method 'workspace/configuration' not handled on client` before the Serena log file exists. This indicates the error is emitted before `.codex.toml` env overrides are applied, so we needed a way to validate early-load behavior and manually trigger config handling in-session.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same (ping watcher is opt-in, dormant unless env set)
 - **Dependencies:** None
 
 **Testing:**
+
 - Manual: `touch /tmp/ping_workspace_configuration.toml` and verified log lines for ping/handler
 
 **Notes:**
+
 - If the same issue occurs for another language, set override env in the shell (e.g., `.zshrc`) so it applies before Codex starts, then use `touch /tmp/ping_workspace_configuration.<language>` to trigger a ping and confirm handler behavior in logs.
 - If the error still appears before logs, enable `SERENA_LSP_IMPORT_BANNER=1` to verify whether the override is imported early enough.
 
@@ -265,6 +360,7 @@ Taplo intermittently logs `method 'workspace/configuration' not handled on clien
 **Feature/Bug:** Internal tooling update
 
 **Changed Files:**
+
 - `tools/templates/root/*` - Added top-level templates (root files, .serena, .githooks)
 - `tools/bootstrap-into` - Copy root templates and treat them as conditional updates
 - `.codex/skills/sync-root-from-context/SKILL.md` - New skill to sync live root files from docs context
@@ -277,14 +373,17 @@ Created a dedicated root template directory and updated bootstrap logic to copy 
 We needed a clean separation between generic bootstrapped root files and this repo’s project-specific root files.
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
 
 **Testing:**
+
 - Manual: ran `tools/bootstrap-into --self --verbose`
 
 **Notes:**
+
 - Root templates now live in `tools/templates/root/`.
 - Live root files are project-specific and updated via the new skill.
 
@@ -295,6 +394,7 @@ We needed a clean separation between generic bootstrapped root files and this re
 **Feature/Bug:** [Link to feature or bug ticket]
 
 **Changed Files:**
+
 - `path/to/file1.ts`
 - `path/to/file2.ts`
 
@@ -303,20 +403,24 @@ We needed a clean separation between generic bootstrapped root files and this re
 
 **Why:**
 [Explain the reasoning behind the change]
+
 - Problem we were solving: [description]
 - Alternative approaches considered: [list]
 - Why this approach: [rationale]
 
 **Impact:**
+
 - **Breaking changes:** [Yes/No - describe if yes]
 - **Performance:** [Better/Worse/Same - explain]
 - **Dependencies:** [New dependencies added/removed]
 
 **Testing:**
+
 - Tests added: [describe]
 - Manual testing done: [describe]
 
 **Notes:**
+
 - [Any gotchas, warnings, or things to watch out for]
 - [Technical debt introduced or paid down]
 - [Things we'd do differently next time]
@@ -330,6 +434,7 @@ We needed a clean separation between generic bootstrapped root files and this re
 **Feature/Bug:** [Link to feature or bug ticket]
 
 **Changed Files:**
+
 - `path/to/file.ts`
 
 **What Changed:**
@@ -339,6 +444,7 @@ We needed a clean separation between generic bootstrapped root files and this re
 [Reasoning]
 
 **Impact:**
+
 - **Breaking changes:** No
 - **Performance:** Same
 - **Dependencies:** None
@@ -360,6 +466,7 @@ We needed a clean separation between generic bootstrapped root files and this re
 **Feature:** [Link to feature-spec.md for performance optimization]
 
 **Changed Files:**
+
 - `src/api/client.ts` - Added caching middleware
 - `src/cache/redis-cache.ts` - New Redis cache implementation
 - `src/config/cache-config.ts` - Cache configuration
@@ -367,12 +474,14 @@ We needed a clean separation between generic bootstrapped root files and this re
 
 **What Changed:**
 Added a caching layer using Redis to cache API responses for GET requests. Implemented:
+
 - Cache middleware that intercepts API calls
 - TTL-based cache invalidation (5 minutes default)
 - Cache key generation based on endpoint + query params
 - Cache bypass option for authenticated requests
 
 **Why:**
+
 - **Problem:** API response times were averaging 800ms, causing poor UX
 - **Goal:** Reduce response times to < 200ms for repeated requests
 - **Alternatives considered:**
@@ -381,18 +490,21 @@ Added a caching layer using Redis to cache API responses for GET requests. Imple
   3. Redis caching: Chosen because it's fast, shared across instances, and we already use Redis for sessions
 
 **Impact:**
+
 - **Breaking changes:** No - caching is transparent to existing code
 - **Performance:** Average response time reduced from 800ms to 150ms (81% improvement)
 - **Dependencies:** Added `ioredis@5.3.0`
 - **Infrastructure:** Requires Redis instance (already available in staging/prod)
 
 **Testing:**
+
 - Added unit tests for cache middleware (test/api/cache-middleware.test.ts)
 - Added integration tests for cache invalidation
 - Manual testing: verified cache hits/misses in Redis CLI
 - Load tested with 100 concurrent users: no issues
 
 **Notes:**
+
 - **Watch out:** Cache invalidation strategy is simple (TTL-based). May need more sophisticated invalidation for real-time data
 - **Technical debt:** Currently only caches GET requests. Should extend to POST responses where appropriate
 - **Monitoring:** Added cache hit/miss metrics to dashboard
@@ -405,12 +517,15 @@ Added a caching layer using Redis to cache API responses for GET requests. Imple
 ## Implementation Patterns
 
 ### Common Patterns Used
+
 Document recurring patterns in your codebase:
 
 #### Pattern: [Pattern Name]
+
 **When to use:** [scenarios]
 
 **Example:**
+
 ```typescript
 // Code example
 ```
@@ -422,36 +537,40 @@ Document recurring patterns in your codebase:
 ## Technical Debt Log
 
 ### Current Tech Debt
+
 Track technical debt as it's introduced:
 
-| Date Added | Location | Description | Impact | Plan to Address |
-|------------|----------|-------------|--------|-----------------|
+| Date Added | Location       | Description    | Impact       | Plan to Address      |
+| ---------- | -------------- | -------------- | ------------ | -------------------- |
 | YYYY-MM-DD | `path/to/file` | [what's wrong] | High/Med/Low | [when/how we'll fix] |
 
 ### Resolved Tech Debt
+
 Track when debt is paid down:
 
-| Date Resolved | Original Date | Description | How Resolved |
-|---------------|---------------|-------------|--------------|
-| YYYY-MM-DD | YYYY-MM-DD | [what was wrong] | [how we fixed it] |
+| Date Resolved | Original Date | Description      | How Resolved      |
+| ------------- | ------------- | ---------------- | ----------------- |
+| YYYY-MM-DD    | YYYY-MM-DD    | [what was wrong] | [how we fixed it] |
 
 ---
 
 ## Change Statistics
 
 ### By Month
-| Month | Changes | Files Modified | Authors |
-|-------|---------|----------------|---------|
-| 2025-01 | [count] | [count] | [count] |
+
+| Month   | Changes | Files Modified | Authors |
+| ------- | ------- | -------------- | ------- |
+| 2025-01 | [count] | [count]        | [count] |
 
 ### By Category
-| Category | Count | % of Total |
-|----------|-------|------------|
-| Features | [#] | [%] |
-| Bug Fixes | [#] | [%] |
-| Refactoring | [#] | [%] |
-| Performance | [#] | [%] |
-| Security | [#] | [%] |
+
+| Category    | Count | % of Total |
+| ----------- | ----- | ---------- |
+| Features    | [#]   | [%]        |
+| Bug Fixes   | [#]   | [%]        |
+| Refactoring | [#]   | [%]        |
+| Performance | [#]   | [%]        |
+| Security    | [#]   | [%]        |
 
 ---
 
