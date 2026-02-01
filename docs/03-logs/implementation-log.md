@@ -25,6 +25,36 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-01 - Align README sync with context/log sources
+
+**Feature/Bug:** Documentation maintenance
+
+**Changed Files:**
+- `.codex/skills/readme-sync/SKILL.md` - Require context/log reconciliation and exclude PRD as a source
+- `README.md` - Update core context list and keep PRD as a separate step
+- `docs/README.md` - Soften source-of-truth phrasing to avoid unsupported claims
+- `tools/README.md` - Align tool list with context/system map
+- `tools/serena/solidlsp_override/README.md` - Remove unsupported snapshot/patch details
+- `tools/serena/solidlsp_override/solidlsp/language_servers/elixir_tools/README.md` - Reduce to minimal pointer
+
+**What Changed:**
+Updated the README sync rules to reconcile statements against `docs/00-context/*`
+and `docs/03-logs/*`, then tightened README content to match those sources.
+
+**Why:**
+README content should reflect current, authoritative context and logs rather
+than inferred or PRD-only details.
+
+**Impact:**
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-01-31 - Sync README files
 
 **Feature/Bug:** Documentation maintenance

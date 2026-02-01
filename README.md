@@ -23,8 +23,10 @@ This repo provides:
    - `docs/00-context/vision.md`
    - `docs/00-context/system-map.md`
    - `docs/00-context/users.md`
-   - `docs/01-product/prd.md`
-4. Start your first feature from `docs/02-features/feature-template/`.
+   - `docs/00-context/assumptions.md`
+   - `docs/00-context/context-boundaries-operating-model.md`
+4. Define requirements in `docs/01-product/prd.md`.
+5. Start your first feature from `docs/02-features/feature-template/`.
 
 ## Structure / Map
 

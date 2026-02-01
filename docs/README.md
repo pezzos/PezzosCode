@@ -1,6 +1,6 @@
 # Documentation System
 
-> The source of truth for context, requirements, features, logs, and workflow.
+> Primary home for context, requirements, features, logs, and workflow.
 
 ## Purpose
 

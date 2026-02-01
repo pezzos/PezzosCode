@@ -8,8 +8,8 @@ Small helper scripts for bootstrapping or operating this repo.
 
 - `tools/bootstrap-into` - Copy docs, skills, tools, and rules into another repo.
 - `tools/pc-ticket` - Orchestrate the Ticket Execution Protocol with Codex.
+- `tools/ticket-bootstrap` - Create tickets/worklogs.
 - `tools/pc-commit` - Enforce allowed paths and standardized commit messages.
-- `tools/markdown-lint` - Check Markdown whitespace and line endings.
 
 ## Workflow
 
