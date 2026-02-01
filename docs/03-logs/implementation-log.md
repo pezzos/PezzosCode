@@ -27,6 +27,35 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-01 - Clarify AI-as-developer and minimal-tooling stance
+
+**Feature/Bug:** Context update
+
+**Changed Files:**
+
+- `docs/00-context/vision.md` - Emphasize minimal tooling and AI autonomy
+- `docs/00-context/context-boundaries-operating-model.md` - Add minimal tooling and token-efficiency guardrails
+
+**What Changed:**
+Updated context to state that PezzosCode bootstraps a minimal, essential toolset
+so AI can operate as a developer with low manual overhead and low token usage.
+
+**Why:**
+Align project intent with current tooling decisions (hooks, scripts, and small
+dependencies that reduce manual steps and tokens).
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (not requested)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-01 - Install pre-commit hooks during bootstrap
 
 **Feature/Bug:** Tooling and workflow
