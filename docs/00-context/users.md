@@ -3,12 +3,14 @@
 ## Purpose
 
 <!-- Describe who uses the product and why it matters to them. -->
+
 PezzosCode is built for a single developer/PO who wants a reliable, AI-first workflow
 to bootstrap projects and execute features with minimal manual effort.
 
 ## Primary Users
 
 ### Persona: Developer/PO (single user)
+
 - **Who they are:** Entrepreneur building multiple projects for self and clients, using Codex as the main executor.
 - **Goals:** Bootstrap projects fast; describe features and let AI implement them with minimal manual setup.
 - **Pain points:** AI workflows need manual setup; small errors derail flow; inconsistent process adherence.
@@ -25,6 +27,7 @@ None. Single-user focus.
 <!-- Rare but important users, admins, partners, etc. -->
 
 ### Persona: [Name or Role]
+
 - **Who they are:** [short description]
 - **Goals:** [what they want to achieve]
 - **Pain points:** [what makes their job hard today]

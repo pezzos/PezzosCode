@@ -16,11 +16,19 @@ from typing import cast
 from overrides import override
 
 from solidlsp import ls_types
-from solidlsp.ls import LanguageServerDependencyProvider, LSPFileBuffer, SolidLanguageServer
+from solidlsp.ls import (
+    LanguageServerDependencyProvider,
+    LSPFileBuffer,
+    SolidLanguageServer,
+)
 from solidlsp.ls_config import LanguageServerConfig
 from solidlsp.ls_types import UnifiedSymbolInformation
 from solidlsp.ls_utils import FileUtils, PlatformUtils
-from solidlsp.lsp_protocol_handler.lsp_types import DocumentSymbol, InitializeParams, SymbolInformation
+from solidlsp.lsp_protocol_handler.lsp_types import (
+    DocumentSymbol,
+    InitializeParams,
+    SymbolInformation,
+)
 from solidlsp.settings import SolidLSPSettings
 
 log = logging.getLogger(__name__)
@@ -63,7 +71,12 @@ class EclipseJDTLS(SolidLanguageServer):
     ```
     """
 
-    def __init__(self, config: LanguageServerConfig, repository_root_path: str, solidlsp_settings: SolidLSPSettings):
+    def __init__(
+        self,
+        config: LanguageServerConfig,
+        repository_root_path: str,
+        solidlsp_settings: SolidLSPSettings,
+    ):
         """
         Creates a new EclipseJDTLS instance initializing the language server settings appropriately.
         This class is not meant to be instantiated directly. Use LanguageServer.create() instead.
@@ -72,7 +85,9 @@ class EclipseJDTLS(SolidLanguageServer):
 
         # Extract runtime_dependency_paths from the dependency provider
         assert isinstance(self._dependency_provider, self.DependencyProvider)
-        self.runtime_dependency_paths = self._dependency_provider.runtime_dependency_paths
+        self.runtime_dependency_paths = (
+            self._dependency_provider.runtime_dependency_paths
+        )
 
         self._service_ready_event = threading.Event()
         self._project_ready_event = threading.Event()
@@ -80,7 +95,12 @@ class EclipseJDTLS(SolidLanguageServer):
 
     def _create_dependency_provider(self) -> LanguageServerDependencyProvider:
         ls_resources_dir = self.ls_resources_dir(self._solidlsp_settings)
-        return self.DependencyProvider(self._custom_settings, ls_resources_dir, self._solidlsp_settings, self.repository_root_path)
+        return self.DependencyProvider(
+            self._custom_settings,
+            ls_resources_dir,
+            self._solidlsp_settings,
+            self.repository_root_path,
+        )
 
     @override
     def is_ignored_dirname(self, dirname: str) -> bool:
@@ -111,10 +131,14 @@ class EclipseJDTLS(SolidLanguageServer):
             super().__init__(custom_settings, ls_resources_dir)
             self._solidlsp_settings = solidlsp_settings
             self._repository_root_path = repository_root_path
-            self.runtime_dependency_paths = self._setup_runtime_dependencies(ls_resources_dir)
+            self.runtime_dependency_paths = self._setup_runtime_dependencies(
+                ls_resources_dir
+            )
 
         @classmethod
-        def _setup_runtime_dependencies(cls, ls_resources_dir: str) -> RuntimeDependencyPaths:
+        def _setup_runtime_dependencies(
+            cls, ls_resources_dir: str
+        ) -> RuntimeDependencyPaths:
             """
             Setup runtime dependencies for EclipseJDTLS and return the paths.
             """
@@ -214,13 +238,21 @@ class EclipseJDTLS(SolidLanguageServer):
             assert os.path.exists(gradle_path)
 
             dependency = runtime_dependencies["vscode-java"][platformId.value]
-            vscode_java_path = str(PurePath(ls_resources_dir, dependency["relative_extraction_path"]))
+            vscode_java_path = str(
+                PurePath(ls_resources_dir, dependency["relative_extraction_path"])
+            )
             os.makedirs(vscode_java_path, exist_ok=True)
             jre_home_path = str(PurePath(vscode_java_path, dependency["jre_home_path"]))
             jre_path = str(PurePath(vscode_java_path, dependency["jre_path"]))
-            lombok_jar_path = str(PurePath(vscode_java_path, dependency["lombok_jar_path"]))
-            jdtls_launcher_jar_path = str(PurePath(vscode_java_path, dependency["jdtls_launcher_jar_path"]))
-            jdtls_readonly_config_path = str(PurePath(vscode_java_path, dependency["jdtls_readonly_config_path"]))
+            lombok_jar_path = str(
+                PurePath(vscode_java_path, dependency["lombok_jar_path"])
+            )
+            jdtls_launcher_jar_path = str(
+                PurePath(vscode_java_path, dependency["jdtls_launcher_jar_path"])
+            )
+            jdtls_readonly_config_path = str(
+                PurePath(vscode_java_path, dependency["jdtls_readonly_config_path"])
+            )
             if not all(
                 [
                     os.path.exists(vscode_java_path),
@@ -231,7 +263,9 @@ class EclipseJDTLS(SolidLanguageServer):
                     os.path.exists(jdtls_readonly_config_path),
                 ]
             ):
-                FileUtils.download_and_extract_archive(dependency["url"], vscode_java_path, dependency["archiveType"])
+                FileUtils.download_and_extract_archive(
+                    dependency["url"], vscode_java_path, dependency["archiveType"]
+                )
 
             os.chmod(jre_path, 0o755)
 
@@ -243,10 +277,18 @@ class EclipseJDTLS(SolidLanguageServer):
             assert os.path.exists(jdtls_readonly_config_path)
 
             dependency = runtime_dependencies["intellicode"]["platform-agnostic"]
-            intellicode_directory_path = str(PurePath(ls_resources_dir, dependency["relative_extraction_path"]))
+            intellicode_directory_path = str(
+                PurePath(ls_resources_dir, dependency["relative_extraction_path"])
+            )
             os.makedirs(intellicode_directory_path, exist_ok=True)
-            intellicode_jar_path = str(PurePath(intellicode_directory_path, dependency["intellicode_jar_path"]))
-            intellisense_members_path = str(PurePath(intellicode_directory_path, dependency["intellisense_members_path"]))
+            intellicode_jar_path = str(
+                PurePath(intellicode_directory_path, dependency["intellicode_jar_path"])
+            )
+            intellisense_members_path = str(
+                PurePath(
+                    intellicode_directory_path, dependency["intellisense_members_path"]
+                )
+            )
             if not all(
                 [
                     os.path.exists(intellicode_directory_path),
@@ -254,7 +296,11 @@ class EclipseJDTLS(SolidLanguageServer):
                     os.path.exists(intellisense_members_path),
                 ]
             ):
-                FileUtils.download_and_extract_archive(dependency["url"], intellicode_directory_path, dependency["archiveType"])
+                FileUtils.download_and_extract_archive(
+                    dependency["url"],
+                    intellicode_directory_path,
+                    dependency["archiveType"],
+                )
 
             assert os.path.exists(intellicode_directory_path)
             assert os.path.exists(intellicode_jar_path)
@@ -283,7 +329,14 @@ class EclipseJDTLS(SolidLanguageServer):
             )
 
             # shared_cache_location is the global cache used by Eclipse JDTLS across all workspaces
-            shared_cache_location = str(PurePath(self._solidlsp_settings.ls_resources_dir, "lsp", "EclipseJDTLS", "sharedIndex"))
+            shared_cache_location = str(
+                PurePath(
+                    self._solidlsp_settings.ls_resources_dir,
+                    "lsp",
+                    "EclipseJDTLS",
+                    "sharedIndex",
+                )
+            )
             os.makedirs(shared_cache_location, exist_ok=True)
             os.makedirs(ws_dir, exist_ok=True)
 
@@ -295,7 +348,9 @@ class EclipseJDTLS(SolidLanguageServer):
             data_dir = str(PurePath(ws_dir, "data_dir"))
             jdtls_config_path = str(PurePath(ws_dir, "config_path"))
 
-            jdtls_readonly_config_path = self.runtime_dependency_paths.jdtls_readonly_config_path
+            jdtls_readonly_config_path = (
+                self.runtime_dependency_paths.jdtls_readonly_config_path
+            )
 
             if not os.path.exists(jdtls_config_path):
                 shutil.copytree(jdtls_readonly_config_path, jdtls_config_path)
@@ -346,7 +401,10 @@ class EclipseJDTLS(SolidLanguageServer):
             return cmd
 
         def create_launch_command_env(self) -> dict[str, str]:
-            return {"syntaxserver": "false", "JAVA_HOME": self.runtime_dependency_paths.jre_home_path}
+            return {
+                "syntaxserver": "false",
+                "JAVA_HOME": self.runtime_dependency_paths.jre_home_path,
+            }
 
     def _get_initialize_params(self, repository_absolute_path: str) -> InitializeParams:
         """
@@ -361,7 +419,9 @@ class EclipseJDTLS(SolidLanguageServer):
         # Load user's Maven and Gradle configuration paths from ls_specific_settings["java"]
 
         # Maven settings: default to ~/.m2/settings.xml
-        default_maven_settings_path = os.path.join(os.path.expanduser("~"), ".m2", "settings.xml")
+        default_maven_settings_path = os.path.join(
+            os.path.expanduser("~"), ".m2", "settings.xml"
+        )
         custom_maven_settings_path = self._custom_settings.get("maven_user_settings")
         if custom_maven_settings_path is not None:
             # User explicitly provided a path
@@ -374,13 +434,19 @@ class EclipseJDTLS(SolidLanguageServer):
                 log.error(error_msg)
                 raise FileNotFoundError(error_msg)
             maven_settings_path = custom_maven_settings_path
-            log.info(f"Using Maven settings from custom location: {maven_settings_path}")
+            log.info(
+                f"Using Maven settings from custom location: {maven_settings_path}"
+            )
         elif os.path.exists(default_maven_settings_path):
             maven_settings_path = default_maven_settings_path
-            log.info(f"Using Maven settings from default location: {maven_settings_path}")
+            log.info(
+                f"Using Maven settings from default location: {maven_settings_path}"
+            )
         else:
             maven_settings_path = None
-            log.info(f"Maven settings not found at default location ({default_maven_settings_path}), will use JDTLS defaults")
+            log.info(
+                f"Maven settings not found at default location ({default_maven_settings_path}), will use JDTLS defaults"
+            )
 
         # Gradle user home: default to ~/.gradle
         default_gradle_home = os.path.join(os.path.expanduser("~"), ".gradle")
@@ -399,10 +465,14 @@ class EclipseJDTLS(SolidLanguageServer):
             log.info(f"Using Gradle user home from custom location: {gradle_user_home}")
         elif os.path.exists(default_gradle_home):
             gradle_user_home = default_gradle_home
-            log.info(f"Using Gradle user home from default location: {gradle_user_home}")
+            log.info(
+                f"Using Gradle user home from default location: {gradle_user_home}"
+            )
         else:
             gradle_user_home = None
-            log.info(f"Gradle user home not found at default location ({default_gradle_home}), will use JDTLS defaults")
+            log.info(
+                f"Gradle user home not found at default location ({default_gradle_home}), will use JDTLS defaults"
+            )
 
         initialize_params = {
             "locale": "en",
@@ -419,7 +489,10 @@ class EclipseJDTLS(SolidLanguageServer):
                         "changeAnnotationSupport": {"groupsOnLabel": True},
                     },
                     "didChangeConfiguration": {"dynamicRegistration": True},
-                    "didChangeWatchedFiles": {"dynamicRegistration": True, "relativePatternSupport": True},
+                    "didChangeWatchedFiles": {
+                        "dynamicRegistration": True,
+                        "relativePatternSupport": True,
+                    },
                     "symbol": {
                         "dynamicRegistration": True,
                         "symbolKind": {"valueSet": list(range(1, 27))},
@@ -452,7 +525,12 @@ class EclipseJDTLS(SolidLanguageServer):
                         "codeDescriptionSupport": True,
                         "dataSupport": True,
                     },
-                    "synchronization": {"dynamicRegistration": True, "willSave": True, "willSaveWaitUntil": True, "didSave": True},
+                    "synchronization": {
+                        "dynamicRegistration": True,
+                        "willSave": True,
+                        "willSaveWaitUntil": True,
+                        "didSave": True,
+                    },
                     # TODO: we have an assert that completion provider is not included in the capabilities at server startup
                     #   Removing this will cause the assert to fail. Investigate why this is the case, simplify config
                     "completion": {
@@ -466,17 +544,59 @@ class EclipseJDTLS(SolidLanguageServer):
                             "preselectSupport": True,
                             "tagSupport": {"valueSet": [1]},
                             "insertReplaceSupport": False,
-                            "resolveSupport": {"properties": ["documentation", "detail", "additionalTextEdits"]},
+                            "resolveSupport": {
+                                "properties": [
+                                    "documentation",
+                                    "detail",
+                                    "additionalTextEdits",
+                                ]
+                            },
                             "insertTextModeSupport": {"valueSet": [1, 2]},
                             "labelDetailsSupport": True,
                         },
                         "insertTextMode": 2,
                         "completionItemKind": {
-                            "valueSet": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+                            "valueSet": [
+                                1,
+                                2,
+                                3,
+                                4,
+                                5,
+                                6,
+                                7,
+                                8,
+                                9,
+                                10,
+                                11,
+                                12,
+                                13,
+                                14,
+                                15,
+                                16,
+                                17,
+                                18,
+                                19,
+                                20,
+                                21,
+                                22,
+                                23,
+                                24,
+                                25,
+                            ]
                         },
-                        "completionList": {"itemDefaults": ["commitCharacters", "editRange", "insertTextFormat", "insertTextMode"]},
+                        "completionList": {
+                            "itemDefaults": [
+                                "commitCharacters",
+                                "editRange",
+                                "insertTextFormat",
+                                "insertTextMode",
+                            ]
+                        },
                     },
-                    "hover": {"dynamicRegistration": True, "contentFormat": ["markdown", "plaintext"]},
+                    "hover": {
+                        "dynamicRegistration": True,
+                        "contentFormat": ["markdown", "plaintext"],
+                    },
                     "signatureHelp": {
                         "dynamicRegistration": True,
                         "signatureInformation": {
@@ -500,9 +620,18 @@ class EclipseJDTLS(SolidLanguageServer):
                         "prepareSupportDefaultBehavior": 1,
                         "honorsChangeAnnotations": True,
                     },
-                    "documentLink": {"dynamicRegistration": True, "tooltipSupport": True},
-                    "typeDefinition": {"dynamicRegistration": True, "linkSupport": True},
-                    "implementation": {"dynamicRegistration": True, "linkSupport": True},
+                    "documentLink": {
+                        "dynamicRegistration": True,
+                        "tooltipSupport": True,
+                    },
+                    "typeDefinition": {
+                        "dynamicRegistration": True,
+                        "linkSupport": True,
+                    },
+                    "implementation": {
+                        "dynamicRegistration": True,
+                        "linkSupport": True,
+                    },
                     "colorProvider": {"dynamicRegistration": True},
                     "declaration": {"dynamicRegistration": True, "linkSupport": True},
                     "selectionRange": {"dynamicRegistration": True},
@@ -555,7 +684,10 @@ class EclipseJDTLS(SolidLanguageServer):
                     },
                     "typeHierarchy": {"dynamicRegistration": True},
                     "inlineValue": {"dynamicRegistration": True},
-                    "diagnostic": {"dynamicRegistration": True, "relatedDocumentSupport": False},
+                    "diagnostic": {
+                        "dynamicRegistration": True,
+                        "relatedDocumentSupport": False,
+                    },
                 },
                 "general": {
                     "staleRequestSupport": {
@@ -569,7 +701,12 @@ class EclipseJDTLS(SolidLanguageServer):
                     "regularExpressions": {"engine": "ECMAScript", "version": "ES2020"},
                     "positionEncodings": ["utf-16"],
                 },
-                "notebookDocument": {"synchronization": {"dynamicRegistration": True, "executionSummarySupport": True}},
+                "notebookDocument": {
+                    "synchronization": {
+                        "dynamicRegistration": True,
+                        "executionSummarySupport": True,
+                    }
+                },
             },
             "initializationOptions": {
                 "bundles": ["intellicode-core.jar"],
@@ -597,7 +734,11 @@ class EclipseJDTLS(SolidLanguageServer):
                             },
                             "workspaceCacheLimit": 90,
                             "runtimes": [
-                                {"name": "JavaSE-21", "path": "static/vscode-java/extension/jre/21.0.7-linux-x86_64", "default": True}
+                                {
+                                    "name": "JavaSE-21",
+                                    "path": "static/vscode-java/extension/jre/21.0.7-linux-x86_64",
+                                    "default": True,
+                                }
                             ],
                         },
                         "trace": {"server": "verbose"},
@@ -612,7 +753,9 @@ class EclipseJDTLS(SolidLanguageServer):
                                 "wrapper": {"enabled": False},
                                 "version": None,
                                 "home": "abs(static/gradle-7.3.3)",
-                                "java": {"home": "abs(static/launch_jres/21.0.7-linux-x86_64)"},
+                                "java": {
+                                    "home": "abs(static/launch_jres/21.0.7-linux-x86_64)"
+                                },
                                 "offline": {"enabled": False},
                                 "arguments": None,
                                 "jvmArguments": None,
@@ -631,7 +774,10 @@ class EclipseJDTLS(SolidLanguageServer):
                         # Snapshots will only be updated when explicitly requested by the user
                         "maven": {"downloadSources": True, "updateSnapshots": False},
                         "eclipse": {"downloadSources": True},
-                        "signatureHelp": {"enabled": True, "description": {"enabled": True}},
+                        "signatureHelp": {
+                            "enabled": True,
+                            "description": {"enabled": True},
+                        },
                         "hover": {"javadoc": {"enabled": True}},
                         "implementationsCodeLens": {"enabled": True},
                         "format": {
@@ -649,7 +795,9 @@ class EclipseJDTLS(SolidLanguageServer):
                             "importHint": True,
                             "resourceFilters": ["node_modules", "\\.git"],
                             "encoding": "ignore",
-                            "exportJar": {"targetPath": "${workspaceFolder}/${workspaceFolderBasename}.jar"},
+                            "exportJar": {
+                                "targetPath": "${workspaceFolder}/${workspaceFolderBasename}.jar"
+                            },
                         },
                         "contentProvider": {"preferred": None},
                         "autobuild": {"enabled": True},
@@ -657,14 +805,24 @@ class EclipseJDTLS(SolidLanguageServer):
                         "selectionRange": {"enabled": True},
                         "showBuildStatusOnStart": {"enabled": "notification"},
                         "server": {"launchMode": "Standard"},
-                        "sources": {"organizeImports": {"starThreshold": 99, "staticStarThreshold": 99}},
+                        "sources": {
+                            "organizeImports": {
+                                "starThreshold": 99,
+                                "staticStarThreshold": 99,
+                            }
+                        },
                         "imports": {"gradle": {"wrapper": {"checksums": []}}},
                         "templates": {"fileHeader": [], "typeComment": []},
-                        "references": {"includeAccessors": True, "includeDecompiledSources": True},
+                        "references": {
+                            "includeAccessors": True,
+                            "includeDecompiledSources": True,
+                        },
                         "typeHierarchy": {"lazyLoad": False},
                         "settings": {"url": None},
                         "symbols": {"includeSourceMethodDeclarations": False},
-                        "inlayHints": {"parameterNames": {"enabled": "literals", "exclusions": []}},
+                        "inlayHints": {
+                            "parameterNames": {"enabled": "literals", "exclusions": []}
+                        },
                         "codeAction": {"sortMembers": {"avoidVolatileChanges": True}},
                         "compile": {
                             "nullAnalysis": {
@@ -690,7 +848,11 @@ class EclipseJDTLS(SolidLanguageServer):
                             "refreshDelay": 2000,
                             "packagePresentation": "flat",
                         },
-                        "help": {"firstView": "auto", "showReleaseNotes": True, "collectErrorLog": False},
+                        "help": {
+                            "firstView": "auto",
+                            "showReleaseNotes": True,
+                            "collectErrorLog": False,
+                        },
                         "test": {"defaultConfig": "", "config": {}},
                     }
                 },
@@ -709,13 +871,19 @@ class EclipseJDTLS(SolidLanguageServer):
         bundles = [self.runtime_dependency_paths.intellicode_jar_path]
         initialize_params["initializationOptions"]["bundles"] = bundles  # type: ignore
         initialize_params["initializationOptions"]["settings"]["java"]["configuration"]["runtimes"] = [  # type: ignore
-            {"name": "JavaSE-21", "path": self.runtime_dependency_paths.jre_home_path, "default": True}
+            {
+                "name": "JavaSE-21",
+                "path": self.runtime_dependency_paths.jre_home_path,
+                "default": True,
+            }
         ]
 
         for runtime in initialize_params["initializationOptions"]["settings"]["java"]["configuration"]["runtimes"]:  # type: ignore
             assert "name" in runtime
             assert "path" in runtime
-            assert os.path.exists(runtime["path"]), f"Runtime required for eclipse_jdtls at path {runtime['path']} does not exist"
+            assert os.path.exists(
+                runtime["path"]
+            ), f"Runtime required for eclipse_jdtls at path {runtime['path']} does not exist"
 
         gradle_settings = initialize_params["initializationOptions"]["settings"]["java"]["import"]["gradle"]  # type: ignore
         gradle_settings["home"] = self.runtime_dependency_paths.gradle_path
@@ -731,7 +899,7 @@ class EclipseJDTLS(SolidLanguageServer):
             assert "registrations" in params
             for registration in params["registrations"]:
                 if registration["method"] == "textDocument/completion":
-                    assert registration["registerOptions"]["resolveProvider"] == True
+                    assert registration["registerOptions"]["resolveProvider"]
                     assert registration["registerOptions"]["triggerCharacters"] == [
                         ".",
                         "@",
@@ -741,7 +909,10 @@ class EclipseJDTLS(SolidLanguageServer):
                     ]
                     self.completions_available.set()
                 if registration["method"] == "workspace/executeCommand":
-                    if "java.intellicode.enable" in registration["registerOptions"]["commands"]:
+                    if (
+                        "java.intellicode.enable"
+                        in registration["registerOptions"]["commands"]
+                    ):
                         self._intellicode_enable_command_available.set()
             return
 
@@ -767,7 +938,9 @@ class EclipseJDTLS(SolidLanguageServer):
         self.server.on_request("client/registerCapability", register_capability_handler)
         self.server.on_notification("language/status", lang_status_handler)
         self.server.on_notification("window/logMessage", window_log_message)
-        self.server.on_request("workspace/executeClientCommand", execute_client_command_handler)
+        self.server.on_request(
+            "workspace/executeClientCommand", execute_client_command_handler
+        )
         self.server.on_notification("$/progress", do_nothing)
         self.server.on_notification("textDocument/publishDiagnostics", do_nothing)
         self.server.on_notification("language/actionableNotification", do_nothing)
@@ -776,7 +949,9 @@ class EclipseJDTLS(SolidLanguageServer):
         self.server.start()
         initialize_params = self._get_initialize_params(self.repository_root_path)
 
-        log.info("Sending initialize request from LSP client to LSP server and awaiting response")
+        log.info(
+            "Sending initialize request from LSP client to LSP server and awaiting response"
+        )
         init_response = self.server.send.initialize(initialize_params)
         assert init_response["capabilities"]["textDocumentSync"]["change"] == 2  # type: ignore
         assert "completionProvider" not in init_response["capabilities"]
@@ -788,7 +963,9 @@ class EclipseJDTLS(SolidLanguageServer):
 
         self._intellicode_enable_command_available.wait()
 
-        java_intellisense_members_path = self.runtime_dependency_paths.intellisense_members_path
+        java_intellisense_members_path = (
+            self.runtime_dependency_paths.intellisense_members_path
+        )
         assert os.path.exists(java_intellisense_members_path)
         intellicode_enable_result = self.server.send.execute_command(
             {
@@ -809,7 +986,10 @@ class EclipseJDTLS(SolidLanguageServer):
             if self._project_ready_event.wait(timeout=project_ready_timeout):
                 log.info("Project is ready")
             else:
-                log.warning("Did not receive project ready status within %d seconds; proceeding anyway", project_ready_timeout)
+                log.warning(
+                    "Did not receive project ready status within %d seconds; proceeding anyway",
+                    project_ready_timeout,
+                )
         else:
             log.info("Project is ready")
 
@@ -862,7 +1042,9 @@ class EclipseJDTLS(SolidLanguageServer):
     def _request_document_symbols(
         self, relative_file_path: str, file_data: LSPFileBuffer | None
     ) -> list[SymbolInformation] | list[DocumentSymbol] | None:
-        result = super()._request_document_symbols(relative_file_path, file_data=file_data)
+        result = super()._request_document_symbols(
+            relative_file_path, file_data=file_data
+        )
         if result is None:
             return None
 
@@ -870,7 +1052,9 @@ class EclipseJDTLS(SolidLanguageServer):
         # e.g. "myMethod(int) <T>", but we want overloads to be handled via overload_idx,
         # which requires the name to be just "myMethod".
 
-        def fix_name(symbol: SymbolInformation | DocumentSymbol | UnifiedSymbolInformation) -> None:
+        def fix_name(
+            symbol: SymbolInformation | DocumentSymbol | UnifiedSymbolInformation,
+        ) -> None:
             if "(" in symbol["name"]:
                 symbol["name"] = symbol["name"][: symbol["name"].index("(")]
             children = symbol.get("children")

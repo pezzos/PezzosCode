@@ -9,6 +9,7 @@
 ## Purpose
 
 This document provides:
+
 - **Proven prompts** that work well with LLMs
 - **Templates** for common tasks
 - **Best practices** for prompting
@@ -19,10 +20,12 @@ This document provides:
 ## General Prompting Best Practices
 
 ### 1. Be Specific
+
 - ❌ "Write a function"
 - ✅ "Write a TypeScript function that validates email addresses using regex and returns a boolean"
 
 ### 2. Provide Context
+
 ```
 I'm working on [project description].
 We use [tech stack].
@@ -31,6 +34,7 @@ The code should follow [pattern/style].
 ```
 
 ### 3. Define Success Criteria
+
 ```
 The solution should:
 - [Requirement 1]
@@ -39,12 +43,14 @@ The solution should:
 ```
 
 ### 4. Iterate
+
 - Start with a plan
 - Review and refine
 - Implement in pieces
 - Test and adjust
 
 ### 5. Reference Examples
+
 ```
 Follow the same pattern as [file:line] in the codebase.
 ```
@@ -607,6 +613,7 @@ Create an entry that:
 When prompting LLMs about code, include:
 
 ### Project Context
+
 ```
 Project: [name and description]
 Tech stack: [list]
@@ -615,6 +622,7 @@ Documentation: [link to relevant docs]
 ```
 
 ### Code Context
+
 ```
 Relevant files:
 - [file:line] - [what it does]
@@ -625,6 +633,7 @@ Existing patterns:
 ```
 
 ### Quality Context
+
 ```
 Requirements:
 - Code style: [style guide]

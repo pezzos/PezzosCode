@@ -62,11 +62,11 @@ env = { PYTHONPATH = "/Users/alexandrepezzotta/repos/PezzosCode/tools/serena/sol
 # autostart = false
 # startup_timeout_ms = 30_000
 # request_timeout_ms = 30_000
-# 
+#
 # [mcp_servers.notionMCP]
 # command = "/opt/homebrew/bin/npx"
 # args = ["-y", "mcp-remote", "https://mcp.notion.com/mcp"]
-# 
+#
 # [notify]
 # # Each entry can be:
 # #   - A single string command (split with shell-like rules)

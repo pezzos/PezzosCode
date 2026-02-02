@@ -29,12 +29,18 @@ def die(message: str) -> None:
     sys.exit(1)
 
 
-def run(cmd: List[str], *, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess:
+def run(
+    cmd: List[str], *, capture: bool = False, check: bool = True
+) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, text=True, capture_output=capture, check=check)
 
 
-def run_shell(cmd: str, *, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, shell=True, text=True, capture_output=capture, check=check)
+def run_shell(
+    cmd: str, *, capture: bool = False, check: bool = True
+) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd, shell=True, text=True, capture_output=capture, check=check
+    )
 
 
 def repo_root() -> str:
@@ -393,7 +399,7 @@ def update_ticket_status(ticket_path: str, status: str) -> None:
             in_frontmatter = True
             continue
         if in_frontmatter and line.startswith("status:"):
-            updated.append(f"status: \"{status}\"")
+            updated.append(f'status: "{status}"')
         else:
             updated.append(line)
     write_file(ticket_path, "\n".join(updated) + "\n")
@@ -436,7 +442,9 @@ def main() -> None:
     os.chdir(root)
 
     feature_id = inputs["feature_id"]
-    ticket_cmd = f"make ticket T={ticket_id}" + (f" F={feature_id}" if feature_id else "")
+    ticket_cmd = f"make ticket T={ticket_id}" + (
+        f" F={feature_id}" if feature_id else ""
+    )
     ticket_result = run_shell(ticket_cmd, capture=True, check=False)
     review_items = [format_review_item(ticket_cmd, ticket_result.returncode)]
     if ticket_result.returncode != 0:
@@ -450,10 +458,10 @@ def main() -> None:
     change_budget = parse_change_budget(ticket_path)
     worklog_path = find_worklog(ticket_id, title, root)
 
-    if ticket_frontmatter.get("status") == "Awaiting PO Approval" and not is_approval_granted(
-        ticket_frontmatter
-    ):
-        die("pc-ticket: awaiting PO approval; set approval: \"granted\" to proceed")
+    if ticket_frontmatter.get(
+        "status"
+    ) == "Awaiting PO Approval" and not is_approval_granted(ticket_frontmatter):
+        die('pc-ticket: awaiting PO approval; set approval: "granted" to proceed')
 
     ticket_body = read_file(ticket_path)
 
@@ -490,13 +498,17 @@ def main() -> None:
             "; ".join(review_items),
         ),
     )
-    worklog = replace_section(worklog, "TDD Plan", build_tdd_plan_block(preflight_data.get("tdd_tests", [])))
+    worklog = replace_section(
+        worklog, "TDD Plan", build_tdd_plan_block(preflight_data.get("tdd_tests", []))
+    )
     worklog = replace_section(
         worklog,
         "Files to Change + Change Budget",
         build_files_block(preflight_data.get("files_to_change", []), change_budget),
     )
-    worklog = replace_section(worklog, "Docs Updated", build_docs_block(preflight_data.get("doc_updates", [])))
+    worklog = replace_section(
+        worklog, "Docs Updated", build_docs_block(preflight_data.get("doc_updates", []))
+    )
     worklog = normalize_tdd_plan(worklog)
     write_file(worklog_path, worklog)
 
@@ -514,7 +526,7 @@ def main() -> None:
             die(
                 "pc-ticket: high-risk ticket requires PO approval.\n"
                 f"Review Preflight Report:\n\n{preflight_block}\n"
-                "Set approval: \"granted\" in ticket frontmatter to proceed."
+                'Set approval: "granted" in ticket frontmatter to proceed.'
             )
         update_ticket_status(ticket_path, "Ongoing")
 
@@ -602,7 +614,9 @@ def main() -> None:
 
     worklog = read_file(worklog_path)
     worklog = replace_section(worklog, "Commit", f"- Commit message: {commit_message}")
-    changed_files = run(["git", "diff", "--name-only"], capture=True).stdout.strip().splitlines()
+    changed_files = (
+        run(["git", "diff", "--name-only"], capture=True).stdout.strip().splitlines()
+    )
     final_report = "\n".join(
         [
             "What changed (files):",
@@ -610,7 +624,11 @@ def main() -> None:
             "Tests written (names) + results:",
             f"{', '.join(preflight_data.get('tdd_tests', []))} | {test_cmd}: {tdd_status}, {ci_cmd}: {ci_status}",
             "Docs/logs updated checklist:",
-            ", ".join(preflight_data.get("doc_updates", [])) if preflight_data.get("doc_updates") else "(see worklog)",
+            (
+                ", ".join(preflight_data.get("doc_updates", []))
+                if preflight_data.get("doc_updates")
+                else "(see worklog)"
+            ),
             "make ci results:",
             ci_status,
             "Commit message:",

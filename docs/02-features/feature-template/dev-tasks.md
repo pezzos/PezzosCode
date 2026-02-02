@@ -15,9 +15,11 @@
 **Last Updated:** [YYYY-MM-DD]
 
 ## Task Breakdown
+
 <!-- Use only the sections that apply to this feature. Uncomment relevant blocks and delete the rest. -->
 
 ### Setup & Infrastructure
+
 <!-- Preparation work before feature development -->
 
 - [ ] **TASK-001: Set up development environment**
@@ -317,12 +319,14 @@
 ## Task Summary
 
 ### By Status
+
 - **Not Started:** [count]
 - **In Progress:** [count]
 - **Complete:** [count]
 - **Blocked:** [count]
 
 ### By Category
+
 - **Setup:** [count] tasks
 - **Backend:** [count] tasks
 - **Frontend:** [count] tasks
@@ -333,20 +337,23 @@
 
 ## Blocked Tasks
 
-| Task ID | Blocked By | Issue | Action Needed |
-|---------|------------|-------|---------------|
-| [TASK-XXX] | [blocker] | [description] | [what needs to happen] |
+| Task ID    | Blocked By | Issue         | Action Needed          |
+| ---------- | ---------- | ------------- | ---------------------- |
+| [TASK-XXX] | [blocker]  | [description] | [what needs to happen] |
 
 ## Notes for LLM Execution
 
 ### Context to Provide
+
 When executing tasks, ensure the LLM has access to:
+
 - Feature specification (feature-spec.md)
 - Technical design (tech-design.md)
 - Current system map (docs/00-context/system-map.md)
 - Relevant existing code
 
 ### Execution Guidelines
+
 - Complete tasks in dependency order
 - Run tests after each task
 - Commit after each completed task
@@ -354,6 +361,7 @@ When executing tasks, ensure the LLM has access to:
 - Ask questions if requirements are unclear
 
 ### Code Standards
+
 - Follow existing code style in repo
 - Add comments for complex logic
 - Write self-documenting code
@@ -368,7 +376,7 @@ When executing tasks, ensure the LLM has access to:
 
 ## Change Log
 
-| Date | Changes | Author |
-|------|---------|--------|
-| YYYY-MM-DD | Initial task breakdown | [Name] |
+| Date       | Changes                 | Author |
+| ---------- | ----------------------- | ------ |
+| YYYY-MM-DD | Initial task breakdown  | [Name] |
 | YYYY-MM-DD | Tasks X, Y, Z completed | [Name] |

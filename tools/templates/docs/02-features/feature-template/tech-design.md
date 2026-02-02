@@ -13,12 +13,15 @@
 **Last Updated:** [YYYY-MM-DD]
 
 ### Summary
+
 <!-- 2-3 sentences on the technical approach -->
 
 [High-level technical description of how this will be built]
 
 ### Product Surfaces
+
 <!-- Select all that apply and delete the rest -->
+
 - [ ] CLI
 - [ ] TUI
 - [ ] API
@@ -29,12 +32,14 @@
 ## Technical Requirements
 
 ### From Feature Spec
+
 - [Requirement 1 from feature-spec.md]
 - [Requirement 2 from feature-spec.md]
 - [Performance requirement]
 - [Security requirement]
 
 ### Technical Constraints
+
 - **Platform:** [framework/language versions]
 - **Browser support:** [minimum versions]
 - **API limits:** [rate limits, quotas]
@@ -44,6 +49,7 @@
 ## Architecture
 
 ### System Context
+
 ```
 ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
 │   Client    │────────▶│  New Feature│────────▶│  Existing   │
@@ -113,6 +119,7 @@
 #### New Data Structures
 
 **Database Schema Changes:**
+
 ```sql
 -- New tables
 CREATE TABLE [table_name] (
@@ -127,6 +134,7 @@ CREATE INDEX idx_[name] ON [table_name]([field]);
 ```
 
 **Data Models:**
+
 ```typescript
 interface [ModelName] {
   id: string;
@@ -137,6 +145,7 @@ interface [ModelName] {
 ```
 
 #### Data Flow
+
 1. **Input:** [where data comes from]
 2. **Processing:** [how it's transformed]
 3. **Storage:** [where it's saved]
@@ -192,6 +201,7 @@ interface [ModelName] {
 ### Integration Points
 
 #### External Services
+
 - **[Service Name]**
   - **Purpose:** [why we integrate]
   - **API:** [endpoints we'll use]
@@ -200,6 +210,7 @@ interface [ModelName] {
   - **Fallback:** [what happens if unavailable]
 
 #### Internal Systems
+
 - **[System/Module Name]**
   - **Integration type:** [REST/GraphQL/direct call/event]
   - **Data exchanged:** [what we send/receive]
@@ -208,9 +219,11 @@ interface [ModelName] {
 ## Implementation Approach
 
 ### Phase 1: [Phase Name]
+
 **Goal:** [what we accomplish]
 
 **Tasks:**
+
 1. [Task 1]
 2. [Task 2]
 3. [Task 3]
@@ -218,18 +231,22 @@ interface [ModelName] {
 **Deliverable:** [what's done]
 
 ### Phase 2: [Phase Name]
+
 **Goal:** [what we accomplish]
 
 **Tasks:**
+
 1. [Task 1]
 2. [Task 2]
 
 **Deliverable:** [what's done]
 
 ### Phase 3: [Phase Name]
+
 **Goal:** [what we accomplish]
 
 **Tasks:**
+
 1. [Task 1]
 2. [Task 2]
 
@@ -238,9 +255,11 @@ interface [ModelName] {
 ## Technical Decisions
 
 ### Decision 1: [Decision Title]
+
 **Context:** [what we needed to decide]
 
 **Options Considered:**
+
 1. **Option A:** [description]
    - Pros: [benefits]
    - Cons: [drawbacks]
@@ -254,6 +273,7 @@ interface [ModelName] {
 **Rationale:** [why we chose this]
 
 ### Decision 2: [Decision Title]
+
 **Context:** [what we needed to decide]
 
 **Options Considered:**
@@ -266,55 +286,64 @@ interface [ModelName] {
 ## Security Considerations
 
 ### Authentication & Authorization
+
 - **Auth requirements:** [who can access]
 - **Permission checks:** [where we validate]
 - **Token handling:** [how we secure]
 
 ### Data Protection
+
 - **Sensitive data:** [what needs protection]
 - **Encryption:** [at rest/in transit]
 - **PII handling:** [privacy requirements]
 - **Input validation:** [what we validate and how]
 
 ### Security Risks
-| Risk | Severity | Mitigation |
-|------|----------|------------|
+
+| Risk              | Severity     | Mitigation       |
+| ----------------- | ------------ | ---------------- |
 | [Security risk 1] | High/Med/Low | [how we prevent] |
 | [Security risk 2] | High/Med/Low | [how we prevent] |
 
 ## Performance Considerations
 
 ### Expected Load
+
 - **Users:** [expected concurrent users]
 - **Requests:** [requests per second]
 - **Data volume:** [amount of data]
 
 ### Performance Requirements
+
 - **Response time:** [target latency]
 - **Throughput:** [requests/sec target]
 - **Resource usage:** [CPU/memory limits]
 
 ### Optimization Strategy
+
 - **Caching:** [what we'll cache and where]
 - **Indexing:** [database indexes]
 - **Lazy loading:** [what loads on demand]
 - **Code splitting:** [bundle optimization]
 
 ### Performance Risks
-| Risk | Impact | Mitigation |
-|------|--------|------------|
+
+| Risk                 | Impact        | Mitigation      |
+| -------------------- | ------------- | --------------- |
 | [Performance risk 1] | [consequence] | [how we handle] |
 | [Performance risk 2] | [consequence] | [how we handle] |
 
 ## Error Handling
 
 ### Error Scenarios
-| Scenario | Detection | Recovery | User Experience |
-|----------|-----------|----------|-----------------|
+
+| Scenario       | Detection       | Recovery         | User Experience  |
+| -------------- | --------------- | ---------------- | ---------------- |
 | [Error type 1] | [how we detect] | [how we recover] | [what user sees] |
 | [Error type 2] | [how we detect] | [how we recover] | [what user sees] |
 
 ### Logging & Monitoring
+
 - **What we log:** [events/errors to track]
 - **Log level:** [info/warn/error criteria]
 - **Alerts:** [what triggers notifications]
@@ -323,28 +352,33 @@ interface [ModelName] {
 ## Testing Strategy
 
 ### Unit Tests
+
 - **Frontend:** [components/functions to test]
 - **Backend:** [services/functions to test]
 - **Coverage target:** [percentage goal]
 
 ### Integration Tests
+
 - **API tests:** [endpoints to test]
 - **Database tests:** [data operations to verify]
 - **Service integration:** [external service mocks]
 
 ### E2E Tests
+
 - **Critical paths:** [user flows to automate]
 - **Test environment:** [where tests run]
 
 ## Migration & Rollout
 
 ### Data Migration
+
 - **Required:** [Yes/No]
 - **Script:** [description of migration]
 - **Rollback:** [how to undo]
 - **Validation:** [how to verify success]
 
 ### Feature Flags
+
 - **Flag name:** `[feature_flag_name]`
 - **Default:** [on/off]
 - **Rollout plan:**
@@ -353,6 +387,7 @@ interface [ModelName] {
   3. [Phase 3: full rollout]
 
 ### Deployment Plan
+
 1. [Step 1: pre-deployment checks]
 2. [Step 2: deploy to staging]
 3. [Step 3: validation tests]
@@ -360,9 +395,11 @@ interface [ModelName] {
 5. [Step 5: monitoring & verification]
 
 ### Rollback Plan
+
 **Triggers:** [when we rollback]
 
 **Steps:**
+
 1. [Action 1]
 2. [Action 2]
 3. [Action 3]
@@ -370,16 +407,19 @@ interface [ModelName] {
 ## Dependencies & Risks
 
 ### Dependencies
+
 - **[Dependency 1]:** [what we need and when]
 - **[Dependency 2]:** [what we need and when]
 
 ### Technical Risks
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| [Risk 1] | High/Med/Low | [consequence] | [plan] |
-| [Risk 2] | High/Med/Low | [consequence] | [plan] |
+
+| Risk     | Probability  | Impact        | Mitigation |
+| -------- | ------------ | ------------- | ---------- |
+| [Risk 1] | High/Med/Low | [consequence] | [plan]     |
+| [Risk 2] | High/Med/Low | [consequence] | [plan]     |
 
 ### Unknown Unknowns
+
 - [ ] **Question:** [Technical uncertainty]
   - **Impact:** [potential consequence]
   - **Resolution:** [how we'll figure it out]
@@ -402,6 +442,6 @@ interface [ModelName] {
 
 ## Change Log
 
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
-| YYYY-MM-DD | 0.1 | Initial design | [Name] |
+| Date       | Version | Changes        | Author |
+| ---------- | ------- | -------------- | ------ |
+| YYYY-MM-DD | 0.1     | Initial design | [Name] |

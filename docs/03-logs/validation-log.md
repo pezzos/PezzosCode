@@ -9,6 +9,7 @@
 ## Purpose
 
 This log captures:
+
 - **Actual outcomes** vs expected outcomes
 - **User behavior** with new features
 - **Metric changes** after deployment
@@ -16,6 +17,7 @@ This log captures:
 - **Feedback** from users and stakeholders
 
 This helps with:
+
 - Learning what works and what doesn't
 - Improving future estimates and predictions
 - Understanding user behavior
@@ -38,19 +40,20 @@ This helps with:
 ---
 
 #### Expected Outcomes
+
 [From feature-spec.md success metrics]
 
-| Metric | Target | Expected Impact |
-|--------|--------|-----------------|
-| [Metric 1] | [goal] | [prediction] |
-| [Metric 2] | [goal] | [prediction] |
+| Metric     | Target | Expected Impact |
+| ---------- | ------ | --------------- |
+| [Metric 1] | [goal] | [prediction]    |
+| [Metric 2] | [goal] | [prediction]    |
 
 ---
 
 #### Actual Outcomes
 
-| Metric | Target | Actual | Δ | Met? |
-|--------|--------|--------|---|------|
+| Metric     | Target | Actual   | Δ    | Met?  |
+| ---------- | ------ | -------- | ---- | ----- |
 | [Metric 1] | [goal] | [actual] | [±%] | ✅/❌ |
 | [Metric 2] | [goal] | [actual] | [±%] | ✅/❌ |
 
@@ -59,16 +62,19 @@ This helps with:
 #### User Behavior Observations
 
 **Usage Stats:**
+
 - Total users who tried feature: [number] ([%] of active users)
 - Users who adopted (used > 3 times): [number] ([%] of those who tried)
 - Average frequency: [times per day/week/month]
 - Time to adoption: [how long before first use]
 
 **Unexpected Behaviors:**
+
 - [Observation 1]: [description and why it's surprising]
 - [Observation 2]: [description]
 
 **User Segments:**
+
 - **Power users:** [description of how heavy users behave]
 - **Casual users:** [description]
 - **Non-adopters:** [who didn't use it and why]
@@ -78,18 +84,22 @@ This helps with:
 #### Qualitative Feedback
 
 **Positive Feedback:**
+
 - "[User quote]"
 - "[User quote]"
 
 **Negative Feedback:**
+
 - "[User quote]"
 - "[User quote]"
 
 **Feature Requests:**
+
 - [Request 1]: [how many users asked]
 - [Request 2]: [how many users asked]
 
 **Support Tickets:**
+
 - Total tickets related to feature: [count]
 - Common issues: [list]
 
@@ -105,10 +115,12 @@ This helps with:
 | Uptime | [target] | [actual] | ✅/❌ |
 
 **Incidents:**
+
 - [Count] incidents related to this feature
 - [Brief description of any major issues]
 
 **Resource Usage:**
+
 - CPU: [impact]
 - Memory: [impact]
 - Database: [impact]
@@ -147,10 +159,12 @@ This helps with:
 #### Surprises
 
 **Positive Surprises:**
+
 - [Something unexpectedly good that happened]
 - [Unintended positive consequence]
 
 **Negative Surprises:**
+
 - [Something unexpectedly bad that happened]
 - [Unintended negative consequence]
 
@@ -158,8 +172,8 @@ This helps with:
 
 #### Hypotheses Validated/Invalidated
 
-| Hypothesis | Result | Evidence |
-|------------|--------|----------|
+| Hypothesis         | Result                                          | Evidence                     |
+| ------------------ | ----------------------------------------------- | ---------------------------- |
 | [What we believed] | ✅ Validated / ❌ Invalidated / 🤷 Inconclusive | [Data that proves/disproves] |
 
 ---
@@ -167,15 +181,18 @@ This helps with:
 #### Next Steps
 
 **Immediate Actions:**
+
 - [ ] [Action based on learnings]
 - [ ] [Bug fix or improvement]
 - [ ] [Metric to add/monitor]
 
 **Future Enhancements:**
+
 - [ ] [Feature improvement]
 - [ ] [New feature idea]
 
 **Experiments to Run:**
+
 - [ ] [Hypothesis to test]
 - [ ] [A/B test to conduct]
 
@@ -191,6 +208,7 @@ This helps with:
 **Would we build this again?** [Yes/No/Different approach]
 
 **If doing it again, we would:**
+
 - [Change 1]
 - [Change 2]
 
@@ -212,40 +230,43 @@ This helps with:
 
 #### Expected Outcomes
 
-| Metric | Target | Expected Impact |
-|--------|--------|-----------------|
-| Time on dashboard | +30% | Users spend more time exploring data |
-| Feature discovery | +50% | Users find and use more features |
-| User satisfaction | +20% | Higher NPS score |
-| Task completion rate | +25% | Users complete tasks faster |
+| Metric               | Target | Expected Impact                      |
+| -------------------- | ------ | ------------------------------------ |
+| Time on dashboard    | +30%   | Users spend more time exploring data |
+| Feature discovery    | +50%   | Users find and use more features     |
+| User satisfaction    | +20%   | Higher NPS score                     |
+| Task completion rate | +25%   | Users complete tasks faster          |
 
 ---
 
 #### Actual Outcomes
 
-| Metric | Target | Actual | Δ | Met? |
-|--------|--------|--------|---|------|
-| Time on dashboard | +30% | +45% | +15% | ✅ |
-| Feature discovery | +50% | +35% | -15% | ❌ |
-| User satisfaction | +20% | +18% | -2% | ❌ |
-| Task completion rate | +25% | +40% | +15% | ✅ |
+| Metric               | Target | Actual | Δ    | Met? |
+| -------------------- | ------ | ------ | ---- | ---- |
+| Time on dashboard    | +30%   | +45%   | +15% | ✅   |
+| Feature discovery    | +50%   | +35%   | -15% | ❌   |
+| User satisfaction    | +20%   | +18%   | -2%  | ❌   |
+| Task completion rate | +25%   | +40%   | +15% | ✅   |
 
 ---
 
 #### User Behavior Observations
 
 **Usage Stats:**
+
 - Total users who saw new dashboard: 10,000 (100% via feature flag rollout)
 - Users who actively engaged: 8,500 (85%)
 - Average time on dashboard: 8.5 min (up from 5.5 min)
 - Daily active dashboard users: +25%
 
 **Unexpected Behaviors:**
+
 - **Power users created custom views:** 30% of power users created custom dashboard layouts within first week (we didn't expect this for first month)
 - **Mobile usage dropped:** Mobile dashboard usage dropped 15% - redesign optimized for desktop, didn't translate well to mobile
 - **Export feature popular:** CSV export used 3x more than predicted
 
 **User Segments:**
+
 - **Power users (20%):** Created avg 3 custom views, spend 15+ min/day on dashboard
 - **Casual users (60%):** Use default view, quick check-ins (2-3 min)
 - **Non-adopters (20%):** Reverted to old dashboard via settings toggle
@@ -255,21 +276,25 @@ This helps with:
 #### Qualitative Feedback
 
 **Positive Feedback:**
+
 - "Finally! I can see everything I need at a glance" (47 similar comments)
 - "The new charts are beautiful and actually useful" (31 similar)
 - "Custom views are a game changer" (23 similar)
 
 **Negative Feedback:**
+
 - "Too cluttered on mobile, can barely read the text" (34 similar comments)
 - "Can't find the settings I used to use" (28 similar)
 - "Slower to load than old dashboard" (19 similar)
 
 **Feature Requests:**
+
 - Dark mode (142 requests)
 - Share custom views with team (87 requests)
 - More chart types (56 requests)
 
 **Support Tickets:**
+
 - Total tickets: 89
 - Common issues:
   - Can't find export button (32 tickets)
@@ -288,10 +313,12 @@ This helps with:
 | Uptime | 99.9% | 99.95% | ✅ |
 
 **Incidents:**
+
 - 2 incidents: custom view saving failed intermittently
 - 1 performance degradation: database queries not optimized
 
 **Resource Usage:**
+
 - Database queries increased 40% (more data fetched for new widgets)
 - API response time increased 300ms on average
 - Frontend bundle size increased 150KB (added charting library)
@@ -334,11 +361,13 @@ This helps with:
 #### Surprises
 
 **Positive Surprises:**
+
 - Export feature used 3x more than predicted - users wanted to analyze data externally
 - Time on dashboard increased more than expected (+45% vs +30% target) - stickier than anticipated
 - Users created custom views immediately, didn't need prompting
 
 **Negative Surprises:**
+
 - 20% of users toggled back to old dashboard (expected < 5%)
 - Mobile usage declined (expected neutral impact)
 - Support ticket volume 2x higher than expected
@@ -347,29 +376,32 @@ This helps with:
 
 #### Hypotheses Validated/Invalidated
 
-| Hypothesis | Result | Evidence |
-|------------|--------|----------|
-| Users want more data on one screen | ✅ Validated | Time on dashboard up 45%, positive feedback |
+| Hypothesis                                     | Result          | Evidence                                      |
+| ---------------------------------------------- | --------------- | --------------------------------------------- |
+| Users want more data on one screen             | ✅ Validated    | Time on dashboard up 45%, positive feedback   |
 | Better visual design will improve satisfaction | 🤷 Inconclusive | NPS up only 18% vs 20% target, mixed feedback |
-| Users will find features more easily | ❌ Invalidated | Feature discovery up only 35% vs 50% target |
-| Mobile usage will remain constant | ❌ Invalidated | Mobile usage down 15% |
+| Users will find features more easily           | ❌ Invalidated  | Feature discovery up only 35% vs 50% target   |
+| Mobile usage will remain constant              | ❌ Invalidated  | Mobile usage down 15%                         |
 
 ---
 
 #### Next Steps
 
 **Immediate Actions:**
+
 - [ ] Fix mobile layout (P0) - starting next sprint
 - [ ] Optimize database queries to reduce load time (P0)
 - [ ] Fix custom view saving bug (P0)
 - [ ] Add onboarding tour for new features (P1)
 
 **Future Enhancements:**
+
 - [ ] Dark mode (top requested feature)
 - [ ] Shared custom views (team feature)
 - [ ] More chart types
 
 **Experiments to Run:**
+
 - [ ] A/B test onboarding tour effectiveness
 - [ ] Test different chart configurations
 - [ ] Try progressive loading to improve perceived performance
@@ -390,6 +422,7 @@ Overall, this was a successful launch with clear areas for improvement. The core
 **Would we build this again?** Yes, but with changes
 
 **If doing it again, we would:**
+
 - Design and test mobile experience equally with desktop
 - Set and enforce performance budget from day one
 - Add onboarding tour in initial release
@@ -401,17 +434,20 @@ Overall, this was a successful launch with clear areas for improvement. The core
 ## Validation Summary
 
 ### Features Validated
-| Feature | Launch Date | Success Rating | Key Learnings |
-|---------|-------------|----------------|---------------|
-| Dashboard Redesign | 2025-01-20 | ⭐⭐⭐⭐ | Mobile matters, performance budgets crucial |
+
+| Feature            | Launch Date | Success Rating | Key Learnings                               |
+| ------------------ | ----------- | -------------- | ------------------------------------------- |
+| Dashboard Redesign | 2025-01-20  | ⭐⭐⭐⭐       | Mobile matters, performance budgets crucial |
 
 ### Success Rate
+
 - **Exceeded expectations:** [count] features
 - **Met expectations:** [count] features
 - **Below expectations:** [count] features
 - **Failed:** [count] features
 
 ### Top Learnings
+
 1. [Key learning across multiple features]
 2. [Pattern observed]
 3. [Insight for future work]

@@ -27,6 +27,40 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Clean up lint issues in SolidLSP overrides
+
+**Feature/Bug:** Linting cleanup
+
+**Changed Files:**
+
+- `tools/serena/solidlsp_override/solidlsp/ls_utils.py`
+- `tools/serena/solidlsp_override/solidlsp/language_servers/clangd_language_server.py`
+- `tools/serena/solidlsp_override/solidlsp/language_servers/eclipse_jdtls.py`
+- `tools/serena/solidlsp_override/solidlsp/language_servers/jedi_server.py`
+- `tools/serena/solidlsp_override/solidlsp/language_servers/pyright_server.py`
+- `tools/serena/solidlsp_override/solidlsp/language_servers/rust_analyzer.py`
+- `tools/serena/solidlsp_override/solidlsp/language_servers/taplo_server.py`
+- `tools/serena/solidlsp_override/solidlsp/language_servers/typescript_language_server.py`
+
+**What Changed:**
+Replaced explicit `== True` checks with truthy checks, clarified ambiguous variable
+names, and moved Taplo imports above constants to satisfy flake8 rules.
+
+**Why:**
+Remove lint violations without altering runtime behavior.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (lint-only changes)
+
+**Author:** Codex
+
 ### 2026-02-02 - Add role feedback loop sections to tickets and workflows
 
 **Feature/Bug:** Process and ticket templates

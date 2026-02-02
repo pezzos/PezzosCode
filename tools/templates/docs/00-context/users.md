@@ -7,6 +7,7 @@
 ## Primary Users
 
 ### Persona: [Name or Role]
+
 - **Who they are:** [short description]
 - **Goals:** [what they want to achieve]
 - **Pain points:** [what makes their job hard today]
@@ -17,6 +18,7 @@
 ## Secondary Users
 
 ### Persona: [Name or Role]
+
 - **Who they are:** [short description]
 - **Goals:** [what they want to achieve]
 - **Pain points:** [what makes their job hard today]
@@ -29,6 +31,7 @@
 <!-- Rare but important users, admins, partners, etc. -->
 
 ### Persona: [Name or Role]
+
 - **Who they are:** [short description]
 - **Goals:** [what they want to achieve]
 - **Pain points:** [what makes their job hard today]

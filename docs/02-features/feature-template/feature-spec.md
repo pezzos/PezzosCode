@@ -15,6 +15,7 @@
 **Last Updated:** [YYYY-MM-DD]
 
 ### Summary
+
 <!-- 1-2 sentences describing what this feature does -->
 
 [Brief description of the feature and its purpose]
@@ -22,11 +23,13 @@
 ## User Intent
 
 ### Who is this for?
+
 - **Primary users:** [who will use this]
 - **User goals:** [what they want to accomplish]
 - **Current pain:** [what problem this solves]
 
 ### Why do they need it?
+
 <!-- The user story -->
 
 **As a** [type of user]
@@ -36,6 +39,7 @@
 **So that** [benefit/outcome]
 
 ### User Value
+
 - **Value proposition:** [core benefit to users]
 - **Expected impact:** [how this improves their experience]
 - **Priority:** [High/Medium/Low] - [why]
@@ -45,6 +49,7 @@
 ### Functional Requirements
 
 #### Core Functionality
+
 - [ ] **Requirement 1:** [description]
   - **User action:** [what user does]
   - **System response:** [what happens]
@@ -56,6 +61,7 @@
   - **Expected outcome:** [end result]
 
 #### Edge Cases
+
 - [ ] **Edge Case 1:** [scenario]
   - **Expected behavior:** [how system handles it]
 
@@ -65,7 +71,9 @@
 ### User Experience Requirements
 
 ### Product Surfaces
+
 <!-- Select all that apply and delete the rest -->
+
 - [ ] CLI
 - [ ] TUI
 - [ ] API
@@ -74,17 +82,20 @@
 - [ ] Mobile UI
 
 #### User Flow
+
 ```
 [Entry Point] → [Action 1] → [Action 2] → [Completion]
 ```
 
 **Detailed Steps:**
+
 1. User [starts from where]
 2. User [does what]
 3. System [shows/does what]
 4. User [completes with what]
 
 #### UI/UX Expectations
+
 - **Visual design:** [key design elements]
 - **Interactions:** [how user interacts]
 - **Feedback:** [what user sees/hears]
@@ -115,10 +126,11 @@
 -->
 
 #### Error Handling
-| Scenario | User Sees | System Does | Recovery Path |
-|----------|-----------|-------------|---------------|
-| [Error 1] | [message/state] | [backend action] | [how to fix] |
-| [Error 2] | [message/state] | [backend action] | [how to fix] |
+
+| Scenario  | User Sees       | System Does      | Recovery Path |
+| --------- | --------------- | ---------------- | ------------- |
+| [Error 1] | [message/state] | [backend action] | [how to fix]  |
+| [Error 2] | [message/state] | [backend action] | [how to fix]  |
 
 ### Non-Functional Requirements
 
@@ -130,6 +142,7 @@
 ## Acceptance Criteria
 
 ### Definition of Done
+
 <!-- When can we say this feature is complete? -->
 
 - [ ] All core functionality works as specified
@@ -145,6 +158,7 @@
 ### Test Scenarios
 
 #### Happy Path
+
 1. **Scenario:** [normal usage]
    - **Given:** [initial state]
    - **When:** [user action]
@@ -156,6 +170,7 @@
    - **Then:** [expected result]
 
 #### Unhappy Path
+
 1. **Scenario:** [error condition]
    - **Given:** [initial state]
    - **When:** [user action]
@@ -167,10 +182,11 @@
    - **Then:** [expected error handling]
 
 ### Success Metrics
+
 <!-- How will we measure if this feature is successful? -->
 
-| Metric | Target | How Measured |
-|--------|--------|--------------|
+| Metric     | Target | How Measured         |
+| ---------- | ------ | -------------------- |
 | [Metric 1] | [goal] | [measurement method] |
 | [Metric 2] | [goal] | [measurement method] |
 | [Metric 3] | [goal] | [measurement method] |
@@ -178,11 +194,13 @@
 ## Scope
 
 ### In Scope
+
 - [Capability 1]
 - [Capability 2]
 - [Capability 3]
 
 ### Out of Scope
+
 - [Not included 1]
 - [Not included 2]
 - [Deferred to future 1]
@@ -190,16 +208,18 @@
 ## Dependencies
 
 ### Requires
+
 - **[System/Feature]:** [what we need and why]
 - **[API/Service]:** [what we need and why]
 
 ### Blocks
+
 - **[Feature]:** [what depends on this]
 
 ## Risks & Considerations
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
+| Risk     | Impact        | Mitigation         |
+| -------- | ------------- | ------------------ |
 | [Risk 1] | [consequence] | [how we'll handle] |
 | [Risk 2] | [consequence] | [how we'll handle] |
 
@@ -227,6 +247,6 @@
 
 ## Change Log
 
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
-| YYYY-MM-DD | 0.1 | Initial draft | [Name] |
+| Date       | Version | Changes       | Author |
+| ---------- | ------- | ------------- | ------ |
+| YYYY-MM-DD | 0.1     | Initial draft | [Name] |

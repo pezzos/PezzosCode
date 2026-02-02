@@ -13,6 +13,7 @@ Provide a local SolidLSP override used by Serena, with wiring configured via
 ## Workflow
 
 To refresh the vendor copy:
+
 1. Replace `solidlsp/` with a new snapshot.
 2. Re-apply any local patches as needed.
 

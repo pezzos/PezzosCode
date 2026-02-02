@@ -10,7 +10,11 @@ import subprocess
 import threading
 from typing import cast
 
-from solidlsp.ls import LanguageServerDependencyProvider, LanguageServerDependencyProviderSinglePath, SolidLanguageServer
+from solidlsp.ls import (
+    LanguageServerDependencyProvider,
+    LanguageServerDependencyProviderSinglePath,
+    SolidLanguageServer,
+)
 from solidlsp.ls_config import LanguageServerConfig
 from solidlsp.lsp_protocol_handler.lsp_types import InitializeParams
 from solidlsp.settings import SolidLSPSettings
@@ -22,7 +26,11 @@ log = logging.getLogger(__name__)
 
 def run_command(cmd: list, capture_output: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(
-        cmd, stdout=subprocess.PIPE if capture_output else None, stderr=subprocess.STDOUT if capture_output else None, text=True, check=True
+        cmd,
+        stdout=subprocess.PIPE if capture_output else None,
+        stderr=subprocess.STDOUT if capture_output else None,
+        text=True,
+        check=True,
     )
 
 
@@ -33,11 +41,16 @@ def verify_clojure_cli() -> None:
 
     help_proc = run_command(["clojure", "--help"])
     if "-Aaliases" not in help_proc.stdout:
-        raise RuntimeError("Detected a Clojure executable, but it does not support '-Aaliases'.\n" + install_msg)
+        raise RuntimeError(
+            "Detected a Clojure executable, but it does not support '-Aaliases'.\n"
+            + install_msg
+        )
 
     spath_proc = run_command(["clojure", "-Spath"], capture_output=False)
     if spath_proc.returncode != 0:
-        raise RuntimeError("`clojure -Spath` failed; please upgrade to Clojure CLI ≥ 1.10.")
+        raise RuntimeError(
+            "`clojure -Spath` failed; please upgrade to Clojure CLI ≥ 1.10."
+        )
 
 
 class ClojureLSP(SolidLanguageServer):
@@ -45,7 +58,9 @@ class ClojureLSP(SolidLanguageServer):
     Provides a clojure-lsp specific instantiation of the LanguageServer class. Contains various configurations and settings specific to clojure.
     """
 
-    clojure_lsp_releases = "https://github.com/clojure-lsp/clojure-lsp/releases/latest/download"
+    clojure_lsp_releases = (
+        "https://github.com/clojure-lsp/clojure-lsp/releases/latest/download"
+    )
     runtime_dependencies = RuntimeDependencyCollection(
         [
             RuntimeDependency(
@@ -86,7 +101,12 @@ class ClojureLSP(SolidLanguageServer):
         ]
     )
 
-    def __init__(self, config: LanguageServerConfig, repository_root_path: str, solidlsp_settings: SolidLSPSettings):
+    def __init__(
+        self,
+        config: LanguageServerConfig,
+        repository_root_path: str,
+        solidlsp_settings: SolidLSPSettings,
+    ):
         """
         Creates a ClojureLSP instance. This class is not meant to be instantiated directly. Use LanguageServer.create() instead.
         """
@@ -119,7 +139,9 @@ class ClojureLSP(SolidLanguageServer):
                 )
                 deps.install(self._ls_resources_dir)
             if not os.path.exists(clojurelsp_executable_path):
-                raise FileNotFoundError(f"Download failed? Could not find clojure-lsp executable at {clojurelsp_executable_path}")
+                raise FileNotFoundError(
+                    f"Download failed? Could not find clojure-lsp executable at {clojurelsp_executable_path}"
+                )
             os.chmod(clojurelsp_executable_path, 0o755)
             return clojurelsp_executable_path
 
@@ -143,7 +165,10 @@ class ClojureLSP(SolidLanguageServer):
                 },
                 "textDocument": {
                     "synchronization": {"didSave": True},
-                    "publishDiagnostics": {"relatedInformation": True, "tagSupport": {"valueSet": [1, 2]}},
+                    "publishDiagnostics": {
+                        "relatedInformation": True,
+                        "tagSupport": {"valueSet": [1, 2]},
+                    },
                     "definition": {"linkSupport": True},
                     "references": {},
                     "hover": {"contentFormat": ["markdown", "plaintext"]},
@@ -154,9 +179,14 @@ class ClojureLSP(SolidLanguageServer):
                 },
                 "general": {"positionEncodings": ["utf-16"]},
             },
-            "initializationOptions": {"dependency-scheme": "jar", "text-document-sync-kind": "incremental"},
+            "initializationOptions": {
+                "dependency-scheme": "jar",
+                "text-document-sync-kind": "incremental",
+            },
             "trace": "off",
-            "workspaceFolders": [{"uri": root_uri, "name": os.path.basename(repository_absolute_path)}],
+            "workspaceFolders": [
+                {"uri": root_uri, "name": os.path.basename(repository_absolute_path)}
+            ],
         }
         return cast(InitializeParams, result)
 
@@ -192,18 +222,24 @@ class ClojureLSP(SolidLanguageServer):
         self.server.on_request("client/registerCapability", register_capability_handler)
         self.server.on_notification("language/status", lang_status_handler)
         self.server.on_notification("window/logMessage", window_log_message)
-        self.server.on_request("workspace/executeClientCommand", execute_client_command_handler)
+        self.server.on_request(
+            "workspace/executeClientCommand", execute_client_command_handler
+        )
         self.server.on_notification("$/progress", do_nothing)
         self.server.on_notification("textDocument/publishDiagnostics", do_nothing)
         self.server.on_notification("language/actionableNotification", do_nothing)
-        self.server.on_notification("experimental/serverStatus", check_experimental_status)
+        self.server.on_notification(
+            "experimental/serverStatus", check_experimental_status
+        )
 
         log.info("Starting clojure-lsp server process")
         self.server.start()
 
         initialize_params = self._get_initialize_params(self.repository_root_path)
 
-        log.info("Sending initialize request from LSP client to LSP server and awaiting response")
+        log.info(
+            "Sending initialize request from LSP client to LSP server and awaiting response"
+        )
         init_response = self.server.send.initialize(initialize_params)
         assert init_response["capabilities"]["textDocumentSync"]["change"] == 2  # type: ignore
         assert "completionProvider" in init_response["capabilities"]

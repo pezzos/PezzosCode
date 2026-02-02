@@ -7,6 +7,7 @@
 ## Purpose
 
 This repo provides:
+
 - A structured documentation system in `docs/`.
 - Reusable skills for Codex in `.codex/skills/`.
 - Helper scripts in `tools/`.

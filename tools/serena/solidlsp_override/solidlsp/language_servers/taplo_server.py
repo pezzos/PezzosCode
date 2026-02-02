@@ -15,9 +15,6 @@ import threading
 import urllib.request
 from typing import Any
 
-# Download timeout in seconds (prevents indefinite hangs)
-DOWNLOAD_TIMEOUT_SECONDS = 120
-
 from solidlsp.ls import SolidLanguageServer
 from solidlsp.ls_config import LanguageServerConfig
 from solidlsp.ls_utils import PathUtils
@@ -27,9 +24,14 @@ from solidlsp.settings import SolidLSPSettings
 
 log = logging.getLogger(__name__)
 
+# Download timeout in seconds (prevents indefinite hangs)
+DOWNLOAD_TIMEOUT_SECONDS = 120
+
 # Taplo release version and download URLs
 TAPLO_VERSION = "0.10.0"
-TAPLO_DOWNLOAD_BASE = f"https://github.com/tamasfe/taplo/releases/download/{TAPLO_VERSION}"
+TAPLO_DOWNLOAD_BASE = (
+    f"https://github.com/tamasfe/taplo/releases/download/{TAPLO_VERSION}"
+)
 
 # SHA256 checksums for Taplo releases (verified from official GitHub releases)
 # Source: https://github.com/tamasfe/taplo/releases/tag/0.10.0
@@ -115,7 +117,12 @@ class TaploServer(SolidLanguageServer):
 
         return SolidLanguageServer._determine_log_level(line)
 
-    def __init__(self, config: LanguageServerConfig, repository_root_path: str, solidlsp_settings: SolidLSPSettings):
+    def __init__(
+        self,
+        config: LanguageServerConfig,
+        repository_root_path: str,
+        solidlsp_settings: SolidLSPSettings,
+    ):
         """
         Creates a TaploServer instance. This class is not meant to be instantiated directly.
         Use LanguageServer.create() instead.
@@ -124,7 +131,9 @@ class TaploServer(SolidLanguageServer):
         super().__init__(
             config,
             repository_root_path,
-            ProcessLaunchInfo(cmd=f"{taplo_executable_path} lsp stdio", cwd=repository_root_path),
+            ProcessLaunchInfo(
+                cmd=f"{taplo_executable_path} lsp stdio", cwd=repository_root_path
+            ),
             "toml",
             solidlsp_settings,
         )
@@ -212,14 +221,24 @@ class TaploServer(SolidLanguageServer):
                 with zipfile.ZipFile(archive_path, "r") as zip_ref:
                     # Security: Validate paths to prevent zip slip vulnerability
                     for member in zip_ref.namelist():
-                        member_path = os.path.normpath(os.path.join(install_dir, member))
+                        member_path = os.path.normpath(
+                            os.path.join(install_dir, member)
+                        )
                         if not member_path.startswith(os.path.normpath(install_dir)):
-                            raise RuntimeError(f"Zip slip detected: {member} attempts to escape install directory")
+                            raise RuntimeError(
+                                f"Zip slip detected: {member} attempts to escape install directory"
+                            )
                     zip_ref.extractall(install_dir)
 
             # Make executable on Unix systems
             if os.name != "nt":
-                os.chmod(executable_path, os.stat(executable_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                os.chmod(
+                    executable_path,
+                    os.stat(executable_path).st_mode
+                    | stat.S_IXUSR
+                    | stat.S_IXGRP
+                    | stat.S_IXOTH,
+                )
 
             # Clean up archive
             os.remove(archive_path)
@@ -242,7 +261,10 @@ class TaploServer(SolidLanguageServer):
             "capabilities": {
                 "textDocument": {
                     "synchronization": {"didSave": True, "dynamicRegistration": True},
-                    "completion": {"dynamicRegistration": True, "completionItem": {"snippetSupport": True}},
+                    "completion": {
+                        "dynamicRegistration": True,
+                        "completionItem": {"snippetSupport": True},
+                    },
                     "definition": {"dynamicRegistration": True},
                     "references": {"dynamicRegistration": True},
                     "documentSymbol": {
@@ -250,7 +272,10 @@ class TaploServer(SolidLanguageServer):
                         "hierarchicalDocumentSymbolSupport": True,
                         "symbolKind": {"valueSet": list(range(1, 27))},
                     },
-                    "hover": {"dynamicRegistration": True, "contentFormat": ["markdown", "plaintext"]},
+                    "hover": {
+                        "dynamicRegistration": True,
+                        "contentFormat": ["markdown", "plaintext"],
+                    },
                     "codeAction": {"dynamicRegistration": True},
                 },
                 "workspace": {
@@ -292,7 +317,9 @@ class TaploServer(SolidLanguageServer):
             log.info(f"LSP: window/logMessage: {msg}")
 
         self.server.on_request("client/registerCapability", register_capability_handler)
-        self.server.on_request("workspace/configuration", workspace_configuration_handler)
+        self.server.on_request(
+            "workspace/configuration", workspace_configuration_handler
+        )
         self.server.on_notification("window/logMessage", window_log_message)
         self.server.on_notification("$/progress", do_nothing)
         self.server.on_notification("textDocument/publishDiagnostics", do_nothing)
@@ -320,4 +347,8 @@ class TaploServer(SolidLanguageServer):
 
     def is_ignored_dirname(self, dirname: str) -> bool:
         """Define TOML-specific directories to ignore."""
-        return super().is_ignored_dirname(dirname) or dirname in ["target", ".cargo", "node_modules"]
+        return super().is_ignored_dirname(dirname) or dirname in [
+            "target",
+            ".cargo",
+            "node_modules",
+        ]

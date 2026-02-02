@@ -18,6 +18,7 @@
 ## Components
 
 ### Frontend/Client
+
 - **Technology:** [Framework/language]
 - **Hosting:** [Where it's deployed]
 - **Entry Points:** [URLs/endpoints]
@@ -26,6 +27,7 @@
   - `[path]`: [purpose]
 
 ### Backend/API
+
 - **Technology:** [Framework/language]
 - **Hosting:** [Where it's deployed]
 - **Entry Points:** [URLs/endpoints]
@@ -34,6 +36,7 @@
   - `[path]`: [purpose]
 
 ### Database
+
 - **Technology:** [Database type/version]
 - **Hosting:** [Where it's deployed]
 - **Key Tables/Collections:**
@@ -41,6 +44,7 @@
   - `[name]`: [purpose and key fields]
 
 ### External Services
+
 - **Service Name:** [Provider]
   - **Purpose:** [What it does]
   - **Integration:** [How we connect]
@@ -49,6 +53,7 @@
 ## Data Flow
 
 ### Critical User Flows
+
 1. **[Flow Name]**
    - User action: [what user does]
    - System flow: [component 1] → [component 2] → [component 3]
@@ -62,13 +67,15 @@
 ## Deployment
 
 ### Environments
-| Environment | Purpose | URL | Status |
-|-------------|---------|-----|--------|
-| Production  | Live users | [url] | 🟢 Active |
-| Staging     | Pre-release testing | [url] | 🟢 Active |
-| Development | Local development | localhost | 🟢 Active |
+
+| Environment | Purpose             | URL       | Status    |
+| ----------- | ------------------- | --------- | --------- |
+| Production  | Live users          | [url]     | 🟢 Active |
+| Staging     | Pre-release testing | [url]     | 🟢 Active |
+| Development | Local development   | localhost | 🟢 Active |
 
 ### Build & Deploy Process
+
 1. [Step 1]: [description]
 2. [Step 2]: [description]
 3. [Step 3]: [description]
@@ -76,36 +83,43 @@
 ## Configuration
 
 ### Environment Variables
-| Variable | Purpose | Required | Set In |
-|----------|---------|----------|--------|
-| `[VAR_NAME]` | [what it does] | Yes/No | [where it's set] |
+
+| Variable     | Purpose        | Required | Set In           |
+| ------------ | -------------- | -------- | ---------------- |
+| `[VAR_NAME]` | [what it does] | Yes/No   | [where it's set] |
 
 ### Feature Flags
-| Flag | Purpose | Status | Controls |
-|------|---------|--------|----------|
+
+| Flag          | Purpose           | Status | Controls            |
+| ------------- | ----------------- | ------ | ------------------- |
 | `[flag_name]` | [what it enables] | On/Off | [what code/feature] |
 
 ## Dependencies
 
 ### Runtime Dependencies
+
 - [Package/Library]: [version] - [purpose]
 - [Package/Library]: [version] - [purpose]
 
 ### Build Dependencies
+
 - [Package/Library]: [version] - [purpose]
 - [Package/Library]: [version] - [purpose]
 
 ## Monitoring & Observability
 
 ### Logs
+
 - **Location:** [where logs are stored]
 - **Key Events:** [what we log]
 
 ### Metrics
+
 - **Tool:** [monitoring tool]
 - **Key Metrics:** [what we track]
 
 ### Alerts
+
 - **Tool:** [alerting tool]
 - **Critical Alerts:** [what triggers pages]
 

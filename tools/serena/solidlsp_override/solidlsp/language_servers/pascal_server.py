@@ -57,7 +57,11 @@ import urllib.request
 import uuid
 import zipfile
 
-from solidlsp.language_servers.common import RuntimeDependency, RuntimeDependencyCollection, quote_windows_path
+from solidlsp.language_servers.common import (
+    RuntimeDependency,
+    RuntimeDependencyCollection,
+    quote_windows_path,
+)
 from solidlsp.ls import SolidLanguageServer
 from solidlsp.ls_config import LanguageServerConfig
 from solidlsp.lsp_protocol_handler.lsp_types import InitializeParams
@@ -74,8 +78,12 @@ class PascalLanguageServer(SolidLanguageServer):
     """
 
     # URL configuration
-    PASLS_RELEASES_URL = "https://github.com/zen010101/pascal-language-server/releases/latest/download"
-    PASLS_API_URL = "https://api.github.com/repos/zen010101/pascal-language-server/releases/latest"
+    PASLS_RELEASES_URL = (
+        "https://github.com/zen010101/pascal-language-server/releases/latest/download"
+    )
+    PASLS_API_URL = (
+        "https://api.github.com/repos/zen010101/pascal-language-server/releases/latest"
+    )
 
     # Update check interval (seconds)
     UPDATE_CHECK_INTERVAL = 86400  # 24 hours
@@ -86,7 +94,12 @@ class PascalLanguageServer(SolidLanguageServer):
     # Network timeout (seconds)
     NETWORK_TIMEOUT = 10
 
-    def __init__(self, config: LanguageServerConfig, repository_root_path: str, solidlsp_settings: SolidLSPSettings):
+    def __init__(
+        self,
+        config: LanguageServerConfig,
+        repository_root_path: str,
+        solidlsp_settings: SolidLSPSettings,
+    ):
         """
         Creates a PascalLanguageServer instance. This class is not meant to be instantiated directly.
         Use LanguageServer.create() instead.
@@ -136,7 +149,9 @@ class PascalLanguageServer(SolidLanguageServer):
         super().__init__(
             config,
             repository_root_path,
-            ProcessLaunchInfo(cmd=pasls_executable_path, cwd=repository_root_path, env=proc_env),
+            ProcessLaunchInfo(
+                cmd=pasls_executable_path, cwd=repository_root_path, env=proc_env
+            ),
             "pascal",
             solidlsp_settings,
         )
@@ -206,14 +221,19 @@ class PascalLanguageServer(SolidLanguageServer):
 
             return latest_parts > local_parts
         except Exception:
-            log.warning(f"Failed to parse versions for comparison: {latest_norm} vs {local_norm}")
+            log.warning(
+                f"Failed to parse versions for comparison: {latest_norm} vs {local_norm}"
+            )
             return False
 
     @classmethod
     def _get_latest_version(cls) -> str | None:
         """Get latest version from GitHub API, return None on failure."""
         try:
-            headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "Serena-LSP"}
+            headers = {
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "Serena-LSP",
+            }
             # Support GITHUB_TOKEN for CI environments with rate limits
             github_token = os.environ.get("GITHUB_TOKEN")
             if github_token:
@@ -281,7 +301,9 @@ class PascalLanguageServer(SolidLanguageServer):
         """Download checksums file from GitHub, return {filename: sha256} dict."""
         checksums_url = f"{cls.PASLS_RELEASES_URL}/checksums.sha256"
         try:
-            req = urllib.request.Request(checksums_url, headers={"User-Agent": "Serena-LSP"})
+            req = urllib.request.Request(
+                checksums_url, headers={"User-Agent": "Serena-LSP"}
+            )
             with urllib.request.urlopen(req, timeout=cls.NETWORK_TIMEOUT) as response:
                 content = response.read().decode("utf-8")
                 checksums = {}
@@ -317,7 +339,9 @@ class PascalLanguageServer(SolidLanguageServer):
                 log.debug(f"Checksum verified: {file_path}")
                 return True
             else:
-                log.error(f"Checksum mismatch for {file_path}: expected {expected_sha256}, got {actual_sha256}")
+                log.error(
+                    f"Checksum mismatch for {file_path}: expected {expected_sha256}, got {actual_sha256}"
+                )
                 return False
         except Exception as e:
             log.error(f"Failed to verify checksum: {e}")
@@ -437,7 +461,9 @@ class PascalLanguageServer(SolidLanguageServer):
         return abs_member.startswith(abs_target + os.sep) or abs_member == abs_target
 
     @classmethod
-    def _extract_archive(cls, archive_path: str, target_dir: str, archive_type: str) -> bool:
+    def _extract_archive(
+        cls, archive_path: str, target_dir: str, archive_type: str
+    ) -> bool:
         """Safely extract archive to specified directory."""
         try:
             os.makedirs(target_dir, exist_ok=True)
@@ -446,7 +472,9 @@ class PascalLanguageServer(SolidLanguageServer):
                 with tarfile.open(archive_path, "r:gz") as tar:
                     for member in tar.getmembers():
                         if not cls._is_safe_tar_member(member, target_dir):
-                            log.error(f"Unsafe tar member detected (path traversal): {member.name}")
+                            log.error(
+                                f"Unsafe tar member detected (path traversal): {member.name}"
+                            )
                             return False
                     tar.extractall(target_dir)
 
@@ -454,12 +482,19 @@ class PascalLanguageServer(SolidLanguageServer):
                 with zipfile.ZipFile(archive_path, "r") as zip_ref:
                     for name in zip_ref.namelist():
                         if ".." in name.split("/") or ".." in name.split("\\"):
-                            log.error(f"Unsafe zip member detected (path traversal): {name}")
+                            log.error(
+                                f"Unsafe zip member detected (path traversal): {name}"
+                            )
                             return False
                         abs_target = os.path.abspath(target_dir)
                         abs_member = os.path.abspath(os.path.join(target_dir, name))
-                        if not (abs_member.startswith(abs_target + os.sep) or abs_member == abs_target):
-                            log.error(f"Unsafe zip member detected (path traversal): {name}")
+                        if not (
+                            abs_member.startswith(abs_target + os.sep)
+                            or abs_member == abs_target
+                        ):
+                            log.error(
+                                f"Unsafe zip member detected (path traversal): {name}"
+                            )
                             return False
                     zip_ref.extractall(target_dir)
 
@@ -498,7 +533,12 @@ class PascalLanguageServer(SolidLanguageServer):
         return dep.url.split("/")[-1]
 
     @classmethod
-    def _atomic_install(cls, pasls_dir: str, deps: RuntimeDependencyCollection, checksums: dict[str, str] | None) -> bool:
+    def _atomic_install(
+        cls,
+        pasls_dir: str,
+        deps: RuntimeDependencyCollection,
+        checksums: dict[str, str] | None,
+    ) -> bool:
         """Atomic update: download -> verify checksum -> extract -> replace."""
         temp_dir = pasls_dir + ".tmp"
         backup_dir = pasls_dir + ".backup"
@@ -507,7 +547,9 @@ class PascalLanguageServer(SolidLanguageServer):
         try:
             dep = deps.get_single_dep_for_current_platform()
             assert dep.url is not None, "RuntimeDependency.url must be set"
-            assert dep.archive_type is not None, "RuntimeDependency.archive_type must be set"
+            assert (
+                dep.archive_type is not None
+            ), "RuntimeDependency.archive_type must be set"
 
             archive_filename = cls._get_archive_filename(dep)
             archive_path = os.path.join(temp_archive_dir, archive_filename)
@@ -529,8 +571,12 @@ class PascalLanguageServer(SolidLanguageServer):
                 if expected_sha256:
                     log.info(f"Verifying SHA256 checksum for {archive_filename}...")
                     if not cls._verify_checksum(archive_path, expected_sha256):
-                        log.error(f"SHA256 checksum verification FAILED for {archive_filename}")
-                        log.error("Aborting installation due to checksum mismatch - possible security issue!")
+                        log.error(
+                            f"SHA256 checksum verification FAILED for {archive_filename}"
+                        )
+                        log.error(
+                            "Aborting installation due to checksum mismatch - possible security issue!"
+                        )
                         try:
                             os.remove(archive_path)
                         except OSError:
@@ -538,9 +584,13 @@ class PascalLanguageServer(SolidLanguageServer):
                         return False
                     log.info("SHA256 checksum verified successfully")
                 else:
-                    log.warning(f"No checksum found for {archive_filename} in checksums file")
+                    log.warning(
+                        f"No checksum found for {archive_filename} in checksums file"
+                    )
             else:
-                log.warning("No checksums available - skipping verification (not recommended for production)")
+                log.warning(
+                    "No checksums available - skipping verification (not recommended for production)"
+                )
 
             # 4. Extract to temp directory
             os.makedirs(temp_dir, exist_ok=True)
@@ -694,11 +744,15 @@ class PascalLanguageServer(SolidLanguageServer):
             local_version = cls._get_local_version(pasls_dir)
 
             if cls._is_newer_version(latest_version, local_version):
-                log.info(f"New pasls version available: {latest_version} (current: {local_version})")
+                log.info(
+                    f"New pasls version available: {latest_version} (current: {local_version})"
+                )
 
                 # Check Windows file locking
                 if cls._is_file_locked(pasls_executable_path):
-                    log.warning("Cannot update pasls: file is in use. Will retry next time.")
+                    log.warning(
+                        "Cannot update pasls: file is in use. Will retry next time."
+                    )
                 else:
                     need_download = True
                     checksums = cls._get_checksums()
@@ -717,14 +771,18 @@ class PascalLanguageServer(SolidLanguageServer):
             else:
                 # Installation failed, use existing version if available
                 if not os.path.exists(pasls_executable_path):
-                    raise RuntimeError("Failed to install pasls and no local version available")
+                    raise RuntimeError(
+                        "Failed to install pasls and no local version available"
+                    )
                 log.warning("Update failed, using existing version")
 
         # Update check time even if no update (avoid frequent checks)
         if not need_download and cls._should_check_update(pasls_dir):
             cls._update_last_check(pasls_dir)
 
-        assert os.path.exists(pasls_executable_path), f"pasls executable not found at {pasls_executable_path}"
+        assert os.path.exists(
+            pasls_executable_path
+        ), f"pasls executable not found at {pasls_executable_path}"
 
         # Ensure execute permission
         try:
@@ -871,14 +929,18 @@ class PascalLanguageServer(SolidLanguageServer):
         self.server.on_request("client/registerCapability", register_capability_handler)
         self.server.on_notification("window/logMessage", window_log_message)
         self.server.on_notification("window/showMessage", window_log_message)
-        self.server.on_notification("textDocument/publishDiagnostics", publish_diagnostics)
+        self.server.on_notification(
+            "textDocument/publishDiagnostics", publish_diagnostics
+        )
         self.server.on_notification("$/progress", do_nothing)
 
         log.info("Starting Pascal server process")
         self.server.start()
         initialize_params = self._get_initialize_params(self.repository_root_path)
 
-        log.info("Sending initialize request from LSP client to LSP server and awaiting response")
+        log.info(
+            "Sending initialize request from LSP client to LSP server and awaiting response"
+        )
         init_response = self.server.send.initialize(initialize_params)
         log.debug(f"Received initialize response from Pascal server: {init_response}")
 
@@ -902,7 +964,9 @@ class PascalLanguageServer(SolidLanguageServer):
         log.info("Waiting for Pascal language server to be ready...")
         if not self.server_ready.wait(timeout=5.0):
             # pasls may not send explicit ready signals, so we proceed after timeout
-            log.info("Timeout waiting for Pascal server ready signal, assuming server is ready")
+            log.info(
+                "Timeout waiting for Pascal server ready signal, assuming server is ready"
+            )
             self.server_ready.set()
             self.completions_available.set()
         else:

@@ -8,7 +8,11 @@ import pathlib
 import threading
 from typing import Any, cast
 
-from solidlsp.ls import LanguageServerDependencyProvider, LanguageServerDependencyProviderSinglePath, SolidLanguageServer
+from solidlsp.ls import (
+    LanguageServerDependencyProvider,
+    LanguageServerDependencyProviderSinglePath,
+    SolidLanguageServer,
+)
 from solidlsp.ls_config import LanguageServerConfig
 from solidlsp.lsp_protocol_handler.lsp_types import InitializeParams
 from solidlsp.settings import SolidLSPSettings
@@ -25,7 +29,12 @@ class ClangdLanguageServer(SolidLanguageServer):
     Also make sure compile_commands.json is created at root of the source directory. Check clangd test case for example.
     """
 
-    def __init__(self, config: LanguageServerConfig, repository_root_path: str, solidlsp_settings: SolidLSPSettings):
+    def __init__(
+        self,
+        config: LanguageServerConfig,
+        repository_root_path: str,
+        solidlsp_settings: SolidLSPSettings,
+    ):
         """
         Creates a ClangdLanguageServer instance. This class is not meant to be instantiated directly. Use LanguageServer.create() instead.
         """
@@ -106,7 +115,9 @@ class ClangdLanguageServer(SolidLanguageServer):
                 # Standard download and install for platforms with prebuilt binaries
                 clangd_executable_path = deps.binary_path(clangd_ls_dir)
                 if not os.path.exists(clangd_executable_path):
-                    log.info(f"Clangd executable not found at {clangd_executable_path}. Downloading from {dep.url}")
+                    log.info(
+                        f"Clangd executable not found at {clangd_executable_path}. Downloading from {dep.url}"
+                    )
                     _ = deps.install(clangd_ls_dir)
                 if not os.path.exists(clangd_executable_path):
                     raise FileNotFoundError(
@@ -130,10 +141,16 @@ class ClangdLanguageServer(SolidLanguageServer):
             "capabilities": {
                 "textDocument": {
                     "synchronization": {"didSave": True, "dynamicRegistration": True},
-                    "completion": {"dynamicRegistration": True, "completionItem": {"snippetSupport": True}},
+                    "completion": {
+                        "dynamicRegistration": True,
+                        "completionItem": {"snippetSupport": True},
+                    },
                     "definition": {"dynamicRegistration": True},
                 },
-                "workspace": {"workspaceFolders": True, "didChangeConfiguration": {"dynamicRegistration": True}},
+                "workspace": {
+                    "workspaceFolders": True,
+                    "didChangeConfiguration": {"dynamicRegistration": True},
+                },
             },
             "processId": os.getpid(),
             "rootPath": repository_absolute_path,
@@ -184,7 +201,7 @@ class ClangdLanguageServer(SolidLanguageServer):
             return
 
         def check_experimental_status(params: Any) -> None:
-            if params["quiescent"] == True:
+            if params["quiescent"]:
                 self.server_ready.set()
 
         def window_log_message(msg: dict) -> None:
@@ -193,17 +210,23 @@ class ClangdLanguageServer(SolidLanguageServer):
         self.server.on_request("client/registerCapability", register_capability_handler)
         self.server.on_notification("language/status", lang_status_handler)
         self.server.on_notification("window/logMessage", window_log_message)
-        self.server.on_request("workspace/executeClientCommand", execute_client_command_handler)
+        self.server.on_request(
+            "workspace/executeClientCommand", execute_client_command_handler
+        )
         self.server.on_notification("$/progress", do_nothing)
         self.server.on_notification("textDocument/publishDiagnostics", do_nothing)
         self.server.on_notification("language/actionableNotification", do_nothing)
-        self.server.on_notification("experimental/serverStatus", check_experimental_status)
+        self.server.on_notification(
+            "experimental/serverStatus", check_experimental_status
+        )
 
         log.info("Starting Clangd server process")
         self.server.start()
         initialize_params = self._get_initialize_params(self.repository_root_path)
 
-        log.info("Sending initialize request from LSP client to LSP server and awaiting response")
+        log.info(
+            "Sending initialize request from LSP client to LSP server and awaiting response"
+        )
         init_response = self.server.send.initialize(initialize_params)
         assert init_response["capabilities"]["textDocumentSync"]["change"] == 2  # type: ignore
         assert "completionProvider" in init_response["capabilities"]

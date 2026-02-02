@@ -9,12 +9,14 @@
 ## Purpose
 
 This log tracks:
+
 - **Bugs discovered** in production, staging, or development
 - **Root causes** and how they were fixed
 - **Patterns** in what breaks and why
 - **Regressions** when old bugs resurface
 
 This helps with:
+
 - Understanding what types of bugs are common
 - Preventing similar bugs in the future
 - Identifying areas of the codebase that need improvement
@@ -42,6 +44,7 @@ This helps with:
 [What users see or experience]
 
 **Steps to Reproduce:**
+
 1. [Action 1]
 2. [Action 2]
 3. [Result]
@@ -59,16 +62,19 @@ This helps with:
 [How it was fixed - technical details]
 
 **Files Changed:**
+
 - `path/to/file1.ts`
 - `path/to/file2.ts`
 
 **Prevention:**
 [How we can prevent this type of bug in the future]
+
 - Tests added: [describe]
 - Process changes: [describe]
 - Monitoring added: [describe]
 
 **Related Issues:**
+
 - Similar to [BUG-XXX]
 - Caused by [Change in implementation-log]
 
@@ -85,32 +91,36 @@ This helps with:
 ## Active Bugs
 
 ### Critical (P0)
+
 > Must fix immediately, blocking users
 
-| Bug ID | Description | Age (days) | Assigned To | Status |
-|--------|-------------|------------|-------------|--------|
-| [BUG-XXX] | [Brief description] | [#] | [Name] | [Status] |
+| Bug ID    | Description         | Age (days) | Assigned To | Status   |
+| --------- | ------------------- | ---------- | ----------- | -------- |
+| [BUG-XXX] | [Brief description] | [#]        | [Name]      | [Status] |
 
 ### High Priority (P1)
+
 > Impacting significant functionality, fix ASAP
 
-| Bug ID | Description | Age (days) | Assigned To | Status |
-|--------|-------------|------------|-------------|--------|
-| [BUG-XXX] | [Brief description] | [#] | [Name] | [Status] |
+| Bug ID    | Description         | Age (days) | Assigned To | Status   |
+| --------- | ------------------- | ---------- | ----------- | -------- |
+| [BUG-XXX] | [Brief description] | [#]        | [Name]      | [Status] |
 
 ### Medium Priority (P2)
+
 > Fix in next sprint
 
-| Bug ID | Description | Age (days) | Assigned To | Status |
-|--------|-------------|------------|-------------|--------|
-| [BUG-XXX] | [Brief description] | [#] | [Name] | [Status] |
+| Bug ID    | Description         | Age (days) | Assigned To | Status   |
+| --------- | ------------------- | ---------- | ----------- | -------- |
+| [BUG-XXX] | [Brief description] | [#]        | [Name]      | [Status] |
 
 ### Low Priority (P3)
+
 > Fix when convenient
 
-| Bug ID | Description | Age (days) | Assigned To | Status |
-|--------|-------------|------------|-------------|--------|
-| [BUG-XXX] | [Brief description] | [#] | [Name] | [Status] |
+| Bug ID    | Description         | Age (days) | Assigned To | Status   |
+| --------- | ------------------- | ---------- | ----------- | -------- |
+| [BUG-XXX] | [Brief description] | [#]        | [Name]      | [Status] |
 
 ---
 
@@ -134,6 +144,7 @@ This helps with:
 Users click "Save" button on profile page, see loading spinner, then nothing happens. Changes are not saved. No error message shown.
 
 **Steps to Reproduce:**
+
 1. Log in as user
 2. Go to Profile page
 3. Change email address
@@ -150,27 +161,32 @@ No update, no feedback, just spinner disappearing
 API endpoint `/api/profile` was returning 401 Unauthorized due to middleware checking for `userId` in token payload, but we changed token structure to use `user_id` (underscore) in a recent update. Frontend was sending valid token but backend was rejecting it.
 
 **Why It Wasn't Caught:**
+
 - Tests were mocking the auth middleware
 - We didn't have E2E tests for profile update
 - Change was deployed without full regression testing
 
 **Fix:**
+
 1. Updated auth middleware to check both `userId` and `user_id` for backward compatibility
 2. Added migration to reissue tokens with correct structure
 3. Added explicit error handling in frontend to show error messages
 
 **Files Changed:**
+
 - `src/middleware/auth.ts` - Added backward compatibility
 - `src/components/Profile/ProfileForm.tsx` - Added error handling
 - `tests/e2e/profile.spec.ts` - Added E2E test for profile update
 
 **Prevention:**
+
 - **Added E2E test** for profile update flow
 - **Added monitoring** for 401 errors on profile endpoint
 - **Process change:** All token structure changes require migration plan
 - **Added test case** to verify backward compatibility of auth changes
 
 **Related Issues:**
+
 - [DEC-003] Decision to change token structure
 
 **Fixed By:** John Smith
@@ -203,6 +219,7 @@ API endpoint `/api/profile` was returning 401 Unauthorized due to middleware che
 Browser tab becomes slow and unresponsive after dashboard is open for extended periods. Memory usage grows continuously.
 
 **Steps to Reproduce:**
+
 1. Open dashboard
 2. Leave tab open for 1+ hour
 3. Observe increasing memory usage in browser task manager
@@ -242,10 +259,12 @@ useEffect(() => {
 ```
 
 **Files Changed:**
+
 - `src/components/Dashboard/Dashboard.tsx`
 - `src/hooks/useWebSocket.ts`
 
 **Prevention:**
+
 - **Added linting rule** to warn about setInterval without cleanup
 - **Added E2E test** that keeps dashboard open and monitors memory
 - **Code review checklist** now includes "Are effects cleaned up?"
@@ -266,53 +285,59 @@ useEffect(() => {
 ## Bug Patterns
 
 ### Common Bug Types
+
 Track patterns to improve processes:
 
-| Category | Count | % of Total | Prevention Strategy |
-|----------|-------|------------|---------------------|
-| Authentication/Authorization | [#] | [%] | Better E2E tests for auth flows |
-| Memory Leaks | [#] | [%] | Linting rules, code review checklist |
-| Race Conditions | [#] | [%] | Better async handling patterns |
-| Null/Undefined Errors | [#] | [%] | Stricter TypeScript config |
-| Validation Errors | [#] | [%] | Schema validation library |
-| CSS/Layout Issues | [#] | [%] | Visual regression testing |
+| Category                     | Count | % of Total | Prevention Strategy                  |
+| ---------------------------- | ----- | ---------- | ------------------------------------ |
+| Authentication/Authorization | [#]   | [%]        | Better E2E tests for auth flows      |
+| Memory Leaks                 | [#]   | [%]        | Linting rules, code review checklist |
+| Race Conditions              | [#]   | [%]        | Better async handling patterns       |
+| Null/Undefined Errors        | [#]   | [%]        | Stricter TypeScript config           |
+| Validation Errors            | [#]   | [%]        | Schema validation library            |
+| CSS/Layout Issues            | [#]   | [%]        | Visual regression testing            |
 
 ### Most Buggy Areas
-| Component/Module | Bug Count | Action Needed |
-|------------------|-----------|---------------|
-| [Path/Component] | [#] | [Refactor/Add tests/etc] |
+
+| Component/Module | Bug Count | Action Needed            |
+| ---------------- | --------- | ------------------------ |
+| [Path/Component] | [#]       | [Refactor/Add tests/etc] |
 
 ### Recurring Bugs
+
 Bugs that keep coming back:
 
-| Bug Pattern | Times Occurred | Root Cause | Permanent Fix |
-|-------------|----------------|------------|---------------|
-| [Pattern description] | [#] | [Why it keeps happening] | [How to stop it] |
+| Bug Pattern           | Times Occurred | Root Cause               | Permanent Fix    |
+| --------------------- | -------------- | ------------------------ | ---------------- |
+| [Pattern description] | [#]            | [Why it keeps happening] | [How to stop it] |
 
 ---
 
 ## Bug Statistics
 
 ### By Month
-| Month | Bugs Reported | Bugs Fixed | Still Open | Avg Time to Fix |
-|-------|---------------|------------|------------|-----------------|
-| 2025-01 | [#] | [#] | [#] | [days] |
+
+| Month   | Bugs Reported | Bugs Fixed | Still Open | Avg Time to Fix |
+| ------- | ------------- | ---------- | ---------- | --------------- |
+| 2025-01 | [#]           | [#]        | [#]        | [days]          |
 
 ### By Severity
+
 | Severity | Opened | Fixed | Fix Rate |
-|----------|--------|-------|----------|
-| Critical | [#] | [#] | [%] |
-| High | [#] | [#] | [%] |
-| Medium | [#] | [#] | [%] |
-| Low | [#] | [#] | [%] |
+| -------- | ------ | ----- | -------- |
+| Critical | [#]    | [#]   | [%]      |
+| High     | [#]    | [#]   | [%]      |
+| Medium   | [#]    | [#]   | [%]      |
+| Low      | [#]    | [#]   | [%]      |
 
 ### By Source
-| Source | Count | % of Total |
-|--------|-------|------------|
-| User Reports | [#] | [%] |
-| Monitoring/Alerts | [#] | [%] |
-| Internal Testing | [#] | [%] |
-| Production Incidents | [#] | [%] |
+
+| Source               | Count | % of Total |
+| -------------------- | ----- | ---------- |
+| User Reports         | [#]   | [%]        |
+| Monitoring/Alerts    | [#]   | [%]        |
+| Internal Testing     | [#]   | [%]        |
+| Production Incidents | [#]   | [%]        |
 
 ---
 
@@ -320,9 +345,9 @@ Bugs that keep coming back:
 
 Bugs that came back after being fixed:
 
-| Original Bug | First Fixed | Regressed | Times Regressed | Permanent Fix Date |
-|--------------|-------------|-----------|-----------------|-------------------|
-| [BUG-XXX] | YYYY-MM-DD | YYYY-MM-DD | [#] | YYYY-MM-DD |
+| Original Bug | First Fixed | Regressed  | Times Regressed | Permanent Fix Date |
+| ------------ | ----------- | ---------- | --------------- | ------------------ |
+| [BUG-XXX]    | YYYY-MM-DD  | YYYY-MM-DD | [#]             | YYYY-MM-DD         |
 
 ---
 
@@ -331,6 +356,7 @@ Bugs that came back after being fixed:
 Bugs we've decided not to fix, and why:
 
 ### [BUG-XXX] - [Description]
+
 **Reason:** [Why we won't fix]
 **Workaround:** [What users can do instead]
 **Date Closed:** YYYY-MM-DD
