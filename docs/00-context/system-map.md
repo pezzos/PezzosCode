@@ -48,7 +48,7 @@
 ### Skills (Codex helpers)
 
 - **Technology:** Markdown skill files in `.codex/skills/`.
-- **Entry Points:** `context-to-product`, `prd-to-features`, `next-feature-ticket`, `sync-root-from-context`, etc.
+- **Entry Points:** `context-to-product`, `prd-to-features`, `feature-tickets-batch`, `sync-root-from-context`, etc.
 
 ### External Services
 

@@ -27,6 +27,70 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Rename and batch ticket generation skill
+
+**Feature/Bug:** Workflow automation
+
+**Changed Files:**
+
+- `.codex/skills/feature-tickets-batch/SKILL.md` - Rename and batch ticket generation behavior
+- `docs/04-process/human-orchestration-workflow.md` - Reference batch ticket generation
+- `tools/templates/docs/04-process/human-orchestration-workflow.md` - Reference batch ticket generation
+- `docs/00-context/system-map.md` - Update skill entry point name
+
+**What Changed:**
+Renamed the ticket generation skill to `feature-tickets-batch` and updated the
+workflow docs to generate tickets in batch for all un-ticketed P0/P1 features.
+
+**Why:**
+Avoid re-running ticket generation for each feature and make kickoff a one-time
+task per feature scope.
+
+**Impact:**
+
+- **Breaking changes:** Yes, skill name changed
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-02 - Generate feature folders from PRD
+
+**Feature/Bug:** Feature documentation
+
+**Changed Files:**
+
+- `docs/02-features/01-bootstrap-templates-into-a-repo/*`
+- `docs/02-features/02-execute-ticket-workflow/*`
+- `docs/02-features/03-update-reapply-templates/*`
+- `docs/02-features/04-output-offload-enforcement/*`
+- `docs/02-features/05-orchestrator-sub-agent-roles/*`
+- `docs/02-features/06-worktree-policy-naming-convention/*`
+- `docs/02-features/07-anti-cheat-testing-strategy/*`
+
+**What Changed:**
+Created feature folders and populated feature-spec, tech-design, dev-tasks, and
+test-plan files for all P0/P1 items in the PRD, including process features.
+
+**Why:**
+Translate the PRD into actionable feature documentation for execution.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-02 - Add expected-features context and PRD process sections
 
 **Feature/Bug:** Context and PRD templates
