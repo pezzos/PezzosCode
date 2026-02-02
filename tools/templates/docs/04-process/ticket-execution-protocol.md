@@ -56,6 +56,8 @@
 
 9. **Gates**
    - Run `make ci` and ensure it passes.
+   - Automated runs may attempt to auto-fix failing tests/CI up to the configured limit.
+   - Autofix prompt template: `docs/04-process/ci-autofix-prompt.md`.
 
 10. **Commit**
 

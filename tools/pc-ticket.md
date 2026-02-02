@@ -41,6 +41,7 @@ Default behavior is autonomous TDD + implementation.
    - Blocks if the diff violates scope or contains obvious regressions.
 7. **CI gate**
    - Runs configured CI command and records results.
+   - If configured, auto-fixes failing test/CI runs up to the attempt limit.
 
 ## Idempotency rules (required)
 
@@ -60,7 +61,10 @@ Uses `tools/pc-ticket-config.json` unless `--config` is provided.
 {
   "test_cmd": "make test",
   "ci_cmd": "make ci",
-  "tdd_require_fail": false
+  "tdd_require_fail": false,
+  "ci_autofix": true,
+  "ci_autofix_attempts": 2,
+  "ci_autofix_prompt_path": "docs/04-process/ci-autofix-prompt.md"
 }
 ```
 

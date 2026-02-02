@@ -27,6 +27,48 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Add dedicated CI/test autofix prompt file
+
+**Feature/Bug:** Ticket tooling/docs
+
+**Changed Files:**
+
+- `docs/04-process/ci-autofix-prompt.md`
+- `tools/templates/docs/04-process/ci-autofix-prompt.md`
+- `tools/pc-ticket-config.json`
+- `tools/pc-ticket`
+- `tools/pc-ticket.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/llm-prompts.md`
+- `tools/templates/docs/04-process/llm-prompts.md`
+
+**Notes:**
+
+- Moved CI/test autofix prompt to a dedicated template file and wired config defaults to it.
+
+### 2026-02-02 - Add CI/test autofix loops to ticket execution
+
+**Feature/Bug:** Ticket tooling/docs
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+- `tools/pc-ticket-config.json`
+- `docs/03-logs/tickets/worklog-template.md`
+- `tools/templates/docs/03-logs/tickets/worklog-template.md`
+- `docs/04-process/llm-prompts.md`
+- `tools/templates/docs/04-process/llm-prompts.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tools/pc-ticket.md`
+
+**Notes:**
+
+- Added optional CI/test autofix loops with configurable attempts and prompt template.
+- Added an Autofix Attempts worklog section and final report note for resolved failures.
+- Added scope-ambiguity and autofix-exhaustion checkpoints for human input.
+
 ### 2026-02-02 - Make ticket execution autonomous by default
 
 **Feature/Bug:** Ticket tooling/docs

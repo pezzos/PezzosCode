@@ -1,5 +1,8 @@
 {
   "test_cmd": "make test",
   "ci_cmd": "make ci",
-  "tdd_require_fail": false
+  "tdd_require_fail": false,
+  "ci_autofix": true,
+  "ci_autofix_attempts": 2,
+  "ci_autofix_prompt_path": "docs/04-process/ci-autofix-prompt.md"
 }

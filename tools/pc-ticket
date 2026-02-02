@@ -13,6 +13,9 @@ DEFAULT_CONFIG = {
     "test_cmd": "make test",
     "ci_cmd": "make ci",
     "tdd_require_fail": False,
+    "ci_autofix": True,
+    "ci_autofix_attempts": 2,
+    "ci_autofix_prompt_path": "docs/04-process/ci-autofix-prompt.md",
 }
 
 SENSITIVE_DIRS = (
@@ -353,6 +356,99 @@ def build_gates_block(ci_cmd: str, ci_status: str) -> str:
     return f"- {ci_cmd}: {ci_status}"
 
 
+def build_autofix_block(attempts: List[str]) -> str:
+    if not attempts:
+        return "- (none)"
+    return "\n".join(attempts)
+
+
+def summarize_output(output: str) -> str:
+    for line in output.splitlines():
+        if line.strip():
+            return line.strip()[:200]
+    return ""
+
+
+def load_autofix_prompt(path: str) -> str:
+    if not path:
+        return ""
+    if os.path.exists(path):
+        return read_file(path)
+    return ""
+
+
+def render_autofix_prompt(
+    template: str,
+    *,
+    command: str,
+    output: str,
+    ticket_path: str,
+    worklog_path: str,
+    step: str,
+) -> str:
+    if not template:
+        return (
+            "Follow docs/04-process/ticket-execution-protocol.md.\n"
+            "Fix ONLY the issues reported by the failing command. Keep scope tight.\n"
+            "Do not change unrelated behavior.\n"
+            f"Step: {step}\n"
+            f"Command: {command}\n"
+            f"Command output:\n{output}\n"
+            f"Ticket: {ticket_path}\n"
+            f"Worklog: {worklog_path}\n"
+        )
+    return (
+        template.replace("{STEP}", step)
+        .replace("{COMMAND}", command)
+        .replace("{OUTPUT}", output)
+        .replace("{TICKET}", ticket_path)
+        .replace("{WORKLOG}", worklog_path)
+    )
+
+
+def run_with_autofix(
+    command: str,
+    *,
+    attempts: int,
+    prompt_template: str,
+    ticket_path: str,
+    worklog_path: str,
+    step: str,
+) -> (subprocess.CompletedProcess, List[str], List[str], str):
+    logs: List[str] = []
+    resolved: List[str] = []
+    result = run_shell(command, capture=True, check=False)
+    combined = (result.stdout + "\n" + result.stderr).strip()
+    status = "PASS" if result.returncode == 0 else "FAIL"
+    logs.append(f"- {step} ({command}) attempt 0: {status}")
+    if result.returncode == 0 or attempts <= 0:
+        return result, logs, resolved, combined
+    last_output = combined
+    for attempt in range(1, attempts + 1):
+        prompt = render_autofix_prompt(
+            prompt_template,
+            command=command,
+            output=last_output,
+            ticket_path=ticket_path,
+            worklog_path=worklog_path,
+            step=step,
+        )
+        codex_exec(prompt, capture_output=False)
+        result = run_shell(command, capture=True, check=False)
+        combined = (result.stdout + "\n" + result.stderr).strip()
+        status = "PASS" if result.returncode == 0 else "FAIL"
+        logs.append(f"- {step} ({command}) attempt {attempt}: {status}")
+        if result.returncode == 0:
+            summary = summarize_output(last_output)
+            if summary:
+                resolved.append(f"{step}: {summary}")
+            else:
+                resolved.append(f"{step}: {command} failure resolved")
+            return result, logs, resolved, combined
+        last_output = combined
+    return result, logs, resolved, combined
+
+
 def classify_risk(data: Dict, change_budget: Dict) -> (str, List[str]):
     triggers = []
     files = data.get("files_to_change", [])
@@ -434,6 +530,7 @@ def main() -> None:
     inputs = parse_inputs(sys.argv[1:])
     ticket_id = normalize_ticket_id(inputs["task_id"])
     config = load_config(args.config)
+    autofix_template = load_autofix_prompt(config.get("ci_autofix_prompt_path", ""))
 
     root = repo_root()
     os.chdir(root)
@@ -480,6 +577,18 @@ def main() -> None:
         die(f"pc-ticket: failed to parse preflight JSON\n{preflight_raw}")
 
     preflight_data.setdefault("prd_ref", prd_ref)
+
+    scope_in = (preflight_data.get("scope_in") or "").strip()
+    scope_out = (preflight_data.get("scope_out") or "").strip()
+    if (
+        not scope_in
+        or scope_in.lower() == "tbd"
+        or not scope_out
+        or scope_out.lower() == "tbd"
+    ):
+        gate_prompt(
+            "Scope ambiguity detected in preflight. Review scope in/out and update the ticket if needed."
+        )
 
     risk_level, triggers = classify_risk(preflight_data, change_budget)
 
@@ -535,6 +644,9 @@ def main() -> None:
         print("Next steps: complete TDD + implementation manually per protocol.")
         return
 
+    autofix_attempts: List[str] = []
+    autofix_resolved: List[str] = []
+
     tests_prompt = (
         "Follow docs/04-process/ticket-execution-protocol.md.\n"
         "Write tests first for this ticket and do not implement production code yet.\n"
@@ -569,6 +681,26 @@ def main() -> None:
     )
     codex_exec(impl_prompt, capture_output=False)
 
+    if config.get("ci_autofix", True):
+        post_test_result, post_test_logs, post_test_resolved, _ = run_with_autofix(
+            test_cmd,
+            attempts=int(config.get("ci_autofix_attempts", 2)),
+            prompt_template=autofix_template,
+            ticket_path=ticket_path,
+            worklog_path=worklog_path,
+            step="tests",
+        )
+    else:
+        post_test_result = run_shell(test_cmd, capture=True, check=False)
+        post_test_logs = [
+            f"- tests ({test_cmd}) attempt 0: {'PASS' if post_test_result.returncode == 0 else 'FAIL'}"
+        ]
+        post_test_resolved = []
+    autofix_attempts.extend(post_test_logs)
+    autofix_resolved.extend(post_test_resolved)
+    post_test_status = "PASS" if post_test_result.returncode == 0 else "FAIL"
+    review_items.append(f"{test_cmd}: {post_test_status}")
+
     diff = run(["git", "diff"], capture=True).stdout
     review_prompt = (
         "You are a secondary agent performing a focused diff scan.\n"
@@ -579,18 +711,49 @@ def main() -> None:
     if diff.strip():
         secondary_review(review_prompt)
 
+    if post_test_result.returncode != 0:
+        worklog = read_file(worklog_path)
+        worklog = append_section(
+            worklog, "Autofix Attempts", build_autofix_block(autofix_attempts)
+        )
+        write_file(worklog_path, worklog)
+        gate_prompt(
+            "Autofix attempts exhausted for tests. Review output and fix manually."
+        )
+        die("pc-ticket: tests failed after autofix; fix and rerun")
+
     ci_cmd = config["ci_cmd"]
-    ci_result = run_shell(ci_cmd, capture=True, check=False)
-    ci_output = (ci_result.stdout + "\n" + ci_result.stderr).strip()
+    if config.get("ci_autofix", True):
+        ci_result, ci_logs, ci_resolved, ci_output = run_with_autofix(
+            ci_cmd,
+            attempts=int(config.get("ci_autofix_attempts", 2)),
+            prompt_template=autofix_template,
+            ticket_path=ticket_path,
+            worklog_path=worklog_path,
+            step="ci",
+        )
+    else:
+        ci_result = run_shell(ci_cmd, capture=True, check=False)
+        ci_output = (ci_result.stdout + "\n" + ci_result.stderr).strip()
+        ci_logs = [
+            f"- ci ({ci_cmd}) attempt 0: {'PASS' if ci_result.returncode == 0 else 'FAIL'}"
+        ]
+        ci_resolved = []
+    autofix_attempts.extend(ci_logs)
+    autofix_resolved.extend(ci_resolved)
     ci_status = "PASS" if ci_result.returncode == 0 else "FAIL"
     review_items.append(f"{ci_cmd}: {ci_status}")
 
     worklog = read_file(worklog_path)
     worklog = replace_section(worklog, "Gates", build_gates_block(ci_cmd, ci_status))
+    worklog = append_section(
+        worklog, "Autofix Attempts", build_autofix_block(autofix_attempts)
+    )
     write_file(worklog_path, worklog)
 
     if ci_result.returncode != 0:
-        die("pc-ticket: make ci failed; fix and rerun")
+        gate_prompt("Autofix attempts exhausted for make ci. Review output and fix.")
+        die("pc-ticket: make ci failed after autofix; fix and rerun")
 
     if risk_level == "HIGH":
         gate_prompt(f"HIGH RISK ticket. Review test results:\n\n{ci_output}\n")
@@ -636,6 +799,12 @@ def main() -> None:
             ),
             "make ci results:",
             ci_status,
+            "Autofix resolved:",
+            (
+                "\n".join(f"- {item}" for item in autofix_resolved)
+                if autofix_resolved
+                else "(none)"
+            ),
             "Commit message:",
             commit_message,
         ]
