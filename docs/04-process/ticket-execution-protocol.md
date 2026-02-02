@@ -16,7 +16,9 @@
 ## End-to-End Workflow
 
 1. **Ticket Ingestion**
-   - Run `make ticket T=<id> [F=<feature-id>]` to bootstrap and locate the ticket/worklog.
+   - Run `make ticket T=<id> [F=<feature-id>]` to bootstrap and execute autonomously by default.
+   - Manual mode (no autonomous TDD/implementation): `make ticket MANUAL=1 T=<id> [F=<feature-id>]`.
+   - Example (one command): `make ticket F=01 T=102`.
    - Open the ticket file: `docs/02-features/<feature>/TASK-XXX.md`.
    - Confirm scope, success criteria, and change budget.
    - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.

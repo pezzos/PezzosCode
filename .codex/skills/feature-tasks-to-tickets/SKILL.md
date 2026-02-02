@@ -25,6 +25,7 @@ read its `dev-tasks.md`, and create one ticket per task.
 - Create tickets at `docs/02-features/<feature>/TASK-XXX.md`.
 - Only create tickets for the current feature (lowest-numbered un-ticketed feature).
 - Each ticket corresponds to one `TASK-###` entry in `dev-tasks.md`.
+- Ticket frontmatter `id` uses the numeric task id only (e.g., `101`, no `T-` prefix).
 - Do not use or update `docs/03-logs/implementation-log.md` for this workflow.
 
 ## Steps

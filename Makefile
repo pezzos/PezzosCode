@@ -1,4 +1,4 @@
-.PHONY: fmt lint test check docs-check skills-check ticket-check ticket ticket-ci ticket-verify ci
+.PHONY: fmt lint test check docs-check skills-check ticket-check ticket ticket-auto ticket-manual ticket-ci ticket-verify ci
 
 fmt:
 	@pre-commit run --all-files --hook-stage manual
@@ -35,7 +35,18 @@ ticket-check:
 		fi'
 
 ticket:
-	@tools/ticket-bootstrap T=$(T) F=$(F)
+	@if [[ "$(MANUAL)" == "1" ]]; then \
+		tools/ticket-bootstrap T=$(T) F=$(F); \
+		tools/pc-ticket T=$(T) F=$(F) --manual; \
+	else \
+		tools/ticket-bootstrap T=$(T) F=$(F) --auto; \
+		tools/pc-ticket T=$(T) F=$(F); \
+	fi
+
+ticket-auto: ticket
+
+ticket-manual:
+	@$(MAKE) ticket T=$(T) F=$(F) MANUAL=1
 
 ticket-verify:
 	@tools/ticket-bootstrap T=$(T) F=$(F) --verify

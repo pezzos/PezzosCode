@@ -1,5 +1,5 @@
 ---
-id: T-101
+id: 101
 title: "Define workflow behavior"
 prd_ref: "01"
 status: "Done"

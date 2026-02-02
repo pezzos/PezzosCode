@@ -1,5 +1,5 @@
 ---
-id: T-102
+id: 102
 title: "Implement or update tooling/scripts"
 prd_ref: "01"
 status: "To Do"

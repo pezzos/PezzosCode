@@ -7,22 +7,25 @@ over flexible.
 ## Command
 
 ```
-tools/pc-ticket F=<feature-id> T=<ticket-id> [--config path]
+tools/pc-ticket F=<feature-id> T=<ticket-id> [--config path] [--manual]
 ```
 
 Examples:
 
 ```
-tools/pc-ticket F=01 T=001
-tools/pc-ticket T=001
+tools/pc-ticket F=01 T=101
+tools/pc-ticket T=101
+tools/pc-ticket F=01 T=101 --manual
 ```
 
-Ticket ID formats accepted: `001`, `T-001`, `TASK-001`.
+Ticket ID formats accepted: numeric task ids only (e.g., `101`).
+Manual mode: `--manual` stops after Preflight and does not run TDD or implementation.
+Default behavior is autonomous TDD + implementation.
 
 ## What it does (fixed workflow)
 
 1. **Ticket bootstrap**
-   - Runs `make ticket T=<id> [F=<feature-id>]`.
+   - Runs `tools/ticket-bootstrap T=<id> [F=<feature-id>]`.
    - Fails fast if this command fails.
 2. **Preflight**
    - Writes the Preflight Report into the worklog using the required format.

@@ -17,7 +17,8 @@ Rules:
 - Perform a systematic review: list executed commands and summarize results.
 - If context is missing or unclear, ask for the relevant document rather than
   guessing.
-- For any ticket implementation, run `make ticket T=<id>` and follow `docs/04-process/ticket-execution-protocol.md`.
+- For any ticket implementation, run `make ticket T=<id> [F=<feature-id>]` to bootstrap and execute autonomously by default, and follow `docs/04-process/ticket-execution-protocol.md`.
+- Manual mode: `make ticket MANUAL=1 T=<id> [F=<feature-id>]`.
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
 - Codex MUST use Serena for symbol-aware navigation and edits when available.
 - Codex MUST use `tools/offload-proxy/pp` for commands that can produce large output (e.g., `rg`, `sed` on large ranges, tests, or logs).

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $(basename "$0") T=<ticket-id> [F=<feature-id>] [--verify] [--dry-run]" >&2
+  echo "Usage: $(basename "$0") T=<ticket-id> [F=<feature-id>] [--verify] [--dry-run] [--auto]" >&2
   exit 1
 }
 
@@ -13,6 +13,7 @@ fi
 ticket_id=""
 feature_id=""
 mode="bootstrap"
+output_mode="manual"
 
 for arg in "$@"; do
   case "$arg" in
@@ -28,6 +29,9 @@ for arg in "$@"; do
     --dry-run)
       mode="dry-run"
       ;;
+    --auto)
+      output_mode="auto"
+      ;;
     *)
       ;;
   esac
@@ -35,6 +39,11 @@ done
 
 if [[ -z "$ticket_id" ]]; then
   usage
+fi
+
+if [[ ! "$ticket_id" =~ ^[0-9]+$ ]]; then
+  echo "ticket-bootstrap: invalid ticket id '$ticket_id'; expected numeric id like 101" >&2
+  exit 1
 fi
 
 require_cmd() {
@@ -206,6 +215,15 @@ fi
 
 if [[ "$mode" == "verify" ]]; then
   echo "ticket-bootstrap: verify ok"
+  exit 0
+fi
+
+if [[ "$output_mode" == "auto" ]]; then
+  cat <<EOF
+ticket-bootstrap: ok
+ticket: $ticket_file
+worklog: $worklog_file
+EOF
   exit 0
 fi
 

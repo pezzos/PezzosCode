@@ -94,14 +94,10 @@ def parse_inputs(args: List[str]) -> Dict[str, Optional[str]]:
 
 def normalize_ticket_id(task_id: Optional[str]) -> str:
     if not task_id:
-        die("Usage: tools/pc-ticket F=01 T=001 [--config path]")
-    if task_id.startswith("T-"):
-        return task_id
-    if task_id.startswith("TASK-"):
-        return f"T-{task_id.split('-', 1)[1]}"
+        die("Usage: tools/pc-ticket F=01 T=101 [--config path] [--manual]")
     if re.fullmatch(r"\d+", task_id):
-        return f"T-{task_id}"
-    die("pc-ticket: invalid task id; expected T-001, TASK-001, or 001")
+        return task_id
+    die("pc-ticket: invalid task id; expected numeric id like 101")
 
 
 def read_file(path: str) -> str:
@@ -428,10 +424,11 @@ def secondary_review(prompt: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--config", dest="config")
+    parser.add_argument("--manual", action="store_true")
     parser.add_argument("-h", "--help", action="store_true")
     args, _ = parser.parse_known_args()
     if args.help:
-        print("Usage: tools/pc-ticket F=01 T=001 [--config path]")
+        print("Usage: tools/pc-ticket F=01 T=101 [--config path] [--manual]")
         sys.exit(0)
 
     inputs = parse_inputs(sys.argv[1:])
@@ -442,9 +439,10 @@ def main() -> None:
     os.chdir(root)
 
     feature_id = inputs["feature_id"]
-    ticket_cmd = f"make ticket T={ticket_id}" + (
+    ticket_cmd = f"tools/ticket-bootstrap T={ticket_id}" + (
         f" F={feature_id}" if feature_id else ""
     )
+    ticket_cmd += " --auto"
     ticket_result = run_shell(ticket_cmd, capture=True, check=False)
     review_items = [format_review_item(ticket_cmd, ticket_result.returncode)]
     if ticket_result.returncode != 0:
@@ -529,6 +527,13 @@ def main() -> None:
                 'Set approval: "granted" in ticket frontmatter to proceed.'
             )
         update_ticket_status(ticket_path, "Ongoing")
+
+    if args.manual:
+        print("pc-ticket: manual mode enabled")
+        print(f"ticket: {ticket_path}")
+        print(f"worklog: {worklog_path}")
+        print("Next steps: complete TDD + implementation manually per protocol.")
+        return
 
     tests_prompt = (
         "Follow docs/04-process/ticket-execution-protocol.md.\n"

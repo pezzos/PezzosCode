@@ -27,6 +27,53 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Make ticket execution autonomous by default
+
+**Feature/Bug:** Ticket tooling/docs
+
+**Changed Files:**
+
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `tools/ticket-bootstrap`
+- `tools/pc-ticket`
+- `tools/pc-ticket.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/AGENTS.md`
+- `tools/templates/docs/AGENTS.md`
+- `tools/templates/root/AGENTS.md`
+- `docs/04-process/AGENTS.md`
+- `tools/templates/docs/04-process/AGENTS.md`
+
+**Notes:**
+
+- `make ticket` now bootstraps and runs `tools/pc-ticket` autonomously by default.
+- Added manual mode (`MANUAL=1` / `--manual`) to stop after Preflight and avoid autonomous TDD/implementation.
+- Updated protocol and AGENTS docs to reflect the new entrypoint behavior.
+- Added an auto output mode to `tools/ticket-bootstrap` to avoid manual-only guidance in autonomous runs.
+
+### 2026-02-02 - Standardize ticket id format to numeric
+
+**Feature/Bug:** Ticket tooling/docs
+
+**Changed Files:**
+
+- `docs/04-process/ticket-template.md`
+- `tools/templates/docs/04-process/ticket-template.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+- `tools/pc-ticket`
+- `tools/pc-ticket.md`
+- `tools/ticket-bootstrap`
+
+**Notes:**
+
+- Switched ticket frontmatter ids to numeric-only and updated the template.
+- Enforced numeric-only ids in ticket tooling and usage docs.
+
 ### 2026-02-02 - Remove unsupported pre-commit flag
 
 **Feature/Bug:** Pre-commit automation
