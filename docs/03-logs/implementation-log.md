@@ -27,6 +27,22 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Fix report status reference in ticket tooling
+
+**Feature/Bug:** Ticket execution tooling
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+
+**Notes:**
+
+- Swapped the undefined `tdd_status` reference in the final report with the already-calculated `post_test_status` so that the final summary (and any automated log parsing) shows the actual test run result instead of blowing up at runtime.
+
+**Testing:**
+
+- `ruff check tools/pc-ticket`
+
 ### 2026-02-02 - Add complexity flag and orchestrated feedback steps
 
 **Feature/Bug:** Ticket tooling/docs

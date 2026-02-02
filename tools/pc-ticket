@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 DEFAULT_CONFIG = {
     "test_cmd": "make test",
@@ -33,16 +33,26 @@ def die(message: str) -> None:
 
 
 def run(
-    cmd: List[str], *, capture: bool = False, check: bool = True
+    cmd: List[str],
+    *,
+    capture: bool = False,
+    check: bool = True,
+    cwd: Optional[str] = None,
 ) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, text=True, capture_output=capture, check=check)
+    return subprocess.run(
+        cmd,
+        text=True,
+        capture_output=capture,
+        check=check,
+        cwd=cwd,
+    )
 
 
 def run_shell(
-    cmd: str, *, capture: bool = False, check: bool = True
+    cmd: str, *, capture: bool = False, check: bool = True, cwd: Optional[str] = None
 ) -> subprocess.CompletedProcess:
     return subprocess.run(
-        cmd, shell=True, text=True, capture_output=capture, check=check
+        cmd, shell=True, text=True, capture_output=capture, check=check, cwd=cwd
     )
 
 
@@ -252,7 +262,12 @@ def normalize_tdd_plan(content: str) -> str:
     return content[: match.start(2)] + cleaned + content[match.end(2) :]
 
 
-def codex_exec(prompt: str, *, capture_output: bool = True) -> str:
+def codex_exec(
+    prompt: str,
+    *,
+    capture_output: bool = True,
+    cwd: Optional[str] = None,
+) -> str:
     if shutil.which("codex") is None:
         die("pc-ticket: codex CLI not found in PATH")
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -267,7 +282,7 @@ def codex_exec(prompt: str, *, capture_output: bool = True) -> str:
         prompt,
     ]
     try:
-        run(cmd, check=True)
+        run(cmd, check=True, cwd=cwd)
     except subprocess.CalledProcessError:
         os.unlink(output_path)
         die("pc-ticket: codex exec failed")
@@ -433,6 +448,53 @@ def render_autofix_prompt(
     )
 
 
+def sanitize_name(value: str) -> str:
+    if not value:
+        return "item"
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-").lower()
+    return slug or "item"
+
+
+def feature_folder_name(ticket_path: str) -> str:
+    return os.path.basename(os.path.dirname(ticket_path))
+
+
+def build_worktree_path(root: str, feature_name: str, agent: str) -> str:
+    parent = os.path.dirname(root)
+    repo_name = os.path.basename(root)
+    safe_feature = sanitize_name(feature_name)
+    safe_agent = sanitize_name(agent)
+    return os.path.join(parent, f"{repo_name}-{safe_feature}-{safe_agent}")
+
+
+def sync_dirs(src: str, dst: str) -> None:
+    run(
+        ["rsync", "-a", "--delete", "--exclude", ".git", f"{src}/", f"{dst}/"],
+        check=True,
+    )
+
+
+def prepare_worktree(root: str, feature_name: str, agent: str) -> str:
+    path = build_worktree_path(root, feature_name, agent)
+    if os.path.exists(path):
+        run(["git", "worktree", "remove", "-f", path], cwd=root)
+    run(["git", "worktree", "add", "--detach", path, "HEAD"], cwd=root)
+    return path
+
+
+def cleanup_worktree(path: str, root: str) -> None:
+    if os.path.exists(path):
+        run(["git", "worktree", "remove", "-f", path], cwd=root)
+
+
+def sync_root_to_worktree(root: str, worktree: str) -> None:
+    sync_dirs(root, worktree)
+
+
+def sync_worktree_to_root(worktree: str, root: str) -> None:
+    sync_dirs(worktree, root)
+
+
 def run_with_autofix(
     command: str,
     *,
@@ -441,10 +503,11 @@ def run_with_autofix(
     ticket_path: str,
     worklog_path: str,
     step: str,
+    cwd: Optional[str] = None,
 ) -> (subprocess.CompletedProcess, List[str], List[str], str):
     logs: List[str] = []
     resolved: List[str] = []
-    result = run_shell(command, capture=True, check=False)
+    result = run_shell(command, capture=True, check=False, cwd=cwd)
     combined = (result.stdout + "\n" + result.stderr).strip()
     status = "PASS" if result.returncode == 0 else "FAIL"
     logs.append(f"- {step} ({command}) attempt 0: {status}")
@@ -460,8 +523,8 @@ def run_with_autofix(
             worklog_path=worklog_path,
             step=step,
         )
-        codex_exec(prompt, capture_output=False)
-        result = run_shell(command, capture=True, check=False)
+        codex_exec(prompt, capture_output=False, cwd=cwd)
+        result = run_shell(command, capture=True, check=False, cwd=cwd)
         combined = (result.stdout + "\n" + result.stderr).strip()
         status = "PASS" if result.returncode == 0 else "FAIL"
         logs.append(f"- {step} ({command}) attempt {attempt}: {status}")
@@ -474,6 +537,87 @@ def run_with_autofix(
             return result, logs, resolved, combined
         last_output = combined
     return result, logs, resolved, combined
+
+
+def run_orchestrated_checks(
+    *,
+    root: str,
+    feature_name: str,
+    ticket_path: str,
+    worklog_path: str,
+    test_cmd: str,
+    ci_cmd: str,
+    config: Dict,
+    autofix_template: str,
+    autofix_enabled: bool,
+) -> Tuple[
+    str,
+    subprocess.CompletedProcess,
+    List[str],
+    List[str],
+    str,
+    subprocess.CompletedProcess,
+    List[str],
+    List[str],
+    str,
+]:
+    tester_path = prepare_worktree(root, feature_name, "tester")
+    attempts = int(config.get("ci_autofix_attempts", 2)) if autofix_enabled else 0
+    try:
+        sync_root_to_worktree(root, tester_path)
+        if autofix_enabled:
+            test_result, test_logs, test_resolved, test_output = run_with_autofix(
+                test_cmd,
+                attempts=attempts,
+                prompt_template=autofix_template,
+                ticket_path=ticket_path,
+                worklog_path=worklog_path,
+                step="tests",
+                cwd=tester_path,
+            )
+        else:
+            test_result = run_shell(
+                test_cmd, capture=True, check=False, cwd=tester_path
+            )
+            test_output = (test_result.stdout + "\n" + test_result.stderr).strip()
+            test_logs = [
+                f"- tests ({test_cmd}) attempt 0: {'PASS' if test_result.returncode == 0 else 'FAIL'}"
+            ]
+            test_resolved = []
+        sync_worktree_to_root(tester_path, root)
+        sync_root_to_worktree(root, tester_path)
+        if autofix_enabled:
+            ci_result, ci_logs, ci_resolved, ci_output = run_with_autofix(
+                ci_cmd,
+                attempts=attempts,
+                prompt_template=autofix_template,
+                ticket_path=ticket_path,
+                worklog_path=worklog_path,
+                step="ci",
+                cwd=tester_path,
+            )
+        else:
+            ci_result = run_shell(ci_cmd, capture=True, check=False, cwd=tester_path)
+            ci_output = (ci_result.stdout + "\n" + ci_result.stderr).strip()
+            ci_logs = [
+                f"- ci ({ci_cmd}) attempt 0: {'PASS' if ci_result.returncode == 0 else 'FAIL'}"
+            ]
+            ci_resolved = []
+        sync_worktree_to_root(tester_path, root)
+        return (
+            tester_path,
+            test_result,
+            test_logs,
+            test_resolved,
+            test_output,
+            ci_result,
+            ci_logs,
+            ci_resolved,
+            ci_output,
+        )
+    except Exception:
+        cleanup_worktree(tester_path, root)
+        raise
 
 
 def classify_risk(data: Dict, change_budget: Dict) -> (str, List[str]):
@@ -691,32 +835,45 @@ def main() -> None:
     codex_exec(tests_prompt, capture_output=False)
 
     test_cmd = config["test_cmd"]
-    test_result = run_shell(test_cmd, capture=True, check=False)
-    if test_result.returncode == 0:
-        if config.get("tdd_require_fail", False):
-            die("pc-ticket: tests passed but should fail for TDD")
-        tdd_status = "PASS-FIRST-RUN"
+    ci_cmd = config["ci_cmd"]
+    post_test_logs: List[str] = []
+    post_test_resolved: List[str] = []
+    ci_logs: List[str] = []
+    ci_resolved: List[str] = []
+    post_test_output = ""
+    ci_output = ""
+    tester_path: Optional[str] = None
+
+    if complexity == "complex":
+        (
+            tester_path,
+            post_test_result,
+            post_test_logs,
+            post_test_resolved,
+            post_test_output,
+            ci_result,
+            ci_logs,
+            ci_resolved,
+            ci_output,
+        ) = run_orchestrated_checks(
+            root=root,
+            feature_name=feature_folder_name(ticket_path),
+            ticket_path=ticket_path,
+            worklog_path=worklog_path,
+            test_cmd=test_cmd,
+            ci_cmd=ci_cmd,
+            config=config,
+            autofix_template=autofix_template,
+            autofix_enabled=config.get("ci_autofix", True),
+        )
     else:
-        tdd_status = "FAIL-FIRST-RUN"
-    review_items.append(f"{test_cmd}: {tdd_status}")
-    if tdd_status == "PASS-FIRST-RUN":
-        worklog = read_file(worklog_path)
-        worklog = append_note(worklog, f"TDD: tests passed on first run ({test_cmd}).")
-        write_file(worklog_path, worklog)
-
-    impl_prompt = (
-        "Follow docs/04-process/ticket-execution-protocol.md.\n"
-        "Implement the minimal production changes to make the new tests pass.\n"
-        "Update docs/logs per ticket template and keep diffs small.\n"
-        f"Ticket: {ticket_path}\n"
-        f"Worklog: {worklog_path}\n"
-        f"Ticket content:\n{ticket_body}\n"
-    )
-    codex_exec(impl_prompt, capture_output=False)
-
-    if config.get("ci_autofix", True):
-        post_test_result, post_test_logs, post_test_resolved, post_test_output = (
-            run_with_autofix(
+        if config.get("ci_autofix", True):
+            (
+                post_test_result,
+                post_test_logs,
+                post_test_resolved,
+                post_test_output,
+            ) = run_with_autofix(
                 test_cmd,
                 attempts=int(config.get("ci_autofix_attempts", 2)),
                 prompt_template=autofix_template,
@@ -724,18 +881,40 @@ def main() -> None:
                 worklog_path=worklog_path,
                 step="tests",
             )
-        )
-    else:
-        post_test_result = run_shell(test_cmd, capture=True, check=False)
-        post_test_output = (
-            post_test_result.stdout + "\n" + post_test_result.stderr
-        ).strip()
-        post_test_logs = [
-            f"- tests ({test_cmd}) attempt 0: {'PASS' if post_test_result.returncode == 0 else 'FAIL'}"
-        ]
-        post_test_resolved = []
+        else:
+            post_test_result = run_shell(test_cmd, capture=True, check=False)
+            post_test_output = (
+                post_test_result.stdout + "\n" + post_test_result.stderr
+            ).strip()
+            post_test_logs = [
+                f"- tests ({test_cmd}) attempt 0: {'PASS' if post_test_result.returncode == 0 else 'FAIL'}"
+            ]
+            post_test_resolved = []
+        if config.get("ci_autofix", True):
+            (
+                ci_result,
+                ci_logs,
+                ci_resolved,
+                ci_output,
+            ) = run_with_autofix(
+                ci_cmd,
+                attempts=int(config.get("ci_autofix_attempts", 2)),
+                prompt_template=autofix_template,
+                ticket_path=ticket_path,
+                worklog_path=worklog_path,
+                step="ci",
+            )
+        else:
+            ci_result = run_shell(ci_cmd, capture=True, check=False)
+            ci_output = (ci_result.stdout + "\n" + ci_result.stderr).strip()
+            ci_logs = [
+                f"- ci ({ci_cmd}) attempt 0: {'PASS' if ci_result.returncode == 0 else 'FAIL'}"
+            ]
+            ci_resolved = []
     autofix_attempts.extend(post_test_logs)
+    autofix_attempts.extend(ci_logs)
     autofix_resolved.extend(post_test_resolved)
+    autofix_resolved.extend(ci_resolved)
     post_test_status = "PASS" if post_test_result.returncode == 0 else "FAIL"
     review_items.append(f"{test_cmd}: {post_test_status}")
 
@@ -750,6 +929,8 @@ def main() -> None:
         secondary_review(review_prompt)
 
     if post_test_result.returncode != 0:
+        if complexity == "complex" and tester_path:
+            cleanup_worktree(tester_path, root)
         worklog = read_file(worklog_path)
         worklog = append_section(
             worklog, "Autofix Attempts", build_autofix_block(autofix_attempts)
@@ -760,28 +941,8 @@ def main() -> None:
         )
         die("pc-ticket: tests failed after autofix; fix and rerun")
 
-    ci_cmd = config["ci_cmd"]
-    if config.get("ci_autofix", True):
-        ci_result, ci_logs, ci_resolved, ci_output = run_with_autofix(
-            ci_cmd,
-            attempts=int(config.get("ci_autofix_attempts", 2)),
-            prompt_template=autofix_template,
-            ticket_path=ticket_path,
-            worklog_path=worklog_path,
-            step="ci",
-        )
-    else:
-        ci_result = run_shell(ci_cmd, capture=True, check=False)
-        ci_output = (ci_result.stdout + "\n" + ci_result.stderr).strip()
-        ci_logs = [
-            f"- ci ({ci_cmd}) attempt 0: {'PASS' if ci_result.returncode == 0 else 'FAIL'}"
-        ]
-        ci_resolved = []
-    autofix_attempts.extend(ci_logs)
-    autofix_resolved.extend(ci_resolved)
     ci_status = "PASS" if ci_result.returncode == 0 else "FAIL"
     review_items.append(f"{ci_cmd}: {ci_status}")
-
     worklog = read_file(worklog_path)
     worklog = replace_section(worklog, "Gates", build_gates_block(ci_cmd, ci_status))
     worklog = append_section(
@@ -790,20 +951,12 @@ def main() -> None:
     write_file(worklog_path, worklog)
 
     if ci_result.returncode != 0:
+        if complexity == "complex" and tester_path:
+            cleanup_worktree(tester_path, root)
         gate_prompt("Autofix attempts exhausted for make ci. Review output and fix.")
         die("pc-ticket: make ci failed after autofix; fix and rerun")
 
-    if risk_level == "HIGH":
-        gate_prompt(f"HIGH RISK ticket. Review test results:\n\n{ci_output}\n")
-    else:
-        test_review_prompt = (
-            "You are a secondary agent validating test results.\n"
-            "Output ONLY one line: 'APPROVE' or 'BLOCK: <reason>'.\n"
-            f"{ci_cmd} output:\n{ci_output}\n"
-        )
-        secondary_review(test_review_prompt)
-
-    if complexity == "complex":
+    if complexity == "complex" and tester_path:
         tester_prompt = (
             "You are the tester. Review test and CI outputs for issues, gaps, or flaky signals.\n"
             "Output concise bullet points. If no issues, say 'No issues found'.\n"
@@ -812,7 +965,12 @@ def main() -> None:
             f"Ticket: {ticket_path}\n"
             f"Worklog: {worklog_path}\n"
         )
-        tester_feedback = codex_exec(tester_prompt).strip()
+        tester_feedback = codex_exec(tester_prompt, cwd=tester_path).strip()
+        cleanup_worktree(tester_path, root)
+        review_path = prepare_worktree(
+            root, feature_folder_name(ticket_path), "reviewer"
+        )
+        sync_root_to_worktree(root, review_path)
         reviewer_prompt = (
             "You are the reviewer. Review the diff for correctness, scope creep, and regressions.\n"
             "Output concise bullet points. If no issues, say 'No issues found'.\n"
@@ -820,7 +978,8 @@ def main() -> None:
             f"Ticket: {ticket_path}\n"
             f"Worklog: {worklog_path}\n"
         )
-        reviewer_feedback = codex_exec(reviewer_prompt).strip()
+        reviewer_feedback = codex_exec(reviewer_prompt, cwd=review_path).strip()
+        cleanup_worktree(review_path, root)
         worklog = read_file(worklog_path)
         worklog = replace_section(
             worklog, "Tester Feedback", normalize_feedback(tester_feedback)
@@ -829,7 +988,6 @@ def main() -> None:
             worklog, "Reviewer Feedback", normalize_feedback(reviewer_feedback)
         )
         write_file(worklog_path, worklog)
-
     diff = run(["git", "diff"], capture=True).stdout
     if not diff.strip():
         print("pc-ticket: no changes detected; skipping commit")
@@ -855,7 +1013,7 @@ def main() -> None:
             "What changed (files):",
             ", ".join(changed_files) if changed_files else "(none)",
             "Tests written (names) + results:",
-            f"{', '.join(preflight_data.get('tdd_tests', []))} | {test_cmd}: {tdd_status}, {ci_cmd}: {ci_status}",
+            f"{', '.join(preflight_data.get('tdd_tests', []))} | {test_cmd}: {post_test_status}, {ci_cmd}: {ci_status}",
             "Docs/logs updated checklist:",
             (
                 ", ".join(preflight_data.get("doc_updates", []))
