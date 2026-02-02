@@ -27,6 +27,34 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Update context-to-product skill to include process docs
+
+**Feature/Bug:** Skill update
+
+**Changed Files:**
+
+- `.codex/skills/context-to-product/SKILL.md` - Add `docs/04-process/*` inputs and PRD mapping steps
+
+**What Changed:**
+Expanded the skill to read workflow/process docs and map those requirements into
+the PRD, ensuring operational standards are captured as product requirements.
+
+**Why:**
+The PRD needs to reflect workflow guardrails and process standards to avoid
+missing required features or constraints in downstream feature generation.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-02 - Codex-first workflow documentation updates
 
 **Feature/Bug:** Process and context docs
