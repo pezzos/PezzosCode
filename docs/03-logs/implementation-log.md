@@ -27,6 +27,32 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Add complexity flag and orchestrated feedback steps
+
+**Feature/Bug:** Ticket tooling/docs
+
+**Changed Files:**
+
+- `docs/04-process/ticket-template.md`
+- `tools/templates/docs/04-process/ticket-template.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+- `docs/03-logs/tickets/worklog-template.md`
+- `tools/templates/docs/03-logs/tickets/worklog-template.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `.codex/skills/feature-tasks-to-tickets/SKILL.md`
+- `tools/pc-ticket`
+- `tools/pc-ticket.md`
+
+**Notes:**
+
+- Added `complexity` frontmatter and documented complex-ticket orchestration steps.
+- Complex tickets now capture tester/reviewer feedback in the worklog.
+- Updated ticket generation guidance to default complexity to simple.
+
 ### 2026-02-02 - Quiet pc-ticket noise and avoid shell syntax traps
 
 **Feature/Bug:** Ticket execution tooling
@@ -38,12 +64,12 @@ This helps with:
 
 **What Changed:**
 
-- Reworked the `ticket-check` pipeline to stage ticket files through a temporary buffer instead of process substitution so bash no longer hits the syntax error in constrained shells.
+- Reworked the `ticket-check` pipeline to stage ticket files through a temporary buffer instead of process substitution so bash no longer hits the syntax error on constrained shells; the rule now runs two straightforward `find` calls (one per pattern) and relies on a runtime-generated `mktemp` path so parentheses and variable expansion stay shell-safe.
 - Captured `stderr` inside the invalid-ticket test so the expected error message is no longer emitted during `python -m unittest discover -s tests`.
 
 **Why:**
 
-- Keep CI output clean (the invalid-ticket test no longer prints to stderr and `ticket-check` does not rely on process substitution).
+- Keep CI output clean (the invalid-ticket test no longer prints to stderr and `ticket-check` now avoids process substitution/shell quoting issues).
 
 **Impact:**
 
@@ -54,6 +80,7 @@ This helps with:
 **Testing:**
 
 - `python -m unittest discover -s tests`
+- `make ci`
 
 **Author:** Codex
 

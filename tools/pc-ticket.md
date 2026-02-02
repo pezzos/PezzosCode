@@ -32,6 +32,7 @@ Default behavior is autonomous TDD + implementation.
 3. **Risk classification**
    - Applies deterministic rules from `docs/04-process/ticket-execution-protocol.md`.
    - If HIGH, sets status to "Awaiting PO Approval", shows the Preflight report, and stops.
+   - If ticket `complexity` is `complex`, adds tester/reviewer feedback steps.
 4. **TDD (tests first)**
    - Invokes Codex to add tests only.
    - Runs configured tests and records pass/fail in the worklog.

@@ -26,6 +26,7 @@ read its `dev-tasks.md`, and create one ticket per task.
 - Only create tickets for the current feature (lowest-numbered un-ticketed feature).
 - Each ticket corresponds to one `TASK-###` entry in `dev-tasks.md`.
 - Ticket frontmatter `id` uses the numeric task id only (e.g., `101`, no `T-` prefix).
+- Ticket frontmatter `complexity` defaults to `simple`. Use `complex` if the task crosses multiple subsystems, has high coordination cost, or has large change budget usage.
 - Do not use or update `docs/03-logs/implementation-log.md` for this workflow.
 
 ## Steps
