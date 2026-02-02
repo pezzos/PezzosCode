@@ -4,6 +4,7 @@ title: "Define workflow behavior"
 prd_ref: "01"
 status: "Done"
 status_reason: "evidence: docs/04-process/dev-workflow.md contains 'Plan → Patch → Test → Report'; docs/04-process/ticket-execution-protocol.md contains 'Plan → Patch → Test → Report'"
+complexity: "simple"
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
   max_files: 10

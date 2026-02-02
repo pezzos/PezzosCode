@@ -63,6 +63,11 @@ if [[ ! -d "$target_repo" ]]; then
   exit 1
 fi
 
+if [[ ! -d "$target_repo/.git" ]]; then
+  echo "bootstrap-into: target repo is not a git repository: $target_repo" >&2
+  exit 1
+fi
+
 require_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -74,6 +79,9 @@ require_cmd() {
 for cmd in awk cmp find mktemp shasum; do
   require_cmd "$cmd"
 done
+
+# Preserve original stdin for prompts (loops below use process substitution).
+exec 3<&0
 
 marker_for_file() {
   local file="$1"
@@ -236,16 +244,15 @@ files_equal_ignoring_marker() {
 prompt_action() {
   local dest="$1"
   local choice
-  local prompt_in="/dev/tty"
-
-  if [[ ! -r "$prompt_in" ]]; then
-    prompt_in="/dev/stdin"
-  fi
 
   while true; do
     echo "File exists: $dest" >&2
     echo "Choose action: [o]verwrite, [m]erge (codex), [s]kip" >&2
-    read -r -p "Selection: " choice < "$prompt_in"
+    if [[ -t 0 && -r "/dev/tty" ]]; then
+      read -r -p "Selection: " choice < "/dev/tty"
+    else
+      read -r -p "Selection: " choice <&3
+    fi
     case "$choice" in
       o|O)
         echo "overwrite"
@@ -392,6 +399,27 @@ copy_file() {
   if [[ -f "$dest" ]] && files_equal_ignoring_marker "$src" "$dest"; then
     log_skip "Skipping (no changes): $dest"
     return 0
+  fi
+
+  if [[ -f "$dest" && "$policy" == "sync" ]]; then
+    if "$dry_run"; then
+      echo "Dry-run: would update: $dest"
+      return 0
+    fi
+    choice="$(prompt_action "$dest")"
+    case "$choice" in
+      overwrite)
+        ;;
+      merge)
+        echo "Merge not supported yet; skipping: $dest" >&2
+        log_skip "Skipping (merge unsupported): $dest"
+        return 0
+        ;;
+      skip)
+        log_skip "Skipping (user): $dest"
+        return 0
+        ;;
+    esac
   fi
 
   if "$dry_run"; then

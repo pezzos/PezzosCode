@@ -4,6 +4,7 @@ title: "Update docs/logs"
 prd_ref: "01"
 status: "Done"
 status_reason: "manual: pre-marked done"
+complexity: "simple"
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
   max_files: 10

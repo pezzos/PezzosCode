@@ -99,8 +99,21 @@ def normalize_ticket_id(task_id: Optional[str]) -> str:
     if not task_id:
         die("Usage: tools/pc-ticket F=01 T=101 [--config path] [--manual]")
     if re.fullmatch(r"\d+", task_id):
-        return task_id
+        return f"T-{task_id.zfill(3)}"
+    match = re.fullmatch(r"T-(\d+)", task_id, flags=re.IGNORECASE)
+    if match:
+        return f"T-{match.group(1).zfill(3)}"
+    match = re.fullmatch(r"TASK-(\d+)", task_id, flags=re.IGNORECASE)
+    if match:
+        return f"T-{match.group(1).zfill(3)}"
     die("pc-ticket: invalid task id; expected numeric id like 101")
+
+
+def ticket_number(ticket_id: str) -> str:
+    match = re.fullmatch(r"T-(\d+)", ticket_id, flags=re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return ticket_id
 
 
 def read_file(path: str) -> str:
@@ -362,6 +375,20 @@ def build_autofix_block(attempts: List[str]) -> str:
     return "\n".join(attempts)
 
 
+def normalize_feedback(text: str) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return "- Notes:"
+    if stripped.startswith("-"):
+        return stripped
+    lines = []
+    for line in stripped.splitlines():
+        line = line.strip()
+        if line:
+            lines.append(f"- {line}")
+    return "\n".join(lines) if lines else "- Notes:"
+
+
 def summarize_output(output: str) -> str:
     for line in output.splitlines():
         if line.strip():
@@ -529,6 +556,7 @@ def main() -> None:
 
     inputs = parse_inputs(sys.argv[1:])
     ticket_id = normalize_ticket_id(inputs["task_id"])
+    ticket_numeric = ticket_number(ticket_id)
     config = load_config(args.config)
     autofix_template = load_autofix_prompt(config.get("ci_autofix_prompt_path", ""))
 
@@ -536,7 +564,7 @@ def main() -> None:
     os.chdir(root)
 
     feature_id = inputs["feature_id"]
-    ticket_cmd = f"tools/ticket-bootstrap T={ticket_id}" + (
+    ticket_cmd = f"tools/ticket-bootstrap T={ticket_numeric}" + (
         f" F={feature_id}" if feature_id else ""
     )
     ticket_cmd += " --auto"
@@ -546,12 +574,17 @@ def main() -> None:
         combined = (ticket_result.stdout + "\n" + ticket_result.stderr).strip()
         die(f"pc-ticket: {ticket_cmd} failed\n{combined}".strip())
 
-    ticket_path = find_ticket_file(ticket_id, root, feature_id)
+    ticket_path = find_ticket_file(ticket_numeric, root, feature_id)
     ticket_frontmatter = parse_frontmatter(ticket_path)
     title = ticket_frontmatter.get("title", "")
     prd_ref = ticket_frontmatter.get("prd_ref", "")
     change_budget = parse_change_budget(ticket_path)
-    worklog_path = find_worklog(ticket_id, title, root)
+    complexity = (
+        (ticket_frontmatter.get("complexity", "simple") or "simple").strip().lower()
+    )
+    if complexity not in ("simple", "complex"):
+        complexity = "simple"
+    worklog_path = find_worklog(ticket_numeric, title, root)
 
     if ticket_frontmatter.get(
         "status"
@@ -682,16 +715,21 @@ def main() -> None:
     codex_exec(impl_prompt, capture_output=False)
 
     if config.get("ci_autofix", True):
-        post_test_result, post_test_logs, post_test_resolved, _ = run_with_autofix(
-            test_cmd,
-            attempts=int(config.get("ci_autofix_attempts", 2)),
-            prompt_template=autofix_template,
-            ticket_path=ticket_path,
-            worklog_path=worklog_path,
-            step="tests",
+        post_test_result, post_test_logs, post_test_resolved, post_test_output = (
+            run_with_autofix(
+                test_cmd,
+                attempts=int(config.get("ci_autofix_attempts", 2)),
+                prompt_template=autofix_template,
+                ticket_path=ticket_path,
+                worklog_path=worklog_path,
+                step="tests",
+            )
         )
     else:
         post_test_result = run_shell(test_cmd, capture=True, check=False)
+        post_test_output = (
+            post_test_result.stdout + "\n" + post_test_result.stderr
+        ).strip()
         post_test_logs = [
             f"- tests ({test_cmd}) attempt 0: {'PASS' if post_test_result.returncode == 0 else 'FAIL'}"
         ]
@@ -764,6 +802,33 @@ def main() -> None:
             f"{ci_cmd} output:\n{ci_output}\n"
         )
         secondary_review(test_review_prompt)
+
+    if complexity == "complex":
+        tester_prompt = (
+            "You are the tester. Review test and CI outputs for issues, gaps, or flaky signals.\n"
+            "Output concise bullet points. If no issues, say 'No issues found'.\n"
+            f"Test output:\n{post_test_output}\n"
+            f"CI output:\n{ci_output}\n"
+            f"Ticket: {ticket_path}\n"
+            f"Worklog: {worklog_path}\n"
+        )
+        tester_feedback = codex_exec(tester_prompt).strip()
+        reviewer_prompt = (
+            "You are the reviewer. Review the diff for correctness, scope creep, and regressions.\n"
+            "Output concise bullet points. If no issues, say 'No issues found'.\n"
+            f"Diff:\n{diff}\n"
+            f"Ticket: {ticket_path}\n"
+            f"Worklog: {worklog_path}\n"
+        )
+        reviewer_feedback = codex_exec(reviewer_prompt).strip()
+        worklog = read_file(worklog_path)
+        worklog = replace_section(
+            worklog, "Tester Feedback", normalize_feedback(tester_feedback)
+        )
+        worklog = replace_section(
+            worklog, "Reviewer Feedback", normalize_feedback(reviewer_feedback)
+        )
+        write_file(worklog_path, worklog)
 
     diff = run(["git", "diff"], capture=True).stdout
     if not diff.strip():

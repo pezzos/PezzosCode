@@ -31,6 +31,14 @@
 
 - (none)
 
+## Tester Feedback
+
+- Notes:
+
+## Reviewer Feedback
+
+- Notes:
+
 ## Commit
 
 - Commit message:

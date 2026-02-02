@@ -4,6 +4,7 @@ title: "Add or update tests"
 prd_ref: "01"
 status: "To Do"
 status_reason: ""
+complexity: "simple"
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
   max_files: 10
