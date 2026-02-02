@@ -38,24 +38,31 @@
    - Test: run agreed checks and record results.
    - Report: summarize what changed, commands run, and outcomes.
 
-6. **TDD Cycle (when applicable)**
+6. **Feedback Loop (Implementer ↔ Tester ↔ Reviewer)**
+   - Tester records failures in the **Tester Feedback** section.
+   - Reviewer records issues in the **Reviewer Feedback** section.
+   - Implementer updates the patch and logs the loop in **Iteration Log**.
+   - Repeat until feedback is resolved.
+
+7. **TDD Cycle (when applicable)**
    - Write tests first.
    - Run tests and confirm they fail for the right reason.
    - Implement minimal code changes to pass tests.
    - Re-run tests and confirm they pass.
 
-7. **Docs Sync (Mandatory)**
+8. **Docs Sync (Mandatory)**
    - Update required docs/logs per ticket template.
 
-8. **Gates**
+9. **Gates**
    - Run `make ci` and ensure it passes.
 
-9. **Commit**
-   - 1 ticket = 1 commit.
-   - Follow commit rules in `docs/04-process/git-workflow.md`.
-   - Use `tools/pc-commit` to enforce convention and checks.
+10. **Commit**
 
-10. **AI Tooling (preferred)**
+- 1 ticket = 1 commit.
+- Follow commit rules in `docs/04-process/git-workflow.md`.
+- Use `tools/pc-commit` to enforce convention and checks.
+
+11. **AI Tooling (preferred)**
 
 - Use Serena for code navigation and symbol-aware edits when available.
 - Offload large outputs using `tools/offload-proxy/pp` to reduce token usage.

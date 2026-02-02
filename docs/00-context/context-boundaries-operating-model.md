@@ -39,6 +39,7 @@ Provide guardrails that keep the workflow aligned with a simple, robust, AI-firs
 - The workflow loops: context → PRD → features → ticket → execute → repeat.
 - Each ticket follows Plan → Patch → Test → Report.
 - Parallel roles use worktrees for isolation when needed.
+- Implementer must iterate based on tester/reviewer feedback until issues are resolved.
 - If requirements are unclear, stop and ask before continuing.
 - The system must recover from errors and allow safe re-runs.
 - Prefer tool-assisted workflows (Serena, hooks, scripts) over ad-hoc AI output.

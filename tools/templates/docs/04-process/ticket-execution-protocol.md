@@ -7,53 +7,71 @@
 ---
 
 ## Scope Control (No Scope Creep)
+
 - Follow Context Boundaries and Non-Goals: `docs/00-context/context-boundaries-operating-model.md`.
 - Do not add features, automation, or optimizations beyond the ticket.
 - If requirements are unclear, stop and ask the PO.
 
 ## End-to-End Workflow
-1) **Ticket Ingestion**
+
+1. **Ticket Ingestion**
    - Run `make ticket T=<id> [F=<feature-id>]` to bootstrap and locate the ticket/worklog.
    - Open the ticket file: `docs/02-features/<feature>/TASK-XXX.md`.
    - Confirm scope, success criteria, and change budget.
    - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.
 
-2) **Preflight Report (Mandatory)**
+2. **Preflight Report (Mandatory)**
    - Produce the Preflight Report exactly in the format below.
 
-3) **Risk Classification**
+3. **Risk Classification**
    - Classify the ticket as LOW or HIGH risk using the deterministic rules below.
 
-4) **Approval Gate (HIGH Risk Only)**
+4. **Approval Gate (HIGH Risk Only)**
    - If HIGH, stop after Preflight and request PO approval.
    - No implementation work until approval is explicitly granted.
    - Set ticket status to **Awaiting PO Approval** in frontmatter.
 
-5) **TDD Cycle**
+5. **Plan → Patch → Test → Report**
+   - Plan: approach, files, risks, tests, and ticket-specific DoD.
+   - Patch: make the smallest diff that satisfies the ticket (TDD where applicable).
+   - Test: run agreed checks and record results.
+   - Report: summarize what changed, commands run, and outcomes.
+
+6. **Feedback Loop (Implementer ↔ Tester ↔ Reviewer)**
+   - Tester records failures in the **Tester Feedback** section.
+   - Reviewer records issues in the **Reviewer Feedback** section.
+   - Implementer updates the patch and logs the loop in **Iteration Log**.
+   - Repeat until feedback is resolved.
+
+7. **TDD Cycle (when applicable)**
    - Write tests first.
    - Run tests and confirm they fail for the right reason.
    - Implement minimal code changes to pass tests.
    - Re-run tests and confirm they pass.
 
-6) **Docs Sync (Mandatory)**
+8. **Docs Sync (Mandatory)**
    - Update required docs/logs per ticket template.
 
-7) **Gates**
+9. **Gates**
    - Run `make ci` and ensure it passes.
 
-8) **Commit**
-   - 1 ticket = 1 commit.
-   - Follow commit rules in `docs/04-process/git-workflow.md`.
-   - Use `tools/pc-commit` to enforce convention and checks.
+10. **Commit**
 
-9) **AI Tooling (preferred)**
-   - Use Serena for code navigation and symbol-aware edits when available.
-   - Offload large outputs using `tools/offload-proxy/pp` to reduce token usage.
+- 1 ticket = 1 commit.
+- Follow commit rules in `docs/04-process/git-workflow.md`.
+- Use `tools/pc-commit` to enforce convention and checks.
+
+11. **AI Tooling (preferred)**
+
+- Use Serena for code navigation and symbol-aware edits when available.
+- Offload large outputs using `tools/offload-proxy/pp` to reduce token usage.
 
 ---
 
 ## Risk Classification (Deterministic)
+
 HIGH RISK if any of the following apply:
+
 - Changes touch `sanitizer/`, `detectors/`, `restore/`, `git_ops/`, or `metadata/`.
 - Changes modify secret-blocking or fail-close behavior.
 - Changes affect restore apply semantics or permissions.
@@ -65,6 +83,7 @@ Otherwise, LOW RISK.
 ---
 
 ## Preflight Report (Mandatory Format)
+
 ```
 Ticket ID:
 PRD reference / feature mapping:
@@ -80,6 +99,7 @@ Doc updates planned:
 ---
 
 ## Final Report (Mandatory Format)
+
 ```
 What changed (files):
 Tests written (names) + results:
@@ -91,6 +111,7 @@ Commit message:
 ---
 
 ## References
+
 - Dev workflow (background only): `docs/04-process/dev-workflow.md`
 - Definition of Done: `docs/04-process/definition-of-done.md`
 - Git workflow: `docs/04-process/git-workflow.md`

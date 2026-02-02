@@ -86,6 +86,13 @@ then align the live root files without modifying templates.
 - **Diff validation:** after changes, before tests or merge.
 - **Test validation:** after tests run, before closing ticket.
 
+## Feedback Loop (Required)
+
+- Tester writes failures in the ticket **Tester Feedback** section.
+- Reviewer writes issues in the ticket **Reviewer Feedback** section.
+- Implementer updates the patch and logs the loop in **Iteration Log**.
+- Repeat until feedback is resolved.
+
 ## Orchestrator + Roles (Parallel Mode)
 
 Use separate sessions/worktrees when parallelizing work:

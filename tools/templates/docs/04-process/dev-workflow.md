@@ -9,6 +9,7 @@
 ## Purpose
 
 This document defines:
+
 - **How humans and LLMs collaborate** on development
 - **The daily workflow** from idea to production
 - **Quality gates** and checks along the way
@@ -61,7 +62,7 @@ then align the live root files without modifying templates.
 
 1. **Open/define ticket**
    - Clarify scope and success criteria.
-   - Confirm whether this is a *feature folder* or *mini change*.
+   - Confirm whether this is a _feature folder_ or _mini change_.
 2. **Plan**
    - LLM proposes approach, files to change, risks, and tests.
    - **Human gate:** approve the plan before coding.
@@ -85,11 +86,19 @@ then align the live root files without modifying templates.
 - **Diff validation:** after changes, before tests or merge.
 - **Test validation:** after tests run, before closing ticket.
 
+## Feedback Loop (Required)
+
+- Tester writes failures in the ticket **Tester Feedback** section.
+- Reviewer writes issues in the ticket **Reviewer Feedback** section.
+- Implementer updates the patch and logs the loop in **Iteration Log**.
+- Repeat until feedback is resolved.
+
 ---
 
 ## Phase 1: Planning
 
 ### Human Responsibilities
+
 1. **Define the problem**
    - What are we trying to solve?
    - Who is this for?
@@ -105,6 +114,7 @@ then align the live root files without modifying templates.
    - Must-haves vs nice-to-haves
 
 ### LLM Responsibilities
+
 1. **Ask clarifying questions**
    - Surface ambiguities
    - Identify missing requirements
@@ -121,6 +131,7 @@ then align the live root files without modifying templates.
    - Estimate scope and complexity
 
 ### Outputs
+
 - [ ] Feature spec or clear task description
 - [ ] Technical approach agreed upon
 - [ ] Success criteria defined
@@ -131,6 +142,7 @@ then align the live root files without modifying templates.
 ## Phase 2: Implementation
 
 ### LLM Responsibilities
+
 1. **Write code**
    - Follow existing patterns
    - Write self-documenting code
@@ -149,6 +161,7 @@ then align the live root files without modifying templates.
    - Update system map if architecture changes
 
 ### Human Responsibilities
+
 1. **Review code as it's written**
    - Check approach makes sense
    - Verify edge cases considered
@@ -164,6 +177,7 @@ then align the live root files without modifying templates.
    - Clarify requirements if misunderstood
 
 ### Quality Checks
+
 - [ ] Code follows existing patterns
 - [ ] Tests cover main paths and edge cases
 - [ ] No security vulnerabilities (injection, XSS, etc.)
@@ -178,16 +192,19 @@ then align the live root files without modifying templates.
 ### Automated Testing
 
 **Unit Tests**
+
 - Test individual functions/components
 - Mock dependencies
 - Fast and focused
 
 **Integration Tests**
+
 - Test component interactions
 - Test API endpoints
 - Use test database
 
 **E2E Tests**
+
 - Test critical user flows
 - Run in real browser
 - Catch integration issues
@@ -195,18 +212,21 @@ then align the live root files without modifying templates.
 ### Manual Testing
 
 **Developer Testing**
+
 - Test happy path
 - Test error cases
 - Test edge cases
 - Test on different browsers/devices (if UI)
 
 **QA Testing** (if applicable)
+
 - Follow test plan
 - Exploratory testing
 - Accessibility testing
 - Performance testing
 
 ### Checklist
+
 - [ ] All tests passing
 - [ ] Manual testing complete
 - [ ] No console errors
@@ -219,6 +239,7 @@ then align the live root files without modifying templates.
 ## Phase 4: Code Review
 
 ### Before Requesting Review
+
 - [ ] Code is complete
 - [ ] Tests are passing
 - [ ] Self-review done (read your own code)
@@ -226,25 +247,32 @@ then align the live root files without modifying templates.
 - [ ] PR description explains what/why
 
 ### PR Description Template
+
 ```markdown
 ## What
+
 [Brief description of what changed]
 
 ## Why
+
 [Why we made this change]
 
 ## How
+
 [Technical approach, key decisions]
 
 ## Testing
+
 - [ ] Unit tests added/updated
 - [ ] Manual testing done
 - [ ] E2E tests added/updated (if applicable)
 
 ## Screenshots (if UI changes)
+
 [Screenshots of before/after]
 
 ## Checklist
+
 - [ ] Code follows style guide
 - [ ] Tests passing
 - [ ] Documentation updated
@@ -255,6 +283,7 @@ then align the live root files without modifying templates.
 ### Code Review Guidelines
 
 **What to Look For:**
+
 - **Correctness:** Does the code do what it's supposed to?
 - **Tests:** Are edge cases covered?
 - **Readability:** Can you understand it?
@@ -263,12 +292,14 @@ then align the live root files without modifying templates.
 - **Security:** Any vulnerabilities?
 
 **Good Feedback:**
+
 - Be specific: "This function could be simplified" + example
 - Explain why: "This approach might cause race conditions because..."
 - Ask questions: "What happens if this API call fails?"
 - Praise good work: "Nice abstraction, this is very readable"
 
 **Review Checklist:**
+
 - [ ] Logic is correct
 - [ ] Tests are comprehensive
 - [ ] Code is readable
@@ -282,6 +313,7 @@ then align the live root files without modifying templates.
 ## Phase 5: Deployment
 
 ### Pre-Deployment
+
 - [ ] All tests passing in CI
 - [ ] Code review approved
 - [ ] Branch is up-to-date with main
@@ -290,6 +322,7 @@ then align the live root files without modifying templates.
 ### Deployment Process
 
 **1. Merge to Main**
+
 ```bash
 git checkout main
 git pull origin main
@@ -298,21 +331,25 @@ git push origin main
 ```
 
 **2. Deploy to Staging**
+
 - Automated via CI/CD
 - Verify deployment succeeded
 - Smoke test on staging
 
 **3. Deploy to Production**
+
 - Automated via CI/CD (or manual trigger)
 - Monitor deployment
 - Verify health checks passing
 
 **4. Enable Feature** (if behind feature flag)
+
 - Start with internal users (0-1%)
 - Gradual rollout (1% → 10% → 50% → 100%)
 - Monitor metrics and errors at each step
 
 ### Post-Deployment
+
 - [ ] Feature works in production
 - [ ] No spike in errors
 - [ ] Metrics look healthy
@@ -323,24 +360,28 @@ git push origin main
 ## Phase 6: Validation
 
 ### Immediate (First Hour)
+
 - Monitor error rates
 - Check performance metrics
 - Watch for user complaints
 - Verify analytics tracking
 
 ### Short Term (First Week)
+
 - Track feature usage
 - Monitor success metrics
 - Collect user feedback
 - Watch for unexpected behavior
 
 ### Long Term (First Month)
+
 - Analyze impact on key metrics
 - Compare to success criteria
 - Identify improvements needed
 - Document learnings
 
 ### Update Logs
+
 - [ ] Implementation log updated (what we built)
 - [ ] Validation log updated (what actually happened)
 - [ ] Bug log updated (if bugs found)
@@ -351,12 +392,14 @@ git push origin main
 ## Phase 7: Iteration
 
 ### Based on Validation
+
 - Did we hit our goals? If not, why?
 - What's working well?
 - What needs improvement?
 - What did we learn?
 
 ### Next Steps
+
 - Bug fixes (if needed)
 - Improvements based on feedback
 - New features based on usage patterns
@@ -369,6 +412,7 @@ git push origin main
 ### When to Use LLM
 
 **Great for LLM:**
+
 - Writing boilerplate code
 - Generating tests
 - Refactoring code
@@ -378,6 +422,7 @@ git push origin main
 - Researching codebase
 
 **Not Great for LLM:**
+
 - Making product decisions
 - Understanding user needs (without context)
 - Creative problem solving requiring deep domain knowledge
@@ -386,22 +431,26 @@ git push origin main
 ### How to Prompt LLM Effectively
 
 **Be Specific:**
+
 - ❌ "Add a feature for users"
 - ✅ "Add a button to the user profile page that lets users export their data as CSV"
 
 **Provide Context:**
+
 - Link to relevant docs
 - Share existing patterns to follow
 - Explain why you need this
 - Define success criteria
 
 **Iterate:**
+
 - Start with plan, get feedback
 - Implement incrementally
 - Review and refine
 - Test thoroughly
 
 **Examples of Good Prompts:**
+
 ```
 "I need to add a new API endpoint for exporting user data.
 It should:
@@ -429,27 +478,32 @@ Can you help me debug and fix this?"
 ## Tools We Use
 
 ### Development
+
 - **IDE:** [Your IDE]
 - **Version Control:** Git + GitHub/GitLab
 - **Package Manager:** [npm/yarn/pnpm/etc]
 - **Build Tool:** [Vite/webpack/etc]
 
 ### Testing
+
 - **Unit Tests:** [Jest/Vitest/pytest/etc]
 - **E2E Tests:** [Playwright/Cypress/etc]
 - **Test Coverage:** [Coverage tool]
 
 ### CI/CD
+
 - **CI Platform:** [GitHub Actions/CircleCI/etc]
 - **Deployment:** [Vercel/AWS/etc]
 - **Monitoring:** [Sentry/Datadog/etc]
 
 ### Documentation
+
 - **Docs:** This `/docs` folder
 - **API Docs:** [Swagger/Postman/etc]
 - **Architecture:** System map in `/docs/00-context/`
 
 ### LLM Tools
+
 - **Coding Assistant:** [GitHub Copilot/Claude/etc]
 - **Chat Interface:** [ChatGPT/Claude/etc]
 - **Code Review:** [AI-assisted review tool if any]
@@ -461,17 +515,20 @@ Can you help me debug and fix this?"
 ### Production Bug
 
 **1. Assess Severity**
+
 - Critical (all users affected, data loss): Fix immediately
 - High (major feature broken): Fix within hours
 - Medium (minor feature issue): Fix within day
 - Low (cosmetic issue): Fix in next sprint
 
 **2. Immediate Action**
+
 - Rollback if possible and safe
 - Add monitoring/logging if needed
 - Communicate to team/users
 
 **3. Fix**
+
 - Reproduce bug
 - Find root cause
 - Write test that catches bug
@@ -480,6 +537,7 @@ Can you help me debug and fix this?"
 - Deploy fix
 
 **4. Post-Mortem**
+
 - Document in bug log
 - Identify why it wasn't caught
 - Add prevention measures
@@ -490,12 +548,14 @@ Can you help me debug and fix this?"
 ### Rollback Procedure
 
 **When to Rollback:**
+
 - Error rate spikes significantly
 - Critical feature broken
 - Security vulnerability discovered
 - Performance degradation severe
 
 **How to Rollback:**
+
 ```bash
 # If using feature flag
 Set feature flag to 0% in admin panel
@@ -511,6 +571,7 @@ Verify data integrity
 ```
 
 **After Rollback:**
+
 - Communicate to team
 - Investigate root cause
 - Fix issue
@@ -521,6 +582,7 @@ Verify data integrity
 ## Definition of Done
 
 A task is "done" when:
+
 - [ ] Code is written and reviewed
 - [ ] Tests are written and passing
 - [ ] Manually tested and verified

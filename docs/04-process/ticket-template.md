@@ -52,6 +52,12 @@ change_budget:
 - Risks/assumptions:
 - Tests to run:
 
+## References
+
+- Feature spec: docs/02-features/<feature>/feature-spec.md (see Summary + Requirements)
+- Tech design: docs/02-features/<feature>/tech-design.md (see Architecture + Constraints)
+- Test plan: docs/02-features/<feature>/test-plan.md (see Test Strategy + Cases)
+
 ## Risk Classification
 
 - Risk level: [LOW|HIGH]
@@ -78,6 +84,29 @@ change_budget:
 
 - Command(s):
 - Result(s):
+
+## Implementer Notes
+
+- Implementation choices:
+- Edge cases covered:
+- Files changed:
+
+## Tester Feedback
+
+- Tests executed:
+- Failures observed:
+- Suggested fixes:
+
+## Reviewer Feedback
+
+- Issues found:
+- Suggestions:
+- Approval status:
+
+## Iteration Log
+
+- [ ] Implementer updated after tester feedback
+- [ ] Implementer updated after reviewer feedback
 
 ## Logs Updated
 

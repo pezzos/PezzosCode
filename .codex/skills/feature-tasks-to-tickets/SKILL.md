@@ -34,13 +34,21 @@ read its `dev-tasks.md`, and create one ticket per task.
 3. For each feature folder, check for any `TASK-*.md` file.
 4. Select the first feature without tickets (current feature).
 5. Read `docs/01-product/prd.md` and locate the matching feature to capture PRD order and priority.
-6. Read `docs/02-features/<feature>/dev-tasks.md` and extract task ids + titles.
+6. Read `docs/02-features/<feature>/dev-tasks.md` and extract task ids + titles + acceptance criteria blocks (only indented task bullet lines under each TASK).
 7. For each task, copy `docs/04-process/ticket-template.md` into the feature folder as `TASK-###.md`.
-8. Fill in Title, Type, Context, Scope, Success Criteria, Plan, and the new sections:
+8. Fill in Title, Type, Context, Scope, Success Criteria, Plan, and the new sections with real content.
+   - Include task acceptance criteria and estimate (if present) in Context and Success Criteria.
+   - Replace the template header with a ticket-specific header (e.g., `# Ticket: <task title>`).
+   - Include references to `feature-spec.md`, `tech-design.md`, and `test-plan.md` in Context.
+   - Populate **References** with specific sections to check (Summary, Requirements, Architecture, Test Strategy).
+   - Pre-fill Implementer/Tester/Reviewer sections with prompt bullets to guide feedback loops.
    - PRD Traceability (order + link)
    - Change Budget (max files/modules/lines)
    - Docs Updated (pre-populate expected docs)
-9. If required info is missing, leave clear TODOs and ask for clarification.
+9. Populate Definition of Done (ticket-specific) using:
+   - dev-task acceptance criteria
+   - relevant feature spec/test plan references
+10. If required info is missing, leave clear TODOs and ask for clarification.
 
 ## Output Format
 

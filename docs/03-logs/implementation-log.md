@@ -27,6 +27,82 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Add role feedback loop sections to tickets and workflows
+
+**Feature/Bug:** Process and ticket templates
+
+**Changed Files:**
+
+- `docs/04-process/ticket-template.md`
+- `tools/templates/docs/04-process/ticket-template.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/dev-workflow.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/definition-of-done.md`
+- `tools/templates/docs/04-process/definition-of-done.md`
+- `docs/00-context/context-boundaries-operating-model.md`
+- `tools/templates/docs/00-context/context-boundaries-operating-model.md`
+- `.codex/skills/feature-tasks-to-tickets/SKILL.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+
+**What Changed:**
+Added implementer/tester/reviewer feedback sections and iteration logging to the
+ticket template and workflows, and enriched task tickets with references and
+acceptance criteria extracted from `dev-tasks.md`.
+
+**Why:**
+Make task tickets self-contained for sub-agents and enforce iteration on
+tester/reviewer feedback.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-02 - Enrich task tickets with dev-task details
+
+**Feature/Bug:** Ticket generation quality
+
+**Changed Files:**
+
+- `.codex/skills/feature-tasks-to-tickets/SKILL.md` - Add acceptance/estimate and references
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+
+**What Changed:**
+Ticket generation now pulls acceptance criteria, estimates, and task bullets from
+`dev-tasks.md`, adds references, and replaces the generic header.
+
+**Why:**
+Sub-agents need task-level guidance without re-reading other docs.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-02 - Replace batch tickets with per-task tickets (current feature)
 
 **Feature/Bug:** Ticket generation

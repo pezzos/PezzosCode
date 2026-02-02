@@ -19,6 +19,7 @@
    - Run the skill `feature-tasks-to-tickets` to create one ticket per task in the current feature’s `dev-tasks.md`.
 5. **Execute Ticket**
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
+   - If tester/reviewer raises issues, implementer must iterate and log in the ticket.
 6. **Repeat**
    - Go back to step 4 for the next feature.
 
@@ -35,6 +36,7 @@
    - Run the skill `feature-tasks-to-tickets` to create tickets for the current feature’s tasks.
 5. **Execute Ticket**
    - Follow the ticket execution protocol in `docs/04-process/ticket-execution-protocol.md`.
+   - If tester/reviewer raises issues, implementer must iterate and log in the ticket.
 6. **Repeat**
    - Continue from step 4 until P0/P1 items are complete.
 
