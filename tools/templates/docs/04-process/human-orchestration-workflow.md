@@ -15,8 +15,8 @@
 3. **Update Features (prd-to-features)**
    - Run the skill `prd-to-features` to update `docs/02-features/` in place.
    - No duplicate feature folders.
-4. **Generate Tickets (feature-tickets-batch)**
-   - Run the skill `feature-tickets-batch` to create `TASK-XXX.md` for all un-ticketed P0/P1 feature folders in numeric order.
+4. **Generate Tickets (feature-tasks-to-tickets)**
+   - Run the skill `feature-tasks-to-tickets` to create one ticket per task in the current feature’s `dev-tasks.md`.
 5. **Execute Ticket**
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
 6. **Repeat**
@@ -32,7 +32,7 @@
    - Run the skill `prd-to-features` in incremental mode (default for existing projects) to add only missing features.
    - The skill uses `docs/03-logs/implementation-log.md` and `docs/03-logs/decision-log.md` to avoid re-adding completed or rejected items.
 4. **Generate Tickets**
-   - Run the skill `feature-tickets-batch` to create tickets for all un-ticketed P0/P1 features in scope.
+   - Run the skill `feature-tasks-to-tickets` to create tickets for the current feature’s tasks.
 5. **Execute Ticket**
    - Follow the ticket execution protocol in `docs/04-process/ticket-execution-protocol.md`.
 6. **Repeat**
@@ -46,7 +46,7 @@ Context docs → PRD → Feature folders → Tickets → Worklogs → Implementa
 
 - **context-to-product:** update `docs/01-product/prd.md` only; do not create a new PRD file.
 - **prd-to-features:** update existing `docs/02-features/` and add only missing folders; do not duplicate.
-- **feature-tickets-batch:** create `docs/02-features/<feature>/TASK-XXX.md` for each un-ticketed feature.
+- **feature-tasks-to-tickets:** create `docs/02-features/<feature>/TASK-###.md` for each task in `dev-tasks.md`.
 
 ## Skill Invocation Guide
 
@@ -58,9 +58,9 @@ Context docs → PRD → Feature folders → Tickets → Worklogs → Implementa
   - Reads: `docs/01-product/prd.md`, `docs/02-features/AGENTS.md`
   - Writes: `docs/02-features/<feature>/` (update in place, add only missing)
   - Logs: update `docs/03-logs/implementation-log.md` when new features are added
-- **feature-tickets-batch**
-  - Reads: `docs/02-features/`, `docs/04-process/ticket-template.md`
-  - Writes: `docs/02-features/<feature>/TASK-XXX.md` (batch)
+- **feature-tasks-to-tickets**
+  - Reads: `docs/02-features/`, `docs/04-process/ticket-template.md`, `docs/02-features/<feature>/dev-tasks.md`
+  - Writes: `docs/02-features/<feature>/TASK-###.md` (current feature only)
   - Logs: worklog lives in `docs/03-logs/tickets/`
 
 ## Definition of Done for a Ticket

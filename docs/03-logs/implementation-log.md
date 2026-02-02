@@ -27,20 +27,50 @@ This helps with:
 
 ## Log Entries
 
-### 2026-02-02 - Rename and batch ticket generation skill
+### 2026-02-02 - Replace batch tickets with per-task tickets (current feature)
+
+**Feature/Bug:** Ticket generation
+
+**Changed Files:**
+
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+
+**What Changed:**
+Removed batch-generated `TASK-001.md` placeholders and created task-level
+tickets for the current feature based on `dev-tasks.md`.
+
+**Why:**
+Align tickets with planned tasks and avoid empty, feature-only placeholders.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-02 - Rename and refocus ticket generation skill
 
 **Feature/Bug:** Workflow automation
 
 **Changed Files:**
 
-- `.codex/skills/feature-tickets-batch/SKILL.md` - Rename and batch ticket generation behavior
-- `docs/04-process/human-orchestration-workflow.md` - Reference batch ticket generation
-- `tools/templates/docs/04-process/human-orchestration-workflow.md` - Reference batch ticket generation
+- `.codex/skills/feature-tasks-to-tickets/SKILL.md` - Generate task-level tickets for current feature
+- `docs/04-process/human-orchestration-workflow.md` - Reference per-task ticket generation
+- `tools/templates/docs/04-process/human-orchestration-workflow.md` - Reference per-task ticket generation
 - `docs/00-context/system-map.md` - Update skill entry point name
 
 **What Changed:**
-Renamed the ticket generation skill to `feature-tickets-batch` and updated the
-workflow docs to generate tickets in batch for all un-ticketed P0/P1 features.
+Renamed the ticket generation skill to `feature-tasks-to-tickets` and updated
+the workflow docs to generate tickets per task for the current feature.
 
 **Why:**
 Avoid re-running ticket generation for each feature and make kickoff a one-time
