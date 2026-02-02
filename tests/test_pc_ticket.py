@@ -1,5 +1,7 @@
+import contextlib
 import importlib.machinery
 import importlib.util
+import io
 import unittest
 from pathlib import Path
 
@@ -56,8 +58,11 @@ class TestPcTicket(unittest.TestCase):
         self.assertEqual(self.pc_ticket.normalize_ticket_id("T-003"), "T-003")
 
     def test_normalize_ticket_id_rejects_invalid(self):
+        stderr_capture = io.StringIO()
         with self.assertRaises(SystemExit):
-            self.pc_ticket.normalize_ticket_id("BAD")
+            with contextlib.redirect_stderr(stderr_capture):
+                self.pc_ticket.normalize_ticket_id("BAD")
+        self.assertIn("invalid task id", stderr_capture.getvalue())
 
     def test_format_review_item_marks_failure(self):
         line = self.pc_ticket.format_review_item("make ticket T=T-001", 2)

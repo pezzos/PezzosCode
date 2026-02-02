@@ -16,6 +16,9 @@ ticket-check:
 	@bash -euo pipefail -c '\
 		root="docs/02-features"; \
 		found=0; \
+		tmp="$(mktemp)"; \
+		trap '\''rm -f "$$tmp"'\'' EXIT; \
+		find "$$root" -type f \\( -name "TASK-*.md" -o -name "ticket-TASK-*.md" \\) -print0 > "$$tmp"; \
 		while IFS= read -r -d "" file; do \
 			found=1; \
 			if ! rg -q "^## Risk Classification" "$$file"; then \
@@ -27,7 +30,7 @@ ticket-check:
 			if ! rg -q "^## Docs Updated" "$$file"; then \
 				echo "ticket-check: missing Docs Updated section in $$file"; exit 1; \
 			fi; \
-		done < <(find "$$root" -type f \\( -name "TASK-*.md" -o -name "ticket-TASK-*.md" \\) -print0); \
+		done < "$$tmp"; \
 		if [[ "$$found" -eq 0 ]]; then \
 			echo "ticket-check: no tickets found (ok)"; \
 		else \

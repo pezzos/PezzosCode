@@ -27,6 +27,50 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Quiet pc-ticket noise and avoid shell syntax traps
+
+**Feature/Bug:** Ticket execution tooling
+
+**Changed Files:**
+
+- `Makefile`
+- `tests/test_pc_ticket.py`
+
+**What Changed:**
+
+- Reworked the `ticket-check` pipeline to stage ticket files through a temporary buffer instead of process substitution so bash no longer hits the syntax error in constrained shells.
+- Captured `stderr` inside the invalid-ticket test so the expected error message is no longer emitted during `python -m unittest discover -s tests`.
+
+**Why:**
+
+- Keep CI output clean (the invalid-ticket test no longer prints to stderr and `ticket-check` does not rely on process substitution).
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `python -m unittest discover -s tests`
+
+**Author:** Codex
+
+### 2026-02-02 - Harden bootstrap prompts and ticket id normalization
+
+**Feature/Bug:** Bootstrap tooling scripts
+
+**Changed Files:**
+
+- `tools/bootstrap-into`
+- `tools/pc-ticket`
+
+**Notes:**
+
+- Enforced git repository requirement and conflict prompts that respect original stdin during copy loops.
+- Normalized ticket ids to accept numeric/T-/TASK- formats while keeping numeric ids for bootstrap/worklog lookup.
+
 ### 2026-02-02 - Add dedicated CI/test autofix prompt file
 
 **Feature/Bug:** Ticket tooling/docs
