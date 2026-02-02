@@ -2,7 +2,8 @@
 id: T-102
 title: "Implement or update tooling/scripts"
 prd_ref: "01"
-status: "To Do" # allowed: To Do | Ongoing | Done | Fail | Awaiting PO Approval
+status: "To Do"
+status_reason: ""
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
   max_files: 10
@@ -55,6 +56,10 @@ Implement or update tooling/scripts
 ## Plan (Draft)
 
 - Update scripts or templates to enforce behavior
+
+## Evidence Hints
+
+- [Optional] Add 1-2 objective hints that prove completion (file + anchor).
 
 ## References
 

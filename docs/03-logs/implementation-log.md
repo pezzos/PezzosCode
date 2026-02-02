@@ -27,6 +27,38 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Remove unsupported pre-commit flag
+
+**Feature/Bug:** Pre-commit automation
+
+**Changed Files:**
+
+- `tools/pc-precommit`
+
+**Notes:**
+
+- Dropped `--no-stash` from `pre-commit run` to support older pre-commit versions.
+- Stash handling remains in `tools/pc-precommit` to preserve unstaged changes.
+
+### 2026-02-02 - Add AI-assisted pre-commit fix loop
+
+**Feature/Bug:** Pre-commit automation
+
+**Changed Files:**
+
+- `tools/pc-precommit`
+- `tools/pc-autofix`
+- `.githooks/pre-commit`
+- `tools/templates/root/.githooks/pre-commit`
+
+**Notes:**
+
+- Run pre-commit up to two times to allow linters to auto-fix and re-stage.
+- If still failing, invoke Codex to fix reported issues and re-run checks.
+- Preserve unstaged changes by stashing with keep-index, then restore after checks.
+- Attempt AI recovery on stash pop conflicts, but stop the hook if conflicts remain.
+- Avoid `mapfile` for macOS bash compatibility when reading staged paths.
+
 ### 2026-02-02 - Clean up lint issues in SolidLSP overrides
 
 **Feature/Bug:** Linting cleanup
@@ -124,6 +156,109 @@ bullets, avoiding manual reconstruction by the implementer.
 
 **Why:**
 Keep task tickets more actionable and reduce context switching for sub-agents.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-02 - Add feature status audit and backfill task statuses
+
+**Feature/Bug:** Workflow automation
+
+**Changed Files:**
+
+- `.codex/skills/feature-status-audit/SKILL.md` - New skill to audit task ticket status
+- `docs/04-process/human-orchestration-workflow.md` - Add audit step to PO loop
+- `tools/templates/docs/04-process/human-orchestration-workflow.md` - Add audit step to template
+- `docs/00-context/system-map.md` - Add skill entry point
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+
+**What Changed:**
+Added a deterministic feature status audit skill and ran it on feature 01 to
+backfill task statuses.
+
+**Why:**
+Keep `make ticket` idempotent and avoid redoing already completed work.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-02 - Add idempotent ticket guard and audit tool
+
+**Feature/Bug:** Ticket workflow
+
+**Changed Files:**
+
+- `tools/ticket-bootstrap` - Skip worklog creation when ticket status is Done
+- `tools/feature-status-audit` - Deterministic task status audit tool
+- `.codex/skills/feature-status-audit/SKILL.md` - Document audit usage
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+
+**What Changed:**
+Added a guard to prevent worklog creation for Done tickets and introduced a
+feature status audit tool that updates task statuses based on deterministic
+rules and documented evidence heuristics.
+
+**Why:**
+Make `make ticket` idempotent and avoid bootstrapping worklogs for completed tasks.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-02 - Add evidence hints and status reasons for audits
+
+**Feature/Bug:** Ticket status auditing
+
+**Changed Files:**
+
+- `docs/04-process/ticket-template.md`
+- `tools/templates/docs/04-process/ticket-template.md`
+- `.codex/skills/feature-status-audit/SKILL.md`
+- `.codex/skills/feature-tasks-to-tickets/SKILL.md`
+- `tools/feature-status-audit`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+
+**What Changed:**
+Added `status_reason` and Evidence Hints to tickets, and updated the audit tool
+to set status based on evidence, then mark DoD items when Done.
+
+**Why:**
+Make status reconciliation deterministic and traceable without manual judgment.
 
 **Impact:**
 

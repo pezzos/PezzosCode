@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v pre-commit >/dev/null 2>&1; then
+  echo "pre-commit not installed. Install with: pipx install pre-commit" >&2
+  exit 1
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "git not installed." >&2
+  exit 1
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+staged_paths=()
+while IFS= read -r -d '' path; do
+  staged_paths+=("$path")
+done < <(git diff --cached --name-only -z)
+if [[ ${#staged_paths[@]} -eq 0 ]]; then
+  echo "No staged changes detected." >&2
+  exit 1
+fi
+
+needs_stash=false
+if [[ -n "$(git status --porcelain)" ]]; then
+  git stash push -u --keep-index -m "pc-precommit"
+  needs_stash=true
+fi
+
+output_file="$(mktemp)"
+cleanup() {
+  rm -f "$output_file"
+}
+trap cleanup EXIT
+
+run_precommit() {
+  : >"$output_file"
+  set +e
+  pre-commit run --hook-stage pre-commit >"$output_file" 2>&1
+  local status=$?
+  set -e
+  cat "$output_file"
+  return "$status"
+}
+
+restage_staged() {
+  git add -A -- "${staged_paths[@]}"
+}
+
+lint_attempts=0
+max_lint_attempts=2
+status=1
+
+while [[ "$lint_attempts" -lt "$max_lint_attempts" ]]; do
+  if run_precommit; then
+    status=0
+    break
+  fi
+  restage_staged
+  lint_attempts=$((lint_attempts + 1))
+done
+
+if [[ "$status" -ne 0 ]]; then
+  echo "pre-commit: running AI autofix after $max_lint_attempts failed attempt(s)." >&2
+  tools/pc-autofix --mode pre-commit --issues-file "$output_file"
+  restage_staged
+  if ! run_precommit; then
+    status=1
+  else
+    status=0
+  fi
+fi
+
+if [[ "$needs_stash" == true ]]; then
+  if ! git stash pop; then
+    echo "pre-commit: stash pop failed; attempting AI conflict recovery." >&2
+    conflict_file="$(mktemp)"
+    {
+      echo "git stash pop failed."
+      echo ""
+      git status --porcelain
+    } >"$conflict_file"
+    tools/pc-autofix --mode stash-conflict --issues-file "$conflict_file" || true
+    rm -f "$conflict_file"
+    exit 1
+  fi
+fi
+
+exit "$status"

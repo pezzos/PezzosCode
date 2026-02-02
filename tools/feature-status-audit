@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import re
+from pathlib import Path
+
+
+def find_feature_folder(root: Path, feature_id: str | None) -> Path | None:
+    features_root = root / "docs" / "02-features"
+    if feature_id:
+        for path in features_root.iterdir():
+            if path.is_dir() and path.name.startswith(f"{feature_id}-"):
+                return path
+        return None
+    candidates = []
+    for path in features_root.iterdir():
+        if not path.is_dir():
+            continue
+        if path.name in {"AGENTS.md", "feature-template"}:
+            continue
+        if re.match(r"^\d{2}-", path.name):
+            candidates.append(path)
+    for path in sorted(candidates, key=lambda p: p.name):
+        if any(
+            p.name.startswith("TASK-") and p.suffix == ".md" for p in path.iterdir()
+        ):
+            return path
+    return None
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def extract_frontmatter(text: str) -> str | None:
+    match = re.search(r"^---\n([\s\S]*?)\n---", text)
+    return match.group(1) if match else None
+
+
+def set_frontmatter_status(text: str, status: str) -> str:
+    frontmatter = extract_frontmatter(text)
+    if not frontmatter:
+        return text
+    updated = re.sub(r"^status:.*$", f'status: "{status}"', frontmatter, flags=re.M)
+    return text.replace(frontmatter, updated)
+
+
+def extract_section(text: str, heading: str) -> str:
+    match = re.search(rf"## {re.escape(heading)}([\s\S]*?)(?=\n## |\Z)", text)
+    return match.group(1) if match else ""
+
+
+def any_checked(text: str) -> bool:
+    return bool(re.search(r"^- \[x\]", text, re.M))
+
+
+def all_dod_checked(dod_block: str) -> bool:
+    checks = re.findall(r"^- \[( |x)\]", dod_block, re.M)
+    return bool(checks) and all(c == "x" for c in checks)
+
+
+def parse_evidence_hints(text: str) -> list[tuple[Path, str]]:
+    hints_block = extract_section(text, "Evidence Hints")
+    hints = []
+    for line in hints_block.splitlines():
+        line = line.strip()
+        if not line.startswith("- File:"):
+            continue
+        # Format: - File: path contains: "token"
+        match = re.match(r"- File:\s*(.+?)\s*contains:\s*\"(.+?)\"", line)
+        if match:
+            path_str, token = match.group(1).strip(), match.group(2).strip()
+            hints.append((Path(path_str), token))
+    return hints
+
+
+def evidence_from_hints(text: str, root: Path) -> tuple[bool, list[str]]:
+    hints = parse_evidence_hints(text)
+    if not hints:
+        return False, []
+    reasons = []
+    for rel_path, token in hints:
+        path = (root / rel_path).resolve()
+        if not path.exists():
+            return False, []
+        content = read_text(path)
+        if token not in content:
+            return False, []
+        reasons.append(f"{rel_path} contains '{token}'")
+    return True, reasons
+
+
+def audit_ticket(path: Path, root: Path, impl_log: str) -> tuple[str, str]:
+    text = read_text(path)
+    front = extract_frontmatter(text)
+    if not front:
+        return "To Do", text
+    current_status_match = re.search(r"^status:\s*\"?([^\n\"]+)\"?", front, re.M)
+    current_status = (
+        current_status_match.group(1).strip() if current_status_match else "To Do"
+    )
+
+    dod_block = extract_section(text, "Definition of Done (Ticket-Specific)")
+    evidence_ok, evidence_reasons = evidence_from_hints(text, root)
+    tests_block = extract_section(text, "Tests Run")
+    report_block = extract_section(text, "Report (Final)")
+
+    title_match = re.search(r"^title:\s*\"(.+?)\"", front, re.M)
+    task_title = title_match.group(1) if title_match else path.stem
+
+    reason = ""
+    if all_dod_checked(dod_block):
+        new_status = "Done"
+        reason = "dod: all checked"
+    elif evidence_ok:
+        new_status = "Done"
+        reason = "evidence: " + "; ".join(evidence_reasons)
+    elif (
+        any_checked(text)
+        or (tests_block and "TBD" not in tests_block)
+        or (report_block and "TBD" not in report_block)
+    ):
+        new_status = "Ongoing"
+        reason = "in_progress: checklist/tests/report"
+    else:
+        if task_title and task_title.lower() in impl_log.lower():
+            new_status = "Ongoing"
+            reason = "in_progress: implementation log mention"
+        else:
+            new_status = "To Do"
+
+    if current_status == "Done":
+        new_status = "Done"
+        if not reason:
+            reason = "manual: pre-marked done"
+
+    updated_text = set_frontmatter_status(text, new_status)
+
+    # Update status_reason if present
+    front_updated = extract_frontmatter(updated_text)
+    if front_updated is not None:
+        front_with_reason = re.sub(
+            r"^status_reason:.*$",
+            f'status_reason: "{reason}"',
+            front_updated,
+            flags=re.M,
+        )
+        updated_text = updated_text.replace(front_updated, front_with_reason)
+
+    # If Done, auto-check DoD items only
+    if new_status == "Done" and dod_block:
+        updated_dod = re.sub(r"^- \[ \]", "- [x]", dod_block, flags=re.M)
+        updated_text = updated_text.replace(dod_block, updated_dod, 1)
+
+    return new_status, updated_text
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Audit task ticket status for one feature."
+    )
+    parser.add_argument("F", nargs="?", default="", help="Feature id (e.g. 01).")
+    args = parser.parse_args()
+
+    root = Path(__file__).resolve().parent.parent
+    feature_id = args.F.replace("F=", "").strip() or None
+    feature_folder = find_feature_folder(root, feature_id)
+    if not feature_folder:
+        print("feature-status-audit: feature folder not found")
+        return 1
+
+    impl_log_path = root / "docs" / "03-logs" / "implementation-log.md"
+    impl_log = read_text(impl_log_path) if impl_log_path.exists() else ""
+
+    summary = {"Done": [], "Ongoing": [], "To Do": []}
+    checklist = []
+
+    for path in sorted(feature_folder.glob("TASK-*.md")):
+        status, updated = audit_ticket(path, root, impl_log)
+        path.write_text(updated, encoding="utf-8")
+        summary[status].append(path.name)
+        if status != "Done":
+            checklist.append(path.name)
+
+    print(f"feature: {feature_folder.name}")
+    print("status summary:")
+    for key in ("Done", "Ongoing", "To Do"):
+        items = ", ".join(summary[key]) if summary[key] else "none"
+        print(f"- {key}: {items}")
+    checklist_str = ", ".join(checklist) if checklist else "none"
+    print(f"checklist (confirm): {checklist_str}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

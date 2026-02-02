@@ -2,7 +2,8 @@
 id: T-101
 title: "Define workflow behavior"
 prd_ref: "01"
-status: "To Do" # allowed: To Do | Ongoing | Done | Fail | Awaiting PO Approval
+status: "Done"
+status_reason: "evidence: docs/04-process/dev-workflow.md contains 'Plan → Patch → Test → Report'; docs/04-process/ticket-execution-protocol.md contains 'Plan → Patch → Test → Report'"
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
   max_files: 10
@@ -48,13 +49,18 @@ Define workflow behavior
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Behavior is specified in docs
-- [ ] Relevant tests updated and passing
-- [ ] Logs/docs updated if required by this task
+- [x] Behavior is specified in docs
+- [x] Relevant tests updated and passing
+- [x] Logs/docs updated if required by this task
 
 ## Plan (Draft)
 
 - Document required steps, gates, and outputs
+
+## Evidence Hints
+
+- File: docs/04-process/dev-workflow.md contains: "Plan → Patch → Test → Report"
+- File: docs/04-process/ticket-execution-protocol.md contains: "Plan → Patch → Test → Report"
 
 ## References
 

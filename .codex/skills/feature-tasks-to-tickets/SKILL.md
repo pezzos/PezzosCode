@@ -44,6 +44,7 @@ read its `dev-tasks.md`, and create one ticket per task.
    - Pre-fill Implementer/Tester/Reviewer sections with prompt bullets to guide feedback loops.
    - Auto-fill **Implementation Notes** with expected changes from the task bullets.
    - Normalize bullet text to avoid double list markers.
+   - Add Evidence Hints for doc/workflow tasks (1-2 file + anchor checks).
    - PRD Traceability (order + link)
    - Change Budget (max files/modules/lines)
    - Docs Updated (pre-populate expected docs)

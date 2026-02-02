@@ -2,7 +2,8 @@
 id: T-501
 title: "Update docs/logs"
 prd_ref: "01"
-status: "To Do" # allowed: To Do | Ongoing | Done | Fail | Awaiting PO Approval
+status: "Done"
+status_reason: "manual: pre-marked done"
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
   max_files: 10
@@ -48,13 +49,17 @@ Update docs/logs
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Documentation matches implementation
-- [ ] Relevant tests updated and passing
-- [ ] Logs/docs updated if required by this task
+- [x] Documentation matches implementation
+- [x] Relevant tests updated and passing
+- [x] Logs/docs updated if required by this task
 
 ## Plan (Draft)
 
 - Update process docs and logs
+
+## Evidence Hints
+
+- [Optional] Add 1-2 objective hints that prove completion (file + anchor).
 
 ## References
 

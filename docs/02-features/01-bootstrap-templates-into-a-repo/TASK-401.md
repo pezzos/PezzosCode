@@ -2,7 +2,8 @@
 id: T-401
 title: "Add or update tests"
 prd_ref: "01"
-status: "To Do" # allowed: To Do | Ongoing | Done | Fail | Awaiting PO Approval
+status: "To Do"
+status_reason: ""
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
   max_files: 10
@@ -55,6 +56,10 @@ Add or update tests
 ## Plan (Draft)
 
 - Add regression tests or checks where applicable
+
+## Evidence Hints
+
+- [Optional] Add 1-2 objective hints that prove completion (file + anchor).
 
 ## References
 

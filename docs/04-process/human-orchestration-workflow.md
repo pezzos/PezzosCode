@@ -15,12 +15,14 @@
 3. **Update Features (prd-to-features)**
    - Run the skill `prd-to-features` to update `docs/02-features/` in place.
    - No duplicate feature folders.
-4. **Generate Tickets (feature-tasks-to-tickets)**
+4. **Audit Feature Status (feature-status-audit)**
+   - Run the skill `feature-status-audit` to update task statuses for the current feature.
+5. **Generate Tickets (feature-tasks-to-tickets)**
    - Run the skill `feature-tasks-to-tickets` to create one ticket per task in the current feature’s `dev-tasks.md`.
-5. **Execute Ticket**
+6. **Execute Ticket**
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
    - If tester/reviewer raises issues, implementer must iterate and log in the ticket.
-6. **Repeat**
+7. **Repeat**
    - Go back to step 4 for the next feature.
 
 ## Add Features / Existing Project
@@ -32,12 +34,14 @@
 3. **Incremental Features (prd-to-features)**
    - Run the skill `prd-to-features` in incremental mode (default for existing projects) to add only missing features.
    - The skill uses `docs/03-logs/implementation-log.md` and `docs/03-logs/decision-log.md` to avoid re-adding completed or rejected items.
-4. **Generate Tickets**
+4. **Audit Feature Status**
+   - Run the skill `feature-status-audit` to update task statuses for the current feature.
+5. **Generate Tickets**
    - Run the skill `feature-tasks-to-tickets` to create tickets for the current feature’s tasks.
-5. **Execute Ticket**
+6. **Execute Ticket**
    - Follow the ticket execution protocol in `docs/04-process/ticket-execution-protocol.md`.
    - If tester/reviewer raises issues, implementer must iterate and log in the ticket.
-6. **Repeat**
+7. **Repeat**
    - Continue from step 4 until P0/P1 items are complete.
 
 ## Chain of Truth
@@ -48,6 +52,7 @@ Context docs → PRD → Feature folders → Tickets → Worklogs → Implementa
 
 - **context-to-product:** update `docs/01-product/prd.md` only; do not create a new PRD file.
 - **prd-to-features:** update existing `docs/02-features/` and add only missing folders; do not duplicate.
+- **feature-status-audit:** update task `status` fields for the current feature.
 - **feature-tasks-to-tickets:** create `docs/02-features/<feature>/TASK-###.md` for each task in `dev-tasks.md`.
 
 ## Skill Invocation Guide
@@ -60,6 +65,10 @@ Context docs → PRD → Feature folders → Tickets → Worklogs → Implementa
   - Reads: `docs/01-product/prd.md`, `docs/02-features/AGENTS.md`
   - Writes: `docs/02-features/<feature>/` (update in place, add only missing)
   - Logs: update `docs/03-logs/implementation-log.md` when new features are added
+- **feature-status-audit**
+  - Reads: `docs/02-features/<feature>/TASK-*.md`
+  - Writes: updates task `status` in frontmatter
+  - Logs: update `docs/03-logs/implementation-log.md` when status backfill is run
 - **feature-tasks-to-tickets**
   - Reads: `docs/02-features/`, `docs/04-process/ticket-template.md`, `docs/02-features/<feature>/dev-tasks.md`
   - Writes: `docs/02-features/<feature>/TASK-###.md` (current feature only)
