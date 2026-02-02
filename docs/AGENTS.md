@@ -3,9 +3,11 @@
 This folder contains the documentation system for AI-assisted development.
 
 Start here:
+
 - `docs/README.md` explains the structure and how to use it.
 
 Find the right document by topic:
+
 - Product vision, boundaries, and system state: `docs/00-context/`
 - Context boundaries and operating model: `docs/00-context/context-boundaries-operating-model.md`
 - Requirements and success criteria: `docs/01-product/`
@@ -15,12 +17,18 @@ Find the right document by topic:
 - PO loop: `docs/04-process/human-orchestration-workflow.md`
 
 Ticket implementation entrypoint:
+
 - Run `make ticket T=<id>` before executing a ticket.
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
 
 Operational rules:
+
 - Codex MUST use Serena for symbol-aware navigation and edits when available.
 - Codex MUST use `tools/offload-proxy/pp` for commands that can produce large output (e.g., `rg`, `sed` on large ranges, tests, or logs).
+- Do not paste large command outputs into prompts; use `pp` and share the pointer id.
 - Codex MUST update `docs/03-logs/*.md` to record decisions, implementation changes, bugs, validations, and insights. If no log entry is needed, explicitly state why in the response.
+- Enforce **Plan → Patch → Test → Report** for every ticket.
+- Orchestrator pattern: use separate sessions/worktrees for implementer, reviewer, and tester when parallelizing.
+- Worktree naming: `../<repo_name>-<feature_name>-<agent_name>` (e.g., `../PezzosCode-auth-impl`).
 
 If you are unsure where to look, read `docs/README.md` first.

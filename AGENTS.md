@@ -2,6 +2,7 @@
 
 This repository uses the documentation system in `docs/` as the primary source
 of context for AI-assisted work. The source of truth is:
+
 - `docs/README.md` for structure and usage
 - `docs/00-context/` for product context and system map
 - `docs/00-context/context-boundaries-operating-model.md` for scope boundaries, operating model, and MVP stop conditions
@@ -11,26 +12,35 @@ of context for AI-assisted work. The source of truth is:
 - `docs/04-process/` for workflow and quality standards (ticket implementation must follow `docs/04-process/ticket-execution-protocol.md` and PO loop uses `docs/04-process/human-orchestration-workflow.md`)
 
 Rules:
+
 - Keep diffs small and focused.
 - Perform a systematic review: list executed commands and summarize results.
 - If context is missing or unclear, ask for the relevant document rather than
   guessing.
 - For any ticket implementation, run `make ticket T=<id>` and follow `docs/04-process/ticket-execution-protocol.md`.
+- Enforce **Plan → Patch → Test → Report** for every ticket.
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
 - Codex MUST use Serena for symbol-aware navigation and edits when available.
 - Codex MUST use `tools/offload-proxy/pp` for commands that can produce large output (e.g., `rg`, `sed` on large ranges, tests, or logs).
+- Do not paste large command outputs into prompts; use `pp` and share the pointer id.
 - Do not use `tools/offload-proxy/pp` for filesystem write commands (e.g., `mkdir`, `cp`, `mv`, `rm`) to avoid unnecessary escalation.
 - Codex MUST update `docs/03-logs/*.md` to record decisions, implementation changes, bugs, validations, and insights. If no log entry is needed, explicitly state why in the response.
+- Orchestrator pattern: use separate sessions/worktrees for implementer, reviewer, and tester when parallelizing.
+- Worktree naming: `../<repo_name>-<feature_name>-<agent_name>` (e.g., `../PezzosCode-auth-impl`).
 
 ## Setup commands
+
 - None defined. Ask if project-specific setup is required.
 
 ## Tests/Lint
+
 - None defined. Ask which commands to run.
 
 ## DoD
+
 - Follow `docs/04-process/definition-of-done.md`.
 
 ## Git conventions
+
 - Use clear, scoped commit messages.
 - Do not amend commits unless explicitly requested.

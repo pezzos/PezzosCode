@@ -9,6 +9,7 @@
 ## Purpose
 
 This document defines what "done" means for:
+
 - Features
 - Bug fixes
 - Documentation
@@ -16,8 +17,17 @@ This document defines what "done" means for:
 - Technical debt
 
 Clear "done" criteria ensure:
+
 - Nothing gets shipped half-finished
 - Quality standards are maintained
+
+## Global Requirements (All Work)
+
+- Ticket-specific Definition of Done is stated before coding.
+- Plan → Patch → Test → Report is completed.
+- Tests/lint run via the agreed `make` targets (or documented equivalent).
+- Logs updated with short, factual entries after meaningful changes.
+- Large outputs are offloaded with `tools/offload-proxy/pp` and referenced by id.
 - Everyone has the same expectations
 - No confusion about whether something is complete
 
@@ -35,6 +45,7 @@ Clear "done" criteria ensure:
 ## Feature is Done When...
 
 ### Code Complete
+
 - [ ] All acceptance criteria from feature spec are met
 - [ ] Code follows existing patterns and style guide
 - [ ] No obvious performance issues
@@ -44,6 +55,7 @@ Clear "done" criteria ensure:
 - [ ] Code is readable and well-organized
 
 ### Tests Complete
+
 - [ ] Unit tests written for business logic
 - [ ] Integration tests written for APIs
 - [ ] E2E tests written for critical user paths
@@ -54,6 +66,7 @@ Clear "done" criteria ensure:
 - [ ] Edge cases and error paths tested
 
 ### Documentation Complete
+
 - [ ] Code comments added for complex logic
 - [ ] API documentation updated (if API changes)
 - [ ] User guide updated (if user-facing changes)
@@ -63,6 +76,7 @@ Clear "done" criteria ensure:
 - [ ] Relevant logs updated (decisions, bugs, validation)
 
 ### Review Complete
+
 - [ ] Code reviewed by at least one other developer
 - [ ] All review comments addressed or discussed
 - [ ] Changes approved by reviewer
@@ -70,6 +84,7 @@ Clear "done" criteria ensure:
 - [ ] Commit created with formatted message
 
 ### Deployment Complete
+
 - [ ] Merged to main branch
 - [ ] Deployed to staging environment
 - [ ] Smoke tested on staging
@@ -78,6 +93,7 @@ Clear "done" criteria ensure:
 - [ ] Rollback plan documented and ready
 
 ### Validation Complete
+
 - [ ] Feature works in production
 - [ ] No spike in errors or monitoring alerts
 - [ ] Analytics/metrics tracking working
@@ -85,6 +101,7 @@ Clear "done" criteria ensure:
 - [ ] Validation log entry created (within first week)
 
 ### Communication Complete
+
 - [ ] Team notified of deployment
 - [ ] Users notified (if customer-facing change)
 - [ ] Support team trained (if needed)
@@ -95,12 +112,14 @@ Clear "done" criteria ensure:
 ## Bug Fix is Done When...
 
 ### Fix Complete
+
 - [ ] Root cause identified and documented
 - [ ] Fix implemented
 - [ ] Bug no longer reproducible
 - [ ] No regressions introduced (related features still work)
 
 ### Tests Complete
+
 - [ ] Test written that catches this bug
 - [ ] Test fails on old code, passes on new code
 - [ ] Regression tests pass
@@ -108,6 +127,7 @@ Clear "done" criteria ensure:
 - [ ] Lint passing in CI (or locally if no CI)
 
 ### Documentation Complete
+
 - [ ] Bug log updated with:
   - Root cause
   - How it was fixed
@@ -116,16 +136,19 @@ Clear "done" criteria ensure:
 - [ ] Relevant logs updated (decisions, validation)
 
 ### Review Complete
+
 - [ ] Code reviewed
 - [ ] Fix verified by reviewer
 - [ ] Commit created with formatted message
 
 ### Deployment Complete
+
 - [ ] Merged and deployed
 - [ ] Verified fixed in production
 - [ ] Monitoring confirms no recurrence
 
 ### Prevention Complete
+
 - [ ] Prevention measures identified (tests, linting, process changes)
 - [ ] Prevention measures implemented
 - [ ] Team informed of learnings
@@ -135,12 +158,14 @@ Clear "done" criteria ensure:
 ## Documentation is Done When...
 
 ### Content Complete
+
 - [ ] All sections filled out (no TODOs or placeholders)
 - [ ] Information is accurate and up-to-date
 - [ ] Examples are relevant and tested
 - [ ] Links work and point to correct locations
 
 ### Quality Complete
+
 - [ ] Writing is clear and concise
 - [ ] Spelling and grammar are correct
 - [ ] Formatting is consistent
@@ -148,12 +173,14 @@ Clear "done" criteria ensure:
 - [ ] Relevant logs updated (implementation, decisions)
 
 ### Review Complete
+
 - [ ] Reviewed by at least one other person
 - [ ] Technical accuracy verified
 - [ ] Clarity verified (would a new team member understand?)
 - [ ] Commit created with formatted message
 
 ### Accessibility Complete
+
 - [ ] Organized with clear headings
 - [ ] Table of contents (if long doc)
 - [ ] Easy to navigate
@@ -164,18 +191,21 @@ Clear "done" criteria ensure:
 ## Refactoring is Done When...
 
 ### Code Complete
+
 - [ ] Code is cleaner/more maintainable than before
 - [ ] Functionality is identical to before (no behavior changes)
 - [ ] Performance is same or better
 - [ ] Code complexity reduced (measurable via tools if possible)
 
 ### Tests Complete
+
 - [ ] All existing tests still pass
 - [ ] No new tests needed (behavior unchanged)
 - [ ] Code coverage same or improved
 - [ ] Lint passes
 
 ### Documentation Complete
+
 - [ ] Implementation log updated with:
   - What was refactored
   - Why it was refactored
@@ -184,11 +214,13 @@ Clear "done" criteria ensure:
 - [ ] Relevant logs updated (decisions, validation if needed)
 
 ### Review Complete
+
 - [ ] Reviewed by another developer
 - [ ] Reviewer confirms code is clearer/better
 - [ ] Commit created with formatted message
 
 ### Deployment Complete
+
 - [ ] Deployed to production
 - [ ] No regressions observed
 - [ ] Monitoring confirms no issues
@@ -198,28 +230,33 @@ Clear "done" criteria ensure:
 ## Technical Debt Paydown is Done When...
 
 ### Issue Resolved
+
 - [ ] Technical debt item fully addressed
 - [ ] Code/architecture is now in desired state
 - [ ] No half-measures or temporary fixes
 
 ### Tests Complete
+
 - [ ] Tests updated for new approach
 - [ ] All tests passing
 - [ ] Coverage maintained or improved
 - [ ] Lint passes
 
 ### Documentation Complete
+
 - [ ] Technical debt log updated (moved from "current" to "resolved")
 - [ ] Implementation log updated
 - [ ] Decision log updated (if approach changed)
 - [ ] Code comments removed (if debt was commented as "TODO" or "HACK")
 
 ### Review Complete
+
 - [ ] Reviewed by another developer
 - [ ] Reviewer confirms debt is resolved
 - [ ] Commit created with formatted message
 
 ### Team Informed
+
 - [ ] Team notified of changes
 - [ ] New patterns/approaches communicated
 - [ ] Old patterns deprecated (if applicable)
@@ -229,6 +266,7 @@ Clear "done" criteria ensure:
 ## Pull Request is Done When...
 
 ### Before Creating PR
+
 - [ ] All commits have clear messages
 - [ ] Branch is up-to-date with main
 - [ ] PR description filled out completely
@@ -236,6 +274,7 @@ Clear "done" criteria ensure:
 - [ ] All tests passing locally
 
 ### PR Description Includes
+
 - [ ] What changed
 - [ ] Why it changed
 - [ ] How it was implemented
@@ -245,6 +284,7 @@ Clear "done" criteria ensure:
 - [ ] Related issues/docs linked
 
 ### After Review
+
 - [ ] All comments addressed or discussed
 - [ ] Requested changes made
 - [ ] Approvals received
@@ -252,6 +292,7 @@ Clear "done" criteria ensure:
 - [ ] Conflicts resolved
 
 ### After Merge
+
 - [ ] Branch deleted (after successful merge)
 - [ ] Related issues closed/updated
 - [ ] Deployment verified
@@ -261,22 +302,26 @@ Clear "done" criteria ensure:
 ## Sprint/Milestone is Done When...
 
 ### All Tasks Complete
+
 - [ ] All planned tasks meet their "done" criteria
 - [ ] No critical bugs open
 - [ ] All code merged and deployed
 
 ### Documentation Updated
+
 - [ ] Feature specs accurate (reflect what was actually built)
 - [ ] System map updated
 - [ ] User docs updated
 - [ ] API docs updated
 
 ### Validation Started
+
 - [ ] Metrics tracking configured
 - [ ] Success criteria being measured
 - [ ] Validation log entries created (or scheduled)
 
 ### Retrospective Complete
+
 - [ ] Team met to discuss what went well/poorly
 - [ ] Action items identified
 - [ ] Learnings documented in insights.md
@@ -288,6 +333,7 @@ Clear "done" criteria ensure:
 These are non-negotiable minimums. Work cannot be considered "done" without meeting these:
 
 ### Code Quality Gates
+
 - ✅ Passes linter with no errors
 - ✅ No critical security vulnerabilities (from security scanner)
 - ✅ Code coverage ≥ 80% (or same as before)
@@ -295,15 +341,18 @@ These are non-negotiable minimums. Work cannot be considered "done" without meet
 - ✅ No hardcoded credentials or secrets
 
 ### Testing Quality Gates
+
 - ✅ All tests passing
 - ✅ All acceptance criteria tested
 - ✅ Critical paths have E2E tests
 
 ### Review Quality Gates
+
 - ✅ At least one approval from another developer
 - ✅ No unresolved "must fix" comments
 
 ### Deployment Quality Gates
+
 - ✅ Deployed to staging first
 - ✅ Tested on staging
 - ✅ Rollback plan ready
@@ -316,20 +365,24 @@ These are non-negotiable minimums. Work cannot be considered "done" without meet
 Sometimes we need to ship before meeting all "done" criteria. This is okay IF:
 
 ### Documented Exception
+
 - [ ] Reason for exception documented
 - [ ] What's missing documented
 - [ ] Plan to complete documented
 - [ ] Stakeholders informed and agreed
 
 ### Time-Boxed
+
 - [ ] Deadline set for completing missing items
 - [ ] Reminder/task created to finish
 
 ### Not Critical
+
 - [ ] Missing items are not critical (e.g., docs can follow code by a few days)
 - [ ] No security/data/critical functionality issues
 
 ### Example Exception
+
 ```markdown
 ## Known Incomplete Items
 
@@ -354,6 +407,7 @@ Use this checklist for every feature:
 ## Feature Done Checklist
 
 ### Code
+
 - [ ] All acceptance criteria met
 - [ ] Code follows style guide
 - [ ] No security issues
@@ -361,12 +415,14 @@ Use this checklist for every feature:
 - [ ] Edge cases handled
 
 ### Tests
+
 - [ ] Unit tests written and passing
 - [ ] Integration tests written and passing
 - [ ] E2E tests written and passing (if applicable)
 - [ ] Code coverage ≥ 80%
 
 ### Documentation
+
 - [ ] Code comments added
 - [ ] API docs updated
 - [ ] User guide updated
@@ -374,20 +430,24 @@ Use this checklist for every feature:
 - [ ] Implementation log updated
 
 ### Review
+
 - [ ] Code reviewed and approved
 - [ ] All comments addressed
 
 ### Deployment
+
 - [ ] Deployed to staging and tested
 - [ ] Deployed to production
 - [ ] Monitoring confirms healthy
 
 ### Validation
+
 - [ ] Analytics tracking working
 - [ ] No production errors
 - [ ] Success metrics being measured
 
 ### Communication
+
 - [ ] Team notified
 - [ ] Users notified (if needed)
 - [ ] Support trained (if needed)

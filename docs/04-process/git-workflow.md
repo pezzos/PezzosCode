@@ -6,11 +6,11 @@
 
 ## "Simple Solo" Mode (default)
 
--  **Single branch:** `main`
--  **Atomic commits:** one commit = one clear intention, a limited scope
--  **1 ticket = 1 commit** (unless explicitly stated)
--  **Commit convention enforced:** `type(scope): summary` via `tools/pc-commit`
--  **Hooks over AI for checks:** linting and checks live in git hooks where possible
+- **Single branch:** `main`
+- **Atomic commits:** one commit = one clear intention, a limited scope
+- **1 ticket = 1 commit** (unless explicitly stated)
+- **Commit convention enforced:** `type(scope): summary` via `tools/pc-commit`
+- **Hooks over AI for checks:** linting and checks live in git hooks where possible
 
 ### Steps
 
@@ -31,9 +31,10 @@
 Allowed types: `feat`, `fix`, `docs`, `chore`.
 
 Examples:
--  `feat(auth): add token refresh`
--  `fix(ui): avoid null crash`
--  `docs(process): add git workflow`
+
+- `feat(auth): add token refresh`
+- `fix(ui): avoid null crash`
+- `docs(process): add git workflow`
 
 ---
 
@@ -48,13 +49,15 @@ Installation: see `docs/04-process/gitmessage-install.md`.
 ## Commit Script
 
 `tools/pc-commit`:
--  checks that the git status is clean except for expected files
--  runs `make check`
--  suggests a formatted commit message
--  supports `--dry-run`
--  enforces the commit message convention
+
+- checks that the git status is clean except for expected files
+- runs `make check`
+- suggests a formatted commit message
+- supports `--dry-run`
+- enforces the commit message convention
 
 Examples:
+
 ```bash
 tools/pc-commit --allow docs/04-process/git-workflow.md
 tools/pc-commit --allow docs/04-process --dry-run
@@ -62,18 +65,28 @@ tools/pc-commit --allow docs/04-process --dry-run
 
 ---
 
-## Appendix: "branch/worktree" option (later)
+## Worktrees Policy (Parallel Sessions)
 
-Use if you need parallel work or major changes.
+Use worktrees when running parallel roles (implementer, reviewer, tester) or
+when you want clean isolation between changes.
+
+Default: **two worktrees** (impl + review). Add a third only for spikes.
+
+Naming convention:
+`../<repo_name>-<feature_name>-<agent_name>`
+Example: `../PezzosCode-auth-impl`, `../PezzosCode-auth-review`
 
 ### Branches
+
 ```bash
 git switch -c feat/my-feature
 ```
 
 ### Worktrees
+
 ```bash
-git worktree add ../PezzosCode-my-feature -b feat/my-feature
+git worktree add ../PezzosCode-auth-impl -b feat/auth
+git worktree add ../PezzosCode-auth-review -b feat/auth-review
 ```
 
 Return to simple mode once the work is completed.

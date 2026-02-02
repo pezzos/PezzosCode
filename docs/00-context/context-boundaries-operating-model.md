@@ -37,6 +37,8 @@ Provide guardrails that keep the workflow aligned with a simple, robust, AI-firs
 - User runs the CLI to bootstrap or update a project, then uses CLI commands to drive AI execution.
 - Human gates are required for HIGH-risk work; approvals are explicit and prompted.
 - The workflow loops: context → PRD → features → ticket → execute → repeat.
+- Each ticket follows Plan → Patch → Test → Report.
+- Parallel roles use worktrees for isolation when needed.
 - If requirements are unclear, stop and ask before continuing.
 - The system must recover from errors and allow safe re-runs.
 - Prefer tool-assisted workflows (Serena, hooks, scripts) over ad-hoc AI output.

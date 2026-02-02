@@ -10,6 +10,8 @@
 - The primary user (single developer/PO) wants to describe problems/features and let AI implement them with minimal manual setup.
 - Without a standardized process, work becomes brittle, repetitive, and error‑prone.
 - AI needs a minimal, reliable toolchain to operate like a productive developer without constant human intervention.
+- Context mistakes between template vs. project and noisy outputs cause wasted tokens and rework.
+- Lack of predictable gates (plan/patch/test/report) slows iteration and increases regressions.
 
 **Vision:**
 
@@ -17,6 +19,8 @@
 - After bootstrapping, the user can work with AI with almost no manual work beyond describing features/tasks.
 - The AI is treated as a developer: the repo ships the tools and hooks it needs to be autonomous and productive.
 - Commands are simple, memorable, and the workflow is robust, low‑token, and easy to use.
+- Work is orchestrated with clear roles (orchestrator, implementer, reviewer, tester) and clean workspaces.
+- Large outputs are offloaded, keeping AI context focused and deterministic.
 
 ## WHAT exists RIGHT NOW?
 
@@ -51,6 +55,8 @@
 - Idempotent and recoverable: safe reruns, skip completed work, handle errors gracefully.
 - Minimal dependencies: only essential tools to keep setup and maintenance light.
 - Token‑efficient workflow: prefer hooks and tools over verbose AI instructions.
+- Predictable execution: Plan → Patch → Test → Report for every ticket.
+- Parallelizable: use worktrees for clean isolation when multiple roles run in parallel.
 
 **Target Users:**
 

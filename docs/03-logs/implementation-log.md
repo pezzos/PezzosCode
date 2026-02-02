@@ -27,6 +27,45 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Codex-first workflow documentation updates
+
+**Feature/Bug:** Process and context docs
+
+**Changed Files:**
+
+- `AGENTS.md` - Add plan/patch/test/report, offload rule, worktree naming, orchestration roles
+- `docs/AGENTS.md` - Align operational rules with new workflow
+- `docs/00-context/vision.md` - Capture workflow intent and token hygiene goals
+- `docs/00-context/system-map.md` - Record workflow execution pattern and output offload
+- `docs/00-context/context-boundaries-operating-model.md` - Add plan/patch/test/report and worktree usage
+- `docs/04-process/dev-workflow.md` - Enforce plan/patch/test/report and orchestration roles
+- `docs/04-process/definition-of-done.md` - Add global requirements and explicit DoD
+- `docs/04-process/git-workflow.md` - Add worktree policy and naming convention
+- `docs/04-process/output-offload.md` - Standardize `.offload/` and retrieval guidance
+- `docs/04-process/testing-strategy.md` - Expand anti-hardcode requirements
+- `docs/04-process/ticket-execution-protocol.md` - Add plan/patch/test/report and reporting
+- `docs/04-process/ticket-template.md` - Add ticket-specific DoD and report section
+
+**What Changed:**
+Codified a Codex-first workflow with explicit gates, parallel role orchestration,
+worktree naming, output offload requirements, and anti-hardcode testing rules.
+
+**Why:**
+Reduce context mistakes and token waste, improve repeatability, and scale
+parallel roles without contaminating workspaces.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-01 - Clarify AI-as-developer and minimal-tooling stance
 
 **Feature/Bug:** Context update
