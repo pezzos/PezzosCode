@@ -16,6 +16,7 @@ Turn the context docs into a complete and consistent PRD by extracting key input
 - `docs/00-context/system-map.md`
 - `docs/00-context/assumptions.md`
 - `docs/00-context/context-boundaries-operating-model.md`
+- `docs/00-context/expected-features.md`
 - `docs/04-process/dev-workflow.md`
 - `docs/04-process/definition-of-done.md`
 - `docs/04-process/testing-strategy.md`
@@ -26,12 +27,14 @@ Turn the context docs into a complete and consistent PRD by extracting key input
 ## Steps
 
 1. Read all `docs/00-context/*.md` files and summarize the product intent, users, constraints, and risks.
-2. Read `docs/04-process/*.md` and extract workflow requirements (gates, DoD, testing strategy, output offload, git workflow, orchestration).
-3. Open `docs/01-product/prd.md` and map context + process requirements to each PRD section (problem statement, users, scope, success metrics, non-goals, prioritized feature list, operational requirements).
-4. Fill or update the PRD template with concrete statements derived from context and process docs.
-5. If the PRD lacks a section for workflow/process requirements, add one and tie it to success criteria.
-6. If any required PRD section cannot be filled, list the gaps and ask for missing details.
-7. Keep PRD content aligned with the terminology used in the context and process docs.
+2. Read `docs/00-context/expected-features.md` and extract explicit feature expectations, priorities, and outcomes.
+3. Read `docs/04-process/*.md` and extract workflow requirements (gates, DoD, testing strategy, output offload, git workflow, orchestration).
+4. Open `docs/01-product/prd.md` and map context + process requirements to each PRD section (problem statement, users, scope, success metrics, non-goals, prioritized feature list, workflow/process requirements).
+5. Ensure the PRD has a dedicated **Workflow/Process Requirements** section; create it if missing.
+6. Promote expected features into the **Prioritized Feature List** (or a **Process Features** subsection) with P0/P1/P2 priorities.
+7. Fill or update the PRD template with concrete statements derived from context and process docs.
+8. If any required PRD section cannot be filled, list the gaps and ask for missing details.
+9. Keep PRD content aligned with the terminology used in the context and process docs.
 
 ## Output Format
 
@@ -50,5 +53,6 @@ Turn the context docs into a complete and consistent PRD by extracting key input
 
 - PRD reflects all relevant context (users, problem, scope, constraints).
 - PRD includes workflow/process requirements derived from `docs/04-process/`.
+- PRD includes expected features from `docs/00-context/expected-features.md`.
 - Success metrics, non-goals, scope boundaries, and prioritized feature list are present and consistent.
 - Gaps are called out explicitly.

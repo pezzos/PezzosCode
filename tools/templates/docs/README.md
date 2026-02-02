@@ -13,6 +13,7 @@ Most teams have one of two problems:
 2. **Wrong documentation** - Tons of docs that are out-of-date, scattered across tools, or focused on the wrong things.
 
 This system solves both by providing:
+
 - **Structure** - Clear organization of all project knowledge
 - **Memory** - Logs that capture what happened and why
 - **Context** - Everything an LLM needs to help you effectively
@@ -23,6 +24,7 @@ This system solves both by providing:
 **Traditional docs** tell you what exists.
 
 **This system** tells you:
+
 - WHY things exist (vision, decisions)
 - WHAT you're building (product, features)
 - HOW you built it (implementation, design)
@@ -30,12 +32,14 @@ This system solves both by providing:
 - HOW TO WORK (process, workflows)
 
 **It's designed for:**
+
 - ✅ Human-LLM collaboration
 - ✅ Fast-moving teams
 - ✅ Learning from reality
 - ✅ Capturing institutional knowledge
 
 **It avoids:**
+
 - ❌ Over-documentation
 - ❌ Docs that go stale
 - ❌ Unclear ownership
@@ -81,7 +85,11 @@ Fill out these files first:
    - How do users actually operate the tool?
    - What are the MVP stop conditions?
 
-5. **`docs/01-product/prd.md`**
+5. **`docs/00-context/expected-features.md`**
+   - What features does the human explicitly expect?
+   - What priority and outcomes should the PRD reflect?
+
+6. **`docs/01-product/prd.md`**
    - What are you building next?
    - What are the requirements?
    - How will you measure success?
@@ -96,6 +104,7 @@ cp -r docs/02-features/feature-template/* docs/02-features/your-feature-name/
 ```
 
 Fill out:
+
 1. **`feature-spec.md`** - What you're building and why
 2. **`tech-design.md`** - How you'll build it
 3. **`dev-tasks.md`** - Breakdown of implementation tasks
@@ -120,7 +129,8 @@ For big decisions, document them in **`docs/03-logs/decision-log.md`**.
 ├── 00-context/              # WHY and WHAT EXISTS RIGHT NOW
 │   ├── vision.md            # Product purpose & boundaries (anchor)
 │   ├── assumptions.md       # Assumptions, risks, unknowns
-│   └── system-map.md        # What is actually built & running
+│   ├── system-map.md        # What is actually built & running
+│   └── expected-features.md # Explicit human-expected features
 │
 ├── 01-product/              # WHAT the product must do
 │   └── prd.md               # Single source of truth for requirements
@@ -150,23 +160,27 @@ For big decisions, document them in **`docs/03-logs/decision-log.md`**.
 ## How to Use This System
 
 ### For Planning
+
 1. Define vision → assumptions → requirements
 2. Break into features with specs and designs
 3. Create task breakdowns for implementation
 
 ### For Building
+
 1. Give LLMs context from feature specs and tech designs
 2. Use prompts from `llm-prompts.md`
 3. Follow workflow in `dev-workflow.md`
 4. Update logs as you go
 
 ### For Shipping
+
 1. Validate against acceptance criteria
 2. Follow definition of done
 3. Log what you built and why
 4. Measure what actually happened
 
 ### For Learning
+
 1. Compare expected vs actual outcomes
 2. Document bugs and how you fixed them
 3. Extract insights and patterns
@@ -177,6 +191,7 @@ For big decisions, document them in **`docs/03-logs/decision-log.md`**.
 ### 1. Documentation is Memory
 
 Most teams forget why they built things the way they did. This system captures:
+
 - **Context** - Why decisions were made
 - **Reality** - What actually happened
 - **Learning** - What worked and what didn't
@@ -186,6 +201,7 @@ Most teams forget why they built things the way they did. This system captures:
 Perfect documentation goes stale. **Logs are eternal** because they're chronological records of what happened.
 
 We focus on:
+
 - Implementation log (what changed)
 - Decision log (what we decided)
 - Bug log (what broke)
@@ -195,6 +211,7 @@ We focus on:
 ### 3. Just-in-Time Documentation
 
 Don't document everything upfront. Document:
+
 - **Before:** Vision, requirements, design
 - **During:** Tasks, decisions, implementation
 - **After:** Validation, bugs, insights
@@ -202,6 +219,7 @@ Don't document everything upfront. Document:
 ### 4. AI-Native Structure
 
 This structure works great with LLMs because:
+
 - Clear templates they can fill out
 - Explicit context for every feature
 - Chronological logs they can search
@@ -210,6 +228,7 @@ This structure works great with LLMs because:
 ### 5. Single Source of Truth
 
 Each type of information has ONE place:
+
 - Requirements → PRD
 - Design → Tech design
 - Tasks → Dev tasks
@@ -223,21 +242,25 @@ No duplication, no confusion.
 ### ✅ Always Document
 
 **Context:**
+
 - Vision and principles
 - Current system state
 - Requirements and specs
 
 **Decisions:**
+
 - Why you chose approach A over B
 - Trade-offs you considered
 - Success criteria
 
 **Reality:**
+
 - What you actually built
 - What actually happened after shipping
 - Bugs and how you fixed them
 
 **Learning:**
+
 - What worked and what didn't
 - Patterns you discovered
 - Insights for next time
@@ -245,16 +268,19 @@ No duplication, no confusion.
 ### ❌ Don't Document
 
 **Auto-Generated:**
+
 - API docs (generate from code)
 - Type definitions (use TypeScript)
 - Test coverage (generate with tools)
 
 **Obvious:**
+
 - How to run `npm install`
 - What a common framework does
 - Self-explanatory code
 
 **Speculative:**
+
 - Features you might build someday
 - Architectures you might need later
 - Hypothetical scaling plans
@@ -264,22 +290,26 @@ No duplication, no confusion.
 When working with LLMs on this project, provide them:
 
 **Planning a feature:**
+
 - Vision doc (why we build)
 - System map (what exists)
 - PRD (what's required)
 
 **Implementing a feature:**
+
 - Feature spec (what to build)
 - Tech design (how to build)
 - Dev tasks (specific work)
 - Existing code patterns
 
 **Debugging:**
+
 - Bug log (similar issues)
 - Implementation log (recent changes)
 - System map (how things connect)
 
 **Learning:**
+
 - Validation log (what happened)
 - Insights (patterns we've seen)
 - Decision log (past choices)
@@ -289,22 +319,26 @@ Use the prompts in `docs/04-process/llm-prompts.md` for best results.
 ## Maintenance
 
 ### Daily
+
 - Update implementation log when shipping code
 - Log decisions as you make them
 - Track bugs in bug log
 
 ### Weekly
+
 - Review validation metrics
 - Update insights with learnings
 - Triage and update bug log
 
 ### Monthly
+
 - Review and update vision/PRD if needed
 - Archive completed features
 - Update system map with changes
 - Review decision log (any to revisit?)
 
 ### As Needed
+
 - Create feature specs when planning features
 - Update assumptions when learning new info
 - Extract insights after major launches
@@ -404,6 +438,7 @@ A: Absolutely. This is a starting point. Add sections, remove what you don't nee
 This is a template, not a product. Fork it, customize it, make it yours.
 
 If you find improvements that would help others:
+
 - Share your customizations
 - Suggest template improvements
 - Document patterns you've discovered

@@ -1,11 +1,14 @@
 # AGENTS.md
 
 Purpose of this folder:
+
 - Explain why the product exists and what is currently built.
 
 Key files:
+
 - `docs/00-context/vision.md`: product purpose, scope, and anchor principles.
 - `docs/00-context/system-map.md`: current architecture and deployment map.
 - `docs/00-context/context-boundaries-operating-model.md`: scope boundaries, operating model, and MVP stop conditions.
 - `docs/00-context/assumptions.md`: assumptions, risks, unknowns, validation.
 - `docs/00-context/users.md`: users, personas, and use cases.
+- `docs/00-context/expected-features.md`: human-expected features to reflect in the PRD.

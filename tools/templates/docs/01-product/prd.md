@@ -15,6 +15,7 @@
 **Status:** [Draft | In Review | Approved | Implemented]
 
 ### Executive Summary
+
 <!-- 2-3 sentences describing what this product/feature does and why it matters -->
 
 [Brief description of the product and its core value proposition]
@@ -22,6 +23,7 @@
 ## Problem Statement
 
 ### User Pain Points
+
 1. **[Pain Point 1]**
    - Who experiences it: [target user]
    - Current workaround: [how they deal with it now]
@@ -33,15 +35,18 @@
    - Impact: [why it matters]
 
 ### Success Criteria
+
 <!-- How we'll know if we've solved the problem -->
 
-| Metric | Current | Target | Measure |
-|--------|---------|--------|---------|
+| Metric     | Current    | Target | Measure          |
+| ---------- | ---------- | ------ | ---------------- |
 | [Metric 1] | [baseline] | [goal] | [how we measure] |
 | [Metric 2] | [baseline] | [goal] | [how we measure] |
 
 ### Success Metrics (Template)
+
 <!-- List the specific, trackable outcomes that define success -->
+
 - **[Metric Name]:** baseline [value], target [value], timeframe [e.g., 30 days], data source [where it comes from]
 - **[Metric Name]:** baseline [value], target [value], timeframe [e.g., 90 days], data source [where it comes from]
 
@@ -50,12 +55,14 @@
 ### Target Users
 
 **Primary Persona: [Name/Type]**
+
 - **Who they are:** [description]
 - **Goals:** [what they want to achieve]
 - **Frustrations:** [current pain points]
 - **Technical level:** [beginner/intermediate/expert]
 
 **Secondary Persona: [Name/Type]**
+
 - **Who they are:** [description]
 - **Goals:** [what they want to achieve]
 - **Frustrations:** [current pain points]
@@ -64,11 +71,13 @@
 ### Core Use Cases
 
 #### Use Case 1: [Name]
+
 **Actor:** [who performs this]
 
 **Preconditions:** [what must be true before]
 
 **Main Flow:**
+
 1. User [action]
 2. System [response]
 3. User [action]
@@ -77,33 +86,46 @@
 **Postconditions:** [what is true after]
 
 **Alternative Flows:**
+
 - **Alt 1:** [scenario and how it's handled]
 - **Alt 2:** [scenario and how it's handled]
 
 #### Use Case 2: [Name]
+
 **Actor:** [who performs this]
 
 **Preconditions:** [what must be true before]
 
 **Main Flow:**
+
 1. User [action]
 2. System [response]
 
 **Postconditions:** [what is true after]
 
 ## Prioritized Feature List (Template)
+
 <!-- Ordered list of features tied to the PRD scope -->
-| Priority | Feature | Outcome | Notes |
-|----------|---------|---------|-------|
-| P0 | [Feature name] | [user outcome] | [dependencies/risks] |
-| P1 | [Feature name] | [user outcome] | [dependencies/risks] |
-| P2 | [Feature name] | [user outcome] | [dependencies/risks] |
+
+| Priority | Feature        | Outcome        | Notes                |
+| -------- | -------------- | -------------- | -------------------- |
+| P0       | [Feature name] | [user outcome] | [dependencies/risks] |
+| P1       | [Feature name] | [user outcome] | [dependencies/risks] |
+| P2       | [Feature name] | [user outcome] | [dependencies/risks] |
+
+## Process Features (Template)
+
+<!-- Explicit workflow/process features that must be reflected in implementation -->
+
+- [ ] [Process feature name] (P0/P1/P2): [expected outcome]
+- [ ] [Process feature name] (P0/P1/P2): [expected outcome]
 
 ## Requirements
 
 ### Functional Requirements
 
 #### Must Have (P0)
+
 - [ ] **FR-001:** [Requirement description]
   - **Rationale:** [why this is needed]
   - **Acceptance Criteria:** [how we verify it works]
@@ -113,11 +135,13 @@
   - **Acceptance Criteria:** [how we verify it works]
 
 #### Should Have (P1)
+
 - [ ] **FR-101:** [Requirement description]
   - **Rationale:** [why this is valuable]
   - **Acceptance Criteria:** [how we verify it works]
 
 #### Nice to Have (P2)
+
 - [ ] **FR-201:** [Requirement description]
   - **Rationale:** [why this could be useful]
   - **Acceptance Criteria:** [how we verify it works]
@@ -125,46 +149,65 @@
 ### Non-Functional Requirements
 
 #### Performance
+
 - [ ] **NFR-001:** [Performance requirement]
   - **Metric:** [what we measure]
   - **Target:** [specific number/threshold]
 
 #### Security
+
 - [ ] **NFR-101:** [Security requirement]
   - **Rationale:** [why this matters]
   - **Compliance:** [any relevant standards]
 
 #### Usability
+
 - [ ] **NFR-201:** [Usability requirement]
   - **Metric:** [how we measure]
   - **Target:** [specific goal]
 
 #### Reliability
+
 - [ ] **NFR-301:** [Reliability requirement]
   - **Metric:** [uptime/error rate/etc]
   - **Target:** [specific SLA]
 
+## Workflow/Process Requirements
+
+<!-- Requirements derived from docs/04-process -->
+
+- Plan → Patch → Test → Report is mandatory for every ticket.
+- Ticket-specific Definition of Done is required before coding.
+- Output offload is required for noisy commands.
+- Orchestrator + implementer/reviewer/tester roles are supported.
+- Worktree policy and naming convention are defined and followed.
+
 ### Constraints
 
 **Technical Constraints:**
+
 - [Constraint 1]: [description and impact]
 - [Constraint 2]: [description and impact]
 
 **Business Constraints:**
+
 - [Constraint 1]: [description and impact]
 - [Constraint 2]: [description and impact]
 
 **Regulatory/Compliance:**
+
 - [Requirement 1]: [description and impact]
 
 ## User Experience
 
 ### User Journey
+
 ```
 [Entry Point] → [Step 1] → [Step 2] → [Step 3] → [Outcome]
 ```
 
 ### Key Screens/Interactions
+
 1. **[Screen/Page Name]**
    - Purpose: [what user accomplishes here]
    - Key elements: [main UI components]
@@ -176,53 +219,63 @@
    - Actions: [what user can do]
 
 ### Error States
-| Scenario | User Experience | System Behavior |
-|----------|----------------|-----------------|
+
+| Scenario          | User Experience  | System Behavior    |
+| ----------------- | ---------------- | ------------------ |
 | [Error condition] | [what user sees] | [what system does] |
 | [Error condition] | [what user sees] | [what system does] |
 
 ## Scope
 
 ### Scope Boundaries (Template)
+
 <!-- Define what this PRD covers and what it explicitly avoids -->
+
 - **System boundaries:** [what systems/services are included]
 - **User boundaries:** [which user groups are included/excluded]
 - **Data boundaries:** [which data is in/out]
 - **Platform boundaries:** [web/mobile/desktop, etc.]
 
 ### Non-Goals (Template)
+
 <!-- Explicitly state what this PRD is not trying to achieve -->
+
 - [Non-goal 1]
 - [Non-goal 2]
 
 ### In Scope
+
 - [Feature/capability 1]
 - [Feature/capability 2]
 - [Feature/capability 3]
 
 ### Out of Scope
+
 - [Feature/capability NOT included]
 - [Feature/capability deferred to future]
 - [Feature/capability not planned]
 
 ### Future Considerations
+
 - [Possible future enhancement 1]
 - [Possible future enhancement 2]
 
 ## Dependencies
 
 ### Internal Dependencies
+
 - **[Team/System]:** [what we need and when]
 - **[Team/System]:** [what we need and when]
 
 ### External Dependencies
+
 - **[Vendor/Service]:** [what we need and when]
 - **[Vendor/Service]:** [what we need and when]
 
 ## Risks & Mitigations
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
+| Risk               | Impact       | Probability  | Mitigation            |
+| ------------------ | ------------ | ------------ | --------------------- |
 | [Risk description] | High/Med/Low | High/Med/Low | [How we'll handle it] |
 | [Risk description] | High/Med/Low | High/Med/Low | [How we'll handle it] |
 
@@ -241,13 +294,14 @@
 ## Appendix
 
 ### Related Documents
+
 - [Link to design mockups]
 - [Link to technical specs]
 - [Link to user research]
 
 ### Change Log
 
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
-| YYYY-MM-DD | 0.1 | Initial draft | [Name] |
-| YYYY-MM-DD | 1.0 | Approved version | [Name] |
+| Date       | Version | Changes          | Author |
+| ---------- | ------- | ---------------- | ------ |
+| YYYY-MM-DD | 0.1     | Initial draft    | [Name] |
+| YYYY-MM-DD | 1.0     | Approved version | [Name] |

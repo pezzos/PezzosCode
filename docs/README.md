@@ -85,7 +85,11 @@ Fill out these files first:
    - How do users actually operate the tool?
    - What are the MVP stop conditions?
 
-5. **`docs/01-product/prd.md`**
+5. **`docs/00-context/expected-features.md`**
+   - What features does the human explicitly expect?
+   - What priority and outcomes should the PRD reflect?
+
+6. **`docs/01-product/prd.md`**
    - What are you building next?
    - What are the requirements?
    - How will you measure success?
@@ -125,7 +129,8 @@ For big decisions, document them in **`docs/03-logs/decision-log.md`**.
 ├── 00-context/              # WHY and WHAT EXISTS RIGHT NOW
 │   ├── vision.md            # Product purpose & boundaries (anchor)
 │   ├── assumptions.md       # Assumptions, risks, unknowns
-│   └── system-map.md        # What is actually built & running
+│   ├── system-map.md        # What is actually built & running
+│   └── expected-features.md # Explicit human-expected features
 │
 ├── 01-product/              # WHAT the product must do
 │   └── prd.md               # Single source of truth for requirements

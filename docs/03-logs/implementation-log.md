@@ -27,6 +27,70 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-02 - Add expected-features context and PRD process sections
+
+**Feature/Bug:** Context and PRD templates
+
+**Changed Files:**
+
+- `docs/00-context/expected-features.md` - New context file for explicit expected features
+- `tools/templates/docs/00-context/expected-features.md` - Template for new file
+- `docs/00-context/AGENTS.md` - Reference expected-features file
+- `tools/templates/docs/00-context/AGENTS.md` - Reference expected-features file
+- `docs/README.md` - Include expected-features in context list
+- `tools/templates/docs/README.md` - Include expected-features in context list
+- `.codex/skills/context-to-product/SKILL.md` - Map expected features and workflow requirements into PRD
+- `tools/templates/docs/01-product/prd.md` - Add Process Features and Workflow/Process Requirements sections
+- `docs/01-product/prd.md` - Add process features and workflow/process requirements
+
+**What Changed:**
+Added a dedicated context file for explicit expected features, updated templates,
+and extended PRD structure to include process features and workflow requirements.
+
+**Why:**
+Ensure the PRD generation reflects explicit expected features and the workflow
+standards discussed, including worktrees and delegated roles.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-02 - Update PRD with process requirements
+
+**Feature/Bug:** Product documentation
+
+**Changed Files:**
+
+- `docs/01-product/prd.md` - Map context + process requirements into PRD
+
+**What Changed:**
+Updated the PRD to include Plan → Patch → Test → Report, explicit ticket DoD,
+output offload requirements, and process-driven success metrics.
+
+**Why:**
+Ensure downstream feature generation captures the workflow guardrails and
+operational standards defined in `docs/04-process/`.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-02 - Update context-to-product skill to include process docs
 
 **Feature/Bug:** Skill update
