@@ -42,6 +42,8 @@ read its `dev-tasks.md`, and create one ticket per task.
    - Include references to `feature-spec.md`, `tech-design.md`, and `test-plan.md` in Context.
    - Populate **References** with specific sections to check (Summary, Requirements, Architecture, Test Strategy).
    - Pre-fill Implementer/Tester/Reviewer sections with prompt bullets to guide feedback loops.
+   - Auto-fill **Implementation Notes** with expected changes from the task bullets.
+   - Normalize bullet text to avoid double list markers.
    - PRD Traceability (order + link)
    - Change Budget (max files/modules/lines)
    - Docs Updated (pre-populate expected docs)

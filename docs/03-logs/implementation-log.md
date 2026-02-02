@@ -72,6 +72,37 @@ tester/reviewer feedback.
 
 **Author:** Alexandre Pezzotta
 
+### 2026-02-02 - Auto-fill expected changes in task tickets
+
+**Feature/Bug:** Ticket generation quality
+
+**Changed Files:**
+
+- `.codex/skills/feature-tasks-to-tickets/SKILL.md` - Auto-fill Implementation Notes from task bullets
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-101.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-102.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md`
+- `docs/02-features/01-bootstrap-templates-into-a-repo/TASK-501.md`
+
+**What Changed:**
+Implementation Notes now include expected changes derived from `dev-tasks.md`
+bullets, avoiding manual reconstruction by the implementer.
+
+**Why:**
+Keep task tickets more actionable and reduce context switching for sub-agents.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-02 - Enrich task tickets with dev-task details
 
 **Feature/Bug:** Ticket generation quality
