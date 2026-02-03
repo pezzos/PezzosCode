@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 DEFAULT_CONFIG = {
@@ -744,13 +745,18 @@ def classify_risk(data: Dict, change_budget: Dict) -> (str, List[str]):
     return "LOW", []
 
 
-def update_ticket_status(ticket_path: str, status: str) -> None:
+def update_ticket_status(ticket_path: str, status: str) -> bool:
     content = read_file(ticket_path)
     lines = content.splitlines()
     if not lines or lines[0].strip() != "---":
-        return
+        return False
     updated = []
     in_frontmatter = False
+    current_status = None
+    wrote_timestamp = False
+    status_index = None
+    changed = False
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     for idx, line in enumerate(lines):
         if line.strip() == "---":
             updated.append(line)
@@ -760,10 +766,27 @@ def update_ticket_status(ticket_path: str, status: str) -> None:
             in_frontmatter = True
             continue
         if in_frontmatter and line.startswith("status:"):
-            updated.append(f'status: "{status}"')
+            current_status = line.split(":", 1)[1].strip().strip('"')
+            if current_status != status:
+                updated.append(f'status: "{status}"')
+                status_index = len(updated) - 1
+                changed = True
+            else:
+                updated.append(line)
         else:
-            updated.append(line)
-    write_file(ticket_path, "\n".join(updated) + "\n")
+            if in_frontmatter and line.startswith("status_timestamp:"):
+                if changed:
+                    updated.append(f'status_timestamp: "{timestamp}"')
+                    wrote_timestamp = True
+                else:
+                    updated.append(line)
+            else:
+                updated.append(line)
+    if changed and not wrote_timestamp and status_index is not None:
+        updated.insert(status_index + 1, f'status_timestamp: "{timestamp}"')
+    if changed:
+        write_file(ticket_path, "\n".join(updated) + "\n")
+    return changed
 
 
 def is_approval_granted(frontmatter: Dict[str, str]) -> bool:
@@ -1135,6 +1158,7 @@ def main() -> None:
         write_file(worklog_path, worklog)
 
     if commit_done:
+        update_ticket_status(ticket_path, "Done")
         worklog = read_file(worklog_path)
         worklog = append_note(
             worklog,
@@ -1187,6 +1211,8 @@ def main() -> None:
     )
     worklog = append_section(worklog, "Final Report", final_report)
     write_file(worklog_path, worklog)
+
+    update_ticket_status(ticket_path, "Done")
 
     run(["git", "add", "-A"])
     run(["tools/pc-commit", "--message", commit_message])

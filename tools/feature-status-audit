@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -42,7 +43,29 @@ def set_frontmatter_status(text: str, status: str) -> str:
     frontmatter = extract_frontmatter(text)
     if not frontmatter:
         return text
+    current_status_match = re.search(r"^status:\s*\"?([^\n\"]+)\"?", frontmatter, re.M)
+    current_status = (
+        current_status_match.group(1).strip() if current_status_match else ""
+    )
+    if current_status == status:
+        return text
     updated = re.sub(r"^status:.*$", f'status: "{status}"', frontmatter, flags=re.M)
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if re.search(r"^status_timestamp:", updated, re.M):
+        updated = re.sub(
+            r"^status_timestamp:.*$",
+            f'status_timestamp: "{timestamp}"',
+            updated,
+            flags=re.M,
+        )
+    else:
+        updated = re.sub(
+            r"^(status:.*)$",
+            r"\1\nstatus_timestamp: \"" + timestamp + '"',
+            updated,
+            count=1,
+            flags=re.M,
+        )
     return text.replace(frontmatter, updated)
 
 
@@ -137,16 +160,7 @@ def audit_ticket(path: Path, root: Path, impl_log: str) -> tuple[str, str]:
 
     updated_text = set_frontmatter_status(text, new_status)
 
-    # Update status_reason if present
-    front_updated = extract_frontmatter(updated_text)
-    if front_updated is not None:
-        front_with_reason = re.sub(
-            r"^status_reason:.*$",
-            f'status_reason: "{reason}"',
-            front_updated,
-            flags=re.M,
-        )
-        updated_text = updated_text.replace(front_updated, front_with_reason)
+    # status_reason is deprecated; status_timestamp is updated when status changes.
 
     # If Done, auto-check DoD items only
     if new_status == "Done" and dod_block:

@@ -53,6 +53,19 @@ This helps with:
 
 - Not run (hook script change only).
 
+### 2026-02-03 - Auto-update ticket status on completion
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+- `docs/04-process/ticket-template.md`
+
+**What Changed:**
+
+- Added automatic status updates (with `status_timestamp`) when ticket execution completes, ensuring `make ticket` can detect completed tickets.
+
 ### 2026-02-03 - Auto-resume for in-progress tickets
 
 **Feature/Bug:** Ticket execution workflow

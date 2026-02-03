@@ -5,8 +5,8 @@
 Ticket ID: T-401
 PRD reference / feature mapping: 01
 Risk level: LOW (triggers: none)
-Scope summary (in/out): In: Add or refine the regression tests described in TASK-401/dev-tasks for the Bootstrap Templates Into A Repo feature so we have coverage of the primary bootstrap path (root template copies + gate/log markers and CLI output). | Out: Any unrelated feature work or production-code changes beyond these specific regression tests and their supporting logs/docs.
-Non-goals reminder: Do not modify application code, templates, or other features—only extend/add tests and record the changes in the requested logs/docs.
+Scope summary (in/out): In: Add/update regression tests for the bootstrap templates feature to cover the primary path (root template copies, marker idempotence, and CLI gate/log reporting) and refresh the ticket/log documentation tied to TASK-401. | Out: Any unrelated feature work or production code changes not explicitly called out in the dev-tasks.md/test-plan for TASK-401.
+Non-goals reminder: No new features beyond the described tests, and no changes that would touch unrelated docs or codebases.
 Files to change: tests/test_bootstrap_into.py, docs/03-logs/implementation-log.md, docs/03-logs/validation-log.md, docs/03-logs/tickets/401--add-or-update-tests.md, docs/02-features/01-bootstrap-templates-into-a-repo/TASK-401.md
 Change budget: max_files: 10, max_new_modules: 2
 TDD plan: tests to write first: test_bootstrap_into_copies_root_templates_and_skills, test_bootstrap_into_logs_marker_output_consistently
@@ -102,3 +102,9 @@ Autofix resolved:
 - ci: check for added large files..............................................Passed
   Commit message:
   docs(tickets): refresh 401 regression test plan
+
+## Notes
+
+- Resume: existing worklog detected. Preflight=run, TDD plan=skip, commit=skip.
+- Resume: TDD plan already filled; skipping test generation step.
+- Resume: commit already recorded; skipping commit step.
