@@ -27,6 +27,34 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Normalize scope fields in pc-ticket preflight
+
+**Feature/Bug:** Ticket preflight workflow
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+
+**What Changed:**
+
+- Added `normalize_scope` to coerce `scope_in`/`scope_out` values into strings, joining list responses from the Codex preflight JSON before gating.
+
+**Why:**
+
+- Codex sometimes returns scope fields as arrays; handling lists prevents `AttributeError` when `.strip()` is called and keeps scope validation consistent.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (manual change only).
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Gate-focused reapply tests land before CLI updates
 
 **Feature/Bug:** Update/reapply templates CLI tooling

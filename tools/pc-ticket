@@ -531,6 +531,15 @@ def format_review_item(command: str, returncode: int) -> str:
     return f"{command}: {status}"
 
 
+def normalize_scope(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        parts = [str(item).strip() for item in value]
+        return "; ".join([part for part in parts if part])
+    return str(value).strip()
+
+
 def build_preflight_block(
     data: Dict,
     ticket_id: str,
@@ -1024,8 +1033,10 @@ def main() -> None:
 
         preflight_data.setdefault("prd_ref", prd_ref)
 
-        scope_in = (preflight_data.get("scope_in") or "").strip()
-        scope_out = (preflight_data.get("scope_out") or "").strip()
+        scope_in = normalize_scope(preflight_data.get("scope_in"))
+        scope_out = normalize_scope(preflight_data.get("scope_out"))
+        preflight_data["scope_in"] = scope_in
+        preflight_data["scope_out"] = scope_out
         if (
             not scope_in
             or scope_in.lower() == "tbd"
