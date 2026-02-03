@@ -63,6 +63,10 @@ No new services or external dependencies required.
   - **Outputs:** stdout/stderr with offload ids if noisy
   - **Exit codes:** `0` success, `1` failure
 
+#### CLI workflow gates and outputs
+
+The CLI workflow gates and outputs describe the checks, confirmations, and summary artifacts (cli preflight validation gate, cli diff review gate, and cli conflict summary output) emitted during each template reapply run, so failures surface actionable next steps.
+
 ### Data Model
 
 #### New Data Structures

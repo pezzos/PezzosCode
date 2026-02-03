@@ -27,6 +27,34 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Add docs workflow regression tests before doc updates
+
+**Feature/Bug:** Update/reapply templates workflow docs
+
+**Changed Files:**
+
+- `tests/test_update_reapply_templates_docs.py`
+
+**What Changed:**
+
+- Added TDD-first regression tests that assert the feature-spec and tech-design docs mention the workflow behavior steps, gates, and outputs so the future documentation work is guided by failing tests rather than direct edits.
+
+**Why:**
+
+- The ticket explicitly required writing tests before touching production docs; encoding the behavior requirements as failing tests keeps the upcoming doc updates scoped and verifiable.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_update_reapply_templates_docs.py` (FAIL: key phrases are not yet present in the docs)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Remove inline frontmatter comments from ticket templates
 
 **Feature/Bug:** Ticket tooling templates

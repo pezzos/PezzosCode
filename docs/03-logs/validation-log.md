@@ -27,6 +27,11 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-03 - Document workflow gating tests failing before docs update
+
+- Captured the pre-implementation validation for the update/reapply templates workflow docs by noting the regression tests that check for workflow behavior, gates, and outputs language while they still fail.
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_update_reapply_templates_docs.py` (FAIL: the feature docs do not yet contain the required phrases)
+
 ### 2026-02-03 - Validated bootstrap template and log marker regressions
 
 - Added focused regression checks for `AGENTS.md`, `pp.yml`, `.codex/skills/context-to-product/SKILL.md`, and the gate logs so each file retains a single bootstrap marker and the CLI reports them once.

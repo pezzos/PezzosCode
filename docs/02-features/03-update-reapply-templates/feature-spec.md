@@ -87,6 +87,10 @@ CLI → Run command → Review output → Confirm next step
 2. System executes the workflow step and logs output.
 3. User reviews results and proceeds to the next gate.
 
+#### Workflow behavior steps, gates, and outputs
+
+The documented workflow behavior steps, gates, and outputs ensure every CLI run surfaces the checks, confirmations, and results that keep template reapplications safe, walking through the preflight validation gate, template diff review gate, and conflict summary output whenever a decision or remediation point is needed.
+
 #### Error Handling
 
 | Scenario             | User Sees                | System Does | Recovery Path      |
