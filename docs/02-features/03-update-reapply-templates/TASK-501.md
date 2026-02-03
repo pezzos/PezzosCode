@@ -2,7 +2,7 @@
 id: 501
 title: "Update docs/logs"
 prd_ref: "P1 - Update/reapply templates"
-status: "To Do"
+status: "Done"
 status_timestamp: ""
 complexity: "simple"
 approval: "" # set to "granted" to resume HIGH risk tickets
