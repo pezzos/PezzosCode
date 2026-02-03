@@ -27,6 +27,33 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Auto-restage lint fixes during pc-commit checks
+
+**Feature/Bug:** Commit tooling
+
+**Changed Files:**
+
+- `tools/pc-commit`
+
+**What Changed:**
+
+- When `make check` fails, `pc-commit` now detects whether the only unstaged files are already in the staged set, auto-restages those linted files, and re-runs `make lint` then `make test`.
+- If any unstaged file is not already staged (or there are untracked files), the commit still fails with a clear error.
+
+**Why:**
+
+- Ticket work is required to start from a clean worktree, so post-lint unstaged changes should only be auto-fix updates to already-staged files. This prevents false failures while preserving safety.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Slightly more work only when lint auto-fixes are applied.
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (workflow script change).
+
 ### 2026-02-03 - Guard pre-commit stash pop to avoid staging unrelated changes
 
 **Feature/Bug:** Pre-commit automation

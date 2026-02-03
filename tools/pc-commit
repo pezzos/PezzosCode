@@ -120,10 +120,76 @@ if [[ ${#disallowed[@]} -gt 0 ]]; then
   exit 1
 fi
 
+contains_path() {
+  local candidate="$1"
+  local path
+  for path in "${staged_paths[@]}"; do
+    if [[ "$path" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+auto_restage_linted() {
+  staged_paths=()
+  unstaged_paths=()
+  untracked_paths=()
+
+  if command -v mapfile >/dev/null 2>&1; then
+    mapfile -t staged_paths < <(git diff --cached --name-only)
+    mapfile -t unstaged_paths < <(git diff --name-only)
+    mapfile -t untracked_paths < <(git ls-files --others --exclude-standard)
+  else
+    while IFS= read -r line; do
+      staged_paths+=("$line")
+    done < <(git diff --cached --name-only)
+    while IFS= read -r line; do
+      unstaged_paths+=("$line")
+    done < <(git diff --name-only)
+    while IFS= read -r line; do
+      untracked_paths+=("$line")
+    done < <(git ls-files --others --exclude-standard)
+  fi
+
+  if [[ ${#unstaged_paths[@]} -eq 0 ]]; then
+    return 1
+  fi
+  if [[ ${#untracked_paths[@]} -gt 0 ]]; then
+    echo "Unexpected untracked files detected after lint:" >&2
+    printf ' - %s\n' "${untracked_paths[@]}" >&2
+    return 1
+  fi
+
+  local path
+  for path in "${unstaged_paths[@]}"; do
+    if ! contains_path "$path"; then
+      echo "Unexpected unstaged file not already staged: $path" >&2
+      return 1
+    fi
+  done
+
+  git add -A -- "${unstaged_paths[@]}"
+  echo "Auto-restaged linted files:"
+  printf ' - %s\n' "${unstaged_paths[@]}"
+  return 0
+}
+
 if [[ "$dry_run" == true ]]; then
   echo "[dry-run] make check"
 else
+  set +e
   make check
+  status=$?
+  set -e
+  if [[ "$status" -ne 0 ]]; then
+    if auto_restage_linted; then
+      make lint
+      make test
+    else
+      exit "$status"
+    fi
+  fi
   git add -A
 fi
 
