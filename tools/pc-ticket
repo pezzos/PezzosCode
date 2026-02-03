@@ -300,6 +300,37 @@ def commit_recorded(section: str) -> bool:
     return False
 
 
+def commit_message_from_section(section: str) -> str:
+    if not section:
+        return ""
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- Commit message:"):
+            return stripped.split(":", 1)[1].strip()
+    return ""
+
+
+def commit_in_history(message: str) -> bool:
+    if not message:
+        return False
+    result = run(
+        [
+            "git",
+            "log",
+            "--all",
+            "--fixed-strings",
+            "--grep",
+            message,
+            "--pretty=%s",
+            "-n",
+            "1",
+        ],
+        capture=True,
+        check=False,
+    )
+    return bool(result.stdout.strip())
+
+
 def parse_tdd_tests(section: str) -> List[str]:
     tests: List[str] = []
     if not section:
@@ -865,7 +896,8 @@ def main() -> None:
     commit_section = get_section(worklog, "Commit")
     preflight_done = preflight_section_complete(preflight_section)
     tdd_done = tdd_plan_complete(tdd_section)
-    commit_done = commit_recorded(commit_section)
+    commit_message_recorded = commit_message_from_section(commit_section)
+    commit_done = bool(commit_message_recorded)
     tdd_tests_from_worklog = parse_tdd_tests(tdd_section)
     docs_updates_from_worklog = parse_docs_updates(docs_section)
 
@@ -1158,15 +1190,22 @@ def main() -> None:
         write_file(worklog_path, worklog)
 
     if commit_done:
-        update_ticket_status(ticket_path, "Done")
+        if commit_in_history(commit_message_recorded):
+            update_ticket_status(ticket_path, "Done")
+            worklog = read_file(worklog_path)
+            worklog = append_note(
+                worklog,
+                "Resume: commit already recorded; skipping commit step.",
+            )
+            write_file(worklog_path, worklog)
+            print("pc-ticket: commit already recorded; skipping commit")
+            return
         worklog = read_file(worklog_path)
         worklog = append_note(
             worklog,
-            "Resume: commit already recorded; skipping commit step.",
+            "Resume: commit recorded in worklog but not found in git history; continuing.",
         )
         write_file(worklog_path, worklog)
-        print("pc-ticket: commit already recorded; skipping commit")
-        return
 
     diff = run(["git", "diff"], capture=True).stdout
     if not diff.strip():

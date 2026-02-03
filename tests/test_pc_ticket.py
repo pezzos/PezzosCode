@@ -68,6 +68,34 @@ class TestPcTicket(unittest.TestCase):
         line = self.pc_ticket.format_review_item("make ticket T=T-001", 2)
         self.assertEqual(line, "make ticket T=T-001: FAIL")
 
+    def test_systematic_review_logs_commands(self):
+        review_items = [
+            self.pc_ticket.format_review_item("tools/ticket-bootstrap T=102 --auto", 0),
+            self.pc_ticket.format_review_item("make ci", 1),
+        ]
+        summary = "; ".join(review_items)
+        block = self.pc_ticket.build_preflight_block(
+            {
+                "scope_in": "In scope",
+                "scope_out": "Out scope",
+                "non_goals_reminder": "Stay focused",
+                "files_to_change": ["docs/03-logs/implementation-log.md"],
+                "tdd_tests": [
+                    "tests/test_pc_ticket.py::TestPcTicket::test_systematic_review_logs_commands"
+                ],
+                "doc_updates": ["docs/03-logs/implementation-log.md"],
+            },
+            "T-102",
+            {"max_files": 5, "max_new_modules": 0},
+            "LOW",
+            [],
+            summary,
+        )
+        systematic_line = next(
+            line for line in block.splitlines() if line.startswith("Systematic review:")
+        )
+        self.assertEqual(systematic_line, f"Systematic review: {summary}")
+
     def test_build_gates_block_uses_command(self):
         line = self.pc_ticket.build_gates_block("make ci", "PASS")
         self.assertEqual(line, "- make ci: PASS")
