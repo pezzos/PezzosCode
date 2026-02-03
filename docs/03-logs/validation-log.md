@@ -32,6 +32,11 @@ This helps with:
 - Verified the bootstrap reapply flow emits the preflight validation gate, template diff review gate, and conflict summary output while prompting for overwrite/merge/skip decisions so the regression expectations are satisfied.
 - `tools/offload-proxy/pp make test` (PASS)
 
+### 2026-02-03 - Validate offload proxy regression coverage
+
+- Verified the new regression ensures `tools/offload-proxy/pp` stores noisy outputs under `.offload/`, prints the pointer id banner, and honors `always_offload` entries so downstream gates can reference the recorded artifact.
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_offload_proxy.py` (PASS)
+
 ### 2026-02-03 - Validate exit/log expectations via regression tests
 
 - Added `test_update_reapply_exit_code_and_log_outputs`, which skips the README reapply prompt, confirms the template diff and conflict summary phrases appear for `docs/README.md`, and ensures the implementation/validation logs retain exactly one bootstrap marker per file after the skip.

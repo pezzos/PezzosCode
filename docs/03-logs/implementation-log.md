@@ -27,6 +27,39 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Ticket 102 - Implement or update tooling/scripts
+
+**Feature/Bug:** P0 - Output offload enforcement
+
+**What Changed:**
+
+- Docs/logs updates initiated via `pc-ticket` automation.
+
+**Status:** In progress
+
+**Author:** pc-ticket
+
+### 2026-02-03 - Ticket 102 - Expand offload proxy regression coverage
+
+**Feature/Bug:** P0 - Output offload enforcement
+
+**Changed Files:**
+
+- `tests/test_offload_proxy.py`
+
+**What Changed:**
+
+- Added regression tests that assert `tools/offload-proxy/pp` offloads large outputs, surfaces the pointer id string, and atomically records the stored artifact under `.offload/`.
+- Covered the `always_offload` configuration path so even short commands emit pointer ids, enabling downstream gates to reference the recorded output.
+
+**Status:** Tests passing
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_offload_proxy.py` (PASS)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Ticket 101 - Define workflow behavior
 
 **Feature/Bug:** P0 - Output offload enforcement

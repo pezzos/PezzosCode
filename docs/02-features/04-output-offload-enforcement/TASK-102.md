@@ -2,8 +2,8 @@
 id: 102
 title: "Implement or update tooling/scripts"
 prd_ref: "P0 - Output offload enforcement"
-status: "To Do"
-status_timestamp: ""
+status: "Done"
+status_timestamp: "2026-02-03T20:00:38Z"
 complexity: "simple"
 approval: ""
 change_budget:
@@ -55,8 +55,8 @@ Implement or update tooling/scripts
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Scripts/templates enforce the required offload steps and gates.
-- [ ] Outputs reference offload ids instead of inline noisy output.
+- [x] Scripts/templates enforce the required offload steps and gates.
+- [x] Outputs reference offload ids instead of inline noisy output.
 
 ## Plan (Draft)
 
@@ -102,7 +102,11 @@ Implement or update tooling/scripts
 ## Tests Run
 
 - Command(s):
+  - `make test`
+  - `make ci`
 - Result(s):
+  - make test: PASS
+  - make ci: PASS
 
 ## Implementer Notes
 
@@ -141,9 +145,9 @@ Implement or update tooling/scripts
 
 ## Report (Final)
 
-- What changed:
-- Commands run (use `pp` for noisy output):
-- Results:
+- What changed: docs/03-logs/tickets/04-102--implement-or-update-tooling-scripts.md
+- Commands run (use `pp` for noisy output): `make test`, `make ci`
+- Results: make test PASS; make ci PASS
 
 ## Commit
 
