@@ -124,6 +124,7 @@ if [[ "$dry_run" == true ]]; then
   echo "[dry-run] make check"
 else
   make check
+  git add -A
 fi
 
 allowed_types=("feat" "fix" "docs" "chore")

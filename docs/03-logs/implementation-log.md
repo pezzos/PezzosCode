@@ -178,6 +178,18 @@ This helps with:
 
 - Worklog filenames now include the feature id (e.g., `02-401--slug.md`) to avoid cross-feature collisions when task ids repeat.
 
+### 2026-02-03 - Auto-restage after lint in pc-commit
+
+**Feature/Bug:** Commit tooling
+
+**Changed Files:**
+
+- `tools/pc-commit`
+
+**What Changed:**
+
+- After running `make check`, `pc-commit` now re-stages changes so linted files are included in the commit automatically.
+
 ### 2026-02-03 - Auto-resume for in-progress tickets
 
 **Feature/Bug:** Ticket execution workflow
