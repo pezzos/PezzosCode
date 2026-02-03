@@ -27,6 +27,64 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Ticket 101 - Define workflow behavior
+
+**Feature/Bug:** P0 - Output offload enforcement
+
+**What Changed:**
+
+- Docs/logs updates initiated via `pc-ticket` automation.
+
+**Status:** In progress
+
+**Author:** pc-ticket
+
+### 2026-02-03 - Ticket 101 - Define workflow behavior (tests-first docs gating)
+
+**Feature/Bug:** P0 - Output offload enforcement
+
+**Changed Files:**
+
+- `tests/test_output_offload_enforcement_docs.py`
+
+**What Changed:**
+
+- Added a regression suite that asserts the feature docs describe the required workflow steps, approval gates, and noisy-command outputs (offload ids/references) for the output offload enforcement workflow.
+- Executed the new tests so the docs updates stay blocked until they can satisfy the gating expectations.
+
+**Status:** Tests failing (expected)
+
+**Testing:**
+
+- `python -m unittest discover -s tests -p test_output_offload_enforcement_docs.py` (FAIL: docs still lack the workflow/gate/offload phrases that the tests now require)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-03 - Ticket 101 - Document gating definitions for output offload enforcement
+
+**Feature/Bug:** P0 - Output offload enforcement
+
+**Changed Files:**
+
+- `docs/02-features/04-output-offload-enforcement/feature-spec.md`
+- `docs/02-features/04-output-offload-enforcement/tech-design.md`
+- `docs/02-features/04-output-offload-enforcement/test-plan.md`
+- `docs/02-features/04-output-offload-enforcement/dev-tasks.md`
+- `docs/03-logs/tickets/04-101--define-workflow-behavior.md`
+
+**What Changed:**
+
+- Documented the required workflow steps, approval gate, and noisy command handling gate artifacts so the doc regression tests can find their phrases.
+- Captured the current dev-task status and worklog notes to show this doc work is underway.
+
+**Status:** Done
+
+**Testing:**
+
+- `tools/offload-proxy/pp make test` (PASS)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Automate ticket log entry creation for pc-ticket
 
 **Feature/Bug:** Ticket execution automation

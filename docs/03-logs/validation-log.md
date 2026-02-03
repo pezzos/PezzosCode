@@ -57,6 +57,16 @@ This helps with:
 - Captured the pre-implementation validation for the update/reapply templates workflow docs by noting the regression tests that check for workflow behavior, gates, and outputs language while they still fail.
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p test_update_reapply_templates_docs.py` (FAIL: the feature docs do not yet contain the required phrases)
 
+### 2026-02-03 - Ticket 101 docs gating tests fail initially
+
+- Added `tests/test_output_offload_enforcement_docs.py` to enforce TC-D001/TC-D002/TC-D003 coverage for the output offload enforcement docs before any doc changes land.
+- `python -m unittest discover -s tests -p test_output_offload_enforcement_docs.py` (FAIL: feature-spec/tech-design/test-plan do not yet mention the workflow steps, gates, or offload artifacts that these tests require)
+
+### 2026-02-03 - Ticket 101 docs gating phrases documented
+
+- Verified the output offload enforcement docs now describe the workflow steps, approval gate, noisy command handling gate, and offload artifact expectations so TC-D001..D004 can succeed.
+- `tools/offload-proxy/pp make test` (PASS)
+
 ### 2026-02-03 - Validated bootstrap template and log marker regressions
 
 - Added focused regression checks for `AGENTS.md`, `pp.yml`, `.codex/skills/context-to-product/SKILL.md`, and the gate logs so each file retains a single bootstrap marker and the CLI reports them once.

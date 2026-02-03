@@ -85,6 +85,13 @@
 - Seeded randomness where used
 - Invariants verified instead of fixed outputs
 
+### Documentation Validation
+
+- **TC-D001:** Workflow documentation enumerates each CLI step for output offload enforcement, including gating checks and required noisy-command outputs (offload IDs/references).
+- **TC-D002:** Docs capture behavior when an offload ID is missing or an offload is skipped, and the gate/approval decision that follows.
+- **TC-D003:** The description of noisy-command handling clearly lists the output artifacts (offload identifiers, log references) required by later steps.
+- **TC-D004:** tc-d004: offload id gating behavior when missing or skipped, ensuring the gate records the missing artifact and blocks progress until it is restored.
+
 ## Exit Criteria
 
 - All tests pass

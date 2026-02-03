@@ -87,6 +87,14 @@ CLI → Run command → Review output → Confirm next step
 2. System executes the workflow step and logs output.
 3. User reviews results and proceeds to the next gate.
 
+### Workflow Steps and Gates
+
+The workflow steps make the noisy command handling behavior explicit: the CLI command is evaluated, an approval gate enumerates the required artifacts, and the offload id reference from the noisy output is attached to the next check-in. This creates a clear handoff at each gate so the user always knows which outputs have been offloaded, which approvals are needed, and how to resume the flow.
+
+1. The user triggers the CLI command and the system notes the noisy command handling context before any long-running work starts.
+2. An approval gate verifies the command, lists the expected artifacts, and refuses to continue until the noisy output is safely stored.
+3. Once the output is offloaded, the offload id reference is logged, surfaced in prompts, and passed to the next gate so downstream steps can look up the exact artifacts they depend on.
+
 #### Error Handling
 
 | Scenario              | User Sees          | System Does   | Recovery Path     |
