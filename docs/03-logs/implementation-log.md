@@ -27,6 +27,35 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Shore up bootstrap regression coverage for root templates and logs
+
+**Feature/Bug:** Bootstrap tooling
+
+**Changed Files:**
+
+- `tests/test_bootstrap_into.py`
+
+**What Changed:**
+
+- Added `test_bootstrap_into_copies_root_templates_and_skills` to assert the bootstrap CLI copies `AGENTS.md`, `pp.yml`, and `.codex/skills/context-to-product/SKILL.md`, keeps their canonical signatures, and appends a single bootstrap marker before the CLI output lists each file.
+- Added `test_bootstrap_into_logs_marker_output_consistently` to confirm each log document retains a single bootstrap marker and the `Updated:` output mentions each log exactly once, ensuring the gate/log story stays stable without touching production code.
+
+**Why:**
+
+- These regression checks lock down the primary bootstrap path (templates + logs) before additional feature work goes in.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests`
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-02 - Fix report status reference in ticket tooling
 
 **Feature/Bug:** Ticket execution tooling
@@ -42,6 +71,71 @@ This helps with:
 **Testing:**
 
 - `ruff check tools/pc-ticket`
+
+### 2026-02-02 - Extend bootstrap regression coverage to root templates
+
+**Feature/Bug:** Bootstrap tooling
+
+**Changed Files:**
+
+- `tests/test_bootstrap_into.py`
+
+**What Changed:**
+
+- Added `test_bootstrap_into_copies_root_templates_and_skills` to confirm AGENTS/Makefile/pp.yml plus `.codex/skills/context-to-product/SKILL.md` are copied into the target repo with the expected bootstrap markers.
+
+**Why:**
+
+- Guarding the bootstrap CLI’s core asset copy ensures the feature keeps aligning with the documented gate and artefact expectations before it ships.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `python -m unittest discover -s tests`
+- `make ci`
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-02 - Locked down bootstrap log coverage with regression tests
+
+**Feature/Bug:** docs/02-features/01-bootstrap-templates-into-a-repo/feature-spec.md
+
+**Changed Files:**
+
+- `tests/test_bootstrap_into.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added log-centric regression tests that confirm the CLI copies both log docs, inserts a single bootstrap marker per file, reports each log only once, and keeps marker counts stable after verbose reruns.
+- Captured the gate/log rationale here so the regression dependencies remain traceable for future release work.
+
+**Why:**
+
+- Verifying the primary bootstrap flow preserves log assets and output reduces the risk of regressing the gate story before shipping the feature.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `python -m unittest discover -s tests`
+- `make ci`
+
+**Notes:**
+
+- The new coverage keeps log markers unique and ensures verbose reruns describe skips without duplicating updates.
+
+**Author:** Alexandre Pezzotta
 
 ### 2026-02-02 - Add complexity flag and orchestrated feedback steps
 
@@ -133,6 +227,55 @@ This helps with:
 **Notes:**
 
 - Moved CI/test autofix prompt to a dedicated template file and wired config defaults to it.
+
+### 2026-02-03 - Normalize bootstrap skip prompt input
+
+**Feature/Bug:** Bootstrap template tests
+
+**Changed Files:**
+
+- `tests/test_bootstrap_into.py`
+
+**What Changed:**
+
+- The skip prompt regression was triggered because the helper passed the literal `s\\n` string, so the CLI never matched the `s` branch and ended up overwriting `docs/README.md`.
+- Added the `SKIP_PROMPT_RESPONSE` constant (set to `"s\n"`) and rewired the skip test to use it after writing `local readme\n`, making the newline-delimited response explicit and ensuring the assertion still checks the newline-terminated contents.
+
+**Testing:**
+
+- `tools/offload-proxy/pp make test`
+
+### 2026-02-03 - Confirm formatting passes CI after autop fix
+
+**Feature/Bug:** Bootstrap test formatting
+
+**Changed Files:**
+
+- `tests/test_bootstrap_into.py`
+
+**What Changed:**
+
+- Black and Prettier rewrote the new bootstrap regression test to satisfy the formatting gates that triggered `make ci` failure; no logic changes were introduced.
+
+**Why:**
+
+- The prior CI run failed because formatting rules were violated. Letting the linters reformat the file keeps the ticket scope narrow and allows the next `make ci` run to pass without further interventions.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp make ci`
+
+**Notes:**
+
+- Output captured with `tools/offload-proxy/pp make ci` so the CI log stays concise.
+
+**Author:** Codex
 
 ### 2026-02-02 - Add CI/test autofix loops to ticket execution
 

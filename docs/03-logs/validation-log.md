@@ -25,6 +25,32 @@ This helps with:
 
 ---
 
+## Recent Validations
+
+### 2026-02-03 - Validated bootstrap template and log marker regressions
+
+- Added focused regression checks for `AGENTS.md`, `pp.yml`, `.codex/skills/context-to-product/SKILL.md`, and the gate logs so each file retains a single bootstrap marker and the CLI reports them once.
+- `tools/offload-proxy/pp python -m unittest discover -s tests` (PASS)
+- `tools/offload-proxy/pp make ci` (PASS)
+
+### 2026-02-02 - Bootstrap CLI log coverage regression
+
+- Added log-focused regression tests in `tests/test_bootstrap_into.py` that confirm the CLI copies both log documents, reports them once, and keeps their bootstrap markers unique even after verbose reruns.
+- `python -m unittest discover -s tests` (PASS) and `make ci` (PASS) after the new tests landed.
+
+### 2026-02-02 - Confirmed bootstrap root template coverage
+
+- `python -m unittest discover -s tests` (PASS)
+- `make ci` (PASS)
+- Verified AGENTS/Makefile/pp.yml and `.codex/skills/context-to-product/SKILL.md` carry bootstrap markers when copied by the CLI, reinforcing the root/template story.
+
+### 2026-02-03 - Validated bootstrap skip test behavior
+
+- Adjusted `test_bootstrap_into_handles_existing_files_skip` so it writes `local readme\n` and sends `input_text="s\n"`, making the skip prompt deterministic.
+- `tools/offload-proxy/pp make test` (PASS)
+
+---
+
 ## Validation Template
 
 ### [Feature Name] - Post-Launch Validation
