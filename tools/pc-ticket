@@ -958,6 +958,9 @@ def main() -> None:
         complexity = "simple"
     worklog_path = find_worklog(ticket_numeric, title, root, feature_id)
     worklog_existed = os.path.exists(worklog_path)
+    if ticket_frontmatter.get("status") == "Done":
+        print("pc-ticket: ticket already Done; skipping execution")
+        return
 
     ticket_cmd = f"tools/ticket-bootstrap T={ticket_numeric}" + (
         f" F={feature_id}" if feature_id else ""
@@ -975,6 +978,8 @@ def main() -> None:
         die('pc-ticket: awaiting PO approval; set approval: "granted" to proceed')
 
     ticket_body = read_file(ticket_path)
+    if not os.path.exists(worklog_path):
+        die(f"pc-ticket: worklog missing at {worklog_path}")
     worklog = read_file(worklog_path)
     preflight_section = get_section(worklog, "Preflight Report")
     tdd_section = get_section(worklog, "TDD Plan")

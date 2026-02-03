@@ -190,6 +190,18 @@ This helps with:
 
 - After running `make check`, `pc-commit` now re-stages changes so linted files are included in the commit automatically.
 
+### 2026-02-03 - Skip pc-ticket when ticket is already Done
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+
+**What Changed:**
+
+- If the ticket status is already `Done`, `pc-ticket` now exits cleanly instead of trying to open a missing worklog.
+
 ### 2026-02-03 - Auto-resume for in-progress tickets
 
 **Feature/Bug:** Ticket execution workflow
