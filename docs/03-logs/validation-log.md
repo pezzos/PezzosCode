@@ -27,6 +27,26 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-03 - Reapply gating output now surfaces during bootstrap runs
+
+- Verified the bootstrap reapply flow emits the preflight validation gate, template diff review gate, and conflict summary output while prompting for overwrite/merge/skip decisions so the regression expectations are satisfied.
+- `tools/offload-proxy/pp make test` (PASS)
+
+### 2026-02-03 - Bootstrap tolerates pre-commit install failures
+
+- Verified `bootstrap-into` now prints a warning and continues when `pre-commit install` fails so the CLI can finish reapply runs even when hook installation returns non-zero.
+- `tools/offload-proxy/pp make test` (PASS)
+
+### 2026-02-03 - Reapply gating expectation test fails before CLI output changes
+
+- Added a regression that runs the reapply flow against a repo with local edits and asserts the CLI prints the preflight validation gate, template diff review gate, and conflict summary output while prompting for overwrite/merge/skip decisions.
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_bootstrap_into.py` (FAIL: the CLI is still silent about the gate phrases)
+
+### 2026-02-03 - Reapply gate phrases now emitted
+
+- Verified the reapply workflow now prints the preflight validation gate, template diff review gate, and conflict summary output whenever it prompts before overwriting syncable files.
+- `python3 tools/offload-proxy/pp make test` (PASS)
+
 ### 2026-02-03 - Document workflow gating tests failing before docs update
 
 - Captured the pre-implementation validation for the update/reapply templates workflow docs by noting the regression tests that check for workflow behavior, gates, and outputs language while they still fail.

@@ -13,6 +13,11 @@ LOG_FILES = (
 LOG_MARKER = "<!-- PezzosCode bootstrap sha256:"
 SCRIPT_MARKER = "# PezzosCode bootstrap sha256:"
 SKIP_PROMPT_RESPONSE = "s\n"
+GATE_PHRASES = (
+    "preflight validation gate",
+    "template diff review gate",
+    "conflict summary output",
+)
 
 
 def run_bootstrap_into(args, input_text=None):
@@ -402,6 +407,32 @@ class TestBootstrapInto(unittest.TestCase):
                     content.count(LOG_MARKER),
                     1,
                     f"{rel_path.name} should retain one marker",
+                )
+
+    def test_reapply_runs_surface_cli_gates(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            init_git_repo(tmp_dir)
+            initial = run_bootstrap_into([tmp_dir])
+            self.assertEqual(initial.returncode, 0)
+
+            readme_path = Path(tmp_dir) / "docs" / "README.md"
+            existing = readme_path.read_text(encoding="utf-8")
+            readme_path.write_text(existing + "\nlocal change\n", encoding="utf-8")
+
+            response_stream = SKIP_PROMPT_RESPONSE * 5
+            result = run_bootstrap_into(
+                ["--verbose", tmp_dir],
+                input_text=response_stream,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            combined_output = f"{result.stdout or ''}\n{result.stderr or ''}".lower()
+
+            for gate in GATE_PHRASES:
+                self.assertIn(
+                    gate,
+                    combined_output,
+                    f"Reapply runs should mention the {gate}.",
                 )
 
 

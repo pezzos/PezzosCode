@@ -27,6 +27,90 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Gate-focused reapply tests land before CLI updates
+
+**Feature/Bug:** Update/reapply templates CLI tooling
+
+**Changed Files:**
+
+- `tests/test_bootstrap_into.py`
+
+**What Changed:**
+
+- Added a TDD-first regression that exercises a reapply run with a locally modified file and asserts that the CLI prints the preflight validation gate, template diff review gate, and conflict summary output whenever it prompts for overwrite/merge/skip choices.
+
+**Why:**
+
+- The ticket requires writing tests before altering the CLI behavior; capturing the desired gate phrases as failing assertions ensures the future implementation reuses these expectations to keep reapply workflow outputs predictable and safe.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_bootstrap_into.py` (FAIL: the gating phrases are not yet emitted)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-03 - Report pre-commit install failures without aborting bootstrap
+
+**Feature/Bug:** Update/reapply templates CLI tooling
+
+**Changed Files:**
+
+- `tools/bootstrap-into`
+
+**What Changed:**
+
+- Wrapped the `pre-commit install` invocation in a check that only prints a warning when the install fails so `bootstrap-into` can finish even if hook installation returns a non-zero status.
+
+**Why:**
+
+- The failing test surfaced that a stubbed `pre-commit` command (returning 2) caused bootstrap to exit early, so continuing gracefully while warning maintains the documented CLI workflow.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp make test` (PASS)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-03 - Print gates during reapply prompts
+
+**Feature/Bug:** Update/reapply templates CLI tooling
+
+**Changed Files:**
+
+- `tools/bootstrap-into`
+
+**What Changed:**
+
+- Emit the preflight validation gate, template diff review gate, and conflict summary output any time a syncable file already exists before prompting for overwrite/merge/skip, matching the regression expectations.
+
+**Why:**
+
+- The new regression in `tests/test_bootstrap_into.py` asserts the CLI prints the gate phrases during reapply runs so the workflow outputs stay predictable and surface every checkpoint before user decisions.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Slightly more verbose, gated to local edits only
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp make test` (PASS)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Add docs workflow regression tests before doc updates
 
 **Feature/Bug:** Update/reapply templates workflow docs

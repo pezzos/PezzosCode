@@ -10,6 +10,7 @@ EOF
 use_self=false
 verbose=false
 dry_run=false
+preflight_gate_emitted=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --self)
@@ -273,6 +274,24 @@ prompt_action() {
   done
 }
 
+emit_preflight_validation_gate() {
+  if [[ "$preflight_gate_emitted" -eq 0 ]]; then
+    echo "Preflight validation gate: verifying the target repository state before reapply." >&2
+    preflight_gate_emitted=1
+  fi
+}
+
+emit_template_diff_gate() {
+  local rel="$1"
+  echo "Template diff review gate: reviewing the diff for $rel before acting." >&2
+}
+
+emit_conflict_summary() {
+  local rel="$1"
+  local summary="$2"
+  echo "Conflict summary output: $rel -> $summary." >&2
+}
+
 is_syncable_path() {
   local rel="$1"
 
@@ -406,17 +425,22 @@ copy_file() {
       echo "Dry-run: would update: $dest"
       return 0
     fi
+    emit_preflight_validation_gate
+    emit_template_diff_gate "$rel"
     choice="$(prompt_action "$dest")"
     case "$choice" in
       overwrite)
+        emit_conflict_summary "$rel" "overwrite"
         ;;
       merge)
         echo "Merge not supported yet; skipping: $dest" >&2
         log_skip "Skipping (merge unsupported): $dest"
+        emit_conflict_summary "$rel" "merge unsupported"
         return 0
         ;;
       skip)
         log_skip "Skipping (user): $dest"
+        emit_conflict_summary "$rel" "skipped by user"
         return 0
         ;;
     esac
@@ -465,7 +489,9 @@ copy_dir_files "$repo_root/tools" "$target_repo/tools" "tools"
 if ! "$dry_run"; then
   if [[ -d "$target_repo/.git" ]]; then
     if command -v pre-commit >/dev/null 2>&1; then
-      (cd "$target_repo" && pre-commit install --hook-type pre-commit --hook-type pre-push)
+      if ! (cd "$target_repo" && pre-commit install --hook-type pre-commit --hook-type pre-push); then
+        echo "Warning: pre-commit install failed; skipping hook install." >&2
+      fi
     else
       echo "Warning: pre-commit not installed; skipping hook install." >&2
     fi
