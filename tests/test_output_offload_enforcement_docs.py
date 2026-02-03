@@ -54,6 +54,61 @@ class TestOutputOffloadEnforcementDocs(unittest.TestCase):
         expected_phrase = "tc-d004: offload id gating behavior when missing or skipped"
         self.assertIn(expected_phrase, content)
 
+    def test_test_plan_captures_tc_d002_offload_id_missing_gate(self):
+        path = (
+            ROOT
+            / "docs"
+            / "02-features"
+            / "04-output-offload-enforcement"
+            / "test-plan.md"
+        )
+        content = path.read_text(encoding="utf-8").lower()
+        expected_phrase = (
+            "tc-d002:** docs capture behavior when an offload id is missing or an "
+            "offload is skipped, and the gate/approval decision that follows."
+        )
+        self.assertIn(expected_phrase, content)
+
+    def test_test_plan_captures_tc_d003_artifact_list(self):
+        path = (
+            ROOT
+            / "docs"
+            / "02-features"
+            / "04-output-offload-enforcement"
+            / "test-plan.md"
+        )
+        content = path.read_text(encoding="utf-8").lower()
+        expected_phrase = (
+            "tc-d003:** the description of noisy-command handling clearly lists the "
+            "output artifacts (offload identifiers, log references) required by "
+            "later steps."
+        )
+        self.assertIn(expected_phrase, content)
+
+    def test_execute_ticket_feature_spec_mentions_offload_ids(self):
+        path = (
+            ROOT
+            / "docs"
+            / "02-features"
+            / "02-execute-ticket-workflow"
+            / "feature-spec.md"
+        )
+        content = path.read_text(encoding="utf-8").lower()
+        expected_phrase = "offload ids and prompt review"
+        self.assertIn(expected_phrase, content)
+
+    def test_execute_ticket_tech_design_outputs_include_offload_ids(self):
+        path = (
+            ROOT
+            / "docs"
+            / "02-features"
+            / "02-execute-ticket-workflow"
+            / "tech-design.md"
+        )
+        content = path.read_text(encoding="utf-8").lower()
+        expected_phrase = "stdout/stderr with offload ids if noisy"
+        self.assertIn(expected_phrase, content)
+
 
 if __name__ == "__main__":
     unittest.main()

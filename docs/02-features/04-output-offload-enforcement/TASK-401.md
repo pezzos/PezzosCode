@@ -2,8 +2,8 @@
 id: 401
 title: "Add or update tests"
 prd_ref: "P0 - Output offload enforcement"
-status: "To Do"
-status_timestamp: ""
+status: "Done"
+status_timestamp: "2026-02-03T20:23:39Z"
 complexity: "simple"
 approval: ""
 change_budget:
@@ -55,8 +55,8 @@ Add or update tests
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Regression tests validate offload behavior for noisy commands.
-- [ ] Tests align with the feature test plan and pass locally.
+- [x] Regression tests validate offload behavior for noisy commands.
+- [x] Tests align with the feature test plan and pass locally.
 
 ## Plan (Draft)
 
@@ -102,7 +102,11 @@ Add or update tests
 ## Tests Run
 
 - Command(s):
+  - `make test`
+  - `make ci`
 - Result(s):
+  - make test: PASS
+  - make ci: PASS
 
 ## Implementer Notes
 
@@ -141,9 +145,9 @@ Add or update tests
 
 ## Report (Final)
 
-- What changed:
-- Commands run (use `pp` for noisy output):
-- Results:
+- What changed: docs/03-logs/tickets/04-401--add-or-update-tests.md
+- Commands run (use `pp` for noisy output): `make test`, `make ci`
+- Results: make test PASS; make ci PASS
 
 ## Commit
 

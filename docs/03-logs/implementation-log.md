@@ -27,6 +27,19 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Ticket 401 - Add or update tests
+
+**Feature/Bug:** P0 - Output offload enforcement
+
+**What Changed:**
+
+- Added doc regression tests (`tests/test_output_offload_enforcement_docs.py`) so TC-D002/TC-D003 demand mention of offload artifacts and gating phrases.
+- Logged the ticket progress across the worklog, implementation log, and validation log while baselining the final `make ci` pass.
+
+**Status:** Completed
+
+**Author:** pc-ticket
+
 ### 2026-02-03 - Ticket 102 - Implement or update tooling/scripts
 
 **Feature/Bug:** P0 - Output offload enforcement

@@ -32,6 +32,11 @@ This helps with:
 - Verified the bootstrap reapply flow emits the preflight validation gate, template diff review gate, and conflict summary output while prompting for overwrite/merge/skip decisions so the regression expectations are satisfied.
 - `tools/offload-proxy/pp make test` (PASS)
 
+### 2026-02-03 - Ticket 401 docs gating coverage validated
+
+- Confirmed the new doc regression tests (`tests/test_output_offload_enforcement_docs.py`) enforce TC-D002/TC-D003 by ensuring the output offload test plan plus the Execute ticket feature spec and tech design mention offload IDs and gating behavior.
+- `tools/offload-proxy/pp make ci` (PASS)
+
 ### 2026-02-03 - Validate offload proxy regression coverage
 
 - Verified the new regression ensures `tools/offload-proxy/pp` stores noisy outputs under `.offload/`, prints the pointer id banner, and honors `always_offload` entries so downstream gates can reference the recorded artifact.
