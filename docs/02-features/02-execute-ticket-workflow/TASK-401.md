@@ -2,8 +2,8 @@
 id: 401
 title: "Add or update tests"
 prd_ref: "02"
-status: "Ongoing"
-status_timestamp: "2026-02-03T08:29:00Z"
+status: "Done"
+status_timestamp: "2026-02-03T10:54:10Z"
 complexity: "simple"
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
@@ -50,9 +50,9 @@ Add or update tests
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Tests cover the primary path
-- [ ] Relevant tests updated and passing
-- [ ] Logs/docs updated if required by this task
+- [x] Tests cover the primary path
+- [x] Relevant tests updated and passing
+- [x] Logs/docs updated if required by this task
 
 ## Plan (Draft)
 
@@ -96,8 +96,12 @@ Add or update tests
 
 ## Tests Run
 
-- Command(s): TBD
-- Result(s): TBD
+- Command(s):
+  - `make test`
+  - `make ci`
+- Result(s):
+  - make test: PASS
+  - make ci: PASS
 
 ## Implementer Notes
 
@@ -127,19 +131,19 @@ Add or update tests
 - [ ] Implementation log
 - [ ] Decision log (if needed)
 - [ ] Bug log (if needed)
-- [ ] Validation log (if needed)
+- [x] Validation log (if needed)
 
 ## Docs Updated
 
 - [ ] Feature docs (feature-spec/tech-design/dev-tasks/test-plan)
 - [ ] PRD (if scope/priority changed)
-- [ ] Other: docs/03-logs/validation-log.md
+- [x] Other: docs/03-logs/validation-log.md
 
 ## Report (Final)
 
-- What changed:
-- Commands run (use `pp` for noisy output):
-- Results:
+- What changed: tools/pc-ticket
+- Commands run (use `pp` for noisy output): `make test`, `make ci`
+- Results: make test PASS; make ci PASS
 
 ## Commit
 

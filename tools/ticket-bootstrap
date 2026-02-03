@@ -158,7 +158,11 @@ fi
 
 worklog_dir="$repo_root/docs/03-logs/tickets"
 worklog_template="$worklog_dir/worklog-template.md"
-worklog_file="$worklog_dir/${ticket_id}--${slug}.md"
+worklog_prefix=""
+if [[ -n "$feature_id" ]]; then
+  worklog_prefix="${feature_id}-"
+fi
+worklog_file="$worklog_dir/${worklog_prefix}${ticket_id}--${slug}.md"
 
 if [[ ! -f "$worklog_template" ]]; then
   echo "ticket-bootstrap: missing worklog template at $worklog_template" >&2

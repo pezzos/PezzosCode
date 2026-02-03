@@ -209,9 +209,14 @@ def slugify(text: str) -> str:
     return slug or "ticket"
 
 
-def find_worklog(ticket_id: str, title: str, root: str) -> str:
+def find_worklog(
+    ticket_id: str, title: str, root: str, feature_id: Optional[str]
+) -> str:
     slug = slugify(title)
-    return os.path.join(root, "docs", "03-logs", "tickets", f"{ticket_id}--{slug}.md")
+    prefix = f"{feature_id}-" if feature_id else ""
+    return os.path.join(
+        root, "docs", "03-logs", "tickets", f"{prefix}{ticket_id}--{slug}.md"
+    )
 
 
 def replace_section(content: str, header: str, body: str) -> str:
@@ -951,7 +956,7 @@ def main() -> None:
     )
     if complexity not in ("simple", "complex"):
         complexity = "simple"
-    worklog_path = find_worklog(ticket_numeric, title, root)
+    worklog_path = find_worklog(ticket_numeric, title, root, feature_id)
     worklog_existed = os.path.exists(worklog_path)
 
     ticket_cmd = f"tools/ticket-bootstrap T={ticket_numeric}" + (

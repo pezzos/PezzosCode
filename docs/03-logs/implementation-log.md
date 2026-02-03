@@ -165,6 +165,19 @@ This helps with:
 - The commit step now auto-updates ticket DoD checkboxes, Tests Run, and Report (Final) to ensure tickets are complete before committing.
 - Process and context docs now state that commits are gated on completed ticket documentation.
 
+### 2026-02-03 - Feature-prefixed worklog filenames
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/ticket-bootstrap`
+- `tools/pc-ticket`
+
+**What Changed:**
+
+- Worklog filenames now include the feature id (e.g., `02-401--slug.md`) to avoid cross-feature collisions when task ids repeat.
+
 ### 2026-02-03 - Auto-resume for in-progress tickets
 
 **Feature/Bug:** Ticket execution workflow
