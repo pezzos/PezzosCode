@@ -1,0 +1,407 @@
+#!/usr/bin/env python3
+import os
+import re
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple
+
+
+@dataclass
+class Task:
+    task_id: str
+    title: str
+    acceptance: Optional[str] = None
+    estimate: Optional[str] = None
+    bullets: List[str] = field(default_factory=list)
+
+
+def die(message: str) -> None:
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
+
+def read_file(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def write_file(path: str, content: str) -> None:
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(content)
+
+
+def parse_args(argv: List[str]) -> Tuple[str, bool]:
+    feature_id = ""
+    manual = False
+    for arg in argv:
+        if arg.startswith("F="):
+            feature_id = arg[len("F=") :].strip()
+        elif arg.startswith("MANUAL="):
+            manual = arg.split("=", 1)[1].strip() == "1"
+        else:
+            die(f"pc-feature: unknown argument '{arg}'")
+    if not feature_id:
+        die("pc-feature: missing required F=<feature-id>")
+    return feature_id, manual
+
+
+def list_feature_dirs(root: str) -> List[Tuple[int, str, str]]:
+    features = []
+    for entry in os.listdir(root):
+        path = os.path.join(root, entry)
+        if not os.path.isdir(path):
+            continue
+        if entry == "feature-template":
+            continue
+        match = re.match(r"^(\d+)-", entry)
+        if not match:
+            continue
+        features.append((int(match.group(1)), entry, path))
+    return sorted(features, key=lambda item: item[0])
+
+
+def resolve_feature_dir(root: str, feature_id: str) -> str:
+    feature_id = feature_id.strip()
+    for _, name, path in list_feature_dirs(root):
+        if name.startswith(f"{feature_id}-"):
+            return path
+    die(f"pc-feature: feature folder not found for id {feature_id}")
+
+
+def parse_feature_name(dev_tasks_path: str) -> str:
+    content = read_file(dev_tasks_path)
+    for line in content.splitlines():
+        match = re.search(r"\*\*Feature:\*\*\s*(.+)$", line)
+        if match:
+            return match.group(1).strip()
+    return "Unknown feature"
+
+
+def parse_tasks(dev_tasks_path: str) -> List[Task]:
+    task_re = re.compile(r"^\s*-\s*\[ \]\s*\*\*TASK-(\d+):\s*(.+?)\*\*\s*$")
+    tasks: List[Task] = []
+    current: Optional[Task] = None
+    for line in read_file(dev_tasks_path).splitlines():
+        task_match = task_re.match(line)
+        if task_match:
+            if current:
+                tasks.append(current)
+            current = Task(
+                task_id=task_match.group(1), title=task_match.group(2).strip()
+            )
+            continue
+        if current is None:
+            continue
+        bullet_match = re.match(r"^\s{2,}-\s+(.*)$", line)
+        if not bullet_match:
+            continue
+        bullet = bullet_match.group(1).strip()
+        lowered = bullet.lower()
+        if lowered.startswith("**acceptance:**") or lowered.startswith("acceptance:"):
+            current.acceptance = bullet.split(":", 1)[1].strip().strip("*")
+            continue
+        if lowered.startswith("**estimate:**") or lowered.startswith("estimate:"):
+            current.estimate = bullet.split(":", 1)[1].strip().strip("*")
+            continue
+        if lowered.startswith("**dependencies:**") or lowered.startswith(
+            "dependencies:"
+        ):
+            continue
+        current.bullets.append(bullet)
+    if current:
+        tasks.append(current)
+    return tasks
+
+
+def parse_prd_feature(prd_path: str, feature_name: str) -> Tuple[Optional[str], str]:
+    feature_lower = feature_name.lower()
+    for line in read_file(prd_path).splitlines():
+        match = re.match(r"^- \[ \] (.+?) \((P\d)\):", line)
+        if match and match.group(1).strip().lower() == feature_lower:
+            return match.group(2), "Process Features"
+    for line in read_file(prd_path).splitlines():
+        match = re.match(r"^\|\s*(P\d)\s*\|\s*(.+?)\s*\|", line)
+        if match and match.group(2).strip().lower() == feature_lower:
+            return match.group(1), "Prioritized Feature List"
+    return None, "PRD"
+
+
+def classify_task(title: str) -> str:
+    lowered = title.lower()
+    if "test" in lowered:
+        return "Testing"
+    if "doc" in lowered or "define" in lowered or "spec" in lowered:
+        return "Docs"
+    return "Feature"
+
+
+def plan_scope(task_type: str) -> str:
+    if task_type == "Docs":
+        return "1 feature folder"
+    return "1 mini change"
+
+
+def change_budget(task_type: str) -> Tuple[int, int, int]:
+    if task_type == "Docs":
+        return 4, 0, 180
+    if task_type == "Testing":
+        return 4, 1, 220
+    return 6, 1, 300
+
+
+def build_ticket(
+    task: Task,
+    feature_id: str,
+    feature_name: str,
+    feature_dir: str,
+    prd_priority: Optional[str],
+    prd_section: str,
+) -> str:
+    task_type = classify_task(task.title)
+    scope_choice = plan_scope(task_type)
+    max_files, max_new_modules, max_lines = change_budget(task_type)
+    prd_ref = f"{prd_priority} - {feature_name}" if prd_priority else feature_name
+    acceptance_text = task.acceptance or "TODO: define acceptance criteria"
+    estimate_text = task.estimate or "TODO"
+    bullets = task.bullets or ["(none)"]
+    bullets_block = "\n".join(f"- {item}" for item in bullets)
+    tests_line = (
+        "None (docs-only)."
+        if task_type == "Docs"
+        else "Targeted tests from the feature test plan."
+    )
+    evidence_hints = []
+    if task_type == "Docs":
+        evidence_hints = [
+            f"`{feature_dir}/feature-spec.md` (Summary, Requirements)",
+            f"`{feature_dir}/tech-design.md` (Architecture, Constraints)",
+        ]
+    elif task_type == "Testing":
+        evidence_hints = [
+            f"`{feature_dir}/test-plan.md` (Test Strategy, Cases)",
+        ]
+    else:
+        evidence_hints = [
+            f"`{feature_dir}/tech-design.md` (Architecture, Constraints)",
+            f"`{feature_dir}/test-plan.md` (Test Strategy, Cases)",
+        ]
+    evidence_block = "\n".join(f"- {item}" for item in evidence_hints)
+    feature_spec = f"{feature_dir}/feature-spec.md"
+    tech_design = f"{feature_dir}/tech-design.md"
+    test_plan = f"{feature_dir}/test-plan.md"
+
+    return f"""---
+id: {task.task_id}
+title: "{task.title}"
+prd_ref: "{prd_ref}"
+status: "To Do"
+status_timestamp: ""
+complexity: "simple"
+approval: ""
+change_budget:
+  max_files: {max_files}
+  max_new_modules: {max_new_modules}
+---
+
+<!-- allowed status: To Do | Ongoing | Done | Fail | Awaiting PO Approval -->
+<!-- allowed complexity: simple | complex -->
+<!-- set approval to "granted" to resume HIGH risk tickets -->
+
+# Ticket: {task.title}
+
+## Title
+
+{task.title}
+
+## Type
+
+- {task_type}
+
+## Context
+
+- Task: {task.title}.
+- Acceptance: {acceptance_text}.
+- Estimate: {estimate_text}.
+- Feature context: {feature_name} (CLI-only workflow).
+- References: `{feature_spec}`, `{tech_design}`, `{test_plan}`.
+
+## Scope
+
+- **Choose one:** {scope_choice}
+- In scope:
+  - {task.title}.
+- Out of scope:
+  - Unrelated features or tooling.
+
+## PRD Traceability
+
+- PRD feature/order: {prd_ref} ({prd_section})
+- Link to PRD section: `docs/01-product/prd.md` ({prd_section})
+
+## Success Criteria
+
+- [ ] {acceptance_text}
+- [ ] Task intent matches the feature spec and tech design.
+
+## Definition of Done (Ticket-Specific)
+
+- [ ] Acceptance criteria satisfied.
+- [ ] Relevant feature docs/tests updated per references.
+
+## Plan (Draft)
+
+- Approach: Execute the task per feature spec/tech design guidance.
+- Files to change: `{feature_dir}/` docs and any referenced tooling/tests.
+- Risks/assumptions: Assumes current CLI-only workflow remains unchanged.
+- Tests to run: {tests_line}
+
+## Evidence Hints
+
+{evidence_block}
+
+## References
+
+- Feature spec: `{feature_spec}` (Summary + Requirements)
+- Tech design: `{tech_design}` (Architecture + Constraints)
+- Test plan: `{test_plan}` (Test Strategy + Cases)
+
+## Risk Classification
+
+- Risk level: LOW
+- Triggers (if HIGH):
+
+## Change Budget
+
+- Max files: {max_files}
+- Max new modules: {max_new_modules}
+- Max lines changed (estimate): {max_lines}
+
+## Human Gates
+
+- [ ] Plan validated
+- [ ] Diff validated
+- [ ] Tests validated
+
+## Implementation Notes
+
+{bullets_block}
+
+## Tests Run
+
+- Command(s):
+- Result(s):
+
+## Implementer Notes
+
+- Implementation choices:
+- Edge cases covered:
+- Files changed:
+
+## Tester Feedback
+
+- Tests executed:
+- Failures observed:
+- Suggested fixes:
+
+## Reviewer Feedback
+
+- Issues found:
+- Suggestions:
+- Approval status:
+
+## Iteration Log
+
+- [ ] Implementer updated after tester feedback
+- [ ] Implementer updated after reviewer feedback
+
+## Logs Updated
+
+- [ ] Implementation log
+- [ ] Decision log (if needed)
+- [ ] Bug log (if needed)
+- [ ] Validation log (if needed)
+
+## Docs Updated
+
+- [ ] Feature docs (feature-spec/tech-design/dev-tasks/test-plan)
+- [ ] PRD (if scope/priority changed)
+- [ ] Other: [list]
+
+## Report (Final)
+
+- What changed:
+- Commands run (use `pp` for noisy output):
+- Results:
+
+## Commit
+
+- Message:
+"""
+
+
+def generate_tickets(feature_dir: str, feature_id: str) -> List[str]:
+    dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
+    if not os.path.exists(dev_tasks_path):
+        die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")
+    feature_name = parse_feature_name(dev_tasks_path)
+    tasks = parse_tasks(dev_tasks_path)
+    if not tasks:
+        die(f"pc-feature: no tasks found in {dev_tasks_path}")
+    prd_priority, prd_section = parse_prd_feature(
+        "docs/01-product/prd.md", feature_name
+    )
+    created = []
+    for task in tasks:
+        ticket_path = os.path.join(feature_dir, f"TASK-{task.task_id}.md")
+        if os.path.exists(ticket_path):
+            continue
+        ticket_content = build_ticket(
+            task=task,
+            feature_id=feature_id,
+            feature_name=feature_name,
+            feature_dir=feature_dir,
+            prd_priority=prd_priority,
+            prd_section=prd_section,
+        )
+        write_file(ticket_path, ticket_content)
+        created.append(ticket_path)
+    return created
+
+
+def list_ticket_ids(feature_dir: str) -> List[str]:
+    ticket_ids = []
+    for name in os.listdir(feature_dir):
+        match = re.match(r"^TASK-(\d+)\.md$", name)
+        if match:
+            ticket_ids.append(match.group(1))
+    return sorted(ticket_ids, key=lambda value: int(value))
+
+
+def run_ticket_loop(feature_id: str, ticket_ids: List[str], manual: bool) -> None:
+    if not ticket_ids:
+        die("pc-feature: no tickets found to execute")
+    for ticket_id in ticket_ids:
+        cmd = ["make", "ticket", f"T={ticket_id}", f"F={feature_id}"]
+        if manual:
+            cmd.append("MANUAL=1")
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+
+
+def main() -> None:
+    feature_id, manual = parse_args(sys.argv[1:])
+    feature_root = os.path.join("docs", "02-features")
+    feature_dir = resolve_feature_dir(feature_root, feature_id)
+    created = generate_tickets(feature_dir, feature_id)
+    if created:
+        print("pc-feature: created tickets:")
+        for path in created:
+            print(f"- {path}")
+    ticket_ids = list_ticket_ids(feature_dir)
+    run_ticket_loop(feature_id, ticket_ids, manual)
+
+
+if __name__ == "__main__":
+    main()

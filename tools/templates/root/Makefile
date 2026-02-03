@@ -1,4 +1,4 @@
-.PHONY: fmt lint test check docs-check skills-check ticket-check ticket ticket-auto ticket-manual ticket-ci ticket-verify ci
+.PHONY: fmt lint test check docs-check skills-check ticket-check ticket ticket-auto ticket-manual ticket-ci ticket-verify feature ci
 
 fmt:
 	@pre-commit run --all-files --hook-stage manual
@@ -54,6 +54,9 @@ ticket-verify:
 ticket-ci:
 	@tools/ticket-bootstrap T=$(T) F=$(F)
 	@$(MAKE) ci
+
+feature:
+	@tools/pc-feature F=$(F) MANUAL=$(MANUAL)
 
 skills-check:
 	@bash -euo pipefail -c '\

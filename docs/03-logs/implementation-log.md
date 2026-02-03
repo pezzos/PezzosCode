@@ -640,6 +640,21 @@ This helps with:
 
 - Added a normalization pass that fixes bullet-prefixed worklog headers (for example `-##`) before parsing sections, preventing false “missing section” errors.
 
+### 2026-02-03 - Add feature-level wrapper for ticket generation + execution
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `Makefile`
+- `tools/templates/root/Makefile`
+
+**What Changed:**
+
+- Added `pc-feature` to generate tickets from `dev-tasks.md` for a feature id and run `make ticket` across them in order.
+- Added a `make feature F=<id>` target to invoke the wrapper with optional manual mode passthrough.
+
 ### 2026-02-03 - Auto-complete ticket docs before commit
 
 **Feature/Bug:** Ticket execution workflow
