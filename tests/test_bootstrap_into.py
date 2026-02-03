@@ -389,7 +389,8 @@ class TestBootstrapInto(unittest.TestCase):
     def test_verbose_rerun_reports_skipping_logs(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)
-            run_bootstrap_into([tmp_dir])
+            initial = run_bootstrap_into([tmp_dir])
+            self.assertEqual(initial.returncode, 0)
 
             rerun = run_bootstrap_into(["--verbose", tmp_dir])
             self.assertEqual(rerun.returncode, 0)
@@ -409,7 +410,7 @@ class TestBootstrapInto(unittest.TestCase):
                     f"{rel_path.name} should retain one marker",
                 )
 
-    def test_reapply_runs_surface_cli_gates(self):
+    def test_update_reapply_primary_flow_reports_gates(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)
             initial = run_bootstrap_into([tmp_dir])
@@ -433,6 +434,48 @@ class TestBootstrapInto(unittest.TestCase):
                     gate,
                     combined_output,
                     f"Reapply runs should mention the {gate}.",
+                )
+
+    def test_update_reapply_exit_code_and_log_outputs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            init_git_repo(tmp_dir)
+            run_bootstrap_into([tmp_dir])
+
+            readme_path = Path(tmp_dir) / "docs" / "README.md"
+            base_content = readme_path.read_text(encoding="utf-8")
+            readme_path.write_text(base_content + "\nlocal change\n", encoding="utf-8")
+
+            response_stream = SKIP_PROMPT_RESPONSE * 10
+            result = run_bootstrap_into(
+                ["--verbose", tmp_dir],
+                input_text=response_stream,
+            )
+
+            self.assertEqual(
+                result.returncode,
+                0,
+                "Reapply flow should exit successfully even when user skips updates.",
+            )
+
+            stderr = (result.stderr or "").lower()
+            self.assertIn(
+                "template diff review gate: reviewing the diff for docs/readme.md before acting.",
+                stderr,
+                "The diff gate message for README.md should appear in stderr.",
+            )
+            self.assertIn(
+                "conflict summary output: docs/readme.md -> skipped by user.",
+                stderr,
+                "Conflict summaries should mention skipped files.",
+            )
+
+            for rel_path in LOG_FILES:
+                dest = Path(tmp_dir) / rel_path
+                self.assertTrue(dest.exists(), f"{rel_path.name} should still exist.")
+                self.assertEqual(
+                    dest.read_text(encoding="utf-8").count(LOG_MARKER),
+                    1,
+                    f"{rel_path.name} should only retain one bootstrap marker after a reapply skip.",
                 )
 
 

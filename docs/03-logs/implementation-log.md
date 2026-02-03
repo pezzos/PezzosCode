@@ -83,6 +83,34 @@ This helps with:
 
 **Author:** Alexandre Pezzotta
 
+### 2026-02-03 - Capture reapply exit/log expectations with tests
+
+**Feature/Bug:** Update/reapply templates CLI tooling
+
+**Changed Files:**
+
+- `tests/test_bootstrap_into.py`
+
+**What Changed:**
+
+- Renamed the reapply gate regression to `test_update_reapply_primary_flow_reports_gates` and added `test_update_reapply_exit_code_and_log_outputs` so the tests now assert the CLI emits the documented gate/conflict phrases, exits cleanly, and keeps bootstrap markers intact when the user skips reapply updates.
+
+**Why:**
+
+- The ticket's test plan calls for regression coverage that proves the CLI outputs, exit codes, and logs behave as expected before any production changes land, so these tests capture that barrier.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_bootstrap_into.py` (PASS)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Report pre-commit install failures without aborting bootstrap
 
 **Feature/Bug:** Update/reapply templates CLI tooling

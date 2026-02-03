@@ -2,8 +2,8 @@
 id: 401
 title: "Add or update tests"
 prd_ref: "P1 - Update/reapply templates"
-status: "To Do"
-status_timestamp: ""
+status: "Done"
+status_timestamp: "2026-02-03T15:37:39Z"
 complexity: "simple"
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
@@ -51,9 +51,9 @@ Add or update tests
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Test cases align with the feature test plan.
-- [ ] Primary path is covered with repeatable tests.
-- [ ] Tests run without failures.
+- [x] Test cases align with the feature test plan.
+- [x] Primary path is covered with repeatable tests.
+- [x] Tests run without failures.
 
 ## Plan (Draft)
 
@@ -99,7 +99,11 @@ Add or update tests
 ## Tests Run
 
 - Command(s):
+  - `make test`
+  - `make ci`
 - Result(s):
+  - make test: PASS
+  - make ci: PASS
 
 ## Implementer Notes
 
@@ -126,10 +130,10 @@ Add or update tests
 
 ## Logs Updated
 
-- [ ] Implementation log
+- [x] Implementation log
 - [ ] Decision log (if needed)
 - [ ] Bug log (if needed)
-- [ ] Validation log (if needed)
+- [x] Validation log (if needed)
 
 ## Docs Updated
 
@@ -139,9 +143,9 @@ Add or update tests
 
 ## Report (Final)
 
-- What changed:
-- Commands run (use `pp` for noisy output):
-- Results:
+- What changed: docs/03-logs/implementation-log.md, docs/03-logs/tickets/03-401--add-or-update-tests.md, docs/03-logs/validation-log.md, tests/test_bootstrap_into.py
+- Commands run (use `pp` for noisy output): `make test`, `make ci`
+- Results: make test PASS; make ci PASS
 
 ## Commit
 
