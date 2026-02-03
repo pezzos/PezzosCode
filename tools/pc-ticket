@@ -249,6 +249,11 @@ def append_note(content: str, line: str) -> str:
     return content[: match.start(2)] + updated + "\n\n" + content[match.end(2) :]
 
 
+def normalize_worklog_headers(content: str) -> Tuple[str, bool]:
+    normalized = re.sub(r"^[ \t]*[-*]+(## )", r"\1", content, flags=re.MULTILINE)
+    return normalized, normalized != content
+
+
 def get_section(content: str, header: str) -> str:
     pattern = rf"(^## {re.escape(header)}\n)(.*?)(?=^## |\Z)"
     match = re.search(pattern, content, flags=re.MULTILINE | re.DOTALL)
@@ -1035,6 +1040,9 @@ def main() -> None:
     if not os.path.exists(worklog_path):
         die(f"pc-ticket: worklog missing at {worklog_path}")
     worklog = read_file(worklog_path)
+    worklog, normalized = normalize_worklog_headers(worklog)
+    if normalized:
+        write_file(worklog_path, worklog)
     preflight_section = get_section(worklog, "Preflight Report")
     tdd_section = get_section(worklog, "TDD Plan")
     docs_section = get_section(worklog, "Docs Updated")

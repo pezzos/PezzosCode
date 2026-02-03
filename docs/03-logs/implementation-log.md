@@ -497,6 +497,18 @@ This helps with:
 
 - Only skip the commit step when the recorded commit message is found in git history, preventing false “commit already recorded” skips after failed commits.
 
+### 2026-02-03 - Normalize malformed worklog headers before section checks
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+
+**What Changed:**
+
+- Added a normalization pass that fixes bullet-prefixed worklog headers (for example `-##`) before parsing sections, preventing false “missing section” errors.
+
 ### 2026-02-03 - Auto-complete ticket docs before commit
 
 **Feature/Bug:** Ticket execution workflow
