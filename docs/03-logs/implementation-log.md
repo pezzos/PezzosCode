@@ -149,6 +149,22 @@ This helps with:
 
 - Only skip the commit step when the recorded commit message is found in git history, preventing false “commit already recorded” skips after failed commits.
 
+### 2026-02-03 - Auto-complete ticket docs before commit
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/definition-of-done.md`
+- `docs/00-context/expected-features.md`
+
+**What Changed:**
+
+- The commit step now auto-updates ticket DoD checkboxes, Tests Run, and Report (Final) to ensure tickets are complete before committing.
+- Process and context docs now state that commits are gated on completed ticket documentation.
+
 ### 2026-02-03 - Auto-resume for in-progress tickets
 
 **Feature/Bug:** Ticket execution workflow

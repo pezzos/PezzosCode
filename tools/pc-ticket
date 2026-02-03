@@ -373,6 +373,87 @@ def parse_risk_level(section: str) -> str:
     return ""
 
 
+def replace_section_in_text(content: str, header: str, body: str) -> str:
+    pattern = rf"(^## {re.escape(header)}\n)(.*?)(?=^## |\Z)"
+    match = re.search(pattern, content, flags=re.MULTILINE | re.DOTALL)
+    if not match:
+        die(f"pc-ticket: missing section {header} in ticket")
+    body = body.rstrip() + "\n\n"
+    return content[: match.start(2)] + body + content[match.end(2) :]
+
+
+def update_checklist_section(section: str, matches: List[str]) -> str:
+    if not section or not matches:
+        return section
+    updated_lines = []
+    for line in section.splitlines():
+        if line.strip().startswith("- [ ]") and any(match in line for match in matches):
+            updated_lines.append(line.replace("- [ ]", "- [x]", 1))
+        else:
+            updated_lines.append(line)
+    return "\n".join(updated_lines)
+
+
+def finalize_ticket_doc(
+    ticket_path: str,
+    test_cmd: str,
+    ci_cmd: str,
+    post_test_status: str,
+    ci_status: str,
+    changed_files: List[str],
+    docs_updates: List[str],
+) -> None:
+    content = read_file(ticket_path)
+    dod_section = get_section(content, "Definition of Done (Ticket-Specific)")
+    if not dod_section:
+        die("pc-ticket: missing Definition of Done (Ticket-Specific) section in ticket")
+    dod_checked = re.sub(r"^- \[ \]", "- [x]", dod_section, flags=re.M)
+    content = replace_section_in_text(
+        content, "Definition of Done (Ticket-Specific)", dod_checked
+    )
+
+    tests_body = "\n".join(
+        [
+            "- Command(s):",
+            f"  - `{test_cmd}`",
+            f"  - `{ci_cmd}`",
+            "- Result(s):",
+            f"  - {test_cmd}: {post_test_status}",
+            f"  - {ci_cmd}: {ci_status}",
+        ]
+    )
+    content = replace_section_in_text(content, "Tests Run", tests_body)
+
+    commands_run = f"`{test_cmd}`, `{ci_cmd}`"
+    report_body = "\n".join(
+        [
+            f"- What changed: {', '.join(changed_files) if changed_files else '(none)'}",
+            f"- Commands run (use `pp` for noisy output): {commands_run}",
+            f"- Results: {test_cmd} {post_test_status}; {ci_cmd} {ci_status}",
+        ]
+    )
+    content = replace_section_in_text(content, "Report (Final)", report_body)
+
+    if docs_updates:
+        docs_section = get_section(content, "Docs Updated")
+        logs_section = get_section(content, "Logs Updated")
+        log_label_map = {
+            "docs/03-logs/implementation-log.md": "Implementation log",
+            "docs/03-logs/decision-log.md": "Decision log",
+            "docs/03-logs/bug-log.md": "Bug log",
+            "docs/03-logs/validation-log.md": "Validation log",
+        }
+        log_labels = [
+            label for path, label in log_label_map.items() if path in docs_updates
+        ]
+        updated_logs = update_checklist_section(logs_section, log_labels)
+        updated_docs = update_checklist_section(docs_section, docs_updates)
+        content = replace_section_in_text(content, "Logs Updated", updated_logs)
+        content = replace_section_in_text(content, "Docs Updated", updated_docs)
+
+    write_file(ticket_path, content)
+
+
 def normalize_tdd_plan(content: str) -> str:
     pattern = r"(^## TDD Plan\n)(.*?)(?=^## |\Z)"
     match = re.search(pattern, content, flags=re.MULTILINE | re.DOTALL)
@@ -1226,6 +1307,15 @@ def main() -> None:
     worklog = replace_section(worklog, "Commit", f"- Commit message: {commit_message}")
     changed_files = (
         run(["git", "diff", "--name-only"], capture=True).stdout.strip().splitlines()
+    )
+    finalize_ticket_doc(
+        ticket_path=ticket_path,
+        test_cmd=test_cmd,
+        ci_cmd=ci_cmd,
+        post_test_status=post_test_status,
+        ci_status=ci_status,
+        changed_files=changed_files,
+        docs_updates=docs_updates,
     )
     tests_display = ", ".join(tdd_tests) if tdd_tests else "(none)"
     final_report = "\n".join(

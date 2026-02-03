@@ -27,6 +27,7 @@ Clear "done" criteria ensure:
 - Plan → Patch → Test → Report is completed.
 - Tester/reviewer feedback is resolved and logged in the ticket.
 - Tests/lint run via the agreed `make` targets (or documented equivalent).
+- Ticket DoD checkboxes, Tests Run, and Report (Final) are completed before commit.
 - Logs updated with short, factual entries after meaningful changes.
 - Large outputs are offloaded with `tools/offload-proxy/pp` and referenced by id.
 - Everyone has the same expectations

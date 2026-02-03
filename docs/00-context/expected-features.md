@@ -44,6 +44,13 @@ inputs to the PRD feature list and must be reflected unless explicitly rejected.
   - Priority: P0
   - Notes: Skip commit if already recorded in the worklog
 
+- Feature: Commit gated by completed ticket docs
+  - Owner: Developer/PO
+  - Problem: Commits should only happen when ticket documentation is complete and DoD is satisfied
+  - Outcome: Auto-fill Tests Run/Report and check DoD before commit
+  - Priority: P0
+  - Notes: Commit step enforces ticket doc completion
+
 - Feature: Anti-cheat testing strategy
   - Owner: Developer/PO
   - Problem: Hardcoded implementations pass shallow tests

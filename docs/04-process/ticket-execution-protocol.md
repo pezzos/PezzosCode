@@ -75,6 +75,7 @@
 - 1 ticket = 1 commit.
 - Follow commit rules in `docs/04-process/git-workflow.md`.
 - Use `tools/pc-commit` to enforce convention and checks.
+- Before commit, the ticket doc is auto-updated (DoD checkboxes, Tests Run, Report Final) and must be complete.
 
 12. **AI Tooling (preferred)**
 
