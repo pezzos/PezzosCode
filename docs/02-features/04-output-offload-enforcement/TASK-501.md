@@ -2,8 +2,8 @@
 id: 501
 title: "Update docs/logs"
 prd_ref: "P0 - Output offload enforcement"
-status: "To Do"
-status_timestamp: ""
+status: "Done"
+status_timestamp: "2026-02-03T20:48:44Z"
 complexity: "simple"
 approval: ""
 change_budget:
@@ -55,8 +55,8 @@ Update docs/logs
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Process docs reflect the enforced offload workflow.
-- [ ] Log updates (if required) are recorded outside the implementation log.
+- [x] Process docs reflect the enforced offload workflow.
+- [x] Log updates (if required) are recorded outside the implementation log.
 
 ## Plan (Draft)
 
@@ -102,7 +102,11 @@ Update docs/logs
 ## Tests Run
 
 - Command(s):
+  - `make test`
+  - `make ci`
 - Result(s):
+  - make test: PASS
+  - make ci: PASS
 
 ## Implementer Notes
 
@@ -129,7 +133,7 @@ Update docs/logs
 
 ## Logs Updated
 
-- [ ] Decision log (if needed)
+- [x] Decision log (if needed)
 - [ ] Bug log (if needed)
 - [ ] Validation log (if needed)
 
@@ -141,9 +145,9 @@ Update docs/logs
 
 ## Report (Final)
 
-- What changed:
-- Commands run (use `pp` for noisy output):
-- Results:
+- What changed: docs/03-logs/decision-log.md, docs/04-process/human-orchestration-workflow.md, docs/04-process/ticket-execution-protocol.md, tests/test_docs_logs.py
+- Commands run (use `pp` for noisy output): `make test`, `make ci`
+- Results: make test PASS; make ci PASS
 
 ## Commit
 

@@ -66,6 +66,7 @@
    - Update required docs/logs per ticket template.
    - Record a gating summary in docs/03-logs/implementation-log.md and validation findings in docs/03-logs/validation-log.md for the Execute ticket workflow so the logs mirror the implemented sequence.
    - Implementation log entries must reference the ticket ID and PRD feature name in a stable format to keep tests deterministic.
+   - Enforce the output offload workflow with tools/offload-proxy/pp at each gate and capture compliance decisions in docs/03-logs/decision-log.md.
 
 10. **Gates**
 

@@ -164,6 +164,74 @@ The added structure is lightweight but materially improves repeatability, qualit
 
 **Actual Outcome:** _Pending_
 
+### [DEC-005] - Enforce output offload gating compliance
+
+**Date:** 2026-02-03
+
+**Status:** Accepted
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+The Execute ticket workflow and PO loop already define Plan → Patch → Test → Report, but the new docs regression checks require every gate to mention the offload workflow and the decision to enforce it.
+
+**Problem Statement:**
+How do we ensure noisy/megasized outputs always go through `tools/offload-proxy/pp`, that gating decisions reference recorded compliance, and that ticket logs reflect the enforced workflow?
+
+**Options Considered:**
+
+#### Option 1: Leave offload enforcement implicit
+
+**Description:** Trust authors to mention offload handling where convenient and keep the decision log quiet unless there is a major policy change.
+
+**Pros:**
+
+- Minimal documentation work
+
+**Cons:**
+
+- Regression tests will keep failing because the workflow is not explicitly documented at each gate.
+- Compliance decisions remain scattered and hard to audit.
+
+**Estimated effort:** Minimal documentation edits, but insufficient.
+
+#### Option 2: Explicitly tie offload enforcement to ticket execution gates and record the decision
+
+**Description:** Update the ticket protocol, PO loop, and decision log so every gate references `tools/offload-proxy/pp` and the decision to enforce it, making compliance auditable before progressing.
+
+**Pros:**
+
+- Tests pass because the mandated wording is now in place.
+- Decision log provides an authoritative audit trail for offload enforcement.
+- Implementers and the PO loop share a single source of truth about how offload violations are handled.
+
+**Cons:**
+
+- Requires precise doc updates and a decision log entry, but the scope is limited to process documentation.
+
+**Estimated effort:** A few targeted documentation edits plus the log entry.
+
+**Decision:**
+We chose **Option 2**: enforce the offload workflow at every gate with `tools/offload-proxy/pp` and explicitly link the compliance decision to the ticket execution protocol.
+
+**Rationale:**
+The regression tests make it clear that only explicit wording counts, so we need a documented decision and workflow mention to prevent repeated failures and to keep the PO loop in sync with compliance checks.
+
+**Implications:**
+
+- The PO loop now routes offload violations through `docs/03-logs/decision-log.md` before allowing the next step.
+- Enforce the output offload workflow with tools/offload-proxy/pp at each gate and capture compliance decisions in docs/03-logs/decision-log.md.
+- Documented the decision to enforce output offload via tools/offload-proxy/pp and link it to ticket execution workflow gates.
+
+**Success Criteria:**
+
+- Tests that sweep the workflow docs now pass because the gating and offload phrases exist.
+- PO loop and ticket protocol reference `tools/offload-proxy/pp` and the decision log entry before moving forward.
+
+**Review Date:** 2026-03-03
+
+**Actual Outcome:** _Pending_
+
 ### [DEC-002] - Force early LSP override load via shell env + add ping diagnostics
 
 **Date:** 2026-01-31

@@ -30,6 +30,30 @@ class TestExecuteTicketDocumentation(unittest.TestCase):
             content,
         )
 
+    def test_ticket_execution_protocol_mentions_enforced_offload(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "Enforce the output offload workflow with tools/offload-proxy/pp at each gate and capture compliance decisions in docs/03-logs/decision-log.md.",
+            content,
+        )
+
+    def test_human_orchestration_workflow_calls_out_offload_decision_logging(self):
+        path = ROOT / "docs" / "04-process" / "human-orchestration-workflow.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "The PO loop now routes offload violations through docs/03-logs/decision-log.md so the enforced workflow is recorded before progressing.",
+            content,
+        )
+
+    def test_decision_log_records_offload_enforcement_choice(self):
+        path = ROOT / "docs" / "03-logs" / "decision-log.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "Documented the decision to enforce output offload via tools/offload-proxy/pp and link it to ticket execution workflow gates.",
+            content,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
