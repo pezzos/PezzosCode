@@ -243,6 +243,104 @@ def append_note(content: str, line: str) -> str:
     return content[: match.start(2)] + updated + "\n\n" + content[match.end(2) :]
 
 
+def get_section(content: str, header: str) -> str:
+    pattern = rf"(^## {re.escape(header)}\n)(.*?)(?=^## |\Z)"
+    match = re.search(pattern, content, flags=re.MULTILINE | re.DOTALL)
+    if not match:
+        return ""
+    return match.group(2).strip()
+
+
+def preflight_section_complete(section: str) -> bool:
+    if not section:
+        return False
+    risk_ok = False
+    triggers_ok = False
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- Risk level:"):
+            value = stripped.split(":", 1)[1].strip()
+            if value and "[LOW|HIGH]" not in value:
+                risk_ok = True
+        if stripped.startswith("- Triggers:"):
+            value = stripped.split(":", 1)[1].strip()
+            if value and "[list]" not in value:
+                triggers_ok = True
+    return risk_ok and triggers_ok
+
+
+def tdd_plan_complete(section: str) -> bool:
+    if not section:
+        return False
+    for line in section.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- "):
+            continue
+        content = stripped[2:].strip()
+        if not content:
+            continue
+        if content.startswith("Tests to write first:"):
+            if content.split(":", 1)[1].strip():
+                return True
+            continue
+        if content != "Tests to write first:":
+            return True
+    return False
+
+
+def commit_recorded(section: str) -> bool:
+    if not section:
+        return False
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- Commit message:"):
+            value = stripped.split(":", 1)[1].strip()
+            return bool(value)
+    return False
+
+
+def parse_tdd_tests(section: str) -> List[str]:
+    tests: List[str] = []
+    if not section:
+        return tests
+    for line in section.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- "):
+            continue
+        content = stripped[2:].strip()
+        if not content:
+            continue
+        if content.startswith("Tests to write first:"):
+            rest = content.split(":", 1)[1].strip()
+            if rest:
+                tests.append(rest)
+            continue
+        if content != "Tests to write first:":
+            tests.append(content)
+    return tests
+
+
+def parse_docs_updates(section: str) -> List[str]:
+    items: List[str] = []
+    if not section:
+        return items
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- [x]") or stripped.startswith("- [X]"):
+            items.append(stripped.split("]", 1)[1].strip())
+    return items
+
+
+def parse_risk_level(section: str) -> str:
+    if not section:
+        return ""
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- Risk level:"):
+            return stripped.split(":", 1)[1].strip()
+    return ""
+
+
 def normalize_tdd_plan(content: str) -> str:
     pattern = r"(^## TDD Plan\n)(.*?)(?=^## |\Z)"
     match = re.search(pattern, content, flags=re.MULTILINE | re.DOTALL)
@@ -708,16 +806,6 @@ def main() -> None:
     os.chdir(root)
 
     feature_id = inputs["feature_id"]
-    ticket_cmd = f"tools/ticket-bootstrap T={ticket_numeric}" + (
-        f" F={feature_id}" if feature_id else ""
-    )
-    ticket_cmd += " --auto"
-    ticket_result = run_shell(ticket_cmd, capture=True, check=False)
-    review_items = [format_review_item(ticket_cmd, ticket_result.returncode)]
-    if ticket_result.returncode != 0:
-        combined = (ticket_result.stdout + "\n" + ticket_result.stderr).strip()
-        die(f"pc-ticket: {ticket_cmd} failed\n{combined}".strip())
-
     ticket_path = find_ticket_file(ticket_numeric, root, feature_id)
     ticket_frontmatter = parse_frontmatter(ticket_path)
     title = ticket_frontmatter.get("title", "")
@@ -729,6 +817,17 @@ def main() -> None:
     if complexity not in ("simple", "complex"):
         complexity = "simple"
     worklog_path = find_worklog(ticket_numeric, title, root)
+    worklog_existed = os.path.exists(worklog_path)
+
+    ticket_cmd = f"tools/ticket-bootstrap T={ticket_numeric}" + (
+        f" F={feature_id}" if feature_id else ""
+    )
+    ticket_cmd += " --auto"
+    ticket_result = run_shell(ticket_cmd, capture=True, check=False)
+    review_items = [format_review_item(ticket_cmd, ticket_result.returncode)]
+    if ticket_result.returncode != 0:
+        combined = (ticket_result.stdout + "\n" + ticket_result.stderr).strip()
+        die(f"pc-ticket: {ticket_cmd} failed\n{combined}".strip())
 
     if ticket_frontmatter.get(
         "status"
@@ -736,83 +835,121 @@ def main() -> None:
         die('pc-ticket: awaiting PO approval; set approval: "granted" to proceed')
 
     ticket_body = read_file(ticket_path)
+    worklog = read_file(worklog_path)
+    preflight_section = get_section(worklog, "Preflight Report")
+    tdd_section = get_section(worklog, "TDD Plan")
+    docs_section = get_section(worklog, "Docs Updated")
+    commit_section = get_section(worklog, "Commit")
+    preflight_done = preflight_section_complete(preflight_section)
+    tdd_done = tdd_plan_complete(tdd_section)
+    commit_done = commit_recorded(commit_section)
+    tdd_tests_from_worklog = parse_tdd_tests(tdd_section)
+    docs_updates_from_worklog = parse_docs_updates(docs_section)
 
-    preflight_prompt = (
-        "You are preparing preflight data for a ticket execution.\n"
-        "Return ONLY valid JSON with keys: prd_ref, scope_in, scope_out, non_goals_reminder, "
-        "files_to_change (array), planned_new_modules (int), touches_secret_blocking (bool), "
-        "touches_restore (bool), touches_secret_scanning (bool), cross_cutting_refactor_modules (int), "
-        "tdd_tests (array), doc_updates (array).\n"
-        f"Ticket ID: {ticket_id}\n"
-        f"Ticket content:\n{ticket_body}\n"
-    )
+    if worklog_existed:
+        resume_note = (
+            "Resume: existing worklog detected. "
+            f"Preflight={'skip' if preflight_done else 'run'}, "
+            f"TDD plan={'skip' if tdd_done else 'run'}, "
+            f"commit={'skip' if commit_done else 'run'}."
+        )
+        worklog = append_note(worklog, resume_note)
+        write_file(worklog_path, worklog)
 
-    preflight_raw = codex_exec(preflight_prompt)
-    try:
-        preflight_data = json.loads(preflight_raw)
-    except json.JSONDecodeError:
-        die(f"pc-ticket: failed to parse preflight JSON\n{preflight_raw}")
-
-    preflight_data.setdefault("prd_ref", prd_ref)
-
-    scope_in = (preflight_data.get("scope_in") or "").strip()
-    scope_out = (preflight_data.get("scope_out") or "").strip()
-    if (
-        not scope_in
-        or scope_in.lower() == "tbd"
-        or not scope_out
-        or scope_out.lower() == "tbd"
-    ):
-        gate_prompt(
-            "Scope ambiguity detected in preflight. Review scope in/out and update the ticket if needed."
+    preflight_data: Dict = {}
+    risk_level = ""
+    triggers: List[str] = []
+    if not preflight_done:
+        preflight_prompt = (
+            "You are preparing preflight data for a ticket execution.\n"
+            "Return ONLY valid JSON with keys: prd_ref, scope_in, scope_out, non_goals_reminder, "
+            "files_to_change (array), planned_new_modules (int), touches_secret_blocking (bool), "
+            "touches_restore (bool), touches_secret_scanning (bool), cross_cutting_refactor_modules (int), "
+            "tdd_tests (array), doc_updates (array).\n"
+            f"Ticket ID: {ticket_id}\n"
+            f"Ticket content:\n{ticket_body}\n"
         )
 
-    risk_level, triggers = classify_risk(preflight_data, change_budget)
+        preflight_raw = codex_exec(preflight_prompt)
+        try:
+            preflight_data = json.loads(preflight_raw)
+        except json.JSONDecodeError:
+            die(f"pc-ticket: failed to parse preflight JSON\n{preflight_raw}")
 
-    worklog = read_file(worklog_path)
-    worklog = replace_section(
-        worklog,
-        "Preflight Report",
-        build_preflight_block(
-            preflight_data,
-            ticket_id,
-            change_budget,
-            risk_level,
-            triggers,
-            "; ".join(review_items),
-        ),
-    )
-    worklog = replace_section(
-        worklog, "TDD Plan", build_tdd_plan_block(preflight_data.get("tdd_tests", []))
-    )
-    worklog = replace_section(
-        worklog,
-        "Files to Change + Change Budget",
-        build_files_block(preflight_data.get("files_to_change", []), change_budget),
-    )
-    worklog = replace_section(
-        worklog, "Docs Updated", build_docs_block(preflight_data.get("doc_updates", []))
-    )
-    worklog = normalize_tdd_plan(worklog)
-    write_file(worklog_path, worklog)
+        preflight_data.setdefault("prd_ref", prd_ref)
 
-    if risk_level == "HIGH":
-        update_ticket_status(ticket_path, "Awaiting PO Approval")
-        if not is_approval_granted(ticket_frontmatter):
-            preflight_block = build_preflight_block(
+        scope_in = (preflight_data.get("scope_in") or "").strip()
+        scope_out = (preflight_data.get("scope_out") or "").strip()
+        if (
+            not scope_in
+            or scope_in.lower() == "tbd"
+            or not scope_out
+            or scope_out.lower() == "tbd"
+        ):
+            gate_prompt(
+                "Scope ambiguity detected in preflight. Review scope in/out and update the ticket if needed."
+            )
+
+        risk_level, triggers = classify_risk(preflight_data, change_budget)
+
+        worklog = read_file(worklog_path)
+        worklog = replace_section(
+            worklog,
+            "Preflight Report",
+            build_preflight_block(
                 preflight_data,
                 ticket_id,
                 change_budget,
                 risk_level,
                 triggers,
                 "; ".join(review_items),
-            )
+            ),
+        )
+        worklog = replace_section(
+            worklog,
+            "TDD Plan",
+            build_tdd_plan_block(preflight_data.get("tdd_tests", [])),
+        )
+        worklog = replace_section(
+            worklog,
+            "Files to Change + Change Budget",
+            build_files_block(preflight_data.get("files_to_change", []), change_budget),
+        )
+        worklog = replace_section(
+            worklog,
+            "Docs Updated",
+            build_docs_block(preflight_data.get("doc_updates", [])),
+        )
+        worklog = normalize_tdd_plan(worklog)
+        write_file(worklog_path, worklog)
+    else:
+        risk_level = parse_risk_level(preflight_section)
+
+    if risk_level.upper() == "HIGH":
+        update_ticket_status(ticket_path, "Awaiting PO Approval")
+        if not is_approval_granted(ticket_frontmatter):
+            if preflight_data:
+                preflight_block = build_preflight_block(
+                    preflight_data,
+                    ticket_id,
+                    change_budget,
+                    risk_level,
+                    triggers,
+                    "; ".join(review_items),
+                )
+                die(
+                    "pc-ticket: high-risk ticket requires PO approval.\n"
+                    f"Review Preflight Report:\n\n{preflight_block}\n"
+                    'Set approval: "granted" in ticket frontmatter to proceed.'
+                )
             die(
                 "pc-ticket: high-risk ticket requires PO approval.\n"
-                f"Review Preflight Report:\n\n{preflight_block}\n"
                 'Set approval: "granted" in ticket frontmatter to proceed.'
             )
         update_ticket_status(ticket_path, "Ongoing")
+
+    tdd_tests = preflight_data.get("tdd_tests") or tdd_tests_from_worklog
+    docs_updates = preflight_data.get("doc_updates") or docs_updates_from_worklog
 
     if args.manual:
         print("pc-ticket: manual mode enabled")
@@ -832,7 +969,15 @@ def main() -> None:
         f"Worklog: {worklog_path}\n"
         f"Ticket content:\n{ticket_body}\n"
     )
-    codex_exec(tests_prompt, capture_output=False)
+    if not (worklog_existed and tdd_done):
+        codex_exec(tests_prompt, capture_output=False)
+    else:
+        worklog = read_file(worklog_path)
+        worklog = append_note(
+            worklog,
+            "Resume: TDD plan already filled; skipping test generation step.",
+        )
+        write_file(worklog_path, worklog)
 
     test_cmd = config["test_cmd"]
     ci_cmd = config["ci_cmd"]
@@ -988,6 +1133,17 @@ def main() -> None:
             worklog, "Reviewer Feedback", normalize_feedback(reviewer_feedback)
         )
         write_file(worklog_path, worklog)
+
+    if commit_done:
+        worklog = read_file(worklog_path)
+        worklog = append_note(
+            worklog,
+            "Resume: commit already recorded; skipping commit step.",
+        )
+        write_file(worklog_path, worklog)
+        print("pc-ticket: commit already recorded; skipping commit")
+        return
+
     diff = run(["git", "diff"], capture=True).stdout
     if not diff.strip():
         print("pc-ticket: no changes detected; skipping commit")
@@ -1008,18 +1164,15 @@ def main() -> None:
     changed_files = (
         run(["git", "diff", "--name-only"], capture=True).stdout.strip().splitlines()
     )
+    tests_display = ", ".join(tdd_tests) if tdd_tests else "(none)"
     final_report = "\n".join(
         [
             "What changed (files):",
             ", ".join(changed_files) if changed_files else "(none)",
             "Tests written (names) + results:",
-            f"{', '.join(preflight_data.get('tdd_tests', []))} | {test_cmd}: {post_test_status}, {ci_cmd}: {ci_status}",
+            f"{tests_display} | {test_cmd}: {post_test_status}, {ci_cmd}: {ci_status}",
             "Docs/logs updated checklist:",
-            (
-                ", ".join(preflight_data.get("doc_updates", []))
-                if preflight_data.get("doc_updates")
-                else "(see worklog)"
-            ),
+            (", ".join(docs_updates) if docs_updates else "(see worklog)"),
             "make ci results:",
             ci_status,
             "Autofix resolved:",

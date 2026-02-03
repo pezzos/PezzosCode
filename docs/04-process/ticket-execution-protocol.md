@@ -25,50 +25,58 @@
    - Complex tickets run an orchestrated flow with explicit tester/reviewer feedback steps.
    - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.
 
-2. **Preflight Report (Mandatory)**
+2. **Resuming a Ticket (Automatic)**
+   - If a worklog already exists, `make ticket` resumes automatically.
+   - Preflight is skipped if the **Preflight Report** section is already filled.
+   - TDD generation is skipped if the **TDD Plan** section is already filled.
+   - Tests and CI are always re-run on resume.
+   - Commit is skipped if a commit message is already recorded in the worklog.
+
+3. **Preflight Report (Mandatory)**
    - Produce the Preflight Report exactly in the format below.
 
-3. **Risk Classification**
+4. **Risk Classification**
    - Classify the ticket as LOW or HIGH risk using the deterministic rules below.
 
-4. **Approval Gate (HIGH Risk Only)**
+5. **Approval Gate (HIGH Risk Only)**
    - If HIGH, stop after Preflight and request PO approval.
    - No implementation work until approval is explicitly granted.
    - Set ticket status to **Awaiting PO Approval** in frontmatter.
 
-5. **Plan → Patch → Test → Report**
+6. **Plan → Patch → Test → Report**
    - Plan: approach, files, risks, tests, and ticket-specific DoD.
    - Patch: make the smallest diff that satisfies the ticket (TDD where applicable).
    - Test: run agreed checks and record results.
    - Report: summarize what changed, commands run, and outcomes.
 
-6. **Feedback Loop (Implementer ↔ Tester ↔ Reviewer)**
+7. **Feedback Loop (Implementer ↔ Tester ↔ Reviewer)**
    - Tester records failures in the **Tester Feedback** section.
    - Reviewer records issues in the **Reviewer Feedback** section.
    - Implementer updates the patch and logs the loop in **Iteration Log**.
    - Repeat until feedback is resolved.
 
-7. **TDD Cycle (when applicable)**
+8. **TDD Cycle (when applicable)**
    - Write tests first.
    - Run tests and confirm they fail for the right reason.
    - Implement minimal code changes to pass tests.
    - Re-run tests and confirm they pass.
 
-8. **Docs Sync (Mandatory)**
+9. **Docs Sync (Mandatory)**
    - Update required docs/logs per ticket template.
 
-9. **Gates**
-   - Run `make ci` and ensure it passes.
-   - Automated runs may attempt to auto-fix failing tests/CI up to the configured limit.
-   - Autofix prompt template: `docs/04-process/ci-autofix-prompt.md`.
+10. **Gates**
 
-10. **Commit**
+- Run `make ci` and ensure it passes.
+- Automated runs may attempt to auto-fix failing tests/CI up to the configured limit.
+- Autofix prompt template: `docs/04-process/ci-autofix-prompt.md`.
+
+11. **Commit**
 
 - 1 ticket = 1 commit.
 - Follow commit rules in `docs/04-process/git-workflow.md`.
 - Use `tools/pc-commit` to enforce convention and checks.
 
-11. **AI Tooling (preferred)**
+12. **AI Tooling (preferred)**
 
 - Use Serena for code navigation and symbol-aware edits when available.
 - Offload large outputs using `tools/offload-proxy/pp` to reduce token usage.

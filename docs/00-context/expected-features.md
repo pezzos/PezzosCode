@@ -37,6 +37,13 @@ inputs to the PRD feature list and must be reflected unless explicitly rejected.
   - Priority: P0
   - Notes: Use `tools/offload-proxy/pp`
 
+- Feature: Resume in-progress tickets
+  - Owner: Developer/PO
+  - Problem: Interrupted ticket runs should be resumable without restarting from scratch
+  - Outcome: Automatic resume when worklog exists; completed steps are skipped; tests/CI re-run
+  - Priority: P0
+  - Notes: Skip commit if already recorded in the worklog
+
 - Feature: Anti-cheat testing strategy
   - Owner: Developer/PO
   - Problem: Hardcoded implementations pass shallow tests

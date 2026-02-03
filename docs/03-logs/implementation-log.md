@@ -27,6 +27,47 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Guard pre-commit stash pop to avoid staging unrelated changes
+
+**Feature/Bug:** Pre-commit automation
+
+**Changed Files:**
+
+- `tools/pc-precommit`
+
+**What Changed:**
+
+- Only stash when unstaged or untracked changes exist, and only pop the stash if a new stash entry was actually created.
+
+**Why:**
+
+- Prevent the hook from popping a previously existing user stash (or restoring unrelated changes) when there were no unstaged changes to preserve.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (hook script change only).
+
+### 2026-02-03 - Auto-resume for in-progress tickets
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/00-context/expected-features.md`
+
+**What Changed:**
+
+- Added auto-resume behavior when a ticket worklog already exists, skipping completed sections while always re-running tests/CI and avoiding re-commits.
+- Documented the resume rules in the ticket execution protocol and captured the expectation in the context feature list.
+
 ### 2026-02-03 - Shore up bootstrap regression coverage for root templates and logs
 
 **Feature/Bug:** Bootstrap tooling

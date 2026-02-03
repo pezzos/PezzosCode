@@ -24,9 +24,15 @@ if [[ ${#staged_paths[@]} -eq 0 ]]; then
 fi
 
 needs_stash=false
-if [[ -n "$(git status --porcelain)" ]]; then
+stash_ref_before=""
+stash_ref_after=""
+if [[ -n "$(git diff --name-only)" || -n "$(git ls-files --others --exclude-standard)" ]]; then
+  stash_ref_before="$(git rev-parse -q --verify refs/stash || true)"
   git stash push -u --keep-index -m "pc-precommit"
-  needs_stash=true
+  stash_ref_after="$(git rev-parse -q --verify refs/stash || true)"
+  if [[ -n "$stash_ref_after" && "$stash_ref_after" != "$stash_ref_before" ]]; then
+    needs_stash=true
+  fi
 fi
 
 output_file="$(mktemp)"
