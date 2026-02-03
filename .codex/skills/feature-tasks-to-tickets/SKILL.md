@@ -28,6 +28,7 @@ read its `dev-tasks.md`, and create one ticket per task.
 - Ticket frontmatter `id` uses the numeric task id only (e.g., `101`, no `T-` prefix).
 - Ticket frontmatter `complexity` defaults to `simple`. Use `complex` if the task crosses multiple subsystems, has high coordination cost, or has large change budget usage.
 - Do not use or update `docs/03-logs/implementation-log.md` for this workflow.
+- Do not include inline comments in frontmatter values; place guidance in HTML comments below the frontmatter block instead.
 
 ## Steps
 

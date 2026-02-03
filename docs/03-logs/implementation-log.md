@@ -27,6 +27,35 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Remove inline frontmatter comments from ticket templates
+
+**Feature/Bug:** Ticket tooling templates
+
+**Changed Files:**
+
+- `docs/04-process/ticket-template.md`
+- `tools/templates/docs/04-process/ticket-template.md`
+- `.codex/skills/feature-tasks-to-tickets/SKILL.md`
+
+**What Changed:**
+
+- Removed inline comments from `status` and `complexity` frontmatter fields and moved guidance into HTML comments below the frontmatter block.
+- Documented the “no inline comments in frontmatter values” rule in the feature-tasks-to-tickets skill.
+
+**Why:**
+
+- Inline comments in frontmatter values break `ticket-bootstrap` parsing, causing `make ticket` failures.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (template/skill docs change).
+
 ### 2026-02-03 - Auto-restage lint fixes during pc-commit checks
 
 **Feature/Bug:** Commit tooling
