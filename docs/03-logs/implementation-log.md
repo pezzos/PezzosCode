@@ -202,6 +202,18 @@ This helps with:
 
 - If the ticket status is already `Done`, `pc-ticket` now exits cleanly instead of trying to open a missing worklog.
 
+### 2026-02-03 - Require F when ticket ids collide
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/ticket-bootstrap`
+
+**What Changed:**
+
+- When multiple tickets share the same id, `ticket-bootstrap` now errors unless `F=<feature-id>` is provided, avoiding accidental selection of the wrong feature.
+
 ### 2026-02-03 - Auto-resume for in-progress tickets
 
 **Feature/Bug:** Ticket execution workflow

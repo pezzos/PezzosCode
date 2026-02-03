@@ -60,6 +60,7 @@ done
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ticket_file=""
+matches=()
 search_root="$repo_root/docs/02-features"
 
 if [[ -n "$feature_id" ]]; then
@@ -97,15 +98,22 @@ get_frontmatter_value() {
 while IFS= read -r -d '' file; do
   id="$(get_frontmatter_value "$file" "id" || true)"
   if [[ "$id" == "$ticket_id" ]]; then
-    ticket_file="$file"
-    break
+    matches+=("$file")
   fi
 done < <(find "$search_root" -type f \( -name "TASK-*.md" -o -name "ticket-TASK-*.md" \) -print0)
 
-if [[ -z "$ticket_file" ]]; then
+if [[ ${#matches[@]} -eq 0 ]]; then
   echo "ticket-bootstrap: ticket not found for id $ticket_id" >&2
   exit 1
 fi
+
+if [[ -z "$feature_id" && ${#matches[@]} -gt 1 ]]; then
+  echo "ticket-bootstrap: multiple tickets found for id $ticket_id; pass F=<feature-id>" >&2
+  printf ' - %s\n' "${matches[@]}" >&2
+  exit 1
+fi
+
+ticket_file="${matches[0]}"
 
 frontmatter="$(extract_frontmatter "$ticket_file")"
 if [[ -z "$frontmatter" ]]; then
