@@ -64,13 +64,21 @@ matches=()
 search_root="$repo_root/docs/02-features"
 
 if [[ -n "$feature_id" ]]; then
-  match="$(find "$search_root" -maxdepth 1 -type d -name "${feature_id}-*" -print -quit)"
+  feature_id="$(printf "%s" "$feature_id" | awk '{$1=$1;print}')"
+  match=""
+  for dir in "$search_root"/"${feature_id}-"*; do
+    if [[ -d "$dir" ]]; then
+      match="$dir"
+      break
+    fi
+  done
   if [[ -z "$match" ]]; then
     echo "ticket-bootstrap: feature folder not found for id $feature_id" >&2
     exit 1
   fi
   search_root="$match"
 fi
+echo "ticket-bootstrap: feature_id=${feature_id:-<none>} search_root=$search_root"
 
 extract_frontmatter() {
   local file="$1"

@@ -214,6 +214,30 @@ This helps with:
 
 - When multiple tickets share the same id, `ticket-bootstrap` now errors unless `F=<feature-id>` is provided, avoiding accidental selection of the wrong feature.
 
+### 2026-02-03 - Add ticket-bootstrap feature resolution debug line
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/ticket-bootstrap`
+
+**What Changed:**
+
+- `ticket-bootstrap` now prints the resolved `feature_id` and `search_root` to help diagnose feature selection issues.
+
+### 2026-02-03 - Fix feature folder resolution for ticket-bootstrap
+
+**Feature/Bug:** Ticket execution workflow
+
+**Changed Files:**
+
+- `tools/ticket-bootstrap`
+
+**What Changed:**
+
+- Trimmed `feature_id` input and switched to a shell glob match to reliably resolve `docs/02-features/<id>-*` on macOS, ensuring `F=02` selects the correct feature folder.
+
 ### 2026-02-03 - Auto-resume for in-progress tickets
 
 **Feature/Bug:** Ticket execution workflow
