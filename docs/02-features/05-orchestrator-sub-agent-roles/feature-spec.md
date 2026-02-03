@@ -18,6 +18,10 @@
 
 Define role responsibilities so parallel sessions stay scoped and coordinated.
 
+Role responsibilities for the orchestrator and sub-agents are detailed below.
+
+The orchestrator sequences the workflow through the Plan, Patch, Test, and Report gates, requiring each gate's artifact to be archived before releasing control to the next role.
+
 ## User Intent
 
 ### Who is this for?
@@ -50,11 +54,15 @@ Define role responsibilities so parallel sessions stay scoped and coordinated.
   - **User action:** Run the relevant CLI/tooling step
   - **System response:** Perform the workflow action
   - **Expected outcome:** Clear role separation and gates
-
 - [ ] **Requirement 2:** Map role outputs to Plan/Patch/Test/Report gates
   - **User action:** Execute the next required step
   - **System response:** Enforce rules and record results
   - **Expected outcome:** Consistent, repeatable behavior
+
+Sub-agent outputs include the implementer patch artifact, the tester pass/fail summary, and the reviewer recommendations, all documented for the orchestrator to verify.
+These documented artifacts ensure the orchestrator can confirm readiness before advancing any gate.
+
+Orchestrator Plan gate ensures preflight readiness, documents the patch plan, and hands off the task to the implementer.
 
 #### Edge Cases
 

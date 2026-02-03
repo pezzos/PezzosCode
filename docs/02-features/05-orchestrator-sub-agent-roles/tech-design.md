@@ -76,6 +76,12 @@ None. Changes are document- and script-based.
 3. **Storage:** Docs/logs and optional `.offload/`
 4. **Output:** Summary + pointers
 
+### Gates & Outputs
+
+Gates and outputs per role: Plan gate (Orchestrator) outputs the plan summary, Patch gate (Implementer) outputs artifacts/logs, Test gate (Tester) outputs pass/fail proofs, Report gate (Reviewer) outputs recommendations.
+
+Each gate handoff persists the required artifact to the docs/logs targets so downstream roles can verify readiness before proceeding.
+
 ### Integration Points
 
 #### External Services

@@ -85,6 +85,16 @@
 - Seeded randomness where used
 - Invariants verified instead of fixed outputs
 
+### Workflow & Role Gate Tests
+
+- **TC-WF001:** Orchestrator Plan gate enforcement
+  - Verify the orchestrator command produces the documented workflow steps, records the Plan/Patch/Test/Report gate states, and emits the expected handoff artifact (e.g., a manifest or worklog update) before releasing control to a sub-agent.
+- **TC-WF002:** Sub-agent input gate validation
+  - Run the sub-agent command without the orchestrator artifact/gate record and verify it fails fast with a clear error referencing the missing gate, then rerun with the artifact present to ensure the gate is marked satisfied and execution continues.
+- **TC-WF003:** Role output traceability
+  - Confirm each role writes its expected outputs (summary, gate log, or artifact) to the docs/logs targets defined in the feature spec so auditors can trace the workflow from Plan through Report.
+- TC-WF004: Gate artifact audit ensures the orchestrator inspects each sub-agent artifact before approving the next gate.
+
 ## Exit Criteria
 
 - All tests pass

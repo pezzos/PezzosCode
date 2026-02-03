@@ -2,8 +2,8 @@
 id: 101
 title: "Define workflow behavior"
 prd_ref: "P1 - Orchestrator + sub-agent roles"
-status: "To Do"
-status_timestamp: ""
+status: "Done"
+status_timestamp: "2026-02-03T21:23:18Z"
 complexity: "simple"
 approval: ""
 change_budget:
@@ -55,8 +55,8 @@ Define workflow behavior
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Feature docs describe orchestrator and sub-agent role responsibilities.
-- [ ] Required gates and outputs are documented for each role.
+- [x] Feature docs describe orchestrator and sub-agent role responsibilities.
+- [x] Required gates and outputs are documented for each role.
 
 ## Plan (Draft)
 
@@ -102,7 +102,11 @@ Define workflow behavior
 ## Tests Run
 
 - Command(s):
+  - `make test`
+  - `make ci`
 - Result(s):
+  - make test: PASS
+  - make ci: PASS
 
 ## Implementer Notes
 
@@ -141,9 +145,9 @@ Define workflow behavior
 
 ## Report (Final)
 
-- What changed:
-- Commands run (use `pp` for noisy output):
-- Results:
+- What changed: docs/02-features/05-orchestrator-sub-agent-roles/dev-tasks.md, docs/02-features/05-orchestrator-sub-agent-roles/feature-spec.md, docs/02-features/05-orchestrator-sub-agent-roles/tech-design.md, docs/02-features/05-orchestrator-sub-agent-roles/test-plan.md, docs/03-logs/implementation-log.md
+- Commands run (use `pp` for noisy output): `make test`, `make ci`
+- Results: make test PASS; make ci PASS
 
 ## Commit
 

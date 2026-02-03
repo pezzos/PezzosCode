@@ -131,6 +131,33 @@ This helps with:
 
 **Author:** Alexandre Pezzotta
 
+### 2026-02-03 - Ticket 101 - Define workflow behavior (orchestrator/sub-agent roles)
+
+**Feature/Bug:** P1 - Orchestrator + sub-agent roles
+
+**Changed Files:**
+
+- `docs/02-features/05-orchestrator-sub-agent-roles/feature-spec.md`
+- `docs/02-features/05-orchestrator-sub-agent-roles/tech-design.md`
+- `docs/02-features/05-orchestrator-sub-agent-roles/dev-tasks.md`
+- `docs/02-features/05-orchestrator-sub-agent-roles/test-plan.md`
+- `docs/03-logs/tickets/05-101--define-workflow-behavior.md`
+
+**What Changed:**
+
+- Embedded the orchestrator/sub-agent responsibilities summary and the orchestrator Plan gate description in the feature spec so the workflow doc tests can find the required phrases.
+- Enumerated the gate outputs per role in the technical design and noted the gate handoffs.
+- Updated the dev-task metadata (status, last updated, change log) and noted the gating test plan entries to reflect the tests-first docs requirement.
+
+**Status:** Tests passing
+
+**Testing:**
+
+- `python -m unittest discover -s tests -p test_orchestrator_workflow_docs.py` (PASS)
+- `make ci` (PASS)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Automate ticket log entry creation for pc-ticket
 
 **Feature/Bug:** Ticket execution automation
