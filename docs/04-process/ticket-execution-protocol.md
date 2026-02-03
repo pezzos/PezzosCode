@@ -63,6 +63,7 @@
 
 9. **Docs Sync (Mandatory)**
    - Update required docs/logs per ticket template.
+   - Record a gating summary in docs/03-logs/implementation-log.md and validation findings in docs/03-logs/validation-log.md for the Execute ticket workflow so the logs mirror the implemented sequence.
 
 10. **Gates**
 
