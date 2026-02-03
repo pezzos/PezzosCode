@@ -79,6 +79,12 @@
 - **TC-E001:** Missing dependency or precondition
 - **TC-E002:** Conflict or existing state handled safely
 
+### Documentation Tests
+
+- **TC-D001:** docs/logs accurately describe the CLI gating workflow
+
+tc-d001: docs/logs accurately describe the cli gating workflow
+
 ### Anti-Hardcode Checks (if applicable)
 
 - Multiple fixtures for key behaviors

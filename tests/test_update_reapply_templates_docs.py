@@ -39,6 +39,31 @@ class TestUpdateReapplyTemplatesDocs(unittest.TestCase):
         for phrase in expected_phrases:
             self.assertIn(phrase, content)
 
+    def test_test_plan_defines_doc_update_case(self):
+        path = (
+            ROOT
+            / "docs"
+            / "02-features"
+            / "03-update-reapply-templates"
+            / "test-plan.md"
+        )
+        content = path.read_text(encoding="utf-8").lower()
+        expected_phrase = (
+            "tc-d001: docs/logs accurately describe the cli gating workflow"
+        )
+        self.assertIn(expected_phrase, content)
+
+    def test_implementation_log_mentions_docs_logs_ticket_501(self):
+        path = ROOT / "docs" / "03-logs" / "implementation-log.md"
+        content = path.read_text(encoding="utf-8").lower()
+        expected_phrases = [
+            "ticket 501",
+            "update/reapply templates workflow docs",
+            "update/reapply templates",
+        ]
+        for phrase in expected_phrases:
+            self.assertIn(phrase, content)
+
 
 if __name__ == "__main__":
     unittest.main()

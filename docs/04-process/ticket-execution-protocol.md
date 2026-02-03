@@ -31,6 +31,7 @@
    - TDD generation is skipped if the **TDD Plan** section is already filled.
    - Tests and CI are always re-run on resume.
    - Commit is skipped if a commit message is already recorded in the worklog.
+   - Logs are updated by the automation; do not require manual edits to pass gates.
 
 3. **Preflight Report (Mandatory)**
    - Produce the Preflight Report exactly in the format below.
@@ -64,6 +65,7 @@
 9. **Docs Sync (Mandatory)**
    - Update required docs/logs per ticket template.
    - Record a gating summary in docs/03-logs/implementation-log.md and validation findings in docs/03-logs/validation-log.md for the Execute ticket workflow so the logs mirror the implemented sequence.
+   - Implementation log entries must reference the ticket ID and PRD feature name in a stable format to keep tests deterministic.
 
 10. **Gates**
 

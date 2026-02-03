@@ -540,6 +540,45 @@ def normalize_scope(value: object) -> str:
     return str(value).strip()
 
 
+def ensure_implementation_log_entry(
+    *,
+    ticket_id: str,
+    title: str,
+    prd_ref: str,
+) -> None:
+    log_path = os.path.join("docs", "03-logs", "implementation-log.md")
+    if not os.path.exists(log_path):
+        return
+    content = read_file(log_path)
+    needle = f"ticket {ticket_id}".lower()
+    if needle in content.lower():
+        return
+    date_stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    header = f"### {date_stamp} - Ticket {ticket_id} - {title}".strip()
+    entry = "\n".join(
+        [
+            header,
+            "",
+            f"**Feature/Bug:** {prd_ref}",
+            "",
+            "**What Changed:**",
+            "",
+            "- Docs/logs updates initiated via `pc-ticket` automation.",
+            "",
+            "**Status:** In progress",
+            "",
+            "**Author:** pc-ticket",
+            "",
+        ]
+    )
+    marker = "## Log Entries"
+    if marker in content:
+        updated = content.replace(marker, f"{marker}\n\n{entry}", 1)
+    else:
+        updated = content.rstrip() + "\n\n" + entry + "\n"
+    write_file(log_path, updated)
+
+
 def build_preflight_block(
     data: Dict,
     ticket_id: str,
@@ -980,6 +1019,12 @@ def main() -> None:
     if ticket_result.returncode != 0:
         combined = (ticket_result.stdout + "\n" + ticket_result.stderr).strip()
         die(f"pc-ticket: {ticket_cmd} failed\n{combined}".strip())
+
+    ensure_implementation_log_entry(
+        ticket_id=ticket_numeric,
+        title=title or "Untitled ticket",
+        prd_ref=prd_ref or "Unmapped feature",
+    )
 
     if ticket_frontmatter.get(
         "status"

@@ -124,6 +124,8 @@ change_budget:
 - [ ] Bug log (if needed)
 - [ ] Validation log (if needed)
 
+> Automation note: `make ticket` (pc-ticket) will create or update the implementation-log entry for the ticket. Do not rely on manual edits to satisfy log-related checks.
+
 ## Docs Updated
 
 - [ ] Feature docs (feature-spec/tech-design/dev-tasks/test-plan)

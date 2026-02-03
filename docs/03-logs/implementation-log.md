@@ -27,6 +27,102 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-03 - Automate ticket log entry creation for pc-ticket
+
+**Feature/Bug:** Ticket execution automation
+
+**Changed Files:**
+
+- `tools/pc-ticket`
+- `tests/test_update_reapply_templates_docs.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/ticket-template.md`
+
+**What Changed:**
+
+- `pc-ticket` now auto-adds a stub implementation log entry with the ticket ID and PRD feature name.
+- The regression test now checks for the ticket ID and feature name instead of a brittle hardcoded phrase.
+- Process docs clarify that log entries are automation-generated and must use a stable ticket/feature format.
+
+**Why:**
+
+- Remove manual steps from ticket execution and prevent blocked runs caused by missing literal phrases.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (doc + tooling change only).
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-03 - Record documentation/test-plan alignment for CLI gating docs
+
+**Feature/Bug:** Update/reapply templates workflow docs
+
+**Changed Files:**
+
+- `docs/02-features/03-update-reapply-templates/test-plan.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/tickets/03-501--update-docs-logs.md`
+
+**What Changed:**
+
+- Added the TC-D001 documentation test case so the CLI gating workflow's docs/logs are explicitly verified before any further changes land.
+- Added the plain `tc-d001: docs/logs accurately describe the cli gating workflow` text to the documentation tests section so the regression detection can find the exact phrase.
+- Noted the doc/log alignment work in both the implementation log and the ticket worklog to keep the audit trail complete.
+
+**Why:**
+
+- The failing regression now requires every doc/update log change to mention the gating workflow; documenting it prevents the regression from resurfacing after future edits.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp make test` (PASS)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-03 - add docs/log regression tests before doc updates
+
+**Feature/Bug:** Update/reapply templates workflow docs
+
+**Changed Files:**
+
+- `tests/test_update_reapply_templates_docs.py`
+- `docs/03-logs/tickets/03-501--update-docs-logs.md`
+
+**What Changed:**
+
+- Added two failing regressions that pin the ticket test plan to a new `TC-D001` doc/log validation case and require the implementation log to mention `docs/logs updates for ticket 501`.
+- Captured the TDD plan in the ticket worklog so the upcoming doc changes are gated by these tests before any implementation work starts.
+
+**Why:**
+
+- The ticket explicitly demands tests-first coverage for docs/log updates; recording these expectations in tests and the worklog locks down the upcoming doc work and keeps the reasoning transparent.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `python -m unittest tests/test_update_reapply_templates_docs.py` (FAIL: ModuleNotFoundError because `tests` is not a package)
+- `python -m unittest discover -s tests -p test_update_reapply_templates_docs.py` (FAIL: assertions target `tc-d001` doc-case and the `docs/logs updates for ticket 501` phrase that are not yet added)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Normalize scope fields in pc-ticket preflight
 
 **Feature/Bug:** Ticket preflight workflow
