@@ -104,6 +104,74 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-010] - Enforce template/living sync via pre-commit
+
+**Date:** 2026-02-04
+
+**Status:** Implemented
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Template files and their live counterparts can drift, leading to mismatched process docs and hooks.
+
+**Problem Statement:**
+How do we ensure template files and living files stay synchronized without manual reminders?
+
+**Options Considered:**
+
+#### Option 1: Manual checklist reminders
+
+**Description:** Rely on humans/Codex reminders to update both sides.
+
+**Pros:**
+
+- No tooling changes
+- Lowest implementation effort
+
+**Cons:**
+
+- Drift is easy to miss
+- Enforcement is inconsistent
+
+**Estimated effort:** Low
+
+#### Option 2: Pre-commit gate with Codex-assisted autofix
+
+**Description:** Diff template vs living files on pre-commit; if only one side changed, run Codex to update the other.
+
+**Pros:**
+
+- Automated enforcement at commit time
+- Keeps templates and living docs aligned
+
+**Cons:**
+
+- Requires Codex CLI availability for autofix
+- Hook can fail when mismatches are unrelated
+
+**Estimated effort:** Medium
+
+**Decision:**
+We chose **Option 2: Pre-commit gate with Codex-assisted autofix**
+
+**Rationale:**
+This enforces sync at the earliest safe gate while minimizing manual overhead.
+
+**Implications:**
+
+- Pre-commit runs a new template sync hook.
+- One-sided changes auto-propagate; unrelated mismatches fail fast.
+
+**Success Criteria:**
+
+- Template and living files stay aligned in normal workflows.
+- No repeated manual reminders needed.
+
+**Review Date:** 2026-03-01
+
+**Actual Outcome:** Implemented; awaiting validation from real pre-commit runs.
+
 ### [DEC-006] - Dev-tasks as execution source with role loop
 
 **Date:** 2026-02-04

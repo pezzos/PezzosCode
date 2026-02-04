@@ -27,6 +27,61 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-04 - Sync templates to match the living docs
+
+**Feature/Bug:** Process/Tooling - template-sync maintenance
+
+**Changed Files:**
+
+- `tools/templates/docs/README.md`
+- `tools/templates/docs/04-process/git-workflow.md`
+- `tools/templates/docs/04-process/output-offload.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- `tools/templates/docs/04-process/testing-strategy.md`
+- `tools/templates/docs/04-process/definition-of-done.md`
+- `docs/03-logs/implementation-log.md`
+
+**What Changed:**
+
+- Replaced the templates for the listed docs with the current living versions so the template-sync pre-commit gate no longer reports out-of-sync pairs.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (docs-only change)
+
+**Author:** Codex
+
+### 2026-02-04 - Enforce template/living sync in pre-commit
+
+**Feature/Bug:** Process/Tooling - template sync gate
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/pc-template-sync`
+- `.pre-commit-config.yaml`
+- `tools/templates/root/.pre-commit-config.yaml`
+- `docs/02-features/07-anti-cheat-testing-strategy/dev-tasks.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Normalized `pc-feature` branch detection to accept `heads/main`.
+- Added a pre-commit hook that diffs templates vs living files and runs Codex autofix when exactly one side changed.
+- Synced the pre-commit hook definition in the template root config.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (no test command specified)
+
+**Author:** Codex
+
 ### 2026-02-04 - Worktree policy enforcement and collector automation
 
 **Feature/Bug:** Process/Tooling - worktree role scope + collector

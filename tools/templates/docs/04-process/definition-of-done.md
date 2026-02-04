@@ -21,8 +21,6 @@ Clear "done" criteria ensure:
 - Nothing gets shipped half-finished
 - Quality standards are maintained
 
----
-
 ## Global Requirements (All Work)
 
 - Work-item-specific Definition of Done is stated before coding.
@@ -34,6 +32,8 @@ Clear "done" criteria ensure:
 - Large outputs are offloaded with `tools/offload-proxy/pp` and referenced by id.
 - Everyone has the same expectations
 - No confusion about whether something is complete
+
+---
 
 ## Global Checklist (All Work)
 

@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-04 - Template sync hook validation pending
+
+- Added a template/living sync pre-commit hook; no automated validation run yet.
+
 ### 2026-02-04 - Worktree policy collector validation pending
 
 - Updated tooling and docs for role-scoped worktrees and auto-collection; no automated validation run yet.

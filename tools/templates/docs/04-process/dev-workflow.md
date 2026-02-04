@@ -25,7 +25,7 @@ Idea/Task → Plan → Implement → Test → Review → Deploy → Validate →
      └────────────────────── Feedback Loop ─────────────────────────┘
 ```
 
-For work item implementation, follow the canonical protocol in `docs/04-process/ticket-execution-protocol.md`.
+For work item execution, follow the canonical protocol in `docs/04-process/ticket-execution-protocol.md`.
 Prefer Serena for symbol-aware navigation and edits when available.
 Execution is **Plan → Patch → Test → Report** (mandatory for every work item).
 
@@ -627,3 +627,5 @@ See [definition-of-done.md](definition-of-done.md) for details.
 - [LLM Prompts](llm-prompts.md)
 - [Testing Strategy](../02-features/*/test-plan.md)
 - [Deployment Guide](../00-context/system-map.md)
+
+<!-- PezzosCode bootstrap sha256:1bc8a192f3c2d28c12eca2bd747cdd65f13a9ebb4e1674b789f40917262c8c78 -->

@@ -104,7 +104,8 @@ git switch -c feat/my-feature
 ### Worktrees
 
 ```bash
-git worktree add ../PezzosCode-my-feature -b feat/my-feature
+git worktree add ../PezzosCode-auth-impl -b feat/auth
+git worktree add ../PezzosCode-auth-review -b feat/auth-review
 ```
 
 Return to simple mode once the work is completed.

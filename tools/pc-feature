@@ -367,7 +367,12 @@ def git_current_branch(path: str) -> str:
     )
     if result.returncode != 0:
         die(f"pc-feature: failed to resolve current branch\n{result.stderr}")
-    return result.stdout.strip()
+    branch = result.stdout.strip()
+    if branch.startswith("heads/"):
+        branch = branch[len("heads/") :]
+    if branch.startswith("refs/heads/"):
+        branch = branch[len("refs/heads/") :]
+    return branch
 
 
 def git_branch_exists(root: str, branch: str) -> bool:

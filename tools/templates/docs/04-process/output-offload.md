@@ -21,13 +21,25 @@ When output exceeds the threshold (or the command is on the always-offload
 list), the full output is stored in:
 
 ```
-.pezzos/offload/<hash>.txt
+.offload/<hash>.txt
 ```
 
 `pp` will only print:
 
 - The pointer id
 - The head/tail preview
+
+## Policy
+
+- Do not paste large command outputs into prompts.
+- Use `pp` for noisy commands and share the pointer id.
+- Retrieve output by id using `pp` to keep context small.
+
+Example retrieval:
+
+```bash
+tools/offload-proxy/pp sed -n '1,120p' .offload/<id>.txt
+```
 
 ## Recommended Patterns
 
