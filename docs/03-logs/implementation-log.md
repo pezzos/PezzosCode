@@ -56,6 +56,8 @@ This helps with:
 - Resolved ambiguous `main` ref by preferring `refs/heads/main` when creating worktrees.
 - Fixed Python typing syntax in hook scripts for older Python runtimes.
 - Ignored temporary `.tmp/`, `.offload/`, and `.codex_subagent/` paths in role scope checks.
+- Staged only filtered change paths to avoid git add failures from `.tmp/` worktrees.
+- Bypassed git hooks for role commits and surfaced commit stderr to avoid hidden pre-commit failures.
 - Added `.codex_subagent/config.toml` (repo + template), tightened `.gitignore`, and passed explicit Codex overrides including Serena MCP.
 - Added profiles and Serena MCP defaults to the root template `.codex.toml`.
 
