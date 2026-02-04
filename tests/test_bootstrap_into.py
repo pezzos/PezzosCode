@@ -131,7 +131,7 @@ class TestBootstrapInto(unittest.TestCase):
             result = run_bootstrap_into([tmp_dir])
             self.assertEqual(result.returncode, 0)
 
-            tool_path = Path(tmp_dir) / "tools" / "pc-ticket"
+            tool_path = Path(tmp_dir) / "tools" / "pc-feature"
             self.assertTrue(
                 tool_path.exists(),
                 "Annotated tooling scripts should land in tools/",
@@ -143,7 +143,7 @@ class TestBootstrapInto(unittest.TestCase):
                 1,
                 "Tooling scripts should only have one bootstrap marker",
             )
-            self.assertIn("tools/pc-ticket", result.stdout)
+            self.assertIn("tools/pc-feature", result.stdout)
 
     def test_bootstrap_into_copies_log_assets(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

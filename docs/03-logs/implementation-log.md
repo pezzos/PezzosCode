@@ -134,6 +134,41 @@ This helps with:
 
 **Author:** Alexandre Pezzotta
 
+### 2026-02-04 - Tooling update - pc-feature orchestration + remove ticket tooling
+
+**Feature/Bug:** Process - work item execution tooling
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `tools/README.md`
+- `tools/pc-ticket` (removed)
+- `tools/ticket-bootstrap` (removed)
+- `tests/test_pc_feature.py`
+- `tests/test_pc_ticket.py` (removed)
+- `tests/test_bootstrap_into.py`
+- `tests/test_docs_logs.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+
+**What Changed:**
+
+- Replaced the pc-feature ticket wrapper with a dev-tasks execution-log orchestrator and removed ticket tooling.
+- Updated Make targets and tests to match the work-item execution flow.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (tooling + docs updates)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-04 - Ticket 401 - Add or update tests
 
 **Feature/Bug:** P1 - Orchestrator + sub-agent roles
@@ -652,7 +687,7 @@ This helps with:
 
 - Not run (hook script change only).
 
-### 2026-02-03 - Record Execute ticket workflow gating summary
+### 2026-02-03 - Record Execute work item workflow gating summary
 
 **Feature/Bug:** Ticket execution workflow
 
@@ -664,11 +699,11 @@ This helps with:
 
 **What Changed:**
 
-- Documented the Execute ticket workflow gating summary and its required log sync language so the implementation log mirrors the protocol instructions.
+- Documented the Execute work item workflow gating summary and its required log sync language so the implementation log mirrors the protocol instructions.
 
 **Why:**
 
-- Keep the log/reporting guardrails aligned with the Execute ticket workflow and capture the gating narrative alongside the protocol update.
+- Keep the log/reporting guardrails aligned with the Execute work item workflow and capture the gating narrative alongside the protocol update.
 
 **Impact:**
 

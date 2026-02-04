@@ -9,7 +9,7 @@ of context for AI-assisted work. The source of truth is:
 - `docs/01-product/` for requirements and success criteria
 - `docs/02-features/` for feature-level specs, designs, tasks, and tests
 - `docs/03-logs/` for decisions, implementation notes, bugs, and validation
-- `docs/04-process/` for workflow and quality standards (ticket implementation must follow `docs/04-process/ticket-execution-protocol.md` and PO loop uses `docs/04-process/human-orchestration-workflow.md`)
+- `docs/04-process/` for workflow and quality standards (work item execution must follow `docs/04-process/ticket-execution-protocol.md` and PO loop uses `docs/04-process/human-orchestration-workflow.md`)
 
 Rules:
 
@@ -17,8 +17,8 @@ Rules:
 - Perform a systematic review: list executed commands and summarize results.
 - If context is missing or unclear, ask for the relevant document rather than
   guessing.
-- For any ticket implementation, run `make ticket T=<id>` and follow `docs/04-process/ticket-execution-protocol.md`.
-- Enforce **Plan → Patch → Test → Report** for every ticket.
+- For any work item implementation, run `make feature F=<feature-id>` and follow `docs/04-process/ticket-execution-protocol.md`.
+- Enforce **Plan → Patch → Test → Report** for every work item.
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
 - Codex MUST use Serena for symbol-aware navigation and edits when available.
 - Codex MUST use `tools/offload-proxy/pp` for commands that can produce large output (e.g., `rg`, `sed` on large ranges, tests, or logs).

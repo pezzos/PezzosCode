@@ -1,19 +1,36 @@
 #!/usr/bin/env python3
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
+
+EXEC_LOG_HEADER = "## Execution Log"
+ENTRY_HEADER_PREFIX = "### "
+SECTION_PREFIX = "#### "
+DEFAULT_CHANGE_BUDGET = {"max_files": 6, "max_new_modules": 1}
+MAX_LOOPS = 3
 
 
 @dataclass
-class Task:
-    task_id: str
-    title: str
-    acceptance: Optional[str] = None
-    estimate: Optional[str] = None
-    bullets: List[str] = field(default_factory=list)
+class PreflightData:
+    prd_ref: str = ""
+    scope_in: str = ""
+    scope_out: str = ""
+    non_goals_reminder: str = ""
+    files_to_change: List[str] = None
+    planned_new_modules: int = 0
+    touches_secret_blocking: bool = False
+    touches_restore: bool = False
+    touches_secret_scanning: bool = False
+    cross_cutting_refactor_modules: int = 0
+    tdd_tests: List[str] = None
+    doc_updates: List[str] = None
 
 
 def die(message: str) -> None:
@@ -69,338 +86,448 @@ def resolve_feature_dir(root: str, feature_id: str) -> str:
     die(f"pc-feature: feature folder not found for id {feature_id}")
 
 
-def parse_feature_name(dev_tasks_path: str) -> str:
-    content = read_file(dev_tasks_path)
-    for line in content.splitlines():
-        match = re.search(r"\*\*Feature:\*\*\s*(.+)$", line)
-        if match:
-            return match.group(1).strip()
-    return "Unknown feature"
+def normalize_work_item_id(raw: str) -> str:
+    match = re.match(r"^WI-(\d{8})-(\d{2})$", raw.strip())
+    if not match:
+        die("pc-feature: invalid work item id")
+    return raw.strip()
 
 
-def parse_tasks(dev_tasks_path: str) -> List[Task]:
-    task_re = re.compile(r"^\s*-\s*\[ \]\s*\*\*TASK-(\d+):\s*(.+?)\*\*\s*$")
-    tasks: List[Task] = []
-    current: Optional[Task] = None
-    for line in read_file(dev_tasks_path).splitlines():
-        task_match = task_re.match(line)
-        if task_match:
-            if current:
-                tasks.append(current)
-            current = Task(
-                task_id=task_match.group(1), title=task_match.group(2).strip()
-            )
+def next_work_item_id(content: str) -> str:
+    today = datetime.now().strftime("%Y%m%d")
+    pattern = re.compile(r"WI-(\d{8})-(\d{2})")
+    max_seq = 0
+    for match in pattern.finditer(content):
+        if match.group(1) != today:
             continue
-        if current is None:
-            continue
-        bullet_match = re.match(r"^\s{2,}-\s+(.*)$", line)
-        if not bullet_match:
-            continue
-        bullet = bullet_match.group(1).strip()
-        lowered = bullet.lower()
-        if lowered.startswith("**acceptance:**") or lowered.startswith("acceptance:"):
-            current.acceptance = bullet.split(":", 1)[1].strip().strip("*")
-            continue
-        if lowered.startswith("**estimate:**") or lowered.startswith("estimate:"):
-            current.estimate = bullet.split(":", 1)[1].strip().strip("*")
-            continue
-        if lowered.startswith("**dependencies:**") or lowered.startswith(
-            "dependencies:"
-        ):
-            continue
-        current.bullets.append(bullet)
-    if current:
-        tasks.append(current)
-    return tasks
+        seq = int(match.group(2))
+        max_seq = max(max_seq, seq)
+    return f"WI-{today}-{max_seq + 1:02d}"
 
 
-def parse_prd_feature(prd_path: str, feature_name: str) -> Tuple[Optional[str], str]:
-    feature_lower = feature_name.lower()
-    for line in read_file(prd_path).splitlines():
-        match = re.match(r"^- \[ \] (.+?) \((P\d)\):", line)
-        if match and match.group(1).strip().lower() == feature_lower:
-            return match.group(2), "Process Features"
-    for line in read_file(prd_path).splitlines():
-        match = re.match(r"^\|\s*(P\d)\s*\|\s*(.+?)\s*\|", line)
-        if match and match.group(2).strip().lower() == feature_lower:
-            return match.group(1), "Prioritized Feature List"
-    return None, "PRD"
+def ensure_execution_log(content: str) -> None:
+    if not any(
+        line.strip().startswith(EXEC_LOG_HEADER) for line in content.splitlines()
+    ):
+        die("pc-feature: dev-tasks.md missing Execution Log section")
 
 
-def classify_task(title: str) -> str:
-    lowered = title.lower()
-    if "test" in lowered:
-        return "Testing"
-    if "doc" in lowered or "define" in lowered or "spec" in lowered:
-        return "Docs"
-    return "Feature"
+def insert_execution_entry(content: str, entry: str) -> str:
+    lines = content.splitlines()
+    for idx, line in enumerate(lines):
+        if line.strip().startswith(EXEC_LOG_HEADER):
+            insert_at = idx + 1
+            while insert_at < len(lines) and lines[insert_at].strip() == "":
+                insert_at += 1
+            lines[insert_at:insert_at] = [entry.rstrip(), ""]
+            return "\n".join(lines) + "\n"
+    die("pc-feature: Execution Log header not found")
+    return content
 
 
-def plan_scope(task_type: str) -> str:
-    if task_type == "Docs":
-        return "1 feature folder"
-    return "1 mini change"
+def find_entry_block(lines: List[str], work_item_id: str) -> Tuple[int, int]:
+    header = f"{ENTRY_HEADER_PREFIX}{work_item_id}"
+    start = -1
+    for idx, line in enumerate(lines):
+        if line.startswith(header):
+            start = idx
+            break
+    if start == -1:
+        die(f"pc-feature: execution entry {work_item_id} not found")
+    end = len(lines)
+    for idx in range(start + 1, len(lines)):
+        if lines[idx].startswith(ENTRY_HEADER_PREFIX) and lines[idx].strip() != "":
+            end = idx
+            break
+    return start, end
 
 
-def change_budget(task_type: str) -> Tuple[int, int, int]:
-    if task_type == "Docs":
-        return 4, 0, 180
-    if task_type == "Testing":
-        return 4, 1, 220
-    return 6, 1, 300
-
-
-def build_ticket(
-    task: Task,
-    feature_id: str,
-    feature_name: str,
-    feature_dir: str,
-    prd_priority: Optional[str],
-    prd_section: str,
+def replace_entry_section(
+    content: str, work_item_id: str, section_title: str, new_body: str
 ) -> str:
-    task_type = classify_task(task.title)
-    scope_choice = plan_scope(task_type)
-    max_files, max_new_modules, max_lines = change_budget(task_type)
-    prd_ref = f"{prd_priority} - {feature_name}" if prd_priority else feature_name
-    acceptance_text = task.acceptance or "TODO: define acceptance criteria"
-    estimate_text = task.estimate or "TODO"
-    bullets = task.bullets or ["(none)"]
-    bullets_block = "\n".join(f"- {item}" for item in bullets)
-    tests_line = (
-        "None (docs-only)."
-        if task_type == "Docs"
-        else "Targeted tests from the feature test plan."
+    lines = content.splitlines()
+    start, end = find_entry_block(lines, work_item_id)
+    entry_lines = lines[start:end]
+    section_header = f"{SECTION_PREFIX}{section_title}"
+    section_start = None
+    for idx, line in enumerate(entry_lines):
+        if line.strip() == section_header:
+            section_start = idx
+            break
+    if section_start is None:
+        die(f"pc-feature: missing section {section_title} in entry {work_item_id}")
+    section_end = len(entry_lines)
+    for idx in range(section_start + 1, len(entry_lines)):
+        if entry_lines[idx].startswith(SECTION_PREFIX):
+            section_end = idx
+            break
+    new_body_lines = new_body.strip().splitlines()
+    entry_lines = (
+        entry_lines[: section_start + 1]
+        + ["", *new_body_lines]
+        + [""]
+        + entry_lines[section_end:]
     )
-    evidence_hints = []
-    if task_type == "Docs":
-        evidence_hints = [
-            f"`{feature_dir}/feature-spec.md` (Summary, Requirements)",
-            f"`{feature_dir}/tech-design.md` (Architecture, Constraints)",
-        ]
-    elif task_type == "Testing":
-        evidence_hints = [
-            f"`{feature_dir}/test-plan.md` (Test Strategy, Cases)",
-        ]
-    else:
-        evidence_hints = [
-            f"`{feature_dir}/tech-design.md` (Architecture, Constraints)",
-            f"`{feature_dir}/test-plan.md` (Test Strategy, Cases)",
-        ]
-    evidence_block = "\n".join(f"- {item}" for item in evidence_hints)
-    feature_spec = f"{feature_dir}/feature-spec.md"
-    tech_design = f"{feature_dir}/tech-design.md"
-    test_plan = f"{feature_dir}/test-plan.md"
-
-    return f"""---
-id: {task.task_id}
-title: "{task.title}"
-prd_ref: "{prd_ref}"
-status: "To Do"
-status_timestamp: ""
-complexity: "simple"
-approval: ""
-change_budget:
-  max_files: {max_files}
-  max_new_modules: {max_new_modules}
----
-
-<!-- allowed status: To Do | Ongoing | Done | Fail | Awaiting PO Approval -->
-<!-- allowed complexity: simple | complex -->
-<!-- set approval to "granted" to resume HIGH risk tickets -->
-
-# Ticket: {task.title}
-
-## Title
-
-{task.title}
-
-## Type
-
-- {task_type}
-
-## Context
-
-- Task: {task.title}.
-- Acceptance: {acceptance_text}.
-- Estimate: {estimate_text}.
-- Feature context: {feature_name} (CLI-only workflow).
-- References: `{feature_spec}`, `{tech_design}`, `{test_plan}`.
-
-## Scope
-
-- **Choose one:** {scope_choice}
-- In scope:
-  - {task.title}.
-- Out of scope:
-  - Unrelated features or tooling.
-
-## PRD Traceability
-
-- PRD feature/order: {prd_ref} ({prd_section})
-- Link to PRD section: `docs/01-product/prd.md` ({prd_section})
-
-## Success Criteria
-
-- [ ] {acceptance_text}
-- [ ] Task intent matches the feature spec and tech design.
-
-## Definition of Done (Ticket-Specific)
-
-- [ ] Acceptance criteria satisfied.
-- [ ] Relevant feature docs/tests updated per references.
-
-## Plan (Draft)
-
-- Approach: Execute the task per feature spec/tech design guidance.
-- Files to change: `{feature_dir}/` docs and any referenced tooling/tests.
-- Risks/assumptions: Assumes current CLI-only workflow remains unchanged.
-- Tests to run: {tests_line}
-
-## Evidence Hints
-
-{evidence_block}
-
-## References
-
-- Feature spec: `{feature_spec}` (Summary + Requirements)
-- Tech design: `{tech_design}` (Architecture + Constraints)
-- Test plan: `{test_plan}` (Test Strategy + Cases)
-
-## Risk Classification
-
-- Risk level: LOW
-- Triggers (if HIGH):
-
-## Change Budget
-
-- Max files: {max_files}
-- Max new modules: {max_new_modules}
-- Max lines changed (estimate): {max_lines}
-
-## Human Gates
-
-- [ ] Plan validated
-- [ ] Diff validated
-- [ ] Tests validated
-
-## Implementation Notes
-
-{bullets_block}
-
-## Tests Run
-
-- Command(s):
-- Result(s):
-
-## Implementer Notes
-
-- Implementation choices:
-- Edge cases covered:
-- Files changed:
-
-## Tester Feedback
-
-- Tests executed:
-- Failures observed:
-- Suggested fixes:
-
-## Reviewer Feedback
-
-- Issues found:
-- Suggestions:
-- Approval status:
-
-## Iteration Log
-
-- [ ] Implementer updated after tester feedback
-- [ ] Implementer updated after reviewer feedback
-
-## Logs Updated
-
-- [ ] Implementation log
-- [ ] Decision log (if needed)
-- [ ] Bug log (if needed)
-- [ ] Validation log (if needed)
-
-## Docs Updated
-
-- [ ] Feature docs (feature-spec/tech-design/dev-tasks/test-plan)
-- [ ] PRD (if scope/priority changed)
-- [ ] Other: [list]
-
-## Report (Final)
-
-- What changed:
-- Commands run (use `pp` for noisy output):
-- Results:
-
-## Commit
-
-- Message:
-"""
+    return "\n".join(lines[:start] + entry_lines + lines[end:]) + "\n"
 
 
-def generate_tickets(feature_dir: str, feature_id: str) -> List[str]:
-    dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
-    if not os.path.exists(dev_tasks_path):
-        die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")
-    feature_name = parse_feature_name(dev_tasks_path)
-    tasks = parse_tasks(dev_tasks_path)
-    if not tasks:
-        die(f"pc-feature: no tasks found in {dev_tasks_path}")
-    prd_priority, prd_section = parse_prd_feature(
-        "docs/01-product/prd.md", feature_name
+def update_entry_field(content: str, work_item_id: str, field: str, value: str) -> str:
+    lines = content.splitlines()
+    start, end = find_entry_block(lines, work_item_id)
+    entry_lines = lines[start:end]
+    prefix = f"- {field}:"
+    updated = False
+    for idx, line in enumerate(entry_lines):
+        if line.strip().startswith(prefix):
+            entry_lines[idx] = f"{prefix} {value}"
+            updated = True
+            break
+    if not updated:
+        die(f"pc-feature: field '{field}' not found in entry {work_item_id}")
+    return "\n".join(lines[:start] + entry_lines + lines[end:]) + "\n"
+
+
+def format_review_item(command: str, status: int) -> str:
+    suffix = "ok" if status == 0 else "FAIL"
+    return f"{command}: {suffix}"
+
+
+def build_preflight_block(
+    data: Dict,
+    work_item_id: str,
+    change_budget: Dict,
+    risk_level: str,
+    triggers: List[str],
+    review_summary: Optional[str] = None,
+) -> str:
+    review_line = (
+        f"Systematic review: {review_summary}"
+        if review_summary
+        else "Systematic review:"
     )
-    created = []
-    for task in tasks:
-        ticket_path = os.path.join(feature_dir, f"TASK-{task.task_id}.md")
-        if os.path.exists(ticket_path):
-            continue
-        ticket_content = build_ticket(
-            task=task,
-            feature_id=feature_id,
-            feature_name=feature_name,
-            feature_dir=feature_dir,
-            prd_priority=prd_priority,
-            prd_section=prd_section,
-        )
-        write_file(ticket_path, ticket_content)
-        created.append(ticket_path)
-    return created
+    files = data.get("files_to_change") or []
+    trigger_text = ", ".join(triggers) if triggers else "(none)"
+    return (
+        f"- Work Item: {work_item_id}\n"
+        f"- PRD ref: {data.get('prd_ref', '')}\n"
+        f"- Risk level: {risk_level}\n"
+        f"- Triggers: {trigger_text}\n"
+        f"- Scope in: {data.get('scope_in', '')}\n"
+        f"- Scope out: {data.get('scope_out', '')}\n"
+        f"- Non-goals reminder: {data.get('non_goals_reminder', '')}\n"
+        f"- Files to change: {', '.join(files) if files else '(none)'}\n"
+        f"- Change budget: max_files={change_budget['max_files']}, max_new_modules={change_budget['max_new_modules']}\n"
+        f"- TDD plan: {', '.join(data.get('tdd_tests', []) or [])}\n"
+        f"- {review_line}"
+    )
 
 
-def list_ticket_ids(feature_dir: str) -> List[str]:
-    ticket_ids = []
-    for name in os.listdir(feature_dir):
-        match = re.match(r"^TASK-(\d+)\.md$", name)
-        if match:
-            ticket_ids.append(match.group(1))
-    return sorted(ticket_ids, key=lambda value: int(value))
+def build_tdd_plan_block(tests: List[str]) -> str:
+    if not tests:
+        return "- Tests to write first: (none)"
+    lines = ["- Tests to write first:"]
+    lines.extend([f"  - {test}" for test in tests])
+    return "\n".join(lines)
 
 
-def run_ticket_loop(feature_id: str, ticket_ids: List[str], manual: bool) -> None:
-    if not ticket_ids:
-        die("pc-feature: no tickets found to execute")
-    for ticket_id in ticket_ids:
-        cmd = ["make", "ticket", f"T={ticket_id}", f"F={feature_id}"]
-        if manual:
-            cmd.append("MANUAL=1")
-        result = subprocess.run(cmd, check=False)
-        if result.returncode != 0:
-            sys.exit(result.returncode)
+def build_files_block(files: List[str], change_budget: Dict) -> str:
+    files_line = ", ".join(files) if files else "(none)"
+    return (
+        f"- Files: {files_line}\n"
+        f"- Change budget: max_files: {change_budget['max_files']}, max_new_modules: {change_budget['max_new_modules']}"
+    )
+
+
+def build_docs_block(doc_updates: List[str]) -> str:
+    if not doc_updates:
+        return "- (none)"
+    return "\n".join([f"- {item}" for item in doc_updates])
+
+
+def build_gates_block(command: str, status: str) -> str:
+    return f"- {command}: {status}"
+
+
+def classify_risk(data: Dict, change_budget: Dict) -> Tuple[str, List[str]]:
+    triggers = []
+    if data.get("touches_secret_blocking"):
+        triggers.append("touches secret blocking or fail-close behavior")
+    if data.get("touches_restore"):
+        triggers.append("affects restore apply semantics or permissions")
+    if data.get("touches_secret_scanning"):
+        triggers.append("modifies secret scanning dependencies/policies")
+    modules = data.get("cross_cutting_refactor_modules", 0)
+    if modules and modules >= 3:
+        triggers.append("cross-cutting refactor impacting 3+ modules")
+    files_to_change = data.get("files_to_change") or []
+    if len(files_to_change) > change_budget["max_files"]:
+        triggers.append("change budget exceeded (file count)")
+    planned_new_modules = data.get("planned_new_modules", 0)
+    if planned_new_modules > change_budget["max_new_modules"]:
+        triggers.append("change budget exceeded (new modules)")
+    return ("HIGH" if triggers else "LOW", triggers)
+
+
+def codex_exec(
+    prompt: str, capture_output: bool = True, cwd: Optional[str] = None
+) -> str:
+    if shutil.which("codex") is None:
+        die("pc-feature: codex CLI not found in PATH")
+    cmd = ["codex", "exec", prompt]
+    result = subprocess.run(
+        cmd,
+        check=False,
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE if capture_output else None,
+        stderr=subprocess.PIPE if capture_output else None,
+    )
+    if result.returncode != 0:
+        combined = ""
+        if result.stdout:
+            combined += result.stdout
+        if result.stderr:
+            combined += result.stderr
+        die(f"pc-feature: codex exec failed\n{combined}")
+    return result.stdout or ""
+
+
+def build_worktree_path(root: str, feature_name: str, agent: str) -> str:
+    repo_name = os.path.basename(root)
+    safe_feature = re.sub(r"[^a-zA-Z0-9]+", "-", feature_name).strip("-")
+    safe_agent = re.sub(r"[^a-zA-Z0-9]+", "-", agent).strip("-")
+    parent = os.path.dirname(root)
+    return os.path.join(parent, f"{repo_name}-{safe_feature}-{safe_agent}")
+
+
+def prepare_worktree(root: str, feature_name: str, agent: str) -> str:
+    path = build_worktree_path(root, feature_name, agent)
+    if os.path.exists(path):
+        return path
+    result = subprocess.run(
+        ["git", "worktree", "add", path],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to create worktree for {agent}\n{result.stderr}")
+    return path
+
+
+def parse_outcome(text: str) -> str:
+    match = re.search(r"Outcome:\s*(PASS|FAIL|NEEDS REPLAN)", text, re.IGNORECASE)
+    if not match:
+        return "FAIL"
+    return match.group(1).upper()
+
+
+def extract_field(text: str, label: str) -> str:
+    match = re.search(rf"^{label}:\s*(.+)$", text, re.MULTILINE | re.IGNORECASE)
+    return match.group(1).strip() if match else ""
+
+
+def run_command(cmd: List[str]) -> int:
+    result = subprocess.run(cmd, check=False)
+    return result.returncode
+
+
+def build_execution_entry(work_item_id: str) -> str:
+    return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
 
 
 def main() -> None:
     feature_id, manual = parse_args(sys.argv[1:])
     feature_root = os.path.join("docs", "02-features")
     feature_dir = resolve_feature_dir(feature_root, feature_id)
-    created = generate_tickets(feature_dir, feature_id)
-    if created:
-        print("pc-feature: created tickets:")
-        for path in created:
-            print(f"- {path}")
-    ticket_ids = list_ticket_ids(feature_dir)
-    run_ticket_loop(feature_id, ticket_ids, manual)
+    dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
+    if not os.path.exists(dev_tasks_path):
+        die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")
+    content = read_file(dev_tasks_path)
+    ensure_execution_log(content)
+    work_item_id = next_work_item_id(content)
+    entry = build_execution_entry(work_item_id)
+    content = insert_execution_entry(content, entry)
+    write_file(dev_tasks_path, content)
+
+    if manual:
+        print("pc-feature: manual mode enabled; execution log entry created")
+        return
+
+    feature_spec = read_file(os.path.join(feature_dir, "feature-spec.md"))
+    tech_design = read_file(os.path.join(feature_dir, "tech-design.md"))
+    test_plan = read_file(os.path.join(feature_dir, "test-plan.md"))
+    dev_tasks = read_file(dev_tasks_path)
+
+    preflight_prompt = (
+        "You are preparing preflight data for a work item execution.\n"
+        "Return ONLY valid JSON with keys: prd_ref, scope_in, scope_out, non_goals_reminder, "
+        "files_to_change (array), planned_new_modules (int), touches_secret_blocking (bool), "
+        "touches_restore (bool), touches_secret_scanning (bool), cross_cutting_refactor_modules (int), "
+        "tdd_tests (array), doc_updates (array).\n"
+        f"Work Item ID: {work_item_id}\n"
+        f"Feature spec:\n{feature_spec}\n\n"
+        f"Tech design:\n{tech_design}\n\n"
+        f"Test plan:\n{test_plan}\n\n"
+        f"Dev tasks:\n{dev_tasks}\n"
+    )
+    preflight_raw = codex_exec(preflight_prompt).strip()
+    try:
+        preflight_data = json.loads(preflight_raw)
+    except json.JSONDecodeError:
+        die(f"pc-feature: failed to parse preflight JSON\n{preflight_raw}")
+
+    risk_level, triggers = classify_risk(preflight_data, DEFAULT_CHANGE_BUDGET)
+    content = read_file(dev_tasks_path)
+    content = replace_entry_section(
+        content,
+        work_item_id,
+        "Preflight Report",
+        build_preflight_block(
+            preflight_data,
+            work_item_id,
+            DEFAULT_CHANGE_BUDGET,
+            risk_level,
+            triggers,
+            None,
+        ),
+    )
+    content = replace_entry_section(
+        content,
+        work_item_id,
+        "TDD Plan",
+        build_tdd_plan_block(preflight_data.get("tdd_tests") or []),
+    )
+    content = replace_entry_section(
+        content,
+        work_item_id,
+        "Files to Change + Change Budget",
+        build_files_block(
+            preflight_data.get("files_to_change") or [], DEFAULT_CHANGE_BUDGET
+        ),
+    )
+    content = replace_entry_section(
+        content,
+        work_item_id,
+        "Docs Updated",
+        build_docs_block(preflight_data.get("doc_updates") or []),
+    )
+    write_file(dev_tasks_path, content)
+
+    if risk_level == "HIGH":
+        content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
+        content = update_entry_field(
+            content, work_item_id, "Notes", "Awaiting PO Approval"
+        )
+        write_file(dev_tasks_path, content)
+        die("pc-feature: high-risk work item requires PO approval")
+
+    root = os.getcwd()
+    planner_path = prepare_worktree(root, os.path.basename(feature_dir), "planner")
+    patcher_path = prepare_worktree(root, os.path.basename(feature_dir), "patcher")
+    tester_path = prepare_worktree(root, os.path.basename(feature_dir), "tester")
+    reporter_path = prepare_worktree(root, os.path.basename(feature_dir), "reporter")
+
+    for attempt in range(1, MAX_LOOPS + 1):
+        plan_prompt = (
+            "You are the Planner agent. Provide a concise plan for this work item. "
+            "Include approach, files to change, risks, and tests.\n"
+            f"Work Item ID: {work_item_id}\n"
+            f"Feature spec:\n{feature_spec}\n\n"
+            f"Tech design:\n{tech_design}\n\n"
+            f"Dev tasks:\n{dev_tasks}\n"
+        )
+        plan_text = codex_exec(plan_prompt, cwd=planner_path).strip()
+        content = read_file(dev_tasks_path)
+        content = replace_entry_section(content, work_item_id, "Plan", plan_text)
+        write_file(dev_tasks_path, content)
+
+        patch_prompt = (
+            "You are the Patcher agent. Apply the smallest possible diff to satisfy the plan. "
+            "Return a brief summary of what changed and any commands run.\n"
+            f"Work Item ID: {work_item_id}\n"
+            f"Plan:\n{plan_text}\n"
+        )
+        patch_text = codex_exec(patch_prompt, capture_output=True, cwd=patcher_path)
+        content = read_file(dev_tasks_path)
+        content = replace_entry_section(
+            content,
+            work_item_id,
+            "Patch",
+            patch_text.strip() or "(see worktree changes)",
+        )
+        write_file(dev_tasks_path, content)
+
+        test_prompt = (
+            "You are the Tester agent. Run the agreed tests and report results. "
+            "Return in this exact format:\n"
+            "Outcome: PASS|FAIL\n"
+            "Tests run: ...\n"
+            "Notes: ...\n"
+            f"Work Item ID: {work_item_id}\n"
+        )
+        tester_feedback = codex_exec(test_prompt, cwd=tester_path).strip()
+        tester_outcome = parse_outcome(tester_feedback)
+        tests_run = extract_field(tester_feedback, "Tests run")
+        content = read_file(dev_tasks_path)
+        content = replace_entry_section(
+            content, work_item_id, "Test Results", tester_feedback
+        )
+        content = replace_entry_section(
+            content, work_item_id, "Tester Feedback", tester_feedback
+        )
+        if tests_run:
+            content = update_entry_field(content, work_item_id, "Tests run", tests_run)
+        write_file(dev_tasks_path, content)
+
+        reporter_prompt = (
+            "You are the Reporter agent. Review changes for scope and completeness. "
+            "Return in this exact format:\n"
+            "Outcome: PASS|FAIL\n"
+            "Docs/logs updated: ...\n"
+            "Notes: ...\n"
+            f"Work Item ID: {work_item_id}\n"
+        )
+        reporter_feedback = codex_exec(reporter_prompt, cwd=reporter_path).strip()
+        reporter_outcome = parse_outcome(reporter_feedback)
+        docs_updated = extract_field(reporter_feedback, "Docs/logs updated")
+        content = read_file(dev_tasks_path)
+        content = replace_entry_section(
+            content, work_item_id, "Reporter Review", reporter_feedback
+        )
+        content = replace_entry_section(
+            content, work_item_id, "Reporter Feedback", reporter_feedback
+        )
+        if docs_updated:
+            content = update_entry_field(
+                content, work_item_id, "Docs/logs updated", docs_updated
+            )
+        write_file(dev_tasks_path, content)
+
+        if tester_outcome != "PASS" or reporter_outcome != "PASS":
+            content = read_file(dev_tasks_path)
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            content = replace_entry_section(
+                content,
+                work_item_id,
+                "Iteration Log",
+                f"- Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}",
+            )
+            write_file(dev_tasks_path, content)
+            continue
+
+        content = read_file(dev_tasks_path)
+        content = update_entry_field(content, work_item_id, "Outcome", "pass")
+        write_file(dev_tasks_path, content)
+        break
+    else:
+        die("pc-feature: max iteration attempts reached; check execution log")
+
+    print("pc-feature: complete")
 
 
 if __name__ == "__main__":

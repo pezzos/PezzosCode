@@ -27,11 +27,13 @@
 - Reporter: [name]
 - Product Owner: [name]
 
-## Execution Log (Plan/Patch/Test/Report Loop)
+## Execution Log
 
 Record each execution round here. Link any related logs in `docs/03-logs/`.
 
 **Format:**
+
+### WI-YYYYMMDD-01 - Work item execution
 
 - Date:
 - Scope / tasks covered:
@@ -44,6 +46,82 @@ Record each execution round here. Link any related logs in `docs/03-logs/`.
 - Offload ids (if any):
 - Docs/logs updated:
 - Notes:
+
+#### Preflight Report
+
+- Work Item:
+- PRD ref:
+- Risk level:
+- Triggers:
+- Scope in:
+- Scope out:
+- Non-goals reminder:
+- Files to change:
+- Change budget:
+- TDD plan:
+- Systematic review:
+
+#### TDD Plan
+
+- Tests to write first:
+
+#### Files to Change + Change Budget
+
+- Files:
+- Change budget:
+
+#### Docs Updated
+
+- [ ] Implementation log
+- [ ] Decision log (if needed)
+- [ ] Bug log (if needed)
+- [ ] Validation log (if needed)
+- [ ] Feature docs
+- [ ] PRD (if needed)
+
+#### Plan
+
+- (pending)
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+-
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
 
 ## Task Breakdown
 

@@ -13,7 +13,7 @@ Find the right document by topic:
 - Requirements and success criteria: `docs/01-product/`
 - Feature-specific work: `docs/02-features/`
 - Decisions, bugs, validation, and learnings: `docs/03-logs/`
-- Workflow and standards: `docs/04-process/` (use `docs/04-process/ticket-execution-protocol.md` for ticket implementation)
+- Workflow and standards: `docs/04-process/` (use `docs/04-process/ticket-execution-protocol.md` for work item execution)
 - PO loop: `docs/04-process/human-orchestration-workflow.md`
 
 Ticket implementation entrypoint:
@@ -26,6 +26,10 @@ Operational rules:
 
 - Codex MUST use Serena for symbol-aware navigation and edits when available.
 - Codex MUST use `tools/offload-proxy/pp` for commands that can produce large output (e.g., `rg`, `sed` on large ranges, tests, or logs).
+- Do not paste large command outputs into prompts; use `pp` and share the pointer id.
 - Codex MUST update `docs/03-logs/*.md` to record decisions, implementation changes, bugs, validations, and insights. If no log entry is needed, explicitly state why in the response.
+- Enforce **Plan → Patch → Test → Report** for every ticket.
+- Orchestrator pattern: use separate sessions/worktrees for implementer, reviewer, and tester when parallelizing.
+- Worktree naming: `../<repo_name>-<feature_name>-<agent_name>` (e.g., `../PezzosCode-auth-impl`).
 
 If you are unsure where to look, read `docs/README.md` first.

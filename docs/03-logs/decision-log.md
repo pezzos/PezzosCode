@@ -297,6 +297,7 @@ Ticket wrappers are no longer used by the execution path and introduce unnecessa
 
 - `feature-tasks-to-tickets` is removed from docs and tooling guidance.
 - `TASK-###.md` is no longer part of the workflow.
+- `pc-ticket`/`ticket-bootstrap` tooling is removed in favor of `pc-feature`.
 
 **Success Criteria:**
 
@@ -424,7 +425,7 @@ The regression tests make it clear that only explicit wording counts, so we need
 
 - The PO loop now routes offload violations through `docs/03-logs/decision-log.md` before allowing the next step.
 - Enforce the output offload workflow with tools/offload-proxy/pp at each gate and capture compliance decisions in docs/03-logs/decision-log.md.
-- Documented the decision to enforce output offload via tools/offload-proxy/pp and link it to ticket execution workflow gates.
+- Documented the decision to enforce output offload via tools/offload-proxy/pp and link it to work item execution workflow gates.
 
 **Success Criteria:**
 

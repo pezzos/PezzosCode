@@ -1,4 +1,4 @@
-.PHONY: fmt lint test check docs-check skills-check ticket-check ticket ticket-auto ticket-manual ticket-ci ticket-verify feature ci
+.PHONY: fmt lint test check docs-check skills-check feature ci
 
 fmt:
 	@pre-commit run --all-files --hook-stage manual
@@ -10,54 +10,6 @@ test:
 	@python -m unittest discover -s tests -p "test_*.py"
 	@$(MAKE) skills-check
 	@$(MAKE) docs-check
-	@$(MAKE) ticket-check
-
-ticket-check:
-	@bash -euo pipefail -c '\
-		root="docs/02-features"; \
-		found=0; \
-		tmp="$$(mktemp)"; \
-		trap '\''rm -f "$$tmp"'\'' EXIT; \
-		find "$$root" -type f -name "TASK-*.md" -print0 > "$$tmp"; \
-		find "$$root" -type f -name "ticket-TASK-*.md" -print0 >> "$$tmp"; \
-		while IFS= read -r -d "" file; do \
-			found=1; \
-			if ! rg -q "^## Risk Classification" "$$file"; then \
-				echo "ticket-check: missing Risk Classification in $$file"; exit 1; \
-			fi; \
-			if ! rg -q "^- Risk level:" "$$file"; then \
-				echo "ticket-check: missing Risk level in $$file"; exit 1; \
-			fi; \
-			if ! rg -q "^## Docs Updated" "$$file"; then \
-				echo "ticket-check: missing Docs Updated section in $$file"; exit 1; \
-			fi; \
-		done < "$$tmp"; \
-		if [[ "$$found" -eq 0 ]]; then \
-			echo "ticket-check: no tickets found (ok)"; \
-		else \
-			echo "ticket-check: ok"; \
-		fi'
-
-ticket:
-	@if [[ "$(MANUAL)" == "1" ]]; then \
-		tools/ticket-bootstrap T=$(T) F=$(F); \
-		tools/pc-ticket T=$(T) F=$(F) --manual; \
-	else \
-		tools/ticket-bootstrap T=$(T) F=$(F) --auto; \
-		tools/pc-ticket T=$(T) F=$(F); \
-	fi
-
-ticket-auto: ticket
-
-ticket-manual:
-	@$(MAKE) ticket T=$(T) F=$(F) MANUAL=1
-
-ticket-verify:
-	@tools/ticket-bootstrap T=$(T) F=$(F) --verify
-
-ticket-ci:
-	@tools/ticket-bootstrap T=$(T) F=$(F)
-	@$(MAKE) ci
 
 feature:
 	@tools/pc-feature F=$(F) MANUAL=$(MANUAL)

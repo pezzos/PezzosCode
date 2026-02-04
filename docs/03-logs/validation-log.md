@@ -95,7 +95,7 @@ This helps with:
 
 ### 2026-02-03 - Record validation findings for Execute ticket gating steps
 
-- Recorded the validation findings for the Execute ticket workflow gating steps and aligned the validation log with the updated execution protocol.
+- Recorded the validation findings for the Execute work item workflow gating steps and aligned the validation log with the updated execution protocol.
 - Not run (documentation-only change).
 
 ### 2026-02-02 - Bootstrap CLI log coverage regression
