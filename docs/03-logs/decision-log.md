@@ -104,6 +104,209 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-006] - Dev-tasks as execution source with role loop
+
+**Date:** 2026-02-04
+
+**Status:** Superseded
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Per-task ticket files duplicate Plan/Patch/Test/Report scaffolding already present in feature dev-tasks and the execution protocol.
+
+**Problem Statement:**
+How do we reduce duplicated ticket overhead while preserving traceability, ownership, and workflow rigor?
+
+**Options Considered:**
+
+#### Option 1: Keep per-task ticket files
+
+**Pros:**
+
+- Clear, separate artifacts per task
+- Existing tooling compatibility
+
+**Cons:**
+
+- Duplicated process overhead
+- Repeated Plan/Patch/Test/Report scaffolding
+
+**Estimated effort:** Ongoing overhead per task
+
+#### Option 2: Use dev-tasks as the single execution source of truth
+
+**Pros:**
+
+- Single place to plan, execute, and log
+- Less duplication and faster iteration
+
+**Cons:**
+
+- Requires explicit execution log and role ownership fields
+- Some tools may still expect ticket wrappers
+
+**Estimated effort:** Moderate doc/process updates
+
+#### Option 3: Hybrid (dev-tasks source, tickets optional)
+
+**Pros:**
+
+- Minimizes duplication
+- Preserves compatibility when tools require `TASK-XXX.md`
+
+**Cons:**
+
+- Requires clear rules on when tickets are created
+
+**Estimated effort:** Low to moderate
+
+**Decision:**
+We chose **Option 3: Hybrid (dev-tasks source, tickets optional)**.
+
+**Rationale:**
+This preserves traceability via dev-tasks execution logs while removing unnecessary per-task ticket overhead. Optional ticket wrappers remain available for tooling compatibility.
+
+**Implications:**
+
+- `dev-tasks.md` is the execution source of truth.
+- Execution logs capture Planner/Patcher/Tester/Reporter roles and outcomes.
+- `TASK-XXX.md` files are optional and only created when required by tools.
+
+**Success Criteria:**
+
+- Fewer duplicated process steps without losing auditability.
+- Clear role handoffs captured inside dev-tasks execution logs.
+
+**Review Date:** 2026-03-04
+
+**Actual Outcome:** Superseded by DEC-008 (remove ticket wrappers and ticket-generation workflow).
+
+### [DEC-007] - Split oversized work into smaller features before execution
+
+**Date:** 2026-02-04
+
+**Status:** Accepted
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Avoiding multiple execution formats (dev-tasks vs optional ticket wrappers) is easiest when each feature is small enough to execute as a single work item.
+
+**Problem Statement:**
+How do we eliminate conditional handling of oversized work items while keeping the workflow uniform?
+
+**Options Considered:**
+
+#### Option 1: Split oversized work into multiple work items at execution time
+
+**Pros:**
+
+- Keeps feature list unchanged
+
+**Cons:**
+
+- Increases execution-time branching and ambiguity
+- Encourages multiple formats and handoff complexity
+
+**Estimated effort:** Ongoing overhead per large feature
+
+#### Option 2: Split oversized features before execution
+
+**Pros:**
+
+- Uniform execution workflow
+- No conditional handling at execution time
+- Clearer, smaller feature scopes
+
+**Cons:**
+
+- Requires earlier planning effort
+
+**Estimated effort:** Moderate upfront planning
+
+**Decision:**
+We chose **Option 2: Split oversized features before execution**.
+
+**Rationale:**
+This keeps execution uniform and avoids handling multiple work-item formats during implementation.
+
+**Implications:**
+
+- Features must be sized to a single work item.
+- Oversized features are split during PRD/feature definition.
+
+**Success Criteria:**
+
+- Execution workflow requires no conditional handling for oversized work.
+- Feature scopes stay consistently small and actionable.
+
+**Review Date:** 2026-03-04
+
+**Actual Outcome:** _Pending_
+
+### [DEC-008] - Remove ticket wrappers and ticket-generation workflow
+
+**Date:** 2026-02-04
+
+**Status:** Accepted
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+With `dev-tasks.md` as the execution source of truth and `make feature` replacing `make ticket`, ticket wrappers and ticket-generation add no value.
+
+**Problem Statement:**
+Should we keep `TASK-###.md` wrappers and the `feature-tasks-to-tickets` workflow when they are no longer used by execution tooling?
+
+**Options Considered:**
+
+#### Option 1: Keep ticket wrappers for legacy compatibility
+
+**Pros:**
+
+- Preserves historical workflow
+
+**Cons:**
+
+- Adds unused artifacts
+- Increases maintenance overhead
+
+**Estimated effort:** Ongoing overhead
+
+#### Option 2: Remove ticket wrappers and ticket-generation workflow
+
+**Pros:**
+
+- Simplifies documentation and execution flow
+- Removes unused artifacts
+
+**Cons:**
+
+- Requires updating references in docs/templates
+
+**Estimated effort:** Low to moderate
+
+**Decision:**
+We chose **Option 2: Remove ticket wrappers and ticket-generation workflow**.
+
+**Rationale:**
+Ticket wrappers are no longer used by the execution path and introduce unnecessary complexity.
+
+**Implications:**
+
+- `feature-tasks-to-tickets` is removed from docs and tooling guidance.
+- `TASK-###.md` is no longer part of the workflow.
+
+**Success Criteria:**
+
+- No workflow references require ticket wrappers.
+- Execution relies only on `dev-tasks.md`.
+
+**Review Date:** 2026-03-04
+
+**Actual Outcome:** _Pending_
+
 ### [DEC-004] - Codex-first workflow upgrades (plan/patch/test/report + orchestration)
 
 **Date:** 2026-02-02

@@ -23,11 +23,11 @@ Clear "done" criteria ensure:
 
 ## Global Requirements (All Work)
 
-- Ticket-specific Definition of Done is stated before coding.
+- Work-item-specific Definition of Done is stated before coding.
 - Plan → Patch → Test → Report is completed.
-- Tester/reviewer feedback is resolved and logged in the ticket.
+- Tester/reporter feedback is resolved and logged in the execution log entry.
 - Tests/lint run via the agreed `make` targets (or documented equivalent).
-- Ticket DoD checkboxes, Tests Run, and Report (Final) are completed before commit.
+- Work item DoD checkboxes, Tests Run, and Report (Final) are completed before commit.
 - Logs updated with short, factual entries after meaningful changes.
 - Large outputs are offloaded with `tools/offload-proxy/pp` and referenced by id.
 - Everyone has the same expectations

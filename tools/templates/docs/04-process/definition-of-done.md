@@ -20,10 +20,20 @@ Clear "done" criteria ensure:
 
 - Nothing gets shipped half-finished
 - Quality standards are maintained
-- Everyone has the same expectations
-- No confusion about whether something is complete
 
 ---
+
+## Global Requirements (All Work)
+
+- Work-item-specific Definition of Done is stated before coding.
+- Plan → Patch → Test → Report is completed.
+- Tester/reporter feedback is resolved and logged in the execution log entry.
+- Tests/lint run via the agreed `make` targets (or documented equivalent).
+- Work item DoD checkboxes, Tests Run, and Report (Final) are completed before commit.
+- Logs updated with short, factual entries after meaningful changes.
+- Large outputs are offloaded with `tools/offload-proxy/pp` and referenced by id.
+- Everyone has the same expectations
+- No confusion about whether something is complete
 
 ## Global Checklist (All Work)
 
@@ -31,7 +41,6 @@ Clear "done" criteria ensure:
 - [ ] Lint passes
 - [ ] Logs updated
 - [ ] Commit created with formatted message
-- [ ] Tester/reviewer feedback resolved and logged
 
 ---
 

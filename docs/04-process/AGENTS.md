@@ -15,6 +15,6 @@ Key files:
 
 Ticket entrypoint:
 
-- Run `make ticket T=<id> [F=<feature-id>]` to bootstrap and execute autonomously by default.
-- Manual mode: `make ticket MANUAL=1 T=<id> [F=<feature-id>]`.
+- Run `make feature F=<feature-id>` to bootstrap and execute autonomously by default.
+- Manual mode: `make feature MANUAL=1 F=<feature-id>`.
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".

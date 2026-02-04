@@ -15,16 +15,16 @@
 3. **Update Features (prd-to-features)**
    - Run the skill `prd-to-features` to update `docs/02-features/` in place.
    - No duplicate feature folders.
+   - Keep each feature small enough to execute as a single work item; split oversized features here, not during execution.
 4. **Audit Feature Status (feature-status-audit)**
    - Run the skill `feature-status-audit` to update task statuses for the current feature.
-5. **Generate Tickets (feature-tasks-to-tickets)**
-   - Run the skill `feature-tasks-to-tickets` to create one ticket per task in the current feature’s `dev-tasks.md`.
-6. **Execute Ticket**
+5. **Execute Work Item**
+   - Use `docs/02-features/<feature>/dev-tasks.md` as the source of truth.
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
    - The PO loop now routes offload violations through docs/03-logs/decision-log.md so the enforced workflow is recorded before progressing.
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
-   - If tester/reviewer raises issues, implementer must iterate and log in the ticket.
-7. **Repeat**
+   - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
+6. **Repeat**
    - Go back to step 4 for the next feature.
 
 ## Add Features / Existing Project
@@ -36,27 +36,26 @@
 3. **Incremental Features (prd-to-features)**
    - Run the skill `prd-to-features` in incremental mode (default for existing projects) to add only missing features.
    - The skill uses `docs/03-logs/implementation-log.md` and `docs/03-logs/decision-log.md` to avoid re-adding completed or rejected items.
+   - Keep each feature small enough to execute as a single work item; split oversized features here, not during execution.
 4. **Audit Feature Status**
    - Run the skill `feature-status-audit` to update task statuses for the current feature.
-5. **Generate Tickets**
-   - Run the skill `feature-tasks-to-tickets` to create tickets for the current feature’s tasks.
-6. **Execute Ticket**
-   - Follow the ticket execution protocol in `docs/04-process/ticket-execution-protocol.md`.
+5. **Execute Work Item**
+   - Use `docs/02-features/<feature>/dev-tasks.md` as the source of truth.
+   - Follow the execution protocol in `docs/04-process/ticket-execution-protocol.md`.
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
-   - If tester/reviewer raises issues, implementer must iterate and log in the ticket.
-7. **Repeat**
+   - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
+6. **Repeat**
    - Continue from step 4 until P0/P1 items are complete.
 
 ## Chain of Truth
 
-Context docs → PRD → Feature folders → Tickets → Worklogs → Implementation/Decision logs
+Context docs → PRD → Feature folders → dev-tasks → execution logs → Implementation/Decision logs
 
 ## Update-in-Place Rules (by skill)
 
 - **context-to-product:** update `docs/01-product/prd.md` only; do not create a new PRD file.
 - **prd-to-features:** update existing `docs/02-features/` and add only missing folders; do not duplicate.
 - **feature-status-audit:** update task `status` fields for the current feature.
-- **feature-tasks-to-tickets:** create `docs/02-features/<feature>/TASK-###.md` for each task in `dev-tasks.md`.
 
 ## Skill Invocation Guide
 
@@ -69,19 +68,15 @@ Context docs → PRD → Feature folders → Tickets → Worklogs → Implementa
   - Writes: `docs/02-features/<feature>/` (update in place, add only missing)
   - Logs: update `docs/03-logs/implementation-log.md` when new features are added
 - **feature-status-audit**
-  - Reads: `docs/02-features/<feature>/TASK-*.md`
-  - Writes: updates task `status` in frontmatter
+  - Reads: `docs/02-features/<feature>/dev-tasks.md`
+  - Writes: updates task `status` in dev-tasks
   - Logs: update `docs/03-logs/implementation-log.md` when status backfill is run
-- **feature-tasks-to-tickets**
-  - Reads: `docs/02-features/`, `docs/04-process/ticket-template.md`, `docs/02-features/<feature>/dev-tasks.md`
-  - Writes: `docs/02-features/<feature>/TASK-###.md` (current feature only)
-  - Logs: worklog lives in `docs/03-logs/tickets/`
 
-## Definition of Done for a Ticket
+## Definition of Done for a Work Item
 
 - Must meet `docs/04-process/definition-of-done.md`.
 - Must pass `make ci`.
-- Must have a worklog with Preflight, TDD plan, docs update checklist, gates, and commit message.
+- Must have a worklog or dev-tasks execution log with Preflight, TDD plan, docs update checklist, gates, and commit message.
 
 ## When to Stop and Ask PO Approval
 

@@ -1,4 +1,4 @@
-# CI/Test Autofix Prompt (pc-ticket)
+# CI/Test Autofix Prompt (pc-feature)
 
 ```
 Follow docs/04-process/ticket-execution-protocol.md.

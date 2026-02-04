@@ -25,8 +25,9 @@ Idea/Task → Plan → Implement → Test → Review → Deploy → Validate →
      └────────────────────── Feedback Loop ─────────────────────────┘
 ```
 
-For ticket implementation, follow the canonical protocol in `docs/04-process/ticket-execution-protocol.md`.
+For work item implementation, follow the canonical protocol in `docs/04-process/ticket-execution-protocol.md`.
 Prefer Serena for symbol-aware navigation and edits when available.
+Execution is **Plan → Patch → Test → Report** (mandatory for every work item).
 
 ## Documentation Workflow (Template Bootstrapping)
 
@@ -52,46 +53,47 @@ When project context or the PRD changes, update the live root files (e.g. `AGENT
 `sync-root-from-context` skill to read `docs/00-context/` and `docs/01-product/prd.md`,
 then align the live root files without modifying templates.
 
-## Ticket Scope (Hard Rule)
+## Work Item Scope (Hard Rule)
 
-- **1 ticket = 1 feature folder** (new feature spec, design, tasks, tests in `docs/02-features/<feature-name>/`)
+- **1 work item = 1 feature folder** (new feature spec, design, tasks, tests in `docs/02-features/<feature-name>/`)
 - **or 1 mini change** (single, isolated change in existing feature or shared code)
-- If the scope is bigger, split into multiple tickets before starting.
+- Work items are defined and tracked in `dev-tasks.md` with an execution log entry per loop.
+- If the scope is bigger, split the feature into multiple smaller features before execution.
 
-## Exact Steps (Per Ticket)
+## Exact Steps (Per Work Item)
 
-1. **Open/define ticket**
+1. **Open/define work item**
+   - Open `docs/02-features/<feature>/dev-tasks.md`.
    - Clarify scope and success criteria.
    - Confirm whether this is a _feature folder_ or _mini change_.
+   - Add a new execution log entry header for the loop.
 2. **Plan**
    - LLM proposes approach, files to change, risks, and tests.
-   - **Human gate:** approve the plan before coding.
-3. **Implement**
-   - Make the smallest possible diff to satisfy the ticket.
-   - Update relevant docs/logs as changes are made.
-4. **Self-review**
-   - Read diffs, ensure scope is correct.
-   - **Human gate:** approve the diff before running tests (or before requesting tests).
-5. **Test**
-   - Run the agreed tests and record results.
-   - **Human gate:** validate test results before marking done.
-6. **Finalize**
+   - **Orchestrator gate:** approve the plan before coding.
+3. **Patch**
+   - Make the smallest possible diff to satisfy the work item.
+   - Self-review the diff and confirm scope correctness.
+   - **Orchestrator gate:** approve the diff before running tests.
+4. **Test**
+   - Run the agreed tests and record results (use `pp` for noisy output).
+   - **Orchestrator gate:** validate test results before marking done.
+5. **Report**
    - Update logs and documentation.
    - Create commit with the agreed message format.
-   - Run `make test` before closing the ticket.
+   - Run `make test` before closing the work item.
 
-## Human Gates (Required)
+## Orchestrator Gates (Required)
 
 - **Plan validation:** before any code changes.
 - **Diff validation:** after changes, before tests or merge.
-- **Test validation:** after tests run, before closing ticket.
+- **Test validation:** after tests run, before closing work item.
 
 ## Feedback Loop (Required)
 
-- Tester writes failures in the ticket **Tester Feedback** section.
-- Reviewer writes issues in the ticket **Reviewer Feedback** section.
-- Implementer updates the patch and logs the loop in **Iteration Log**.
-- Repeat until feedback is resolved.
+- Tester writes failures in the execution log entry.
+- Reporter reviews scope and completeness and records issues in the execution log entry.
+- Planner updates the plan and Patcher updates the patch.
+- Repeat until feedback is resolved and tests pass.
 
 ---
 

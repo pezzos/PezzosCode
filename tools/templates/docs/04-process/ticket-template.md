@@ -14,7 +14,9 @@ change_budget:
 <!-- allowed status: To Do | Ongoing | Done | Fail | Awaiting PO Approval -->
 <!-- allowed complexity: simple | complex -->
 
-# Ticket Template
+# Ticket Template (Deprecated)
+
+> Deprecated: `dev-tasks.md` is the execution source of truth; ticket wrappers are no longer used.
 
 > Simple, consistent ticket format for 1 feature folder or 1 mini change.
 
@@ -41,6 +43,11 @@ change_budget:
 - Link to PRD section:
 
 ## Success Criteria
+
+- [ ]
+- [ ]
+
+## Definition of Done (Ticket-Specific)
 
 - [ ]
 - [ ]
@@ -119,11 +126,19 @@ change_budget:
 - [ ] Bug log (if needed)
 - [ ] Validation log (if needed)
 
+> Deprecated automation note: `make feature` (pc-feature) uses `dev-tasks.md` execution logs instead of ticket wrappers.
+
 ## Docs Updated
 
 - [ ] Feature docs (feature-spec/tech-design/dev-tasks/test-plan)
 - [ ] PRD (if scope/priority changed)
 - [ ] Other: [list]
+
+## Report (Final)
+
+- What changed:
+- Commands run (use `pp` for noisy output):
+- Results:
 
 ## Commit
 

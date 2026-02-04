@@ -27,6 +27,113 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-04 - Process update - dev-tasks execution loop
+
+**Feature/Bug:** Process - dev-tasks execution source of truth
+
+**Changed Files:**
+
+- `docs/02-features/AGENTS.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `docs/04-process/dev-workflow.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/definition-of-done.md`
+- `docs/00-context/system-map.md`
+- `docs/03-logs/decision-log.md`
+
+**What Changed:**
+
+- Documented dev-tasks as the execution source of truth with role ownership and an execution log.
+- Updated workflow docs to use Planner/Patcher/Tester/Reporter loop and optional ticket wrappers.
+- Refreshed context and DoD language to reflect work-item execution terminology.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (docs-only changes)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-04 - Process update - split oversized features before execution
+
+**Feature/Bug:** Process - feature sizing for uniform execution
+
+**Changed Files:**
+
+- `docs/04-process/dev-workflow.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/03-logs/decision-log.md`
+
+**What Changed:**
+
+- Defined that oversized work is split into smaller features before execution to keep the workflow uniform.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (docs-only changes)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-04 - Process update - remove ticket wrappers
+
+**Feature/Bug:** Process - dev-tasks-only execution
+
+**Changed Files:**
+
+- `docs/02-features/AGENTS.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/00-context/system-map.md`
+- `docs/03-logs/decision-log.md`
+
+**What Changed:**
+
+- Removed ticket-wrapper references and documented dev-tasks-only execution with `make feature`.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (docs-only changes)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-04 - Process update - remove feature-tasks-to-tickets skill
+
+**Feature/Bug:** Process - dev-tasks-only workflow cleanup
+
+**Changed Files:**
+
+- `.codex/skills/feature-tasks-to-tickets/` (removed)
+- `tools/templates/docs/02-features/AGENTS.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/definition-of-done.md`
+- `tools/templates/docs/AGENTS.md`
+- `tools/templates/docs/04-process/AGENTS.md`
+- `tools/templates/docs/04-process/llm-prompts.md`
+- `tools/templates/docs/04-process/ci-autofix-prompt.md`
+- `tools/templates/docs/04-process/ticket-template.md`
+
+**What Changed:**
+
+- Removed the deprecated skill and aligned templates with the dev-tasks-only workflow.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (docs-only changes)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-04 - Ticket 401 - Add or update tests
 
 **Feature/Bug:** P1 - Orchestrator + sub-agent roles

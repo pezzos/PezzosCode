@@ -12,7 +12,7 @@ Structure:
   - `tech-design.md`
   - `dev-tasks.md`
   - `test-plan.md`
-- Feature tickets live at `docs/02-features/<feature>/TASK-XXX.md` and follow `docs/04-process/ticket-template.md`.
+- Execution is driven by `dev-tasks.md`, which also stores the execution log and role ownership.
 
 Selection rule for skills:
 

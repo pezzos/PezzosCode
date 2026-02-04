@@ -131,7 +131,7 @@ Organize by: setup, backend, frontend, integration, testing, deployment.
 
 ## Implementation Prompts
 
-### CI/Test Autofix (pc-ticket)
+### CI/Test Autofix (pc-feature)
 
 See `docs/04-process/ci-autofix-prompt.md`.
 

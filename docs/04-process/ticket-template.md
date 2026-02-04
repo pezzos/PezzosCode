@@ -14,7 +14,9 @@ change_budget:
 <!-- allowed status: To Do | Ongoing | Done | Fail | Awaiting PO Approval -->
 <!-- allowed complexity: simple | complex -->
 
-# Ticket Template
+# Ticket Template (Deprecated)
+
+> Deprecated: `dev-tasks.md` is the execution source of truth; ticket wrappers are no longer used.
 
 > Simple, consistent ticket format for 1 feature folder or 1 mini change.
 
@@ -124,7 +126,7 @@ change_budget:
 - [ ] Bug log (if needed)
 - [ ] Validation log (if needed)
 
-> Automation note: `make ticket` (pc-ticket) will create or update the implementation-log entry for the ticket. Do not rely on manual edits to satisfy log-related checks.
+> Deprecated automation note: `make feature` (pc-feature) uses `dev-tasks.md` execution logs instead of ticket wrappers.
 
 ## Docs Updated
 

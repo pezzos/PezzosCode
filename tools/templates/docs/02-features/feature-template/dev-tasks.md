@@ -14,6 +14,37 @@
 
 **Last Updated:** [YYYY-MM-DD]
 
+## Ownership and Traceability
+
+**Source of truth:** `dev-tasks.md` (tasks + execution log)
+
+**Roles (record names or agent ids):**
+
+- Orchestrator: [name]
+- Planner: [name]
+- Patcher: [name]
+- Tester: [name]
+- Reporter: [name]
+- Product Owner: [name]
+
+## Execution Log (Plan/Patch/Test/Report Loop)
+
+Record each execution round here. Link any related logs in `docs/03-logs/`.
+
+**Format:**
+
+- Date:
+- Scope / tasks covered:
+- Planner:
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome: [pass | fail | needs replan]
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes:
+
 ## Task Breakdown
 
 <!-- Use only the sections that apply to this feature. Uncomment relevant blocks and delete the rest. -->
@@ -337,9 +368,9 @@
 
 ## Blocked Tasks
 
-| Task ID    | Blocked By | Issue         | Action Needed          |
-| ---------- | ---------- | ------------- | ---------------------- |
-| [TASK-XXX] | [blocker]  | [description] | [what needs to happen] |
+| Work Item ID     | Blocked By | Issue         | Action Needed          |
+| ---------------- | ---------- | ------------- | ---------------------- |
+| [WI-YYYYMMDD-01] | [blocker]  | [description] | [what needs to happen] |
 
 ## Notes for LLM Execution
 

@@ -30,25 +30,24 @@
 - **Key Files/Modules:**
   - `docs/00-context/`: vision, users, assumptions, system map.
   - `docs/01-product/`: PRD.
-  - `docs/02-features/`: feature folders + tickets.
+  - `docs/02-features/`: feature folders + dev-tasks (execution log in dev-tasks.md).
   - `docs/03-logs/`: decisions, implementation notes, validation.
   - `docs/04-process/`: process rules and workflow.
 
 ### Tools (CLI scripts)
 
 - **Technology:** Bash + Python.
-- **Entry Points:** `tools/bootstrap-into`, `tools/pc-ticket`, `tools/ticket-bootstrap`, `tools/pc-commit`.
+- **Entry Points:** `tools/bootstrap-into`, `tools/pc-feature`, `tools/pc-commit`.
 - **Key Files/Modules:**
   - `tools/bootstrap-into`: copy templates into target repo.
-  - `tools/pc-ticket`: execute ticket workflow end-to-end.
-  - `tools/ticket-bootstrap`: create tickets/worklogs.
+  - `tools/pc-feature`: execute work item workflow end-to-end.
   - `tools/pc-commit`: validate and commit changes.
   - `tools/offload-proxy/pp`: offload noisy command output to `.offload/`.
 
 ### Skills (Codex helpers)
 
 - **Technology:** Markdown skill files in `.codex/skills/`.
-- **Entry Points:** `context-to-product`, `prd-to-features`, `feature-status-audit`, `feature-tasks-to-tickets`, `sync-root-from-context`, etc.
+- **Entry Points:** `context-to-product`, `prd-to-features`, `feature-status-audit`, `sync-root-from-context`, etc.
 
 ### External Services
 
@@ -66,13 +65,13 @@
    - System flow: tools/bootstrap-into → target repo docs/tools/skills/root files.
    - Data touched: template files, docs, tools, skills, root templates.
 
-2. **Execute approved tickets**
-   - User action: run ticket commands in the bootstrapped repo.
-   - System flow: tools/pc-ticket → Codex CLI → tests/CI → logs.
-   - Data touched: tickets, worklogs, docs/logs, git changes.
+2. **Execute approved work items**
+   - User action: execute work items from `dev-tasks.md` in the bootstrapped repo.
+   - System flow: tools/pc-feature → Codex CLI → tests/CI → logs.
+   - Data touched: dev-tasks, execution logs, docs/logs, git changes.
    - Execution pattern: Plan → Patch → Test → Report.
    - Output hygiene: noisy command output is offloaded to `.offload/`.
-   - Parallel roles use worktrees for isolation (impl/review/test).
+   - Parallel roles use worktrees for isolation (planner/patcher/tester/reporter).
 
 ## Deployment
 
@@ -134,5 +133,5 @@ None.
 
 ---
 
-**Last Updated:** 2026-02-02
-**Updated By:** Primary user (developer/PO)
+**Last Updated:** 2026-02-04
+**Updated By:** Alexandre Pezzotta
