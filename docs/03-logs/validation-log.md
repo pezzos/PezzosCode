@@ -27,6 +27,11 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-03 - Ticket 102 docs gating regression coverage validated
+
+- Confirmed the orchestrator/sub-agent docs regression suite now checks for TC-WF001, TC-WF002, TC-WF003, and TC-WF004 phrases so the tooling workflow gating tests remain blocked until the required gate descriptions exist.
+- `python -m unittest discover -s tests -p test_orchestrator_workflow_docs.py` (PASS)
+
 ### 2026-02-03 - Reapply gating output now surfaces during bootstrap runs
 
 - Verified the bootstrap reapply flow emits the preflight validation gate, template diff review gate, and conflict summary output while prompting for overwrite/merge/skip decisions so the regression expectations are satisfied.

@@ -90,6 +90,19 @@ class TestOrchestratorWorkflowDocs(unittest.TestCase):
             content,
         )
 
+    def test_test_plan_lists_workflow_gate_tests(self):
+        path = (
+            ROOT
+            / "docs"
+            / "02-features"
+            / "05-orchestrator-sub-agent-roles"
+            / "test-plan.md"
+        )
+        content = path.read_text(encoding="utf-8")
+        self.assertIn("- **TC-WF001:** Orchestrator Plan gate enforcement", content)
+        self.assertIn("- **TC-WF002:** Sub-agent input gate validation", content)
+        self.assertIn("- **TC-WF003:** Role output traceability", content)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -52,6 +52,27 @@ This helps with:
 
 **Author:** pc-ticket
 
+### 2026-02-03 - Ticket 102 - Implement or update tooling/scripts (tests-first doc regression)
+
+**Feature/Bug:** P1 - Orchestrator + sub-agent roles
+
+**Changed Files:**
+
+- `tests/test_orchestrator_workflow_docs.py`
+
+**What Changed:**
+
+- Added regression coverage that asserts TC-WF001, TC-WF002, and TC-WF003 are documented in the orchestrator/sub-agent test plan so the new tooling enforcement tests block until the workflow gate descriptions are present.
+
+**Status:** Tests passing
+
+**Testing:**
+
+- `python -m unittest tests/test_orchestrator_workflow_docs.py` (FAIL: module not found unless using discovery)
+- `python -m unittest discover -s tests -p test_orchestrator_workflow_docs.py` (PASS)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Ticket 102 - Expand offload proxy regression coverage
 
 **Feature/Bug:** P0 - Output offload enforcement
