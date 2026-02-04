@@ -1,5 +1,9 @@
 .DS_Store
 .offload/
-.codex_subagent/
+.codex_subagent/tmp/
+.codex_subagent/sessions/
+.codex_subagent/auth.json
+.codex_subagent/models_cache.json
+.codex_subagent/skills/.system
 __pycache__/
 *.pyc

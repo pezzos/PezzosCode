@@ -21,6 +21,7 @@ Small helper scripts for bootstrapping or operating this repo.
 - Treat this directory as the canonical place for repo automation.
 - When updating a tool, verify any template counterparts in `tools/templates/` stay aligned.
 - Scripted Codex runs should respect project profiles and repo-local `CODEX_HOME`.
+- Sub-agent config lives in `.codex_subagent/config.toml`; keep it aligned with overrides.
 
 ## Related Docs
 

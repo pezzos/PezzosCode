@@ -10,6 +10,25 @@ from pathlib import Path
 from typing import Optional
 
 
+def codex_overrides() -> list[str]:
+    uvx_path = shutil.which("uvx") or str(Path.home() / ".local" / "bin" / "uvx")
+    serena_payload = (
+        f'{{command="{uvx_path}",args=["--refresh","--from","git+https://github.com/oraios/serena",'
+        '"serena","start-mcp-server","--context","codex","--project-from-cwd"],'
+        "optional=true,autostart=false,startup_timeout_ms=30000,request_timeout_ms=15000}"
+    )
+    return [
+        "-c",
+        'approval_policy="never"',
+        "-c",
+        'sandbox_mode="workspace-write"',
+        "-c",
+        "network_access=false",
+        "-c",
+        f"mcp_servers.serena={serena_payload}",
+    ]
+
+
 @dataclass(frozen=True)
 class Pair:
     live: Path
@@ -54,6 +73,14 @@ def codex_env(root: Path) -> dict:
     env.pop("OPENAI_API_KEY", None)
     codex_home = root / ".codex_subagent"
     codex_home.mkdir(parents=True, exist_ok=True)
+    config_path = codex_home / "config.toml"
+    if not config_path.exists():
+        config_path.write_text(
+            'approval_policy = "never"\n'
+            'sandbox_mode = "workspace-write"\n'
+            "network_access = false\n",
+            encoding="utf-8",
+        )
     auth_src = Path.home() / ".codex" / "auth.json"
     auth_dst = codex_home / "auth.json"
     if auth_src.exists() and not auth_dst.exists():
@@ -162,6 +189,7 @@ def codex_exec(prompt: str, root: Path) -> None:
         str(root),
         "--profile",
         codex_profile(),
+        *codex_overrides(),
         "exec",
         "--skip-git-repo-check",
         "--output-last-message",

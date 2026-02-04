@@ -332,6 +332,27 @@ def git_repo_root(path: Optional[str]) -> str:
     return result.stdout.strip()
 
 
+def codex_overrides() -> List[str]:
+    uvx_path = shutil.which("uvx") or os.path.join(
+        os.path.expanduser("~"), ".local", "bin", "uvx"
+    )
+    serena_payload = (
+        f'{{command="{uvx_path}",args=["--refresh","--from","git+https://github.com/oraios/serena",'
+        '"serena","start-mcp-server","--context","codex","--project-from-cwd"],'
+        "optional=true,autostart=false,startup_timeout_ms=30000,request_timeout_ms=15000}"
+    )
+    return [
+        "-c",
+        'approval_policy="never"',
+        "-c",
+        'sandbox_mode="workspace-write"',
+        "-c",
+        "network_access=false",
+        "-c",
+        f"mcp_servers.serena={serena_payload}",
+    ]
+
+
 def codex_exec(
     prompt: str,
     capture_output: bool = True,
@@ -343,6 +364,14 @@ def codex_exec(
     project_root = git_repo_root(cwd)
     codex_home = os.path.join(project_root, ".codex_subagent")
     os.makedirs(codex_home, exist_ok=True)
+    config_path = os.path.join(codex_home, "config.toml")
+    if not os.path.exists(config_path):
+        with open(config_path, "w", encoding="utf-8") as handle:
+            handle.write(
+                'approval_policy = "never"\n'
+                'sandbox_mode = "workspace-write"\n'
+                "network_access = false\n"
+            )
     auth_src = os.path.join(os.path.expanduser("~"), ".codex", "auth.json")
     auth_dst = os.path.join(codex_home, "auth.json")
     if os.path.exists(auth_src) and not os.path.exists(auth_dst):
@@ -362,7 +391,16 @@ def codex_exec(
     env.pop("OPENAI_API_KEY", None)
     env["CODEX_HOME"] = codex_home
     codex_profile = profile or os.environ.get("CODEX_PROFILE", "Default")
-    cmd = ["codex", "-C", project_root, "--profile", codex_profile, "exec", prompt]
+    cmd = [
+        "codex",
+        "-C",
+        project_root,
+        "--profile",
+        codex_profile,
+        *codex_overrides(),
+        "exec",
+        prompt,
+    ]
     result = subprocess.run(
         cmd,
         check=False,

@@ -1,0 +1,12 @@
+# Sub-agent Codex config (repo-local).
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+network_access = false
+
+[mcp_servers.serena]
+command = "/Users/alexandrepezzotta/.local/bin/uvx"
+args = ["--refresh","--from","git+https://github.com/oraios/serena","serena","start-mcp-server","--context","codex","--project-from-cwd"]
+optional = true
+autostart = false
+startup_timeout_ms = 30_000
+request_timeout_ms = 15_000
