@@ -12,7 +12,114 @@
 
 **Status:** Not Started
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-04
+
+## Ownership and Traceability
+
+**Source of truth:** `dev-tasks.md` (tasks + execution log)
+
+**Roles (record names or agent ids):**
+
+- Orchestrator: [name]
+- Planner: [name]
+- Patcher: [name]
+- Tester: [name]
+- Reporter: [name]
+- Product Owner: [name]
+
+## Execution Log
+
+**Format:**
+
+### WI-YYYYMMDD-01 - Work item execution
+
+- Date:
+- Scope / tasks covered:
+- Planner:
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome: [pass | fail | needs replan]
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes:
+
+#### Preflight Report
+
+- Work Item:
+- PRD ref:
+- Risk level:
+- Triggers:
+- Scope in:
+- Scope out:
+- Non-goals reminder:
+- Files to change:
+- Change budget:
+- TDD plan:
+- Systematic review:
+
+#### TDD Plan
+
+- Tests to write first:
+
+#### Files to Change + Change Budget
+
+- Files:
+- Change budget:
+
+#### Docs Updated
+
+- [ ] Implementation log
+- [ ] Decision log (if needed)
+- [ ] Bug log (if needed)
+- [ ] Validation log (if needed)
+- [ ] Feature docs
+- [ ] PRD (if needed)
+
+#### Plan
+
+- (pending)
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+-
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
 
 ## Task Breakdown
 
@@ -91,3 +198,4 @@ None.
 | Date       | Changes                | Author       |
 | ---------- | ---------------------- | ------------ |
 | 2026-02-02 | Initial task breakdown | Developer/PO |
+| 2026-02-04 | Add execution log      | Developer/PO |

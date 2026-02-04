@@ -5,7 +5,6 @@ import re
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -15,22 +14,26 @@ ENTRY_HEADER_PREFIX = "### "
 SECTION_PREFIX = "#### "
 DEFAULT_CHANGE_BUDGET = {"max_files": 6, "max_new_modules": 1}
 MAX_LOOPS = 3
+MAX_AUTOFIX_ATTEMPTS = 3
 
 
-@dataclass
-class PreflightData:
-    prd_ref: str = ""
-    scope_in: str = ""
-    scope_out: str = ""
-    non_goals_reminder: str = ""
-    files_to_change: List[str] = None
-    planned_new_modules: int = 0
-    touches_secret_blocking: bool = False
-    touches_restore: bool = False
-    touches_secret_scanning: bool = False
-    cross_cutting_refactor_modules: int = 0
-    tdd_tests: List[str] = None
-    doc_updates: List[str] = None
+SECTION_ORDER = [
+    "Preflight Report",
+    "TDD Plan",
+    "Files to Change + Change Budget",
+    "Docs Updated",
+    "Plan",
+    "Patch",
+    "Test Results",
+    "Reporter Review",
+    "Gates",
+    "Autofix Attempts",
+    "Tester Feedback",
+    "Reporter Feedback",
+    "Iteration Log",
+    "Commit",
+    "Final Report",
+]
 
 
 def die(message: str) -> None:
@@ -125,6 +128,16 @@ def insert_execution_entry(content: str, entry: str) -> str:
     return content
 
 
+def list_entry_headers(lines: List[str]) -> List[str]:
+    headers = []
+    for line in lines:
+        if line.startswith(ENTRY_HEADER_PREFIX):
+            header = line[len(ENTRY_HEADER_PREFIX) :].strip()
+            if header.startswith("WI-"):
+                headers.append(header.split(" ", 1)[0])
+    return headers
+
+
 def find_entry_block(lines: List[str], work_item_id: str) -> Tuple[int, int]:
     header = f"{ENTRY_HEADER_PREFIX}{work_item_id}"
     start = -1
@@ -140,6 +153,27 @@ def find_entry_block(lines: List[str], work_item_id: str) -> Tuple[int, int]:
             end = idx
             break
     return start, end
+
+
+def get_entry_section(content: str, work_item_id: str, section_title: str) -> str:
+    lines = content.splitlines()
+    start, end = find_entry_block(lines, work_item_id)
+    entry_lines = lines[start:end]
+    section_header = f"{SECTION_PREFIX}{section_title}"
+    section_start = None
+    for idx, line in enumerate(entry_lines):
+        if line.strip() == section_header:
+            section_start = idx
+            break
+    if section_start is None:
+        die(f"pc-feature: missing section {section_title} in entry {work_item_id}")
+    section_end = len(entry_lines)
+    for idx in range(section_start + 1, len(entry_lines)):
+        if entry_lines[idx].startswith(SECTION_PREFIX):
+            section_end = idx
+            break
+    body = "\n".join(entry_lines[section_start + 1 : section_end]).strip()
+    return body
 
 
 def replace_entry_section(
@@ -185,6 +219,14 @@ def update_entry_field(content: str, work_item_id: str, field: str, value: str) 
     if not updated:
         die(f"pc-feature: field '{field}' not found in entry {work_item_id}")
     return "\n".join(lines[:start] + entry_lines + lines[end:]) + "\n"
+
+
+def parse_field_value(lines: List[str], field: str) -> str:
+    prefix = f"- {field}:"
+    for line in lines:
+        if line.strip().startswith(prefix):
+            return line.split(":", 1)[1].strip()
+    return ""
 
 
 def format_review_item(command: str, status: int) -> str:
@@ -338,6 +380,39 @@ def build_execution_entry(work_item_id: str) -> str:
     return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
 
 
+def entry_section_complete(content: str, work_item_id: str, section: str) -> bool:
+    body = get_entry_section(content, work_item_id, section)
+    if not body or "(pending)" in body:
+        return False
+    if section == "Preflight Report":
+        lines = body.splitlines()
+        risk_level = parse_field_value(lines, "Risk level")
+        return bool(risk_level)
+    if section == "Gates":
+        return "make ci" in body and "PASS" in body
+    if section == "Commit":
+        return (
+            "Commit message:" in body
+            and len(body.split("Commit message:", 1)[1].strip()) > 0
+        )
+    return True
+
+
+def entry_outcome(content: str, work_item_id: str) -> str:
+    entry_lines = content.splitlines()
+    start, end = find_entry_block(entry_lines, work_item_id)
+    field = parse_field_value(entry_lines[start:end], "Outcome")
+    return field.lower()
+
+
+def append_log_line(path: str, line: str) -> None:
+    content = read_file(path)
+    if line in content:
+        return
+    content = content.rstrip() + f"\n\n- {line}\n"
+    write_file(path, content)
+
+
 def main() -> None:
     feature_id, manual = parse_args(sys.argv[1:])
     feature_root = os.path.join("docs", "02-features")
@@ -347,82 +422,100 @@ def main() -> None:
         die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")
     content = read_file(dev_tasks_path)
     ensure_execution_log(content)
-    work_item_id = next_work_item_id(content)
-    entry = build_execution_entry(work_item_id)
-    content = insert_execution_entry(content, entry)
-    write_file(dev_tasks_path, content)
+
+    lines = content.splitlines()
+    headers = list_entry_headers(lines)
+    work_item_id = None
+    if headers:
+        last_id = headers[-1]
+        normalize_work_item_id(last_id)
+        outcome = entry_outcome(content, last_id)
+        if outcome and outcome.startswith("pass"):
+            work_item_id = None
+        else:
+            work_item_id = last_id
+    if not work_item_id:
+        work_item_id = next_work_item_id(content)
+        entry = build_execution_entry(work_item_id)
+        content = insert_execution_entry(content, entry)
+        write_file(dev_tasks_path, content)
 
     if manual:
-        print("pc-feature: manual mode enabled; execution log entry created")
+        print("pc-feature: manual mode enabled; execution log entry ready")
         return
 
     feature_spec = read_file(os.path.join(feature_dir, "feature-spec.md"))
     tech_design = read_file(os.path.join(feature_dir, "tech-design.md"))
     test_plan = read_file(os.path.join(feature_dir, "test-plan.md"))
-    dev_tasks = read_file(dev_tasks_path)
 
-    preflight_prompt = (
-        "You are preparing preflight data for a work item execution.\n"
-        "Return ONLY valid JSON with keys: prd_ref, scope_in, scope_out, non_goals_reminder, "
-        "files_to_change (array), planned_new_modules (int), touches_secret_blocking (bool), "
-        "touches_restore (bool), touches_secret_scanning (bool), cross_cutting_refactor_modules (int), "
-        "tdd_tests (array), doc_updates (array).\n"
-        f"Work Item ID: {work_item_id}\n"
-        f"Feature spec:\n{feature_spec}\n\n"
-        f"Tech design:\n{tech_design}\n\n"
-        f"Test plan:\n{test_plan}\n\n"
-        f"Dev tasks:\n{dev_tasks}\n"
-    )
-    preflight_raw = codex_exec(preflight_prompt).strip()
-    try:
-        preflight_data = json.loads(preflight_raw)
-    except json.JSONDecodeError:
-        die(f"pc-feature: failed to parse preflight JSON\n{preflight_raw}")
+    review_items: List[str] = []
 
-    risk_level, triggers = classify_risk(preflight_data, DEFAULT_CHANGE_BUDGET)
     content = read_file(dev_tasks_path)
-    content = replace_entry_section(
-        content,
-        work_item_id,
-        "Preflight Report",
-        build_preflight_block(
-            preflight_data,
-            work_item_id,
-            DEFAULT_CHANGE_BUDGET,
-            risk_level,
-            triggers,
-            None,
-        ),
-    )
-    content = replace_entry_section(
-        content,
-        work_item_id,
-        "TDD Plan",
-        build_tdd_plan_block(preflight_data.get("tdd_tests") or []),
-    )
-    content = replace_entry_section(
-        content,
-        work_item_id,
-        "Files to Change + Change Budget",
-        build_files_block(
-            preflight_data.get("files_to_change") or [], DEFAULT_CHANGE_BUDGET
-        ),
-    )
-    content = replace_entry_section(
-        content,
-        work_item_id,
-        "Docs Updated",
-        build_docs_block(preflight_data.get("doc_updates") or []),
-    )
-    write_file(dev_tasks_path, content)
+    if not entry_section_complete(content, work_item_id, "Preflight Report"):
+        preflight_prompt = (
+            "You are preparing preflight data for a work item execution.\n"
+            "Return ONLY valid JSON with keys: prd_ref, scope_in, scope_out, non_goals_reminder, "
+            "files_to_change (array), planned_new_modules (int), touches_secret_blocking (bool), "
+            "touches_restore (bool), touches_secret_scanning (bool), cross_cutting_refactor_modules (int), "
+            "tdd_tests (array), doc_updates (array).\n"
+            f"Work Item ID: {work_item_id}\n"
+            f"Feature spec:\n{feature_spec}\n\n"
+            f"Tech design:\n{tech_design}\n\n"
+            f"Test plan:\n{test_plan}\n\n"
+            f"Dev tasks:\n{content}\n"
+        )
+        preflight_raw = codex_exec(preflight_prompt).strip()
+        try:
+            preflight_data = json.loads(preflight_raw)
+        except json.JSONDecodeError:
+            die(f"pc-feature: failed to parse preflight JSON\n{preflight_raw}")
 
-    if risk_level == "HIGH":
-        content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
-        content = update_entry_field(
-            content, work_item_id, "Notes", "Awaiting PO Approval"
+        risk_level, triggers = classify_risk(preflight_data, DEFAULT_CHANGE_BUDGET)
+        content = read_file(dev_tasks_path)
+        content = replace_entry_section(
+            content,
+            work_item_id,
+            "Preflight Report",
+            build_preflight_block(
+                preflight_data,
+                work_item_id,
+                DEFAULT_CHANGE_BUDGET,
+                risk_level,
+                triggers,
+                "; ".join(review_items) if review_items else None,
+            ),
+        )
+        content = replace_entry_section(
+            content,
+            work_item_id,
+            "TDD Plan",
+            build_tdd_plan_block(preflight_data.get("tdd_tests") or []),
+        )
+        content = replace_entry_section(
+            content,
+            work_item_id,
+            "Files to Change + Change Budget",
+            build_files_block(
+                preflight_data.get("files_to_change") or [], DEFAULT_CHANGE_BUDGET
+            ),
+        )
+        content = replace_entry_section(
+            content,
+            work_item_id,
+            "Docs Updated",
+            build_docs_block(preflight_data.get("doc_updates") or []),
         )
         write_file(dev_tasks_path, content)
-        die("pc-feature: high-risk work item requires PO approval")
+
+        if risk_level == "HIGH":
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            content = update_entry_field(
+                content, work_item_id, "Notes", "Awaiting PO Approval"
+            )
+            write_file(dev_tasks_path, content)
+            die("pc-feature: high-risk work item requires PO approval")
 
     root = os.getcwd()
     planner_path = prepare_worktree(root, os.path.basename(feature_dir), "planner")
@@ -431,34 +524,42 @@ def main() -> None:
     reporter_path = prepare_worktree(root, os.path.basename(feature_dir), "reporter")
 
     for attempt in range(1, MAX_LOOPS + 1):
-        plan_prompt = (
-            "You are the Planner agent. Provide a concise plan for this work item. "
-            "Include approach, files to change, risks, and tests.\n"
-            f"Work Item ID: {work_item_id}\n"
-            f"Feature spec:\n{feature_spec}\n\n"
-            f"Tech design:\n{tech_design}\n\n"
-            f"Dev tasks:\n{dev_tasks}\n"
-        )
-        plan_text = codex_exec(plan_prompt, cwd=planner_path).strip()
         content = read_file(dev_tasks_path)
-        content = replace_entry_section(content, work_item_id, "Plan", plan_text)
-        write_file(dev_tasks_path, content)
+        if not entry_section_complete(content, work_item_id, "Plan"):
+            plan_prompt = (
+                "You are the Planner agent. Provide a concise plan for this work item. "
+                "Include approach, files to change, risks, and tests.\n"
+                f"Work Item ID: {work_item_id}\n"
+                f"Feature spec:\n{feature_spec}\n\n"
+                f"Tech design:\n{tech_design}\n\n"
+                f"Dev tasks:\n{content}\n"
+            )
+            plan_text = codex_exec(plan_prompt, cwd=planner_path).strip()
+            content = read_file(dev_tasks_path)
+            content = update_entry_field(content, work_item_id, "Planner", "Codex")
+            content = replace_entry_section(content, work_item_id, "Plan", plan_text)
+            write_file(dev_tasks_path, content)
 
-        patch_prompt = (
-            "You are the Patcher agent. Apply the smallest possible diff to satisfy the plan. "
-            "Return a brief summary of what changed and any commands run.\n"
-            f"Work Item ID: {work_item_id}\n"
-            f"Plan:\n{plan_text}\n"
-        )
-        patch_text = codex_exec(patch_prompt, capture_output=True, cwd=patcher_path)
         content = read_file(dev_tasks_path)
-        content = replace_entry_section(
-            content,
-            work_item_id,
-            "Patch",
-            patch_text.strip() or "(see worktree changes)",
-        )
-        write_file(dev_tasks_path, content)
+        if not entry_section_complete(content, work_item_id, "Patch"):
+            patch_prompt = (
+                "You are the Patcher agent. Apply the smallest possible diff to satisfy the plan. "
+                "Return a concise summary of what changed and any commands run.\n"
+                f"Work Item ID: {work_item_id}\n"
+                f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
+            )
+            patch_text = codex_exec(
+                patch_prompt, capture_output=True, cwd=patcher_path
+            ).strip()
+            content = read_file(dev_tasks_path)
+            content = update_entry_field(content, work_item_id, "Patcher", "Codex")
+            content = replace_entry_section(
+                content,
+                work_item_id,
+                "Patch",
+                patch_text or "(see worktree changes)",
+            )
+            write_file(dev_tasks_path, content)
 
         test_prompt = (
             "You are the Tester agent. Run the agreed tests and report results. "
@@ -472,6 +573,7 @@ def main() -> None:
         tester_outcome = parse_outcome(tester_feedback)
         tests_run = extract_field(tester_feedback, "Tests run")
         content = read_file(dev_tasks_path)
+        content = update_entry_field(content, work_item_id, "Tester", "Codex")
         content = replace_entry_section(
             content, work_item_id, "Test Results", tester_feedback
         )
@@ -494,6 +596,7 @@ def main() -> None:
         reporter_outcome = parse_outcome(reporter_feedback)
         docs_updated = extract_field(reporter_feedback, "Docs/logs updated")
         content = read_file(dev_tasks_path)
+        content = update_entry_field(content, work_item_id, "Reporter", "Codex")
         content = replace_entry_section(
             content, work_item_id, "Reporter Review", reporter_feedback
         )
@@ -506,26 +609,97 @@ def main() -> None:
             )
         write_file(dev_tasks_path, content)
 
+        content = read_file(dev_tasks_path)
+        content = replace_entry_section(
+            content,
+            work_item_id,
+            "Iteration Log",
+            f"- Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}",
+        )
+        write_file(dev_tasks_path, content)
+
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
             content = read_file(dev_tasks_path)
             content = update_entry_field(
                 content, work_item_id, "Outcome", "needs replan"
             )
-            content = replace_entry_section(
-                content,
-                work_item_id,
-                "Iteration Log",
-                f"- Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}",
-            )
             write_file(dev_tasks_path, content)
             continue
 
-        content = read_file(dev_tasks_path)
-        content = update_entry_field(content, work_item_id, "Outcome", "pass")
-        write_file(dev_tasks_path, content)
         break
     else:
         die("pc-feature: max iteration attempts reached; check execution log")
+
+    gate_status = "FAIL"
+    autofix_notes: List[str] = []
+    for attempt in range(1, MAX_AUTOFIX_ATTEMPTS + 1):
+        cmd = ["tools/offload-proxy/pp", "make", "ci"]
+        exit_code = run_command(cmd)
+        review_items.append(
+            format_review_item("tools/offload-proxy/pp make ci", exit_code)
+        )
+        if exit_code == 0:
+            gate_status = "PASS"
+            break
+        autofix_cmd = ["tools/offload-proxy/pp", "pre-commit", "run", "--all-files"]
+        autofix_exit = run_command(autofix_cmd)
+        autofix_notes.append(
+            format_review_item(
+                "tools/offload-proxy/pp pre-commit run --all-files", autofix_exit
+            )
+        )
+    content = read_file(dev_tasks_path)
+    content = replace_entry_section(
+        content, work_item_id, "Gates", build_gates_block("make ci", gate_status)
+    )
+    if autofix_notes:
+        content = replace_entry_section(
+            content, work_item_id, "Autofix Attempts", "\n".join(autofix_notes)
+        )
+    write_file(dev_tasks_path, content)
+
+    if gate_status != "PASS":
+        content = read_file(dev_tasks_path)
+        content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
+        write_file(dev_tasks_path, content)
+        die("pc-feature: make ci failed after autofix attempts")
+
+    commit_prompt = (
+        "You are generating a concise, scoped commit message for this work item. "
+        "Return ONLY the commit subject line.\n"
+        f"Work Item ID: {work_item_id}\n"
+    )
+    commit_message = codex_exec(commit_prompt).strip()
+    if not commit_message:
+        die("pc-feature: empty commit message from agent")
+    content = read_file(dev_tasks_path)
+    content = replace_entry_section(
+        content,
+        work_item_id,
+        "Commit",
+        f"- Commit message: {commit_message}",
+    )
+
+    final_report = (
+        "What changed (files): (see git diff)\n"
+        f"Tests written (names) + results: {get_entry_section(content, work_item_id, 'Test Results')}\n"
+        "Docs/logs updated checklist: (see Docs Updated)\n"
+        f"make ci results: {gate_status}\n"
+        f"Commands run (use pp for noisy output): {'; '.join(review_items)}\n"
+        f"Commit message: {commit_message}"
+    )
+    content = replace_entry_section(content, work_item_id, "Final Report", final_report)
+    content = update_entry_field(content, work_item_id, "Outcome", "pass")
+    write_file(dev_tasks_path, content)
+
+    append_log_line(
+        os.path.join("docs", "03-logs", "implementation-log.md"),
+        "Documented the Execute work item workflow gating summary",
+    )
+    append_log_line(
+        os.path.join("docs", "03-logs", "validation-log.md"),
+        "Recorded the validation findings for the Execute work item workflow gating steps",
+    )
 
     print("pc-feature: complete")
 

@@ -169,6 +169,80 @@ This helps with:
 
 **Author:** Alexandre Pezzotta
 
+### 2026-02-04 - Tooling update - pc-feature scoped workflow implementation
+
+**Feature/Bug:** Process - work item execution tooling
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `tests/test_pc_feature.py`
+- `tests/test_pc_ticket.py` (removed)
+- `tests/test_bootstrap_into.py`
+- `tests/test_docs_logs.py`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `docs/04-process/AGENTS.md`
+- `tools/templates/docs/04-process/AGENTS.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Implemented the scoped work-item orchestration loop in `pc-feature` (plan/patch/test/report, make ci, autofix, commit message only) and aligned tests/docs/templates to the updated workflow.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (tooling + docs updates)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-04 - Docs update - add execution log to remaining features
+
+**Feature/Bug:** Process - dev-tasks execution readiness
+
+**Changed Files:**
+
+- `docs/02-features/06-worktree-policy-naming-convention/dev-tasks.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/dev-tasks.md`
+
+**What Changed:**
+
+- Added Ownership/Execution Log sections so `pc-feature` can run on features 06 and 07.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (docs-only changes)
+
+**Author:** Alexandre Pezzotta
+
+### 2026-02-04 - Fix lint failure in pc-feature execution log tooling
+
+**Feature/Bug:** Tooling - lint compliance
+
+**Changed Files:**
+
+- `tools/pc-feature`
+
+**What Changed:**
+
+- Removed the unused `lines` assignment in `entry_outcome()` so the script passes `ruff`'s F841 check without altering behavior.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (lint-only change)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-04 - Ticket 401 - Add or update tests
 
 **Feature/Bug:** P1 - Orchestrator + sub-agent roles
