@@ -1,7 +1,6 @@
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -102,6 +101,30 @@ class TestOrchestratorWorkflowDocs(unittest.TestCase):
         self.assertIn("- **TC-WF001:** Orchestrator Plan gate enforcement", content)
         self.assertIn("- **TC-WF002:** Sub-agent input gate validation", content)
         self.assertIn("- **TC-WF003:** Role output traceability", content)
+
+    def test_execution_protocol_references_orchestrator_gate_logs(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "docs/03-logs/decision-log.md or docs/03-logs/validation-log.md",
+            content,
+        )
+
+    def test_human_orchestration_workflow_records_gate_hand_offs(self):
+        path = ROOT / "docs" / "04-process" / "human-orchestration-workflow.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.",
+            content,
+        )
+
+    def test_decision_log_records_orchestrator_gate_entry(self):
+        path = ROOT / "docs" / "03-logs" / "decision-log.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "[DEC-006] - Orchestrator gating traceability",
+            content,
+        )
 
 
 if __name__ == "__main__":

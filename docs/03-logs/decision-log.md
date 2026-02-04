@@ -232,6 +232,70 @@ The regression tests make it clear that only explicit wording counts, so we need
 
 **Actual Outcome:** _Pending_
 
+### [DEC-006] - Orchestrator gating traceability
+
+**Date:** 2026-02-04
+
+**Status:** Accepted
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+The orchestrator/sub-agent workflow now enforces gate handoff checks at every step, and the regression tests require these transitions to be recorded before the PO loop advances.
+
+**Problem Statement:**
+How do we make gate handoffs traceable so that the PO loop, automation, and documentation remain synchronized with the orchestrator’s control flow?
+
+**Options Considered:**
+
+#### Option 1: Keep gating traceability implicit in the workflow docs
+
+**Description:** Trust implementers and the PO loop to remember to log the gate handoffs without a dedicated callout.
+
+**Pros:**
+
+- Minimal documentation work
+
+**Cons:**
+
+- Tests and reviewers will continue to fail because the exact wording linking gates to the logs is missing.
+- It’s impossible to audit whether the orchestrator actually logged each transition.
+
+#### Option 2: Explicitly record every gate handoff in the decision and validation logs before the PO loop continues and cite the approach in the process docs
+
+**Description:** Update the human orchestration workflow, execution protocol, and regression expectations so they all point to `docs/03-logs/decision-log.md` and `docs/03-logs/validation-log.md` as the gate artifacts.
+
+**Pros:**
+
+- Ensures the regression tests can find the required phrases.
+- Creates an auditable trail of each orchestrator gate handoff.
+- Keeps implementers and reviewers aligned around the same traceability chain.
+
+**Cons:**
+
+- Requires small doc updates and an entry in the decision log.
+
+**Decision:**
+We chose **Option 2** to record every gate handoff in the decision and validation logs before the PO loop continues so the orchestrator’s traceability obligations stay explicit.
+
+**Rationale:**
+The orchestration docs and tests explicitly complain when the gate log references are missing, so documenting and enforcing the logs prevents repeated failures and makes the gate ownership visible to the PO loop.
+
+**Implications:**
+
+- The human orchestration workflow and ticket execution protocol now point to the gate logs before progressing.
+- Each gate handoff is noted in `docs/03-logs/decision-log.md` and `docs/03-logs/validation-log.md`.
+- Regression tests that look for the gate-to-log language now have deterministic, documented references.
+
+**Success Criteria:**
+
+- The orchestrator gating docs mention `docs/03-logs/decision-log.md` and `docs/03-logs/validation-log.md` before the PO loop advances.
+- Tests no longer fail due to missing gate handoff traceability language.
+
+**Review Date:** 2026-03-04
+
+**Actual Outcome:** _Pending_
+
 ### [DEC-002] - Force early LSP override load via shell env + add ping diagnostics
 
 **Date:** 2026-01-31

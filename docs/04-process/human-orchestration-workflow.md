@@ -22,6 +22,7 @@
 6. **Execute Ticket**
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
    - The PO loop now routes offload violations through docs/03-logs/decision-log.md so the enforced workflow is recorded before progressing.
+   - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - If tester/reviewer raises issues, implementer must iterate and log in the ticket.
 7. **Repeat**
    - Go back to step 4 for the next feature.
@@ -41,6 +42,7 @@
    - Run the skill `feature-tasks-to-tickets` to create tickets for the current feature’s tasks.
 6. **Execute Ticket**
    - Follow the ticket execution protocol in `docs/04-process/ticket-execution-protocol.md`.
+   - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - If tester/reviewer raises issues, implementer must iterate and log in the ticket.
 7. **Repeat**
    - Continue from step 4 until P0/P1 items are complete.
