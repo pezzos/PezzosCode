@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-04 - Codex exec CODEX_HOME change validation pending
+
+- Set scripted Codex exec to use repo-local `.codex`; no automated validation run yet.
+
 ### 2026-02-04 - Template sync hook validation pending
 
 - Added a template/living sync pre-commit hook; no automated validation run yet.

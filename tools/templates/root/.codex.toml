@@ -44,9 +44,43 @@ file_opener = "cursor"
 # Example: notify = ["notify-send", "Codex"]
 notify = [ ]
 
+[profiles.Default]
+model = "gpt-5.2-codex"
+model_reasoning_effort = "low"
+model_reasoning_summary = "none"
+model_verbosity = "low"
+
+[profiles.Planner]
+model = "gpt-5.2-codex"
+model_reasoning_effort = "high"
+model_reasoning_summary = "none"
+model_verbosity = "medium"
+
+[profiles.Patcher]
+model = "gpt-5.2-codex"
+model_reasoning_effort = "low"
+model_reasoning_summary = "none"
+model_verbosity = "low"
+
+[profiles.Tester]
+model = "gpt-5.2-codex"
+model_reasoning_effort = "low"
+model_reasoning_summary = "none"
+model_verbosity = "low"
+
+[profiles.Reporter]
+model = "gpt-5.2-codex"
+model_reasoning_effort = "low"
+model_reasoning_summary = "none"
+model_verbosity = "low"
+
 [projects]
 # Mark specific worktrees as trusted or untrusted.
 trust_level = "trusted"  # or "untrusted"
+
+# Serena MCP override (relative path for bootstrap).
+[mcp_servers.serena]
+env = { PYTHONPATH = "tools/serena/solidlsp_override", SERENA_LSP_CONFIG_PING_DIR = "/tmp" }
 
 # Add MCP servers under [mcp_servers.<name>] to extend Codex.
 #

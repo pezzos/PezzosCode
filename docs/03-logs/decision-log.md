@@ -104,6 +104,72 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-011] - Use repo-local CODEX_HOME for scripted Codex exec
+
+**Date:** 2026-02-04
+
+**Status:** Implemented
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Codex CLI runs from scripted tooling (pre-commit hooks and feature automation) fail when Codex attempts to write sessions outside the repo sandbox.
+
+**Problem Statement:**
+How do we allow Codex CLI to persist session data without requiring access to the user's home directory?
+
+**Options Considered:**
+
+#### Option 1: Allow home directory writes
+
+**Description:** Permit Codex to write to `~/.codex` by granting broader permissions.
+
+**Pros:**
+
+- Minimal tooling changes
+- Matches Codex defaults
+
+**Cons:**
+
+- Requires expanded permissions outside the repo
+- Less deterministic for sandboxed runs
+
+**Estimated effort:** Low
+
+#### Option 2: Use repo-local CODEX_HOME
+
+**Description:** Set `CODEX_HOME` to the repo-local `.codex` directory for scripted runs.
+
+**Pros:**
+
+- Works within sandboxed environments
+- Keeps Codex state scoped to the repo
+
+**Cons:**
+
+- Requires updating tooling scripts
+
+**Estimated effort:** Low
+
+**Decision:**
+We chose **Option 2: Use repo-local CODEX_HOME**
+
+**Rationale:**
+It keeps automation self-contained while unblocking Codex exec in hooks and scripts.
+
+**Implications:**
+
+- Scripted Codex calls set `CODEX_HOME` to `.codex`.
+- Repo templates include the profile defaults to align sub-agent behavior.
+
+**Success Criteria:**
+
+- `codex exec` succeeds in scripted hooks without home directory access.
+
+**Review Date:** 2026-03-01
+
+**Actual Outcome:** Implemented; validation pending real pre-commit runs.
+
 ### [DEC-010] - Enforce template/living sync via pre-commit
 
 **Date:** 2026-02-04

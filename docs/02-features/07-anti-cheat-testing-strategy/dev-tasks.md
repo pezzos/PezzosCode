@@ -29,6 +29,101 @@
 
 ## Execution Log
 
+### WI-20260204-02 - Work item execution
+
+- Date: 2026-02-04
+- Scope / tasks covered: Ensure Codex CLI uses repo-local CODEX_HOME and project profiles
+- Planner: Codex
+- Patcher: Codex
+- Tester: Codex
+- Reporter: Codex
+- Outcome: pass
+- Tests run: Not run (no test command specified)
+- Offload ids (if any): 83639ed3e7390d93ea2591edaf8357d41ee581b2d8caea75257a0d37c4a4f74b
+- Docs/logs updated: implementation-log.md, decision-log.md, validation-log.md
+- Notes: Follow-up to template sync hook to unblock codex exec in sandbox.
+
+#### Preflight Report
+
+- Work Item: WI-20260204-02
+- PRD ref: 07-anti-cheat-testing-strategy
+- Risk level: LOW
+- Triggers: No high-risk modules touched
+- Scope in: Repo-local CODEX_HOME for codex exec; per-role profiles in .codex.toml + template
+- Scope out: Changes to Serena MCP config beyond ensuring project profile usage
+- Non-goals reminder: No behavior changes outside codex exec path and configs
+- Files to change: tools/pc-autofix, tools/pc-template-sync, tools/pc-feature, .codex.toml, tools/templates/root/.codex.toml, tools/README.md, docs/03-logs/\*
+- Change budget: max_files=8, max_new_modules=0
+- TDD plan: None
+- Systematic review: commands executed and outputs reviewed; changes match intended scope.
+
+#### TDD Plan
+
+- Tests to write first: None
+
+#### Files to Change + Change Budget
+
+- Files: tools/pc-autofix, tools/pc-template-sync, tools/pc-feature, .codex.toml, tools/templates/root/.codex.toml, tools/README.md, docs/03-logs/implementation-log.md, docs/03-logs/decision-log.md, docs/03-logs/validation-log.md
+- Change budget: max_files: 8, max_new_modules: 0
+
+#### Docs Updated
+
+- [x] Implementation log
+- [x] Decision log (if needed)
+- [ ] Bug log (if needed)
+- [x] Validation log (if needed)
+- [x] Feature docs
+- [ ] PRD (if needed)
+
+#### Plan
+
+- Add repo-local CODEX_HOME to codex exec helper paths.
+- Invoke codex with -C repo root and --profile (Default unless overridden).
+- Add profiles to .codex.toml and template.
+
+#### Patch
+
+- Updated codex exec helpers to set CODEX_HOME and pass -C/--profile.
+- Routed pc-feature planner/patcher/tester/reporter calls to role-specific profiles.
+- Tuned Planner profile to higher reasoning/verbosity and documented tooling notes.
+- Added profiles and Serena MCP config to .codex.toml template.
+
+#### Test Results
+
+- Not run (no test command specified)
+
+#### Reporter Review
+
+- No issues noted.
+
+#### Gates
+
+- make ci: Not run (no test command specified)
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+- Completed in one pass.
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+- Codex CLI now uses repo-local CODEX_HOME with profiles, and the template .codex.toml includes profile + Serena MCP defaults.
+
 ### WI-20260204-01 - Work item execution
 
 - Date: 2026-02-04
@@ -164,11 +259,11 @@
 
 #### Docs Updated
 
-- [ ] Implementation log
-- [ ] Decision log (if needed)
+- [x] Implementation log
+- [x] Decision log (if needed)
 - [ ] Bug log (if needed)
-- [ ] Validation log (if needed)
-- [ ] Feature docs
+- [x] Validation log (if needed)
+- [x] Feature docs
 - [ ] PRD (if needed)
 
 #### Plan

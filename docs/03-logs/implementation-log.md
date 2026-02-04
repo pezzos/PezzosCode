@@ -27,6 +27,38 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-04 - Codex exec uses repo-local CODEX_HOME and profiles
+
+**Feature/Bug:** Process/Tooling - codex exec configuration
+
+**Changed Files:**
+
+- `tools/pc-autofix`
+- `tools/pc-template-sync`
+- `tools/pc-feature`
+- `.codex.toml`
+- `tools/templates/root/.codex.toml`
+- `tools/README.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/dev-tasks.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Set `CODEX_HOME` to the repo-local `.codex` directory for script-driven Codex exec.
+- Invoked Codex with project `-C` and role profile selection (Default by default).
+- Routed `pc-feature` sub-agent runs to the Planner/Patcher/Tester/Reporter profiles.
+- Tuned the Planner profile for higher reasoning and added AI-oriented tooling notes.
+- Added profiles and Serena MCP defaults to the root template `.codex.toml`.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (no test command specified)
+
+**Author:** Codex
+
 ### 2026-02-04 - Sync templates to match the living docs
 
 **Feature/Bug:** Process/Tooling - template-sync maintenance

@@ -318,17 +318,41 @@ def classify_risk(data: Dict, change_budget: Dict) -> Tuple[str, List[str]]:
     return ("HIGH" if triggers else "LOW", triggers)
 
 
+def git_repo_root(path: Optional[str]) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=path,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: git root not found\n{result.stderr}")
+    return result.stdout.strip()
+
+
 def codex_exec(
-    prompt: str, capture_output: bool = True, cwd: Optional[str] = None
+    prompt: str,
+    capture_output: bool = True,
+    cwd: Optional[str] = None,
+    profile: Optional[str] = None,
 ) -> str:
     if shutil.which("codex") is None:
         die("pc-feature: codex CLI not found in PATH")
-    cmd = ["codex", "exec", prompt]
+    project_root = git_repo_root(cwd)
+    codex_home = os.path.join(project_root, ".codex")
+    os.makedirs(codex_home, exist_ok=True)
+    env = os.environ.copy()
+    env["CODEX_HOME"] = codex_home
+    codex_profile = profile or os.environ.get("CODEX_PROFILE", "Default")
+    cmd = ["codex", "-C", project_root, "--profile", codex_profile, "exec", prompt]
     result = subprocess.run(
         cmd,
         check=False,
         cwd=cwd,
         text=True,
+        env=env,
         stdout=subprocess.PIPE if capture_output else None,
         stderr=subprocess.PIPE if capture_output else None,
     )
@@ -799,7 +823,9 @@ def main() -> None:
                 f"Tech design:\n{tech_design}\n\n"
                 f"Dev tasks:\n{content}\n"
             )
-            plan_text = codex_exec(plan_prompt, cwd=planner_path).strip()
+            plan_text = codex_exec(
+                plan_prompt, cwd=planner_path, profile="Planner"
+            ).strip()
             content = read_file(dev_tasks_path)
             content = update_entry_field(content, work_item_id, "Planner", "Codex")
             content = replace_entry_section(content, work_item_id, "Plan", plan_text)
@@ -821,7 +847,10 @@ def main() -> None:
                 f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
             )
             patch_text = codex_exec(
-                patch_prompt, capture_output=True, cwd=patcher_path
+                patch_prompt,
+                capture_output=True,
+                cwd=patcher_path,
+                profile="Patcher",
             ).strip()
             content = read_file(dev_tasks_path)
             content = update_entry_field(content, work_item_id, "Patcher", "Codex")
@@ -843,7 +872,9 @@ def main() -> None:
             "Notes: ...\n"
             f"Work Item ID: {work_item_id}\n"
         )
-        tester_feedback = codex_exec(test_prompt, cwd=tester_path).strip()
+        tester_feedback = codex_exec(
+            test_prompt, cwd=tester_path, profile="Tester"
+        ).strip()
         tester_outcome = parse_outcome(tester_feedback)
         tests_run = extract_field(tester_feedback, "Tests run")
         content = read_file(dev_tasks_path)
@@ -873,7 +904,9 @@ def main() -> None:
             "Notes: ...\n"
             f"Work Item ID: {work_item_id}\n"
         )
-        reporter_feedback = codex_exec(reporter_prompt, cwd=reporter_path).strip()
+        reporter_feedback = codex_exec(
+            reporter_prompt, cwd=reporter_path, profile="Reporter"
+        ).strip()
         reporter_outcome = parse_outcome(reporter_feedback)
         docs_updated = extract_field(reporter_feedback, "Docs/logs updated")
         content = read_file(dev_tasks_path)

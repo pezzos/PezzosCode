@@ -16,6 +16,12 @@ Small helper scripts for bootstrapping or operating this repo.
 - Use `tools/pc-feature` when executing a work item end-to-end.
 - Use `tools/pc-commit` before committing in this repo.
 
+## AI Notes
+
+- Treat this directory as the canonical place for repo automation.
+- When updating a tool, verify any template counterparts in `tools/templates/` stay aligned.
+- Scripted Codex runs should respect project profiles and repo-local `CODEX_HOME`.
+
 ## Related Docs
 
 - `docs/04-process/ticket-execution-protocol.md`
