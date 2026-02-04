@@ -54,6 +54,7 @@ This helps with:
 - Updated Codex session storage to `.codex_subagent` and copied auth.json when missing.
 - Added warnings for missing auth.json and stripped OPENAI_API_KEY from scripted Codex runs.
 - Resolved ambiguous `main` ref by preferring `refs/heads/main` when creating worktrees.
+- Fixed Python typing syntax in hook scripts for older Python runtimes.
 - Added profiles and Serena MCP defaults to the root template `.codex.toml`.
 
 **Status:** Completed
