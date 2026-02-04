@@ -553,12 +553,32 @@ def get_status_paths(path: str) -> List[str]:
     return parse_status_paths(lines)
 
 
+def filter_ignored_paths(paths: List[str]) -> List[str]:
+    ignored_prefixes = (
+        ".tmp/",
+        ".codex_subagent/",
+        ".offload/",
+    )
+    ignored_files = {
+        ".codex_subagent/config.toml",
+    }
+    filtered: List[str] = []
+    for entry in paths:
+        if entry in ignored_files:
+            continue
+        if any(entry.startswith(prefix) for prefix in ignored_prefixes):
+            continue
+        filtered.append(entry)
+    return filtered
+
+
 def enforce_role_scope(
     worktree_path: str,
     role: str,
     feature_dir: str,
 ) -> None:
     paths = get_status_paths(worktree_path)
+    paths = filter_ignored_paths(paths)
     if not paths:
         return
     role_paths = worktree_role_paths(feature_dir)

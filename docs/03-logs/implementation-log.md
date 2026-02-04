@@ -55,6 +55,7 @@ This helps with:
 - Added warnings for missing auth.json and stripped OPENAI_API_KEY from scripted Codex runs.
 - Resolved ambiguous `main` ref by preferring `refs/heads/main` when creating worktrees.
 - Fixed Python typing syntax in hook scripts for older Python runtimes.
+- Ignored temporary `.tmp/`, `.offload/`, and `.codex_subagent/` paths in role scope checks.
 - Added `.codex_subagent/config.toml` (repo + template), tightened `.gitignore`, and passed explicit Codex overrides including Serena MCP.
 - Added profiles and Serena MCP defaults to the root template `.codex.toml`.
 
