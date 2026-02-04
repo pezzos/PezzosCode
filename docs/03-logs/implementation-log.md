@@ -27,6 +27,26 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-04 - Fix pc-feature work item header parsing
+
+**Feature/Bug:** Tooling - pc-feature work item id parsing
+
+**Changed Files:**
+
+- `tools/pc-feature`
+
+**What Changed:**
+
+- Filtered execution log headers to only accept concrete `WI-YYYYMMDD-XX` ids, ignoring the template placeholder so `make feature` no longer fails on a fresh `dev-tasks.md`.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (user reported failure; no test command defined)
+
+**Author:** Codex
+
 ### 2026-02-04 - Process update - dev-tasks execution loop
 
 **Feature/Bug:** Process - dev-tasks execution source of truth
