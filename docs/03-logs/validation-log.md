@@ -27,6 +27,11 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-04 - Ticket 401 - Orchestrator gate docs regression verified
+
+- Added regression tests that assert the workflow gating predicates (TC-WF001..TC-WF004) include the artifact, gate, and audit language required for the orchestrator/sub-agent CLI path.
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_orchestrator_role_gates.py` (PASS)
+
 ### 2026-02-03 - Ticket 102 docs gating regression coverage validated
 
 - Confirmed the orchestrator/sub-agent docs regression suite now checks for TC-WF001, TC-WF002, TC-WF003, and TC-WF004 phrases so the tooling workflow gating tests remain blocked until the required gate descriptions exist.

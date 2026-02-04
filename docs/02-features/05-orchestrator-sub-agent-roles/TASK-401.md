@@ -2,8 +2,8 @@
 id: 401
 title: "Add or update tests"
 prd_ref: "P1 - Orchestrator + sub-agent roles"
-status: "To Do"
-status_timestamp: ""
+status: "Done"
+status_timestamp: "2026-02-04T06:43:40Z"
 complexity: "simple"
 approval: ""
 change_budget:
@@ -55,8 +55,8 @@ Add or update tests
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Regression tests validate role handoffs and approvals.
-- [ ] Tests align with the feature test plan and pass locally.
+- [x] Regression tests validate role handoffs and approvals.
+- [x] Tests align with the feature test plan and pass locally.
 
 ## Plan (Draft)
 
@@ -102,7 +102,11 @@ Add or update tests
 ## Tests Run
 
 - Command(s):
+  - `make test`
+  - `make ci`
 - Result(s):
+  - make test: PASS
+  - make ci: PASS
 
 ## Implementer Notes
 
@@ -131,7 +135,7 @@ Add or update tests
 
 - [ ] Decision log (if needed)
 - [ ] Bug log (if needed)
-- [ ] Validation log (if needed)
+- [x] Validation log (if needed)
 
 ## Docs Updated
 
@@ -141,9 +145,9 @@ Add or update tests
 
 ## Report (Final)
 
-- What changed:
-- Commands run (use `pp` for noisy output):
-- Results:
+- What changed: docs/03-logs/implementation-log.md, docs/03-logs/validation-log.md
+- Commands run (use `pp` for noisy output): `make test`, `make ci`
+- Results: make test PASS; make ci PASS
 
 ## Commit
 

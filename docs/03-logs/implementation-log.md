@@ -27,6 +27,26 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-04 - Ticket 401 - Add or update tests
+
+**Feature/Bug:** P1 - Orchestrator + sub-agent roles
+
+**Changed Files:**
+
+- `tests/test_orchestrator_role_gates.py`
+
+**What Changed:**
+
+- Added regression coverage that asserts each workflow gate test in the orchestrator/sub-agent test plan includes the artifact, gate, and audit language required for the primary CLI path.
+
+**Status:** Tests passing
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p test_orchestrator_role_gates.py` (PASS)
+
+**Author:** Alexandre Pezzotta
+
 ### 2026-02-03 - Ticket 401 - Add or update tests
 
 **Feature/Bug:** P0 - Output offload enforcement
