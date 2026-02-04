@@ -192,6 +192,9 @@ None.
 - Feature Spec: feature-spec.md
 - Tech Design: tech-design.md
 - Test Plan: test-plan.md
+- Planner Log: planner-log.md
+- Reporter Log: reporter-log.md
+- Validation Log: validation-log.md
 
 ## Change Log
 

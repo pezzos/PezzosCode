@@ -27,6 +27,12 @@ Rules:
 - Codex MUST update `docs/03-logs/*.md` to record decisions, implementation changes, bugs, validations, and insights. If no log entry is needed, explicitly state why in the response.
 - Orchestrator pattern: use separate sessions/worktrees for implementer, reviewer, and tester when parallelizing.
 - Worktree naming: `../<repo_name>-<feature_name>-<agent_name>` (e.g., `../PezzosCode-auth-impl`).
+- Role worktree scope:
+- Planner writes only `docs/02-features/<feature>/planner-log.md`.
+- Tester writes only `docs/02-features/<feature>/validation-log.md`.
+- Reporter writes only `docs/02-features/<feature>/reporter-log.md`.
+- Patcher can edit anywhere except the role-scoped log files.
+- Orchestrator writes `docs/02-features/<feature>/feature-worktrees.json` and squashes outputs into `main`.
 
 ## Setup commands
 

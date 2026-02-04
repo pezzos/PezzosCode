@@ -27,6 +27,54 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-04 - Worktree policy enforcement and collector automation
+
+**Feature/Bug:** Process/Tooling - worktree role scope + collector
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/02-features/AGENTS.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `docs/02-features/feature-template/planner-log.md`
+- `docs/02-features/feature-template/reporter-log.md`
+- `docs/02-features/feature-template/validation-log.md`
+- `docs/02-features/06-worktree-policy-naming-convention/dev-tasks.md`
+- `docs/02-features/06-worktree-policy-naming-convention/planner-log.md`
+- `docs/02-features/06-worktree-policy-naming-convention/reporter-log.md`
+- `docs/02-features/06-worktree-policy-naming-convention/validation-log.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/dev-tasks.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/planner-log.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/reporter-log.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/validation-log.md`
+- `docs/04-process/dev-workflow.md`
+- `docs/04-process/git-workflow.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/02-features/AGENTS.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/planner-log.md`
+- `tools/templates/docs/02-features/feature-template/reporter-log.md`
+- `tools/templates/docs/02-features/feature-template/validation-log.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- `tools/templates/docs/04-process/git-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/root/AGENTS.md`
+
+**What Changed:**
+
+- Added role-scoped log templates and updated docs to reference them.
+- Updated `pc-feature` to create role branches/worktrees, enforce file scopes, write a worktree manifest, auto-collect role changes into `main`, and clean up worktrees.
+
+**Status:** Completed
+
+**Testing:**
+
+- `tools/offload-proxy/pp make ci` (FAIL: end-of-file-fixer PermissionError on `.codex/skills/readme-sync/SKILL.md`)
+
+**Author:** Codex
+
 ### 2026-02-04 - Fix pc-feature work item header parsing
 
 **Feature/Bug:** Tooling - pc-feature work item id parsing

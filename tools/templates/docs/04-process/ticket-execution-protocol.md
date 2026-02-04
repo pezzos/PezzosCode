@@ -25,6 +25,8 @@
    - Confirm scope, success criteria, and change budget.
    - Complexity flag: `complexity: "simple" | "complex"` recorded in the execution log entry.
    - Complex work items run an orchestrated flow with explicit tester/reporter feedback steps.
+   - Role worktree scope is enforced (planner/tester/reporter log files only; patcher excluded from those files).
+   - Worktrees are tracked in `docs/02-features/<feature>/feature-worktrees.json` and auto-collected into `main` as a single squashed commit.
    - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.
 
 2. **Resuming a Work Item (Automatic)**

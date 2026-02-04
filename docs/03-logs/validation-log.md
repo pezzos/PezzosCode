@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-04 - Worktree policy collector validation pending
+
+- Updated tooling and docs for role-scoped worktrees and auto-collection; no automated validation run yet.
+
 ### 2026-02-04 - Ticket 401 - Orchestrator gate docs regression verified
 
 - Added regression tests that assert the workflow gating predicates (TC-WF001..TC-WF004) include the artifact, gate, and audit language required for the orchestrator/sub-agent CLI path.

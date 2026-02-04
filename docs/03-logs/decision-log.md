@@ -308,6 +308,73 @@ Ticket wrappers are no longer used by the execution path and introduce unnecessa
 
 **Actual Outcome:** _Pending_
 
+### [DEC-009] - Enforce role-scoped worktree logs and auto-collect into main
+
+**Date:** 2026-02-04
+
+**Status:** Accepted
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+`make feature` now orchestrates planner/patcher/tester/reporter in separate worktrees, but changes are scattered and unclear to merge.
+
+**Problem Statement:**
+How do we prevent cross-role file edits, ensure a single reviewable commit, and clean up worktrees automatically?
+
+**Options Considered:**
+
+#### Option 1: Manual merge and manual worktree cleanup
+
+**Pros:**
+
+- Simple to implement
+
+**Cons:**
+
+- Error-prone, inconsistent
+- Leaves stray worktrees/branches
+
+**Estimated effort:** Low upfront, high ongoing
+
+#### Option 2: Enforce role-scoped logs + automated collector into `main`
+
+**Pros:**
+
+- Deterministic, audit-friendly
+- Keeps `main` as the single source of truth
+- Single commit for review
+
+**Cons:**
+
+- Requires tooling updates
+- Strict scope enforcement can block some workflows
+
+**Estimated effort:** Moderate
+
+**Decision:**
+We chose **Option 2: Enforce role-scoped logs + automated collector into `main`**.
+
+**Rationale:**
+Clear ownership boundaries and automated consolidation reduce integration overhead and keep reviews focused.
+
+**Implications:**
+
+- Planner/tester/reporter can only write their feature log files.
+- Patcher must not touch those files.
+- Worktrees are tracked in `feature-worktrees.json` and removed after success.
+- All role changes are squashed into one commit on `main`.
+
+**Success Criteria:**
+
+- `make feature` ends with one commit on `main`.
+- No out-of-scope edits from non-patcher roles.
+- Worktrees are cleaned up automatically.
+
+**Review Date:** 2026-03-04
+
+**Actual Outcome:** _Pending_
+
 ### [DEC-004] - Codex-first workflow upgrades (plan/patch/test/report + orchestration)
 
 **Date:** 2026-02-02

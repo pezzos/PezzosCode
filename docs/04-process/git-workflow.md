@@ -76,6 +76,25 @@ Naming convention:
 `../<repo_name>-<feature_name>-<agent_name>`
 Example: `../PezzosCode-auth-impl`, `../PezzosCode-auth-review`
 
+Role scope (enforced by tooling):
+
+- Planner: `docs/02-features/<feature>/planner-log.md`
+- Tester: `docs/02-features/<feature>/validation-log.md`
+- Reporter: `docs/02-features/<feature>/reporter-log.md`
+- Patcher: anywhere except role-scoped log files
+
+Collector behavior:
+
+- `main` is the only merge destination and is never edited directly by role worktrees.
+- Role branches are squashed into a single commit on `main` after collection.
+- Worktrees and their branches are removed after successful collection.
+
+---
+
+## Appendix: "branch/worktree" option (later)
+
+Use if you need parallel work or major changes.
+
 ### Branches
 
 ```bash

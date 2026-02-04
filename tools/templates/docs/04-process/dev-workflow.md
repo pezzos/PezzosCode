@@ -78,6 +78,7 @@ then align the live root files without modifying templates.
    - Run the agreed tests and record results (use `pp` for noisy output).
    - **Orchestrator gate:** validate test results before marking done.
 5. **Report**
+   - Summarize changes, commands run, and results.
    - Update logs and documentation.
    - Create commit with the agreed message format.
    - Run `make test` before closing the work item.
@@ -94,6 +95,27 @@ then align the live root files without modifying templates.
 - Reporter reviews scope and completeness and records issues in the execution log entry.
 - Planner updates the plan and Patcher updates the patch.
 - Repeat until feedback is resolved and tests pass.
+
+## Orchestrator + Roles (Parallel Mode)
+
+Use separate sessions/worktrees when parallelizing work:
+
+- **Orchestrator:** keeps scope, approves gates, merges outputs.
+- **Planner:** produces and updates the plan.
+- **Patcher:** produces the patch.
+- **Tester:** runs tests and reports failures.
+- **Reporter:** reviews changes, checks scope, reports to PO.
+- **Product Owner:** approves final report and scope changes.
+
+Preferred worktree naming: `../<repo_name>-<feature_name>-<agent_name>`.
+
+Role worktree scope:
+
+- Planner writes only `docs/02-features/<feature>/planner-log.md`.
+- Tester writes only `docs/02-features/<feature>/validation-log.md`.
+- Reporter writes only `docs/02-features/<feature>/reporter-log.md`.
+- Patcher can edit anywhere except the role-scoped log files.
+- Orchestrator writes `docs/02-features/<feature>/feature-worktrees.json` and squashes all role outputs into `main`.
 
 ---
 

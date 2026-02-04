@@ -12,6 +12,9 @@ Structure:
   - `tech-design.md`
   - `dev-tasks.md`
   - `test-plan.md`
+  - `planner-log.md`
+  - `reporter-log.md`
+  - `validation-log.md`
 - Execution is driven by `dev-tasks.md`, which also stores the execution log and role ownership.
 
 Selection rule for skills:

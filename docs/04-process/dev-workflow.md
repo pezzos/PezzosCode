@@ -109,6 +109,14 @@ Use separate sessions/worktrees when parallelizing work:
 
 Preferred worktree naming: `../<repo_name>-<feature_name>-<agent_name>`.
 
+Role worktree scope:
+
+- Planner writes only `docs/02-features/<feature>/planner-log.md`.
+- Tester writes only `docs/02-features/<feature>/validation-log.md`.
+- Reporter writes only `docs/02-features/<feature>/reporter-log.md`.
+- Patcher can edit anywhere except the role-scoped log files.
+- Orchestrator writes `docs/02-features/<feature>/feature-worktrees.json` and squashes all role outputs into `main`.
+
 ---
 
 ## Phase 1: Planning

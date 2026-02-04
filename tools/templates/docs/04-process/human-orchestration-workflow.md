@@ -21,6 +21,7 @@
 5. **Execute Work Item**
    - Use `docs/02-features/<feature>/dev-tasks.md` as the source of truth.
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
+   - Enforce role-scoped logs (`planner-log.md`, `reporter-log.md`, `validation-log.md`) and track worktrees in `feature-worktrees.json`.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
 6. **Repeat**
    - Go back to step 4 for the next feature.
@@ -40,6 +41,7 @@
 5. **Execute Work Item**
    - Use `docs/02-features/<feature>/dev-tasks.md` as the source of truth.
    - Follow the execution protocol in `docs/04-process/ticket-execution-protocol.md`.
+   - Enforce role-scoped logs (`planner-log.md`, `reporter-log.md`, `validation-log.md`) and track worktrees in `feature-worktrees.json`.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
 6. **Repeat**
    - Continue from step 4 until P0/P1 items are complete.

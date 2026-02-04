@@ -29,6 +29,109 @@
 
 ## Execution Log
 
+### WI-20260204-02 - Work item execution
+
+- Date: 2026-02-04
+- Scope / tasks covered: Implement role-scoped worktree policy, manifest, auto-collection, and cleanup; add role log templates and doc updates.
+- Planner: Codex
+- Patcher: Codex
+- Tester: Codex
+- Reporter: Codex
+- Outcome: needs replan
+- Tests run: tools/offload-proxy/pp make ci (FAIL: end-of-file-fixer PermissionError on .codex/skills/readme-sync/SKILL.md)
+- Offload ids (if any): 0522bce30e182d434c3dca76e2ee227ca51f6005887b0da6f3afc96a6c31ef2a
+- Docs/logs updated: docs/03-logs/implementation-log.md, docs/03-logs/decision-log.md, docs/03-logs/validation-log.md
+- Notes: PO approved proceeding despite change budget exceeded. make ci failed due to pre-commit permission error on .codex/skills/readme-sync/SKILL.md.
+
+#### Preflight Report
+
+- Work Item: WI-20260204-02
+- PRD ref: Feature 06 - Worktree policy + naming convention
+- Risk level: HIGH (triggers: change budget exceeded (file count))
+- Triggers: change budget exceeded (file count)
+- Scope in: role-scoped worktree logs, manifest tracking, collector/squash to main, cleanup
+- Scope out: changing feature requirements beyond worktree handling
+- Non-goals reminder: no new execution surfaces outside make feature
+- Files to change: tools/pc-feature, docs/02-features/_ templates + feature 06 docs, docs/04-process/_, docs/03-logs/\*
+- Change budget: max_files=6, max_new_modules=1
+- TDD plan: none
+- Systematic review: tools/pc-feature, feature template docs, process docs
+
+#### TDD Plan
+
+- Tests to write first: none
+
+#### Files to Change + Change Budget
+
+- Files: tools/pc-feature, docs/02-features/feature-template/_, docs/02-features/06-worktree-policy-naming-convention/_, docs/04-process/_, docs/03-logs/_
+- Change budget: max_files: 6, max_new_modules: 1
+
+#### Docs Updated
+
+- [ ] Implementation log
+- [ ] Decision log (if needed)
+- [ ] Bug log (if needed)
+- [ ] Validation log (if needed)
+- [ ] Feature docs
+- [ ] PRD (if needed)
+
+#### Plan
+
+- Update pc-feature to create role branches/worktrees, enforce scope, write manifest, collect diffs into main, and cleanup worktrees.
+- Add role log templates and update feature/docs process references.
+- Record decision/implementation/validation logs.
+
+#### Patch
+
+- Updated pc-feature for role-scoped logging, manifest writing, diff collection to main, and cleanup.
+- Added planner/reporter/validation logs to templates and feature 06 docs.
+- Updated process docs to reference role scopes and collector behavior.
+
+#### Test Results
+
+- Outcome: FAIL
+- Tests run: tools/offload-proxy/pp make ci
+- Notes: end-of-file-fixer PermissionError on .codex/skills/readme-sync/SKILL.md
+
+#### Reporter Review
+
+- Outcome: FAIL
+- Docs/logs updated: implementation-log.md, decision-log.md, validation-log.md
+- Notes: make ci failed due to pre-commit permission error on .codex/skills/readme-sync/SKILL.md
+
+#### Gates
+
+- make ci: FAIL (end-of-file-fixer PermissionError on .codex/skills/readme-sync/SKILL.md)
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes: make ci failed; permission error in pre-commit hook on .codex/skills/readme-sync/SKILL.md
+
+#### Reporter Feedback
+
+- Notes: worktree policy/tooling updates pending gate pass
+
+#### Iteration Log
+
+-
+
+#### Commit
+
+- Commit message: (not created; make ci failed)
+
+#### Final Report
+
+- What changed (files): tools/pc-feature; docs/02-features/feature-template/_; docs/02-features/06-worktree-policy-naming-convention/_; docs/04-process/_; docs/03-logs/_
+- Tests written (names) + results: tools/offload-proxy/pp make ci (FAIL: end-of-file-fixer PermissionError on .codex/skills/readme-sync/SKILL.md)
+- Docs/logs updated checklist: Implementation log, Decision log, Validation log
+- make ci results: FAIL
+- Commands run (use pp for noisy output): tools/offload-proxy/pp make ci
+- Commit message: (not created; make ci failed)
+
 ### WI-20260204-01 - Work item execution
 
 - Date: 2026-02-04
@@ -318,6 +421,9 @@ None.
 - Feature Spec: feature-spec.md
 - Tech Design: tech-design.md
 - Test Plan: test-plan.md
+- Planner Log: planner-log.md
+- Reporter Log: reporter-log.md
+- Validation Log: validation-log.md
 
 ## Change Log
 
