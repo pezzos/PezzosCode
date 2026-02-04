@@ -27,6 +27,50 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-04 - Align ticket execution protocol template
+
+**Feature/Bug:** Process/Tooling - template sync follow-up
+
+**Changed Files:**
+
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Synced the template copy of the ticket execution protocol to match the living doc so template-sync passes in pre-commit.
+
+**Status:** Completed
+
+**Testing:**
+
+- `tools/offload-proxy/pp tools/pc-template-sync` (PASS)
+
+**Author:** Codex
+
+### 2026-02-04 - Sync ticket execution protocol template
+
+**Feature/Bug:** Process/Tooling - template sync
+
+**Changed Files:**
+
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/03-logs/implementation-log.md`
+
+**What Changed:**
+
+- Aligned the template workflow bullets with the current living `ticket-execution-protocol.md`, including the role scope and worktree tracking notes.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (docs-only change)
+
+**Author:** Codex
+
 ### 2026-02-04 - Codex exec uses repo-local CODEX_HOME and profiles
 
 **Feature/Bug:** Process/Tooling - codex exec configuration
@@ -407,6 +451,30 @@ This helps with:
 - Not run (lint-only change)
 
 **Author:** Alexandre Pezzotta
+
+### 2026-02-04 - Tooling update - shared patcher worktree for review roles
+
+**Feature/Bug:** Tooling - pc-feature orchestration
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tests/test_docs_logs.py`
+
+**What Changed:**
+
+- Ran Planner/Tester/Reporter on the patcher worktree so review roles see shared content while keeping role-scoped log enforcement.
+- Documented the shared worktree behavior in the execution protocol and added a doc regression test.
+
+**Status:** Blocked (gates failed)
+
+**Testing:**
+
+- `tools/offload-proxy/pp make feature F=07` (FAIL: codex exec network/model refresh errors and Serena MCP startup failure)
+- `tools/offload-proxy/pp make ci` (FAIL: end-of-file-fixer PermissionError on `.codex/skills/readme-sync/SKILL.md`)
+
+**Author:** Codex
 
 ### 2026-02-04 - Ticket 401 - Add or update tests
 

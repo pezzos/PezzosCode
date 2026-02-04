@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-04 - Template sync hook pass after doc-template alignment
+
+- `tools/offload-proxy/pp tools/pc-template-sync` (PASS)
+
 ### 2026-02-04 - Codex exec CODEX_HOME change validation pending
 
 - Set scripted Codex exec to use repo-local `.codex`; no automated validation run yet.
@@ -38,6 +42,11 @@ This helps with:
 ### 2026-02-04 - Worktree policy collector validation pending
 
 - Updated tooling and docs for role-scoped worktrees and auto-collection; no automated validation run yet.
+
+### 2026-02-04 - Shared patcher worktree orchestration validation failed
+
+- `tools/offload-proxy/pp make feature F=07` (FAIL: codex exec network/model refresh errors and Serena MCP startup failure; offload id `33b04a30a6906d5282dc9c03f5331d917720d8652e5246e4065bb53e17aab539`)
+- `tools/offload-proxy/pp make ci` (FAIL: end-of-file-fixer PermissionError on `.codex/skills/readme-sync/SKILL.md`; offload id `69e02d94f6d70a8104c949ac3165b511ece1b6a7f334e95a247f0375e31901f3`)
 
 ### 2026-02-04 - Ticket 401 - Orchestrator gate docs regression verified
 

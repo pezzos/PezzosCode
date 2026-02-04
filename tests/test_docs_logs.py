@@ -38,6 +38,14 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
             content,
         )
 
+    def test_execution_protocol_mentions_shared_worktree_review(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "Planner/Tester/Reporter run in the patcher worktree so they review shared content; separate worktrees are not created for those roles.",
+            content,
+        )
+
     def test_human_orchestration_workflow_calls_out_offload_decision_logging(self):
         path = ROOT / "docs" / "04-process" / "human-orchestration-workflow.md"
         content = path.read_text(encoding="utf-8")

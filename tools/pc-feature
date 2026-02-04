@@ -880,29 +880,24 @@ def main() -> None:
             die("pc-feature: high-risk work item requires PO approval")
 
     feature_slug = os.path.basename(feature_dir)
-    planner_path, planner_branch = prepare_worktree(
-        root, feature_slug, "planner", "main"
-    )
     patcher_path, patcher_branch = prepare_worktree(
         root, feature_slug, "patcher", "main"
     )
-    tester_path, tester_branch = prepare_worktree(root, feature_slug, "tester", "main")
-    reporter_path, reporter_branch = prepare_worktree(
-        root, feature_slug, "reporter", "main"
-    )
+    planner_path = patcher_path
+    tester_path = patcher_path
+    reporter_path = patcher_path
     role_paths = worktree_role_paths(feature_dir)
     for role, rel_path in role_paths.items():
         ensure_role_log(os.path.join(root, rel_path), role)
-    ensure_role_log(os.path.join(planner_path, role_paths["planner"]), "planner")
-    ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
-    ensure_role_log(os.path.join(reporter_path, role_paths["reporter"]), "reporter")
+    for role in role_paths:
+        ensure_role_log(os.path.join(patcher_path, role_paths[role]), role)
     write_worktree_manifest(
         feature_dir,
         [
-            {"role": "planner", "path": planner_path, "branch": planner_branch},
+            {"role": "planner", "path": patcher_path, "branch": patcher_branch},
             {"role": "patcher", "path": patcher_path, "branch": patcher_branch},
-            {"role": "tester", "path": tester_path, "branch": tester_branch},
-            {"role": "reporter", "path": reporter_path, "branch": reporter_branch},
+            {"role": "tester", "path": patcher_path, "branch": patcher_branch},
+            {"role": "reporter", "path": patcher_path, "branch": patcher_branch},
         ],
     )
 
@@ -992,6 +987,8 @@ def main() -> None:
 
         reporter_prompt = (
             "You are the Reporter agent. Review changes for scope and completeness. "
+            "Compare against main (e.g., `git diff --stat refs/heads/main..HEAD`) to ensure "
+            "you are reviewing the patcher's changes, not just working tree status. "
             "Return in this exact format:\n"
             "Outcome: PASS|FAIL\n"
             "Docs/logs updated: ...\n"
@@ -1046,7 +1043,7 @@ def main() -> None:
         die("pc-feature: max iteration attempts reached; check execution log")
 
     base_ref = "HEAD"
-    role_branches = [planner_branch, patcher_branch, tester_branch, reporter_branch]
+    role_branches = [patcher_branch]
     for branch in role_branches:
         if branch_ahead_count(root, base_ref, branch) == 0:
             continue
