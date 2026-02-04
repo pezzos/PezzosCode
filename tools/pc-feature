@@ -427,6 +427,12 @@ def git_branch_exists(root: str, branch: str) -> bool:
     return result.returncode == 0
 
 
+def resolve_base_ref(root: str, base_branch: str) -> str:
+    if git_branch_exists(root, base_branch):
+        return f"refs/heads/{base_branch}"
+    return base_branch
+
+
 def prepare_worktree(
     root: str, feature_name: str, agent: str, base_branch: str
 ) -> Tuple[str, str]:
@@ -440,7 +446,8 @@ def prepare_worktree(
     if git_branch_exists(root, branch):
         cmd = ["git", "worktree", "add", path, branch]
     else:
-        cmd = ["git", "worktree", "add", "-b", branch, path, base_branch]
+        resolved_base = resolve_base_ref(root, base_branch)
+        cmd = ["git", "worktree", "add", "-b", branch, path, resolved_base]
     result = subprocess.run(
         cmd,
         check=False,

@@ -53,6 +53,7 @@ This helps with:
 - Tuned the Planner profile for higher reasoning and added AI-oriented tooling notes.
 - Updated Codex session storage to `.codex_subagent` and copied auth.json when missing.
 - Added warnings for missing auth.json and stripped OPENAI_API_KEY from scripted Codex runs.
+- Resolved ambiguous `main` ref by preferring `refs/heads/main` when creating worktrees.
 - Added profiles and Serena MCP defaults to the root template `.codex.toml`.
 
 **Status:** Completed
