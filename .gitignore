@@ -1,4 +1,5 @@
 .DS_Store
 .offload/
+.codex_subagent/
 __pycache__/
 *.pyc

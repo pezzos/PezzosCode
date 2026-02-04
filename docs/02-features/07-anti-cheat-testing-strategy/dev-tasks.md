@@ -52,7 +52,7 @@
 - Scope in: Repo-local CODEX_HOME for codex exec; per-role profiles in .codex.toml + template
 - Scope out: Changes to Serena MCP config beyond ensuring project profile usage
 - Non-goals reminder: No behavior changes outside codex exec path and configs
-- Files to change: tools/pc-autofix, tools/pc-template-sync, tools/pc-feature, .codex.toml, tools/templates/root/.codex.toml, tools/README.md, docs/03-logs/\*
+- Files to change: tools/pc-autofix, tools/pc-template-sync, tools/pc-feature, .codex.toml, tools/templates/root/.codex.toml, tools/README.md, .gitignore, tools/templates/root/.gitignore, docs/03-logs/\*
 - Change budget: max_files=8, max_new_modules=0
 - TDD plan: None
 - Systematic review: commands executed and outputs reviewed; changes match intended scope.
@@ -63,7 +63,7 @@
 
 #### Files to Change + Change Budget
 
-- Files: tools/pc-autofix, tools/pc-template-sync, tools/pc-feature, .codex.toml, tools/templates/root/.codex.toml, tools/README.md, docs/03-logs/implementation-log.md, docs/03-logs/decision-log.md, docs/03-logs/validation-log.md
+- Files: tools/pc-autofix, tools/pc-template-sync, tools/pc-feature, .codex.toml, tools/templates/root/.codex.toml, tools/README.md, .gitignore, tools/templates/root/.gitignore, docs/03-logs/implementation-log.md, docs/03-logs/decision-log.md, docs/03-logs/validation-log.md
 - Change budget: max_files: 8, max_new_modules: 0
 
 #### Docs Updated
@@ -86,6 +86,8 @@
 - Updated codex exec helpers to set CODEX_HOME and pass -C/--profile.
 - Routed pc-feature planner/patcher/tester/reporter calls to role-specific profiles.
 - Tuned Planner profile to higher reasoning/verbosity and documented tooling notes.
+- Moved sub-agent CODEX_HOME to `.codex_subagent` and copied auth.json when missing.
+- Added warnings for missing auth.json and stripped OPENAI_API_KEY from scripted runs.
 - Added profiles and Serena MCP config to .codex.toml template.
 
 #### Test Results

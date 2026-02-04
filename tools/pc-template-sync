@@ -50,8 +50,24 @@ def git_root() -> Path:
 
 def codex_env(root: Path) -> dict:
     env = os.environ.copy()
-    codex_home = root / ".codex"
+    env.pop("OPENAI_API_KEY", None)
+    codex_home = root / ".codex_subagent"
     codex_home.mkdir(parents=True, exist_ok=True)
+    auth_src = Path.home() / ".codex" / "auth.json"
+    auth_dst = codex_home / "auth.json"
+    if auth_src.exists() and not auth_dst.exists():
+        try:
+            shutil.copy2(auth_src, auth_dst)
+        except Exception as exc:
+            print(
+                f"pc-template-sync: failed to copy auth.json: {exc}",
+                file=sys.stderr,
+            )
+    if not auth_dst.exists():
+        print(
+            "pc-template-sync: warning: auth.json missing; codex exec may fail.",
+            file=sys.stderr,
+        )
     env["CODEX_HOME"] = str(codex_home)
     return env
 

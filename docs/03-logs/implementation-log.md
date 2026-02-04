@@ -39,6 +39,8 @@ This helps with:
 - `.codex.toml`
 - `tools/templates/root/.codex.toml`
 - `tools/README.md`
+- `.gitignore`
+- `tools/templates/root/.gitignore`
 - `docs/02-features/07-anti-cheat-testing-strategy/dev-tasks.md`
 - `docs/03-logs/decision-log.md`
 - `docs/03-logs/validation-log.md`
@@ -49,6 +51,8 @@ This helps with:
 - Invoked Codex with project `-C` and role profile selection (Default by default).
 - Routed `pc-feature` sub-agent runs to the Planner/Patcher/Tester/Reporter profiles.
 - Tuned the Planner profile for higher reasoning and added AI-oriented tooling notes.
+- Updated Codex session storage to `.codex_subagent` and copied auth.json when missing.
+- Added warnings for missing auth.json and stripped OPENAI_API_KEY from scripted Codex runs.
 - Added profiles and Serena MCP defaults to the root template `.codex.toml`.
 
 **Status:** Completed

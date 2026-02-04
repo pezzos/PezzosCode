@@ -341,9 +341,25 @@ def codex_exec(
     if shutil.which("codex") is None:
         die("pc-feature: codex CLI not found in PATH")
     project_root = git_repo_root(cwd)
-    codex_home = os.path.join(project_root, ".codex")
+    codex_home = os.path.join(project_root, ".codex_subagent")
     os.makedirs(codex_home, exist_ok=True)
+    auth_src = os.path.join(os.path.expanduser("~"), ".codex", "auth.json")
+    auth_dst = os.path.join(codex_home, "auth.json")
+    if os.path.exists(auth_src) and not os.path.exists(auth_dst):
+        try:
+            shutil.copy2(auth_src, auth_dst)
+        except Exception as exc:
+            print(
+                f"pc-feature: failed to copy auth.json: {exc}",
+                file=sys.stderr,
+            )
+    if not os.path.exists(auth_dst):
+        print(
+            "pc-feature: warning: auth.json missing; codex exec may fail.",
+            file=sys.stderr,
+        )
     env = os.environ.copy()
+    env.pop("OPENAI_API_KEY", None)
     env["CODEX_HOME"] = codex_home
     codex_profile = profile or os.environ.get("CODEX_PROFILE", "Default")
     cmd = ["codex", "-C", project_root, "--profile", codex_profile, "exec", prompt]
