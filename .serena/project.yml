@@ -18,6 +18,9 @@ default_modes:
   - interactive
   - editing
 
+# prevent Serena from opening the web dashboard on launch for this project
+web_dashboard_open_on_launch: false
+
 # list of tool names to exclude. We recommend not excluding any tools, see the readme for more details.
 # Below is the complete list of tools for convenience.
 # To make sure you have the latest list of tools, and to view their descriptions,

@@ -27,6 +27,26 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Disable Serena dashboard auto-open for this repo
+
+**Feature/Bug:** Process/Tooling - Serena configuration
+
+**Changed Files:**
+
+- `.serena/project.yml`
+
+**What Changed:**
+
+- Set `web_dashboard_open_on_launch: false` in the repo's Serena project config to prevent auto-opening the dashboard.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (config-only change)
+
+**Author:** Codex
+
 ### 2026-02-05 - Create feature 08 and close feature 07
 
 **Feature/Bug:** Process/Tooling - feature docs maintenance
