@@ -27,6 +27,31 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Prevent global log edits during patch/test steps
+
+**Feature/Bug:** Process/Tooling - pc-feature global log guard
+
+**Changed Files:**
+
+- `tools/pc-feature`
+
+**What Changed:**
+
+- Updated the patcher prompt to forbid editing `docs/03-logs`.
+- Auto-reset global logs to HEAD after patcher/tester steps to avoid pre-gate violations.
+
+**Why:**
+
+- Stop runs from failing when patch/test steps accidentally touch global logs before gates pass.
+
+**How:**
+
+- Added a global log reset helper and wired it into patcher/tester flows.
+
+**Trade-offs / Notes:**
+
+- Global log edits during these steps are discarded to keep the workflow moving.
+
 ### 2026-02-05 - Harden pc-feature worktree hygiene and global log enforcement
 
 **Feature/Bug:** Process/Tooling - pc-feature worktree hygiene

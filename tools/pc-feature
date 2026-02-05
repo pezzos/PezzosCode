@@ -601,6 +601,14 @@ def reset_role_logs_to_head(worktree_path: str, feature_dir: str) -> None:
     subprocess.run(cmd, check=False, cwd=worktree_path)
 
 
+def reset_global_logs_to_head(worktree_path: str) -> None:
+    paths = global_log_paths()
+    if not paths:
+        return
+    cmd = ["git", "checkout", "--"] + paths
+    subprocess.run(cmd, check=False, cwd=worktree_path)
+
+
 def cleanup_dirty_role_logs(worktree_path: str, feature_dir: str) -> None:
     role_paths = role_log_paths(feature_dir)
     if not role_paths:
@@ -1270,7 +1278,8 @@ def main() -> None:
             patch_prompt = (
                 "You are the Patcher agent. Apply the smallest possible diff to satisfy the plan. "
                 "Return a concise summary of what changed and any commands run. "
-                "Do not edit any role-scoped logs (planner/reporter/validation) or dev-tasks.md.\n"
+                "Do not edit any role-scoped logs (planner/reporter/validation), "
+                "any global logs under docs/03-logs, or dev-tasks.md.\n"
                 f"Work Item ID: {work_item_id}\n"
                 f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
             )
@@ -1282,6 +1291,7 @@ def main() -> None:
             ).strip()
             format_role_changes("patcher", patcher_path, feature_dir)
             reset_role_logs_to_head(patcher_path, feature_dir)
+            reset_global_logs_to_head(patcher_path)
             enforce_role_scope(patcher_path, "patcher", feature_dir)
             commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
             ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
@@ -1355,6 +1365,7 @@ def main() -> None:
                 tester_feedback,
             )
             format_role_changes("tester", tester_path, feature_dir)
+            reset_global_logs_to_head(tester_path)
             enforce_role_scope(tester_path, "tester", feature_dir)
             commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
             ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
@@ -1383,6 +1394,7 @@ def main() -> None:
             tester_feedback,
         )
         format_role_changes("tester", tester_path, feature_dir)
+        reset_global_logs_to_head(tester_path)
         enforce_role_scope(tester_path, "tester", feature_dir)
         commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
         ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
