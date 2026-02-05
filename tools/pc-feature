@@ -878,9 +878,56 @@ def parse_allowed_tests(section: str) -> List[str]:
             stripped = re.sub(r"^\d+\.\s+", "", stripped).strip()
         if "list exact commands" in stripped:
             continue
-        if stripped and "(pending)" not in stripped:
-            commands.append(stripped)
+        if "(pending)" in stripped:
+            continue
+        normalized = normalize_allowed_test(stripped)
+        if normalized:
+            commands.append(normalized)
     return commands
+
+
+def normalize_allowed_test(raw: str) -> Optional[str]:
+    text = raw.strip()
+    if not text:
+        return None
+    if text.startswith("`") and text.endswith("`"):
+        text = text[1:-1].strip()
+    if "`" in text:
+        return None
+    try:
+        parts = shlex.split(text)
+    except ValueError:
+        return None
+    if not parts:
+        return None
+    if parts[0] == "tools/offload-proxy/pp":
+        parts = parts[1:]
+        if not parts:
+            return None
+    first = parts[0]
+    if (
+        first
+        in {
+            "make",
+            "pytest",
+            "python",
+            "python3",
+            "bash",
+            "sh",
+            "node",
+            "npm",
+            "pnpm",
+            "yarn",
+            "go",
+            "cargo",
+            "bundle",
+            "ruby",
+        }
+        or first.startswith(("./", "/", "tools/"))
+        or shutil.which(first)
+    ):
+        return shlex.join(parts)
+    return None
 
 
 def is_forbidden_test(cmd: str) -> bool:

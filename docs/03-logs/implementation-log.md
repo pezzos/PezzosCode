@@ -27,6 +27,32 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Harden pc-feature allowed tests parsing
+
+**Feature/Bug:** Process/Tooling - pc-feature allowed tests validation
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/bug-log.md`
+
+**What Changed:**
+
+- Added normalization and validation for Allowed Tests entries to ignore narrative text, strip wrapper prefixes, and only accept runnable commands.
+
+**Why:**
+
+- Prevent `pp` from attempting to execute non-command text (e.g., “Totally ...”) when an LLM returns prose in the Allowed Tests section.
+
+**How:**
+
+- Filter Allowed Tests lines through `normalize_allowed_test`, which rejects backticks and non-command starters and strips `tools/offload-proxy/pp` when present.
+
+**Trade-offs / Notes:**
+
+- Commands that don’t resolve to a known executable or standard prefix are ignored and treated as missing tests.
+
 ### 2026-02-05 - Fix pc-feature prompt string escaping for lint
 
 **Feature/Bug:** Process/Tooling - pc-feature lint reliability

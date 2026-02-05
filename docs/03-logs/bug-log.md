@@ -126,6 +126,39 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-003] - Allowed Tests prose triggers invalid command execution
+
+**Date Discovered:** 2026-02-05
+
+**Discovered By:** CLI run (`make feature F=08`)
+
+**Severity:** Medium
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Anyone running `make feature` when the planner returns narrative Allowed Tests.
+
+**Symptoms:**
+`tools/offload-proxy/pp` attempts to execute non-command tokens (e.g., “Totally” or backticked text), causing `FileNotFoundError`.
+
+**Steps to Reproduce:**
+
+1. Run `make feature F=08`.
+2. Allow the planner to populate Allowed Tests with prose instead of exact commands.
+3. Observe `pp` failures when executing tests.
+
+**Root Cause:**
+Allowed Tests parsing accepted any non-empty line (excluding the placeholder), so narrative text was treated as executable commands.
+
+**Fix:**
+Normalize Allowed Tests entries and accept only command-like lines; strip `tools/offload-proxy/pp` and reject backticks or unknown command starters.
+
+**Regression Tests:**
+
+- None (logic covered by manual run).
+
 ### [BUG-002] - Shared worktree role-scope false positive
 
 **Date Discovered:** 2026-02-04
