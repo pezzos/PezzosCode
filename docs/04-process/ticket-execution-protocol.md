@@ -75,6 +75,7 @@
    - Implement minimal code changes to pass tests.
    - Re-run tests and confirm they pass.
    - Tests must satisfy the anti-hardcode requirements in `docs/04-process/testing-strategy.md`.
+   - Tests must satisfy the anti-hardcode requirements in `docs/04-process/testing-strategy.md`.
 
 9. **Docs Sync (Mandatory)**
    - Update required docs/logs per dev-tasks execution log entry.
