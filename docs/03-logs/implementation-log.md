@@ -27,6 +27,31 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Harden pc-feature role isolation and worktree hygiene
+
+**Feature/Bug:** Process/Tooling - pc-feature role enforcement
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added patcher guardrails, role-log reset, and role-scoped formatting to prevent cross-role edits.
+- Added dirty worktree detection with user-approved auto-recreate behavior.
+- Added resume cleanup to discard dirty role log files before execution.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (no test command specified)
+
+**Author:** Codex
+
 ### 2026-02-05 - Disable Serena dashboard auto-open for this repo
 
 **Feature/Bug:** Process/Tooling - Serena configuration

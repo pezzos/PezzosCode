@@ -15,6 +15,7 @@ SECTION_PREFIX = "#### "
 DEFAULT_CHANGE_BUDGET = {"max_files": 6, "max_new_modules": 1}
 MAX_LOOPS = 3
 MAX_AUTOFIX_ATTEMPTS = 3
+PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
 ROLE_LOG_FILES = {
     "planner": "planner-log.md",
     "reporter": "reporter-log.md",
@@ -553,6 +554,10 @@ def get_status_paths(path: str) -> List[str]:
     return parse_status_paths(lines)
 
 
+def worktree_is_dirty(path: str) -> bool:
+    return bool(get_status_paths(path))
+
+
 def filter_ignored_paths(paths: List[str]) -> List[str]:
     ignored_prefixes = (
         ".tmp/",
@@ -570,6 +575,95 @@ def filter_ignored_paths(paths: List[str]) -> List[str]:
             continue
         filtered.append(entry)
     return filtered
+
+
+def role_log_paths(feature_dir: str) -> List[str]:
+    return list(worktree_role_paths(feature_dir).values())
+
+
+def reset_role_logs_to_head(worktree_path: str, feature_dir: str) -> None:
+    paths = role_log_paths(feature_dir)
+    if not paths:
+        return
+    cmd = ["git", "checkout", "--"] + paths
+    subprocess.run(cmd, check=False, cwd=worktree_path)
+
+
+def cleanup_dirty_role_logs(worktree_path: str, feature_dir: str) -> None:
+    role_paths = role_log_paths(feature_dir)
+    if not role_paths:
+        return
+    dirty = [path for path in get_status_paths(worktree_path) if path in role_paths]
+    if not dirty:
+        return
+    for path in dirty:
+        result = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", path],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=worktree_path,
+        )
+        if result.returncode == 0:
+            subprocess.run(
+                ["git", "checkout", "--", path], check=False, cwd=worktree_path
+            )
+        else:
+            full_path = os.path.join(worktree_path, path)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+
+
+def remove_worktree(root: str, path: str, branch: str) -> None:
+    result = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to list worktrees\n{result.stderr}")
+    worktrees = set()
+    current_path = None
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            current_path = line.split(" ", 1)[1].strip()
+            worktrees.add(current_path)
+    if os.path.exists(path) and path not in worktrees:
+        die(f"pc-feature: existing path is not a git worktree: {path}")
+    if path in worktrees:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", path],
+            check=False,
+            cwd=root,
+        )
+    if branch != "main":
+        subprocess.run(["git", "branch", "-D", branch], check=False, cwd=root)
+
+
+def format_role_changes(role: str, worktree_path: str, feature_dir: str) -> None:
+    paths = get_status_paths(worktree_path)
+    if not paths:
+        return
+    role_paths = worktree_role_paths(feature_dir)
+    if role == "patcher":
+        blocked = set(role_paths.values())
+        paths = [path for path in paths if path not in blocked]
+    else:
+        allowed = role_paths.get(role)
+        paths = [path for path in paths if path == allowed]
+    if not paths:
+        return
+    if shutil.which("pre-commit") is None:
+        print("pc-feature: pre-commit not found; skipping role formatting")
+        return
+    cmd = ["tools/offload-proxy/pp", "pre-commit", "run", "--files"] + paths
+    env = os.environ.copy()
+    env["SKIP"] = PRECOMMIT_FORMAT_SKIP
+    subprocess.run(cmd, check=False, cwd=worktree_path, env=env)
 
 
 def enforce_role_scope(
@@ -602,11 +696,21 @@ def enforce_role_scope(
         )
 
 
-def commit_worktree_changes(worktree_path: str, role: str, work_item_id: str) -> None:
+def commit_worktree_changes(
+    worktree_path: str, role: str, work_item_id: str, feature_dir: str
+) -> None:
     paths = get_status_paths(worktree_path)
     paths = filter_ignored_paths(paths)
     if not paths:
         return
+    if role == "patcher":
+        role_paths = set(worktree_role_paths(feature_dir).values())
+        illegal = [path for path in paths if path in role_paths]
+        if illegal:
+            die(
+                "pc-feature: patcher edited role-scoped files: "
+                + ", ".join(sorted(illegal))
+            )
     add_cmd = ["git", "add", "--"] + paths
     result = subprocess.run(add_cmd, check=False, cwd=worktree_path)
     if result.returncode != 0:
@@ -734,6 +838,11 @@ def run_command(cmd: List[str]) -> int:
     return result.returncode
 
 
+def prompt_yes_no(message: str) -> bool:
+    reply = input(f"{message} ").strip().lower()
+    return reply in {"y", "yes"}
+
+
 def build_execution_entry(work_item_id: str) -> str:
     return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
 
@@ -779,6 +888,19 @@ def main() -> None:
         die("pc-feature: run from main branch only")
     feature_root = os.path.join("docs", "02-features")
     feature_dir = resolve_feature_dir(feature_root, feature_id)
+    feature_slug = os.path.basename(feature_dir)
+    patcher_path = build_worktree_path(root, feature_slug, "patcher")
+    patcher_branch = build_worktree_branch(feature_slug, "patcher")
+    if os.path.exists(patcher_path) and os.path.exists(
+        os.path.join(patcher_path, ".git")
+    ):
+        if worktree_is_dirty(patcher_path):
+            if prompt_yes_no(
+                "pc-feature: The worktree is not clean and will be deleted and recreated. Do you want to continue? (y/n)"
+            ):
+                remove_worktree(root, patcher_path, patcher_branch)
+            else:
+                die("pc-feature: aborted by user")
     dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
     if not os.path.exists(dev_tasks_path):
         die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")
@@ -879,7 +1001,6 @@ def main() -> None:
             write_file(dev_tasks_path, content)
             die("pc-feature: high-risk work item requires PO approval")
 
-    feature_slug = os.path.basename(feature_dir)
     patcher_path, patcher_branch = prepare_worktree(
         root, feature_slug, "patcher", "main"
     )
@@ -889,6 +1010,7 @@ def main() -> None:
     role_paths = worktree_role_paths(feature_dir)
     for role, rel_path in role_paths.items():
         ensure_role_log(os.path.join(root, rel_path), role)
+    cleanup_dirty_role_logs(patcher_path, feature_dir)
     write_worktree_manifest(
         feature_dir,
         [
@@ -925,14 +1047,16 @@ def main() -> None:
                 work_item_id,
                 plan_text,
             )
+            format_role_changes("planner", planner_path, feature_dir)
             enforce_role_scope(planner_path, "planner", feature_dir)
-            commit_worktree_changes(planner_path, "planner", work_item_id)
+            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
 
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Patch"):
             patch_prompt = (
                 "You are the Patcher agent. Apply the smallest possible diff to satisfy the plan. "
-                "Return a concise summary of what changed and any commands run.\n"
+                "Return a concise summary of what changed and any commands run. "
+                "Do not edit any role-scoped logs (planner/reporter/validation).\n"
                 f"Work Item ID: {work_item_id}\n"
                 f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
             )
@@ -951,8 +1075,10 @@ def main() -> None:
                 patch_text or "(see worktree changes)",
             )
             write_file(dev_tasks_path, content)
+            format_role_changes("patcher", patcher_path, feature_dir)
+            reset_role_logs_to_head(patcher_path, feature_dir)
             enforce_role_scope(patcher_path, "patcher", feature_dir)
-            commit_worktree_changes(patcher_path, "patcher", work_item_id)
+            commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
 
         test_prompt = (
             "You are the Tester agent. Run the agreed tests and report results. "
@@ -984,8 +1110,9 @@ def main() -> None:
             work_item_id,
             tester_feedback,
         )
+        format_role_changes("tester", tester_path, feature_dir)
         enforce_role_scope(tester_path, "tester", feature_dir)
-        commit_worktree_changes(tester_path, "tester", work_item_id)
+        commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
 
         reporter_prompt = (
             "You are the Reporter agent. Review changes for scope and completeness. "
@@ -1021,8 +1148,9 @@ def main() -> None:
             work_item_id,
             reporter_feedback,
         )
+        format_role_changes("reporter", reporter_path, feature_dir)
         enforce_role_scope(reporter_path, "reporter", feature_dir)
-        commit_worktree_changes(reporter_path, "reporter", work_item_id)
+        commit_worktree_changes(reporter_path, "reporter", work_item_id, feature_dir)
 
         content = read_file(dev_tasks_path)
         content = replace_entry_section(

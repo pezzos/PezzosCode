@@ -104,6 +104,90 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-012] - Role-scoped formatting and auto-clean worktrees in pc-feature
+
+**Date:** 2026-02-05
+
+**Status:** Implemented
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+`pc-feature` runs multiple role steps in a shared worktree. Role logs were being modified by the patcher or by formatting side effects, triggering role-scope enforcement failures.
+
+**Problem Statement:**
+How do we prevent cross-role edits and formatting side effects while keeping the same formatting behavior as pre-commit?
+
+**Options Considered:**
+
+#### Option 1: Disable formatting during role steps
+
+**Description:** Skip formatting entirely and rely on final pre-commit to normalize files.
+
+**Pros:**
+
+- Minimal work during role steps
+
+**Cons:**
+
+- Formatting happens late and can touch role logs during commit
+- Reintroduces cross-role edits at the end
+
+**Estimated effort:** Low
+
+#### Option 2: Role-scoped pre-commit formatting with hook skips
+
+**Description:** Run `pre-commit run --files` on each role’s changed files and skip hooks that do not accept filenames.
+
+**Pros:**
+
+- Same formatting tools as pre-commit
+- Formatting limited to role-owned files
+- Prevents end-of-workflow formatting surprises
+
+**Cons:**
+
+- Requires careful skip list
+- Depends on `pre-commit` being available locally
+
+**Estimated effort:** Medium
+
+#### Option 3: Custom formatter per file type
+
+**Description:** Reimplement formatting with direct calls to individual tools by file type.
+
+**Pros:**
+
+- Full control of scope
+- No pre-commit dependency
+
+**Cons:**
+
+- Diverges from pre-commit configuration
+- Higher maintenance burden
+
+**Estimated effort:** Medium-high
+
+**Decision:**
+We chose **Option 2: Role-scoped pre-commit formatting with hook skips**.
+
+**Rationale:**
+It keeps formatting aligned with the pre-commit toolchain while limiting changes to each role’s files, preventing role-log violations and late-stage diffs.
+
+**Implications:**
+
+- `pc-feature` runs `pre-commit run --files` per role and skips hooks that don’t accept file arguments.
+- Dirty worktrees are detected early and can be deleted/recreated after user confirmation.
+
+**Success Criteria:**
+
+- `make feature F=<id>` completes without role-scope errors on role logs.
+- Formatting no longer modifies role logs outside their owning role.
+
+**Review Date:** 2026-03-01
+
+**Actual Outcome:** _Pending_
+
 ### [DEC-011] - Use repo-local CODEX_HOME for scripted Codex exec
 
 **Date:** 2026-02-04
