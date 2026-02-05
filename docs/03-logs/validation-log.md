@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-05 - Ticket execution protocol template sync validation pending
+
+- Not run (no test command specified).
+
 ### 2026-02-05 - pc-feature prompt escaping lint fix validated
 
 - `tools/offload-proxy/pp ruff check tools/pc-feature` (PASS)

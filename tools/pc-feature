@@ -1183,7 +1183,7 @@ def main() -> None:
             patch_prompt = (
                 "You are the Patcher agent. Apply the smallest possible diff to satisfy the plan. "
                 "Return a concise summary of what changed and any commands run. "
-                "Do not edit any role-scoped logs (planner/reporter/validation).\n"
+                "Do not edit any role-scoped logs (planner/reporter/validation) or dev-tasks.md.\n"
                 f"Work Item ID: {work_item_id}\n"
                 f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
             )
@@ -1383,6 +1383,42 @@ def main() -> None:
         write_file(dev_tasks_path, content)
         die("pc-feature: make ci failed after autofix attempts")
 
+    reporter_global_prompt = (
+        "You are the Reporter agent. The feature completed successfully. "
+        "Provide short, single-line summaries for global logs. "
+        "Return ONLY valid JSON with keys: implementation_log, validation_log, decision_log. "
+        "Use 'none' if no decision entry is needed.\n"
+        f"Work Item ID: {work_item_id}\n"
+    )
+    reporter_global_raw = codex_exec(
+        reporter_global_prompt, cwd=reporter_path, profile="Reporter"
+    ).strip()
+    reporter_global_json = extract_json_payload(reporter_global_raw)
+    try:
+        reporter_global = json.loads(reporter_global_json)
+    except json.JSONDecodeError:
+        die(
+            f"pc-feature: failed to parse reporter global log JSON\n{reporter_global_raw}"
+        )
+    implementation_line = str(reporter_global.get("implementation_log", "")).strip()
+    validation_line = str(reporter_global.get("validation_log", "")).strip()
+    decision_line = str(reporter_global.get("decision_log", "")).strip()
+    if implementation_line:
+        append_log_line(
+            os.path.join("docs", "03-logs", "implementation-log.md"),
+            implementation_line,
+        )
+    if validation_line:
+        append_log_line(
+            os.path.join("docs", "03-logs", "validation-log.md"),
+            validation_line,
+        )
+    if decision_line and decision_line.lower() != "none":
+        append_log_line(
+            os.path.join("docs", "03-logs", "decision-log.md"),
+            decision_line,
+        )
+
     commit_prompt = (
         "You are generating a concise, scoped commit message for this work item. "
         "Return ONLY the commit subject line.\n"
@@ -1410,15 +1446,6 @@ def main() -> None:
     content = replace_entry_section(content, work_item_id, "Final Report", final_report)
     content = update_entry_field(content, work_item_id, "Outcome", "pass")
     write_file(dev_tasks_path, content)
-
-    append_log_line(
-        os.path.join("docs", "03-logs", "implementation-log.md"),
-        "Documented the Execute work item workflow gating summary",
-    )
-    append_log_line(
-        os.path.join("docs", "03-logs", "validation-log.md"),
-        "Recorded the validation findings for the Execute work item workflow gating steps",
-    )
 
     commit_result = subprocess.run(
         ["git", "add", "-A"],

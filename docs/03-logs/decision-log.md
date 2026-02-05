@@ -104,6 +104,60 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-016] - Defer global log updates until feature completion
+
+**Date:** 2026-02-05
+
+**Status:** Implemented
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Global logs were being updated during execution, which produced premature entries and contributed to role-scope conflicts.
+
+**Problem Statement:**
+When should global decision/implementation/validation logs be updated during a feature run?
+
+**Options Considered:**
+
+#### Option 1: Update global logs during each gate
+
+**Description:** Append entries as soon as a gate completes.
+
+**Pros:**
+
+- Immediate traceability
+
+**Cons:**
+
+- Premature entries when a run later fails
+- More role-scope conflicts in shared worktrees
+
+**Estimated effort:** Low
+
+#### Option 2: Update global logs only after completion (chosen)
+
+**Description:** Defer global log updates until gates pass and the feature completes; use reporter summaries.
+
+**Pros:**
+
+- Logs reflect completed work only
+- Keeps role logs feature-scoped until done
+
+**Cons:**
+
+- Less incremental visibility during execution
+
+**Estimated effort:** Low
+
+**Decision:**
+Adopt Option 2 and update global logs only after completion using reporter-provided summaries.
+
+**Consequences:**
+
+- Global logs reflect completed features only.
+- Role logs remain the source for in-progress execution details.
+
 ### [DEC-015] - Keep dev-tasks planner-only; move tester/reporter output to role logs
 
 **Date:** 2026-02-05

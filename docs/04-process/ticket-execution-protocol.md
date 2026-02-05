@@ -55,15 +55,16 @@
    - Patch: make the smallest diff that satisfies the work item (TDD where applicable).
    - Test: run agreed checks and record results.
    - Tests must be listed in the **Allowed Tests** section of the dev-tasks execution log (exact commands).
-     - Planner or Patcher must populate Allowed Tests before the Tester runs.
+     - Planner must populate Allowed Tests before the Tester runs.
      - The Tester runs only those commands.
      - `make feature` and `pc-feature` are forbidden as tests.
    - Report: summarize what changed, commands run, and outcomes.
 
 7. **Feedback Loop (Planner ↔ Patcher ↔ Tester ↔ Reporter)**
-   - Tester records failures in the execution log entry.
-   - Reporter records issues and scope gaps in the execution log entry.
-   - Planner updates the plan and Patcher updates the patch, then logs the loop in the execution log entry.
+   - dev-tasks execution log is planner-owned; only the Planner edits it.
+   - Tester records failures in the feature `validation-log.md`.
+   - Reporter records issues and scope gaps in the feature `reporter-log.md`.
+   - Planner updates the plan and logs the loop in the execution log entry.
    - Repeat until feedback is resolved.
 
 8. **TDD Cycle (when applicable)**
@@ -74,10 +75,9 @@
 
 9. **Docs Sync (Mandatory)**
    - Update required docs/logs per dev-tasks execution log entry.
-   - Record a gating summary in docs/03-logs/implementation-log.md and validation findings in docs/03-logs/validation-log.md for the Execute work item workflow so the logs mirror the implemented sequence.
-   - Implementation log entries must reference the work item ID and PRD feature name in a stable format to keep tests deterministic.
-   - Enforce the output offload workflow with tools/offload-proxy/pp at each gate and capture compliance decisions in docs/03-logs/decision-log.md.
-   - Record gating artifacts in docs/03-logs/decision-log.md or docs/03-logs/validation-log.md before moving past each gate so the orchestrator traceability chain stays intact.
+   - Global logs (docs/03-logs) are written only after the feature completes and gates pass.
+   - Reporter supplies the global log summaries for decision/implementation/validation logs at completion.
+   - Enforce the output offload workflow with tools/offload-proxy/pp at each gate.
 
 10. **Gates**
 
@@ -90,7 +90,7 @@
 - 1 work item = 1 commit.
 - Follow commit rules in `docs/04-process/git-workflow.md`.
 - Use `tools/pc-commit` to enforce convention and checks.
-- Before commit, the dev-tasks execution log is updated (DoD checkboxes, Tests Run, Report Final) and must be complete.
+- Before commit, ensure the planner-owned dev-tasks execution log is complete and role logs contain tester/reporter output.
 
 12. **AI Tooling (preferred)**
 
