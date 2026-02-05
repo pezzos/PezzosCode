@@ -27,6 +27,51 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Fix pc-feature prompt string escaping for lint
+
+**Feature/Bug:** Process/Tooling - pc-feature lint reliability
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Removed the stray escape sequence in the worktree prompt f-string so ruff/black can parse the file.
+
+**Status:** Completed
+
+**Testing:**
+
+- `tools/offload-proxy/pp ruff check tools/pc-feature` (PASS)
+- `tools/offload-proxy/pp black --check tools/pc-feature` (PASS)
+
+**Author:** Codex
+
+### 2026-02-05 - Reset worktrees that are ahead of main
+
+**Feature/Bug:** Process/Tooling - pc-feature worktree hygiene
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added a guard to delete/recreate worktrees that are clean but still ahead of `main`.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (no test command specified)
+
+**Author:** Codex
+
 ### 2026-02-05 - Harden preflight JSON parsing for pc-feature
 
 **Feature/Bug:** Process/Tooling - pc-feature preflight

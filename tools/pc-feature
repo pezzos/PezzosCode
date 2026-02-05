@@ -9,7 +9,6 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-
 EXEC_LOG_HEADER = "## Execution Log"
 ENTRY_HEADER_PREFIX = "### "
 SECTION_PREFIX = "#### "
@@ -955,9 +954,12 @@ def main() -> None:
     if os.path.exists(patcher_path) and os.path.exists(
         os.path.join(patcher_path, ".git")
     ):
-        if worktree_is_dirty(patcher_path):
+        dirty = worktree_is_dirty(patcher_path)
+        ahead = branch_ahead_count(root, "refs/heads/main", patcher_branch) > 0
+        if dirty or ahead:
+            reason = "not clean" if dirty else "ahead of main"
             if prompt_yes_no(
-                "pc-feature: The worktree is not clean and will be deleted and recreated. Do you want to continue? (y/n)"
+                f"pc-feature: The worktree is {reason} and will be deleted and recreated. Do you want to continue? (y/n)"
             ):
                 remove_worktree(root, patcher_path, patcher_branch)
             else:

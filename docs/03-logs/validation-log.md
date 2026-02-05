@@ -27,6 +27,15 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-05 - pc-feature prompt escaping lint fix validated
+
+- `tools/offload-proxy/pp ruff check tools/pc-feature` (PASS)
+- `tools/offload-proxy/pp black --check tools/pc-feature` (PASS)
+
+### 2026-02-05 - Worktree ahead-of-main reset validation pending
+
+- Not run (no test command specified).
+
 ### 2026-02-05 - Preflight JSON parsing hardening validation pending
 
 - Not run (no test command specified).
