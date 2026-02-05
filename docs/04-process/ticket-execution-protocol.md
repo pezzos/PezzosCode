@@ -77,7 +77,9 @@
    - Update required docs/logs per dev-tasks execution log entry.
    - Global logs (docs/03-logs) are written only after the feature completes and gates pass.
    - Reporter supplies the global log summaries for decision/implementation/validation logs at completion.
-   - Enforce the output offload workflow with tools/offload-proxy/pp at each gate.
+   - Record a gating summary in docs/03-logs/implementation-log.md and validation findings in docs/03-logs/validation-log.md for the Execute work item workflow so the logs mirror the implemented sequence.
+   - Enforce the output offload workflow with tools/offload-proxy/pp at each gate and capture compliance decisions in docs/03-logs/decision-log.md.
+   - Orchestrator gate handoffs are logged in docs/03-logs/decision-log.md or docs/03-logs/validation-log.md before the PO loop continues.
 
 10. **Gates**
 

@@ -27,6 +27,33 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Restore pc-ticket stub and align execution protocol log sync wording
+
+**Feature/Bug:** Process/Tooling - docs + bootstrap
+
+**Changed Files:**
+
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tools/pc-ticket`
+
+**What Changed:**
+
+- Added the missing log sync/offload strings to the execution protocol doc and its template.
+- Restored a stub `tools/pc-ticket` so bootstrap tests can copy the tool.
+
+**Why:**
+
+- Keep doc expectations aligned with test assertions and ensure bootstrap tooling includes required files.
+
+**How:**
+
+- Inserted the exact required sentences and added a deprecation stub script.
+
+**Trade-offs / Notes:**
+
+- `pc-ticket` remains deprecated; the stub exits with guidance.
+
 ### 2026-02-05 - Move Allowed Tests fixes to Planner and validate test existence
 
 **Feature/Bug:** Process/Tooling - pc-feature Allowed Tests

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat <<'EOF'
+pc-ticket has been deprecated in favor of pc-feature.
+Use: tools/pc-feature F=<feature-id>
+EOF
+exit 1
