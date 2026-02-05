@@ -27,6 +27,39 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - F-08 anti-cheat testing strategy docs/tooling enforcement
+
+**Feature/Bug:** F-08 Anti-cheat testing strategy
+
+**Changed Files:**
+
+- `docs/04-process/testing-strategy.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/testing-strategy.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tools/pc-feature`
+- `tools/pc-allowed-tests-check`
+- `tools/pc-ticket`
+- `docs/02-features/08-anti-cheat-testing-strategy/dev-tasks.md`
+
+**What Changed:**
+
+- Documented anti-hardcode requirements and log sync rules in process docs and templates.
+- Hardened pc-feature Allowed Tests handling with smoke-only guardrails and process-doc logging placeholders.
+- Restored a deprecated `pc-ticket` stub for bootstrap compatibility.
+
+**Why:**
+
+- Ensure anti-cheat testing requirements are explicit and enforced in the CLI workflow.
+
+**How:**
+
+- Updated process docs/templates and added lightweight tooling checks for Allowed Tests.
+
+**Trade-offs / Notes:**
+
+- Placeholder smoke tests require follow-up to set a real smoke command.
+
 ### 2026-02-05 - Add smoke test normalization and auto-log placeholders for process docs
 
 **Feature/Bug:** Process/Tooling - pc-feature workflow resilience

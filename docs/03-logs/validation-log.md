@@ -27,6 +27,11 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-05 - F-08 anti-cheat testing strategy validation
+
+- `pytest tests/test_pc_feature.py` (PASS)
+- `pytest tests/test_docs_logs.py tests/test_orchestrator_workflow_docs.py tests_extra/test_bootstrap_into_extra.py` (PASS)
+
 ### 2026-02-05 - Ticket execution protocol template sync validation pending
 
 - Not run (no test command specified).

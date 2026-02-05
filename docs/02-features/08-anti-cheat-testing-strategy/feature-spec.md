@@ -8,7 +8,7 @@
 
 **Feature ID:** `F-08`
 
-**Status:** Draft
+**Status:** Complete
 
 **Owner:** Developer/PO
 
@@ -46,22 +46,22 @@ Require tests that prevent hardcoded responses and validate behavior.
 
 #### Core Functionality
 
-- [ ] **Requirement 1:** Multiple fixtures per critical path
+- [x] **Requirement 1:** Multiple fixtures per critical path
   - **User action:** Run the relevant CLI/tooling step
   - **System response:** Perform the workflow action
   - **Expected outcome:** Tests validate behavior through fixtures/invariants/contracts
 
-- [ ] **Requirement 2:** Seeded randomness and invariants
+- [x] **Requirement 2:** Seeded randomness and invariants
   - **User action:** Execute the next required step
   - **System response:** Enforce rules and record results
   - **Expected outcome:** Consistent, repeatable behavior
 
 #### Edge Cases
 
-- [ ] **Edge Case 1:** Single fixture passes a hardcoded implementation
+- [x] **Edge Case 1:** Single fixture passes a hardcoded implementation
   - **Expected behavior:** Provide a clear prompt or error and avoid state corruption
 
-- [ ] **Edge Case 2:** Unseeded randomness causes flaky tests
+- [x] **Edge Case 2:** Unseeded randomness causes flaky tests
   - **Expected behavior:** Fail safely and allow a clean retry
 
 ### User Experience Requirements
@@ -105,11 +105,11 @@ CLI → Run command → Review output → Confirm next step
 
 ### Definition of Done
 
-- [ ] All core functionality works as specified
-- [ ] Edge cases are handled appropriately
-- [ ] Error states are user-friendly
-- [ ] Documentation is complete
-- [ ] Tests are passing
+- [x] All core functionality works as specified
+- [x] Edge cases are handled appropriately
+- [x] Error states are user-friendly
+- [x] Documentation is complete
+- [x] Tests are passing
 - [ ] Code is reviewed and merged
 
 ### Test Scenarios
