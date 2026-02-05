@@ -10,9 +10,11 @@
 
 **Feature:** Anti-cheat testing strategy
 
-**Status:** Not Started
+**Superseded by:** `F-08` in `docs/02-features/08-anti-cheat-testing-strategy/`.
 
-**Last Updated:** 2026-02-04
+**Status:** Complete
+
+**Last Updated:** 2026-02-05
 
 ## Ownership and Traceability
 

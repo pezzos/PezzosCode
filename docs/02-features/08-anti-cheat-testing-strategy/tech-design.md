@@ -8,7 +8,7 @@
 
 **Feature:** Anti-cheat testing strategy
 
-**Status:** Implemented
+**Status:** Draft
 
 **Last Updated:** 2026-02-05
 
@@ -16,8 +16,6 @@
 
 Implement CLI-level workflow changes and documentation updates to enforce the behavior.
 No new services or external dependencies required.
-
-**Superseded by:** `F-08` in `docs/02-features/08-anti-cheat-testing-strategy/`.
 
 ### Product Surfaces
 

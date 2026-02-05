@@ -10,9 +10,7 @@
 
 **Feature:** Anti-cheat testing strategy
 
-**Superseded by:** `F-08` in `docs/02-features/08-anti-cheat-testing-strategy/`.
-
-**Status:** Complete
+**Status:** Draft
 
 **Last Updated:** 2026-02-05
 

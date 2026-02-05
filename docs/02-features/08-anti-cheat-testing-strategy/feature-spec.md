@@ -6,9 +6,9 @@
 
 ## Overview
 
-**Feature ID:** `F-07`
+**Feature ID:** `F-08`
 
-**Status:** Shipped
+**Status:** Draft
 
 **Owner:** Developer/PO
 
@@ -17,8 +17,6 @@
 ### Summary
 
 Require tests that prevent hardcoded responses and validate behavior.
-
-**Superseded by:** `F-08` in `docs/02-features/08-anti-cheat-testing-strategy/`.
 
 ## User Intent
 

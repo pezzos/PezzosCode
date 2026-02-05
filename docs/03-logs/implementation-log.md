@@ -27,6 +27,35 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Create feature 08 and close feature 07
+
+**Feature/Bug:** Process/Tooling - feature docs maintenance
+
+**Changed Files:**
+
+- `docs/02-features/08-anti-cheat-testing-strategy/feature-spec.md`
+- `docs/02-features/08-anti-cheat-testing-strategy/tech-design.md`
+- `docs/02-features/08-anti-cheat-testing-strategy/dev-tasks.md`
+- `docs/02-features/08-anti-cheat-testing-strategy/test-plan.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/feature-spec.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/tech-design.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/dev-tasks.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/test-plan.md`
+- `docs/03-logs/implementation-log.md`
+
+**What Changed:**
+
+- Added feature 08 docs mirroring feature 07 goals with a fresh, empty execution log.
+- Marked feature 07 as superseded and completed for archival clarity.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (docs-only change)
+
+**Author:** Codex
+
 ### 2026-02-04 - Prevent role-scope failures in shared worktree runs
 
 **Feature/Bug:** Process/Tooling - pc-feature role log handling
