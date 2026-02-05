@@ -650,12 +650,17 @@ def format_role_changes(role: str, worktree_path: str, feature_dir: str) -> None
     if not paths:
         return
     role_paths = worktree_role_paths(feature_dir)
+    dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
     if role == "patcher":
         blocked = set(role_paths.values())
+        blocked.add(dev_tasks_path)
         paths = [path for path in paths if path not in blocked]
     else:
         allowed = role_paths.get(role)
-        paths = [path for path in paths if path == allowed]
+        allowed_set = {allowed} if allowed else set()
+        if role == "planner":
+            allowed_set.add(dev_tasks_path)
+        paths = [path for path in paths if path in allowed_set]
     if not paths:
         return
     if shutil.which("pre-commit") is None:
@@ -677,10 +682,14 @@ def enforce_role_scope(
     if not paths:
         return
     role_paths = worktree_role_paths(feature_dir)
+    dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
     allowed = set()
     forbidden = set(role_paths.values())
+    forbidden.add(dev_tasks_path)
     if role in role_paths:
         allowed.add(role_paths[role])
+    if role == "planner":
+        allowed.add(dev_tasks_path)
     if role == "patcher":
         illegal = [path for path in paths if path in forbidden]
         if illegal:
@@ -706,6 +715,7 @@ def commit_worktree_changes(
         return
     if role == "patcher":
         role_paths = set(worktree_role_paths(feature_dir).values())
+        role_paths.add(os.path.join(feature_dir, "dev-tasks.md"))
         illegal = [path for path in paths if path in role_paths]
         if illegal:
             die(
@@ -1177,21 +1187,12 @@ def main() -> None:
                 f"Work Item ID: {work_item_id}\n"
                 f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
             )
-            patch_text = codex_exec(
+            codex_exec(
                 patch_prompt,
                 capture_output=True,
                 cwd=patcher_path,
                 profile="Patcher",
             ).strip()
-            content = read_file(dev_tasks_path)
-            content = update_entry_field(content, work_item_id, "Patcher", "Codex")
-            content = replace_entry_section(
-                content,
-                work_item_id,
-                "Patch",
-                patch_text or "(see worktree changes)",
-            )
-            write_file(dev_tasks_path, content)
             format_role_changes("patcher", patcher_path, feature_dir)
             reset_role_logs_to_head(patcher_path, feature_dir)
             enforce_role_scope(patcher_path, "patcher", feature_dir)
@@ -1259,18 +1260,6 @@ def main() -> None:
                 "`make feature` and `pc-feature` are forbidden.\n"
                 f"Work Item ID: {work_item_id}\n"
             )
-            content = read_file(dev_tasks_path)
-            content = update_entry_field(content, work_item_id, "Tester", "Codex")
-            content = replace_entry_section(
-                content, work_item_id, "Test Results", tester_feedback
-            )
-            content = replace_entry_section(
-                content, work_item_id, "Tester Feedback", tester_feedback
-            )
-            content = update_entry_field(
-                content, work_item_id, "Outcome", "needs replan"
-            )
-            write_file(dev_tasks_path, content)
             ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
             append_role_log(
                 os.path.join(tester_path, role_paths["tester"]),
@@ -1298,16 +1287,6 @@ def main() -> None:
             f"Notes: Results: {'; '.join(test_results)}\n"
             f"Work Item ID: {work_item_id}\n"
         )
-        content = read_file(dev_tasks_path)
-        content = update_entry_field(content, work_item_id, "Tester", "Codex")
-        content = replace_entry_section(
-            content, work_item_id, "Test Results", tester_feedback
-        )
-        content = replace_entry_section(
-            content, work_item_id, "Tester Feedback", tester_feedback
-        )
-        content = update_entry_field(content, work_item_id, "Tests run", tests_run)
-        write_file(dev_tasks_path, content)
         ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
         append_role_log(
             os.path.join(tester_path, role_paths["tester"]),
@@ -1332,20 +1311,6 @@ def main() -> None:
             reporter_prompt, cwd=reporter_path, profile="Reporter"
         ).strip()
         reporter_outcome = parse_outcome(reporter_feedback)
-        docs_updated = extract_field(reporter_feedback, "Docs/logs updated")
-        content = read_file(dev_tasks_path)
-        content = update_entry_field(content, work_item_id, "Reporter", "Codex")
-        content = replace_entry_section(
-            content, work_item_id, "Reporter Review", reporter_feedback
-        )
-        content = replace_entry_section(
-            content, work_item_id, "Reporter Feedback", reporter_feedback
-        )
-        if docs_updated:
-            content = update_entry_field(
-                content, work_item_id, "Docs/logs updated", docs_updated
-            )
-        write_file(dev_tasks_path, content)
         ensure_role_log(os.path.join(reporter_path, role_paths["reporter"]), "reporter")
         append_role_log(
             os.path.join(reporter_path, role_paths["reporter"]),
@@ -1355,15 +1320,6 @@ def main() -> None:
         format_role_changes("reporter", reporter_path, feature_dir)
         enforce_role_scope(reporter_path, "reporter", feature_dir)
         commit_worktree_changes(reporter_path, "reporter", work_item_id, feature_dir)
-
-        content = read_file(dev_tasks_path)
-        content = replace_entry_section(
-            content,
-            work_item_id,
-            "Iteration Log",
-            f"- Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}",
-        )
-        write_file(dev_tasks_path, content)
 
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
             content = read_file(dev_tasks_path)
@@ -1445,7 +1401,7 @@ def main() -> None:
 
     final_report = (
         "What changed (files): (see git diff)\n"
-        f"Tests written (names) + results: {get_entry_section(content, work_item_id, 'Test Results')}\n"
+        "Tests written (names) + results: (see feature validation-log.md)\n"
         "Docs/logs updated checklist: (see Docs Updated)\n"
         f"make ci results: {gate_status}\n"
         f"Commands run (use pp for noisy output): {'; '.join(review_items)}\n"

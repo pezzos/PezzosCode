@@ -27,6 +27,32 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Keep dev-tasks planner-only and move tester/reporter output to role logs
+
+**Feature/Bug:** Process/Tooling - pc-feature role log boundaries
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+
+**What Changed:**
+
+- Removed tester/reporter writes to `dev-tasks.md`, disallowed patcher edits to `dev-tasks.md`, and relied on role logs for tester/reporter output.
+
+**Why:**
+
+- Prevent role-scope violations and keep `dev-tasks.md` as planner-owned task source of truth.
+
+**How:**
+
+- Updated role scope rules to allow `dev-tasks.md` only for the planner and removed dev-tasks updates from tester/reporter paths.
+
+**Trade-offs / Notes:**
+
+- Test results and reporter feedback are recorded in role logs only; `dev-tasks.md` no longer mirrors those sections.
+
 ### 2026-02-05 - Harden pc-feature allowed tests parsing
 
 **Feature/Bug:** Process/Tooling - pc-feature allowed tests validation
@@ -73,6 +99,35 @@ This helps with:
 
 - `tools/offload-proxy/pp ruff check tools/pc-feature` (PASS)
 - `tools/offload-proxy/pp black --check tools/pc-feature` (PASS)
+
+**Author:** Codex
+
+### 2026-02-05 - Remove unused patch_text variable in pc-feature
+
+**Feature/Bug:** Process/Tooling - pc-feature lint cleanup
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+
+**What Changed:**
+
+- Removed the unused `patch_text` assignment while preserving the `codex_exec` call.
+
+**Why:**
+
+- Resolve ruff `F841` unused variable failure in pre-commit.
+
+**How:**
+
+- Dropped the assignment and executed `codex_exec(...)` directly.
+
+**Status:** Completed
+
+**Testing:**
+
+- `ruff check tools/pc-feature` (PASS)
 
 **Author:** Codex
 

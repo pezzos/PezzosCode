@@ -104,6 +104,60 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-015] - Keep dev-tasks planner-only; move tester/reporter output to role logs
+
+**Date:** 2026-02-05
+
+**Status:** Implemented
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+`pc-feature` was writing tester/reporter output into `dev-tasks.md`, which conflicted with role scope enforcement and blurred task ownership.
+
+**Problem Statement:**
+How should we keep `dev-tasks.md` as the planner-owned task source of truth while still recording test and review output?
+
+**Options Considered:**
+
+#### Option 1: Allow tester/reporter edits to dev-tasks
+
+**Description:** Expand role scope so tester/reporter can write test and review sections in `dev-tasks.md`.
+
+**Pros:**
+
+- Keeps execution log centralized
+
+**Cons:**
+
+- Weakens role isolation
+- Causes scope violations if logs are out of sync
+
+**Estimated effort:** Low
+
+#### Option 2: Move tester/reporter output to role logs (chosen)
+
+**Description:** Keep `dev-tasks.md` planner-only and record tester output in `validation-log.md` and reporter output in `reporter-log.md`.
+
+**Pros:**
+
+- Clear ownership boundaries
+- Avoids role-scope violations
+
+**Cons:**
+
+- Execution log information is split across files
+
+**Estimated effort:** Low
+
+**Decision:**
+Adopt Option 2 and keep `dev-tasks.md` planner-only, with tester/reporter output recorded in their role logs.
+
+**Consequences:**
+
+- `dev-tasks.md` no longer mirrors tester/reporter sections.
+- Reviewers should consult role logs for execution results.
+
 ### [DEC-014] - Extract JSON payloads for preflight parsing
 
 **Date:** 2026-02-05
