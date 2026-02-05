@@ -11,6 +11,8 @@ Key files:
 - `docs/04-process/llm-prompts.md`: prompt templates and guidance.
 - `docs/04-process/ticket-execution-protocol.md`: canonical work item execution workflow (TDD + gates).
 - `docs/04-process/human-orchestration-workflow.md`: canonical PO loop for bootstrapping and iterating features.
+- `prompts/`: role-specific prompts (planner, plan-reviewer, patcher, tester, reporter).
+- `docs/possible-improvements.md`: human-gated proposals after failures.
 
 Work item entrypoint:
 

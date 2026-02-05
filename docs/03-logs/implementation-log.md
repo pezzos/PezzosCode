@@ -27,6 +27,59 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Sync ticket execution protocol template/doc
+
+**Feature/Bug:** Docs maintenance (template-sync pre-commit fix)
+
+**Changed Files:**
+
+- `docs/04-process/ticket-execution-protocol.md`
+
+**Summary:**
+
+- Removed a duplicated bullet line so `docs/04-process/ticket-execution-protocol.md` matches its template.
+
+### 2026-02-05 - Context/PRD/process updates for observability and workflow hardening
+
+**Feature/Bug:** Documentation updates (P0/P1/P2 backlog additions)
+
+**Changed Files:**
+
+- `docs/00-context/*`
+- `docs/01-product/prd.md`
+- `docs/04-process/*`
+- `docs/02-features/09-runner-structured-logs/*`
+- `docs/02-features/10-unified-autofix-precommit/*`
+- `docs/02-features/11-simplify-worktree-tracking/*`
+- `docs/02-features/12-incremental-prd-to-features/*`
+- `docs/02-features/13-role-prompts-plan-reviewer/*`
+- `docs/02-features/14-learning-loop-improvement-proposals/*`
+- `docs/02-features/15-offload-audit-and-log-compaction/*`
+- `docs/02-features/16-feature-gating-and-skill-mining/*`
+- `prompts/*`
+- `docs/possible-improvements.md`
+- `.codex/skills/prd-to-features/SKILL.md`
+- `tools/templates/docs/04-process/*`
+- `tools/templates/root/AGENTS.md`
+
+**What Changed:**
+
+- Added observability, runner, precommit, plan review, and learning-loop requirements to context/process docs.
+- Added role-specific prompts and possible-improvements log.
+- Created backlog feature folders for P0/P1/P2 improvements.
+
+**Why:**
+
+- Make the documentation the source of truth for the requested workflow improvements.
+
+**How:**
+
+- Updated context/PRD/process docs and generated new feature skeletons from templates.
+
+**Trade-offs / Notes:**
+
+- Tooling changes are captured as backlog features and not implemented yet.
+
 ### 2026-02-05 - F-08 anti-cheat testing strategy docs/tooling enforcement
 
 **Feature/Bug:** F-08 Anti-cheat testing strategy
@@ -3146,3 +3199,9 @@ Track when debt is paid down:
 - [Bug Log](bug-log.md) - Bug tracking and fixes
 - [Validation Log](validation-log.md) - Post-deployment learnings
 - [Insights](insights.md) - Patterns and improvements
+
+---
+
+## 2026-02-05
+
+- Synced `tools/templates/docs/02-features/AGENTS.md` to match the updated workflow guidance in `docs/02-features/AGENTS.md` (added the five-step drafting workflow bullet).

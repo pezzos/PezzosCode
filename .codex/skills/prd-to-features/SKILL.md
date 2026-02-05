@@ -7,7 +7,7 @@ description: Convert docs/01-product/prd.md into feature folders under docs/02-f
 
 ## Overview
 
-Generate feature folders from the PRD and fill the feature template files, respecting product surface selection rules. Supports incremental mode to avoid duplicate features on existing projects.
+Generate feature folders from the PRD and fill the feature template files, respecting product surface selection rules. Supports incremental mode to avoid duplicate features on existing projects. Use the five-step workflow (data model → pure logic → edge cases → UI → integration) when drafting feature content.
 
 ## Inputs
 
@@ -17,6 +17,7 @@ Generate feature folders from the PRD and fill the feature template files, respe
 - `docs/00-context/*.md` (optional, for additional context)
 - `docs/03-logs/implementation-log.md` (for completed items)
 - `docs/03-logs/decision-log.md` (for rejected/deferred items)
+- `docs/02-features/<feature>/dev-tasks.md` (for `Status: Done`)
 
 ## Naming Convention
 
@@ -49,7 +50,7 @@ Generate feature folders from the PRD and fill the feature template files, respe
 
 - List of feature folders created or updated (with index prefix).
 - List of features skipped because they already exist.
-- List of features skipped because they are completed/rejected/deferred (with log reference).
+- List of features skipped because they are completed/rejected/deferred (with log reference or `Status: Done`).
 - Sections populated for each feature.
 - Missing context/questions.
 
@@ -69,3 +70,5 @@ Generate feature folders from the PRD and fill the feature template files, respe
 - Template sections match the chosen product surfaces.
 - No TODO placeholders remain unless blocked by missing PRD context (must be called out).
 - Skipped items are explicitly reported with reasons.
+- Never delete existing feature folders.
+- Skip any feature whose `dev-tasks.md` shows `Status: Done`.

@@ -69,6 +69,8 @@ then align the live root files without modifying templates.
    - Add a new execution log entry header for the loop.
 2. **Plan**
    - LLM proposes approach, files to change, risks, and tests.
+   - Use the five-step workflow: data model → pure logic → edge cases → UI → integration.
+   - **Plan Reviewer gate:** validate the plan before coding (no code edits).
    - **Orchestrator gate:** approve the plan before coding.
 3. **Patch**
    - Make the smallest possible diff to satisfy the work item.
@@ -76,16 +78,18 @@ then align the live root files without modifying templates.
    - **Orchestrator gate:** approve the diff before running tests.
 4. **Test**
    - Run the agreed tests and record results (use `pp` for noisy output).
+   - Ensure logs are written to `logs/<WI>/<step>.log` with `[WI-...][agent][step]` prefix.
    - **Orchestrator gate:** validate test results before marking done.
 5. **Report**
    - Summarize changes, commands run, and results.
    - Update logs and documentation.
+   - If the run failed or stalled, propose an improvement patch (not auto-applied) and log it in `docs/possible-improvements.md`.
    - Create commit with the agreed message format.
    - Run `make test` before closing the work item.
 
 ## Orchestrator Gates (Required)
 
-- **Plan validation:** before any code changes.
+- **Plan validation:** before any code changes (performed by Plan Reviewer, approved by Orchestrator).
 - **Diff validation:** after changes, before tests or merge.
 - **Test validation:** after tests run, before closing work item.
 
@@ -102,6 +106,7 @@ Use separate sessions/worktrees when parallelizing work:
 
 - **Orchestrator:** keeps scope, approves gates, merges outputs.
 - **Planner:** produces and updates the plan.
+- **Plan Reviewer:** critiques/approves the plan (no code edits).
 - **Patcher:** produces the patch.
 - **Tester:** runs tests and reports failures.
 - **Reporter:** reviews changes, checks scope, reports to PO.
@@ -109,13 +114,15 @@ Use separate sessions/worktrees when parallelizing work:
 
 Preferred worktree naming: `../<repo_name>-<feature_name>-<agent_name>`.
 
+Use `prompts/<role>.md` for role-specific instructions.
+
 Role worktree scope:
 
 - Planner writes only `docs/02-features/<feature>/planner-log.md`.
 - Tester writes only `docs/02-features/<feature>/validation-log.md`.
 - Reporter writes only `docs/02-features/<feature>/reporter-log.md`.
 - Patcher can edit anywhere except the role-scoped log files.
-- Orchestrator writes `docs/02-features/<feature>/feature-worktrees.json` and squashes all role outputs into `main`.
+- Orchestrator uses a single worktree per feature and squashes all role outputs into `main`.
 
 ---
 

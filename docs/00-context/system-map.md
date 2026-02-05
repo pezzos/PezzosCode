@@ -114,18 +114,21 @@ None.
 
 ### Logs
 
-- **Location:** `docs/03-logs/`.
-- **Key Events:** ticket execution, decisions, validations.
+- **Locations:**
+  - `docs/03-logs/` for decisions, implementation notes, bugs, validations.
+  - `logs/<WORK_ITEM_ID>/<step>.log` for CI/tests/precommit/feature/ticket runs.
+- **Format:** Prefix each stdout line with `[WI-...][agent][step]` and include timestamps.
+- **Behavior:** Tail-friendly, minimal verbosity; noisy command output is offloaded.
 
 ### Metrics
 
 - **Tool:** none (manual).
-- **Key Metrics:** successful bootstrap; successful ticket execution with minimal manual intervention.
+- **Key Metrics:** successful bootstrap; successful ticket execution with minimal manual intervention; step runtimes by timestamped logs.
 
 ### Alerts
 
 - **Tool:** none.
-- **Critical Alerts:** none (manual review).
+- **Critical Alerts:** script failures logged with work item id, agent, step; human gate required for improvement proposals.
 
 ## Known Issues & Debt
 
@@ -133,5 +136,5 @@ None.
 
 ---
 
-**Last Updated:** 2026-02-04
+**Last Updated:** 2026-02-05
 **Updated By:** Alexandre Pezzotta

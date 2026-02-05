@@ -65,12 +65,19 @@ tools/pc-commit --allow docs/04-process --dry-run
 
 ---
 
+## Precommit Hooks (Autofix)
+
+- Precommit runs a unified autofix script (shared with CI) against staged files.
+- If autofix modifies files, re-stage with `git add -u` and print the list of modified/re-staged files.
+- Codex in precommit runs with vanilla config only (no profiles, no Serena MCP, no overrides).
+- Precommit fixes are scoped to staged files; no decision/implementation log updates are required.
+
+---
+
 ## Worktrees Policy (Parallel Sessions)
 
-Use worktrees when running parallel roles (implementer, reviewer, tester) or
-when you want clean isolation between changes.
-
-Default: **two worktrees** (impl + review). Add a third only for spikes.
+Use worktrees when you want clean isolation between changes.
+Default: **single worktree per feature**; add extra worktrees only when necessary.
 
 Naming convention:
 `../<repo_name>-<feature_name>-<agent_name>`

@@ -12,6 +12,11 @@
 - AI needs a minimal, reliable toolchain to operate like a productive developer without constant human intervention.
 - Context mistakes between template vs. project and noisy outputs cause wasted tokens and rework.
 - Lack of predictable gates (plan/patch/test/report) slows iteration and increases regressions.
+- Deterministic tasks are still pushed through LLMs, burning tokens that should be handled by scripts.
+- Limited observability makes CI/test/precommit failures hard to diagnose and slows iteration.
+- Non-incremental PRD → features updates cause regressions and confusion.
+- Role prompts and plan review gates are inconsistent, creating avoidable rework.
+- Learning loops for improving scripts and processes are ad hoc.
 
 **Vision:**
 
@@ -21,6 +26,11 @@
 - Commands are simple, memorable, and the workflow is robust, low‑token, and easy to use.
 - Work is orchestrated with clear roles (orchestrator, implementer, reviewer, tester) and clean workspaces.
 - Large outputs are offloaded, keeping AI context focused and deterministic.
+- Deterministic workflow steps are delegated to scripts with a shared runner and consistent metadata.
+- Execution is observable: structured logs, timestamps, and tail-friendly output are standard.
+- PRD → features updates are incremental, with strict template/project boundaries to prevent regressions.
+- Learning loops propose improvements after failures, gated by human approval.
+- Plans are validated by a dedicated Plan Reviewer role before code changes.
 
 ## WHAT exists RIGHT NOW?
 
@@ -57,6 +67,9 @@
 - Token‑efficient workflow: prefer hooks and tools over verbose AI instructions.
 - Predictable execution: Plan → Patch → Test → Report for every ticket.
 - Parallelizable: use worktrees for clean isolation when multiple roles run in parallel.
+- Script-first for deterministic tasks, AI for judgment-heavy steps.
+- Observability-first: structured logs and traceable runs.
+- Learning loops with human gates to reduce repeated failures.
 
 **Target Users:**
 

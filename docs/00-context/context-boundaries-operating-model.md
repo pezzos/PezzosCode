@@ -45,6 +45,12 @@ Provide guardrails that keep the workflow aligned with a simple, robust, AI-firs
 - Prefer tool-assisted workflows (Serena, hooks, scripts) over ad-hoc AI output.
 - Offload large outputs to reduce token usage.
 - Treat AI as a developer: provide the tools and guardrails it needs to work autonomously.
+- Deterministic steps are executed by scripts via a shared runner library.
+- Logs are structured, timestamped, and written to predictable per-work-item locations.
+- PRD → features updates are incremental; never delete or recreate completed features.
+- Plan validation is handled by a dedicated Plan Reviewer role before patching.
+- Learning loops propose improvements after failures and require human approval to apply.
+- Use a single worktree per feature; do not maintain `feature-worktrees.json`.
 
 ## Product Stance
 
@@ -54,6 +60,8 @@ Provide guardrails that keep the workflow aligned with a simple, robust, AI-firs
 - Minimal prompts and minimal friction.
 - Checks and linting should run via local hooks or scripts, not manual AI steps.
 - Keep dependencies minimal; add tools only when they materially reduce manual work or tokens.
+- Favor script delegation over LLM steps when outcomes are deterministic.
+- Prefer minimal, tail-friendly logs over verbose, unstructured output.
 
 ## MVP Definition of Done
 

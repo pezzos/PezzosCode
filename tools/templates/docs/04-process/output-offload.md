@@ -65,3 +65,8 @@ Notes:
 
 - `threshold_lines` triggers offload when output exceeds this line count.
 - `always_offload` matches the command prefix (start of the command line).
+
+## Planned Enhancements (P2)
+
+- Offload audit and upgrade plan with index (id, cmd, wi, agent, timestamp, size).
+- Add commands for list/get/purge with retention policy.

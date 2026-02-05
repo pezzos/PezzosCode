@@ -653,3 +653,4 @@ Requirements:
 - [Dev Workflow](dev-workflow.md) - When to use these prompts
 - [Feature Templates](../02-features/feature-template/) - Templates referenced in prompts
 - [Definition of Done](definition-of-done.md) - Quality standards
+- [Role Prompts](../../prompts/) - Role-specific prompts (`planner`, `plan-reviewer`, `patcher`, `tester`, `reporter`)

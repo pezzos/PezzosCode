@@ -8,9 +8,9 @@
 
 **Product Name:** PezzosCode
 
-**Version:** 0.3
+**Version:** 0.4
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-05
 
 **Status:** Draft
 
@@ -21,6 +21,7 @@
 PezzosCode bootstraps a new project with a standardized, AI-first workflow and tooling.
 It enables a single developer/PO to describe features and let AI execute tickets with minimal manual setup.
 The focus is simplicity, robustness, idempotent re-runs, and a deterministic Plan → Patch → Test → Report loop.
+Deterministic steps are delegated to scripts, observability is improved with structured logs, and PRD → features updates are incremental to prevent regressions.
 
 ## Problem Statement
 
@@ -36,16 +37,27 @@ The focus is simplicity, robustness, idempotent re-runs, and a deterministic Pla
    - Current workaround: manual fixes and repeated setup.
    - Impact: token waste, loss of momentum, unreliable execution.
 
+3. **Deterministic steps burn tokens**
+   - Who experiences it: single developer/PO.
+   - Current workaround: ask the LLM to do repeatable tasks.
+   - Impact: higher cost, slower iteration, inconsistent outcomes.
+
+4. **Lack of observability hides failures**
+   - Who experiences it: single developer/PO.
+   - Current workaround: rerun commands and manually scan output.
+   - Impact: hard-to-debug failures and repeated CI/test runs.
+
 ### Success Criteria
 
 <!-- How we'll know if we've solved the problem -->
 
-| Metric                                  | Current      | Target           | Measure                     |
-| --------------------------------------- | ------------ | ---------------- | --------------------------- |
-| Bootstrap in one command                | Manual setup | One command      | Manual verification         |
-| Ticket execution reliability            | Inconsistent | Minimal failures | Worklog + user confirmation |
-| Context mistakes (template vs. project) | Occasional   | Rare             | Log entries / corrections   |
-| Token waste from large outputs          | High         | Low              | Offload ids + prompt review |
+| Metric                                  | Current      | Target           | Measure                      |
+| --------------------------------------- | ------------ | ---------------- | ---------------------------- |
+| Bootstrap in one command                | Manual setup | One command      | Manual verification          |
+| Ticket execution reliability            | Inconsistent | Minimal failures | Worklog + user confirmation  |
+| Context mistakes (template vs. project) | Occasional   | Rare             | Log entries / corrections    |
+| Token waste from large outputs          | High         | Low              | Offload ids + prompt review  |
+| CI/test observability                   | Low          | High             | Structured logs + timestamps |
 
 ### Success Metrics (Template)
 
@@ -119,9 +131,21 @@ The focus is simplicity, robustness, idempotent re-runs, and a deterministic Pla
 ## Process Features
 
 - [ ] Output offload enforcement (P0): Noisy outputs stored in `.offload/` and referenced by id.
+- [ ] Shared runner library (P0): Standardized Codex/Serena execution with metadata + logging helpers.
+- [ ] Structured logs for CI/tests/precommit/feature runs (P0): `logs/<WI>/<step>.log` with prefixes and timestamps.
+- [ ] Unified autofix script (P0): Single script used by `make ci` and precommit.
+- [ ] Precommit restage + vanilla Codex config (P0): `git add -u` after autofix, staged-only fixes, no Serena.
+- [ ] Single worktree per feature (P0): Remove `feature-worktrees.json`.
 - [ ] Orchestrator + sub-agent roles (P1): Clear role separation and gates.
+- [ ] Role-specific prompts + Plan Reviewer (P1): Dedicated prompts and plan validation.
+- [ ] Incremental prd-to-features (P1): Add missing only; never delete; skip Done.
+- [ ] Learning loop proposals (P1): Post-run improvement proposals with human gate.
 - [ ] Worktree policy + naming convention (P1): Clean isolation for parallel roles.
 - [ ] Anti-cheat testing strategy (P1): Multiple fixtures, seeded randomness, invariants, contract tests.
+- [ ] Offload audit + upgrade plan (P2): Index + list/get/purge with retention.
+- [ ] Compact log skills (P2): Compact decision/implementation logs without data loss.
+- [ ] Feature gating in precommit (P2): Soft warning when earlier features incomplete.
+- [ ] Skill mining from repeated prompts (P2): Propose reusable skills from recurring patterns.
 
 ## Requirements
 
@@ -144,6 +168,34 @@ The focus is simplicity, robustness, idempotent re-runs, and a deterministic Pla
 - [ ] **FR-004:** Offload noisy command output.
   - **Rationale:** Reduce token waste and keep prompts focused.
   - **Acceptance Criteria:** Noisy outputs are stored in `.offload/` and referenced by id.
+
+- [ ] **FR-005:** Provide a shared runner library for tool/script execution.
+  - **Rationale:** Standardize Codex/Serena invocation and reduce token waste.
+  - **Acceptance Criteria:** Tools can call a shared runner that injects `work_item_id`, `agent_name`, `run_id` and logging helpers.
+
+- [ ] **FR-006:** Write structured, tail-friendly logs for CI/tests/precommit/feature runs.
+  - **Rationale:** Improve observability and debugging.
+  - **Acceptance Criteria:** Logs are written to `logs/<WI>/<step>.log` with `[WI-...][agent][step]` prefix and timestamps.
+
+- [ ] **FR-007:** Unify autofix logic for CI and precommit.
+  - **Rationale:** Prevent divergence between local hooks and CI behavior.
+  - **Acceptance Criteria:** One script (e.g., `scripts/pc-ci-check`) is invoked by both `make ci` and precommit.
+
+- [ ] **FR-008:** Precommit re-stages autofix changes and runs Codex with vanilla config.
+  - **Rationale:** Ensure staged fixes are applied cleanly without extra noise.
+  - **Acceptance Criteria:** Precommit runs `git add -u` after autofix, prints re-staged files, and uses vanilla Codex config without Serena.
+
+- [ ] **FR-009:** Incremental prd-to-features generation.
+  - **Rationale:** Prevent regressions and duplication.
+  - **Acceptance Criteria:** Adds missing features only, never deletes existing, skips features with `Status: Done` in `dev-tasks.md`.
+
+- [ ] **FR-010:** Role-specific prompts and Plan Reviewer gate.
+  - **Rationale:** Increase plan quality and reduce rework.
+  - **Acceptance Criteria:** Prompts exist per role and Plan Reviewer approves plan before patching.
+
+- [ ] **FR-011:** Post-run improvement proposals with human gate.
+  - **Rationale:** Prevent repeat failures and accumulate learnings.
+  - **Acceptance Criteria:** Failures log errors with `WI/agent/step`, propose a patch (not auto-applied), and record in `docs/possible-improvements.md`.
 
 #### Should Have (P1)
 
@@ -195,6 +247,12 @@ The focus is simplicity, robustness, idempotent re-runs, and a deterministic Pla
   - **Metric:** Offload ids used for noisy outputs.
   - **Target:** No large outputs pasted into prompts.
 
+#### Observability
+
+- [ ] **NFR-601:** Traceable, timestamped runs.
+  - **Metric:** Log coverage for CI/tests/precommit/feature runs.
+  - **Target:** Logs exist under `logs/<WI>/<step>.log` with prefixes and timestamps.
+
 ## Workflow/Process Requirements
 
 - Plan → Patch → Test → Report is mandatory for every ticket.
@@ -202,6 +260,13 @@ The focus is simplicity, robustness, idempotent re-runs, and a deterministic Pla
 - Output offload is required for noisy commands.
 - Orchestrator + implementer/reviewer/tester roles are supported.
 - Worktree policy and naming convention are defined and followed.
+- Plan Reviewer validates plans before patching (no code edits).
+- Role-specific prompts are used for planner/plan-reviewer/patcher/tester/reporter.
+- Deterministic steps are delegated to scripts via a shared runner library.
+- CI/tests/precommit/feature runs write structured logs to `logs/<WI>/<step>.log`.
+- prd-to-features is incremental: add missing only, never delete, skip `Status: Done`.
+- Post-run improvement proposals are recorded in `docs/possible-improvements.md` and require human approval to apply.
+- Single worktree per feature; no `feature-worktrees.json`.
 
 ### Constraints
 
@@ -331,8 +396,9 @@ Bootstrap → Context/PRD → Features → Tickets → Execute → Repeat
 
 ### Change Log
 
-| Date       | Version | Changes                                              | Author       |
-| ---------- | ------- | ---------------------------------------------------- | ------------ |
-| 2026-01-30 | 0.1     | Draft PRD from context docs                          | Primary user |
-| 2026-02-02 | 0.2     | Add workflow/process requirements and offload policy | Primary user |
-| 2026-02-02 | 0.3     | Add process features and expected-features mapping   | Primary user |
+| Date       | Version | Changes                                                       | Author       |
+| ---------- | ------- | ------------------------------------------------------------- | ------------ |
+| 2026-01-30 | 0.1     | Draft PRD from context docs                                   | Primary user |
+| 2026-02-02 | 0.2     | Add workflow/process requirements and offload policy          | Primary user |
+| 2026-02-02 | 0.3     | Add process features and expected-features mapping            | Primary user |
+| 2026-02-05 | 0.4     | Add observability, runner, incremental features, role prompts | Primary user |

@@ -28,8 +28,10 @@
 
 - Role scope is enforced (planner/tester/reporter log files only; patcher excluded from those files).
 - Planner/Tester/Reporter run in the patcher worktree so they review shared content; separate worktrees are not created for those roles.
-- Worktrees are tracked in `docs/02-features/<feature>/feature-worktrees.json` and auto-collected into `main` as a single squashed commit.
+- Use a single worktree per feature and auto-collect into `main` as a single squashed commit (no `feature-worktrees.json`).
   - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.
+- Deterministic steps are executed via a shared runner library with standard metadata injection (`work_item_id`, `agent_name`, `run_id`).
+- Logs for CI/tests/precommit/feature runs are written to `logs/<WI>/<step>.log` with `[WI-...][agent][step]` prefix and timestamps.
 
 2. **Resuming a Work Item (Automatic)**
    - If an execution log entry already exists, `make feature` resumes automatically.
@@ -52,6 +54,7 @@
 
 6. **Plan → Patch → Test → Report**
    - Plan: approach, files, risks, tests, and work-item-specific DoD.
+   - Plan is reviewed by Plan Reviewer (no code edits) before patching.
    - Plan must include anti-hardcode coverage (fixtures per critical path, seed strategy, invariant checks, contract boundaries).
    - Block the work item if the Plan/TDD Plan does not state fixture count (>=2 per critical path), seed strategy, and invariant checks.
    - Patch: make the smallest diff that satisfies the work item (TDD where applicable).
@@ -74,7 +77,6 @@
    - Run tests and confirm they fail for the right reason.
    - Implement minimal code changes to pass tests.
    - Re-run tests and confirm they pass.
-   - Tests must satisfy the anti-hardcode requirements in `docs/04-process/testing-strategy.md`.
    - Tests must satisfy the anti-hardcode requirements in `docs/04-process/testing-strategy.md`.
 
 9. **Docs Sync (Mandatory)**

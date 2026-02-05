@@ -18,6 +18,9 @@
 - [x] Projects may use Python, TypeScript/Node, Rust, or Go depending on need.
 - [x] Bootstrapping should work for new or existing repos in arbitrary directories.
 - [x] Tooling must be idempotent and safe to re-run without corrupting state.
+- [x] Scripts can write structured logs under `logs/` and offload output under `.offload/`.
+- [x] Deterministic steps can be delegated to scripts with a shared runner library.
+- [x] Precommit/CI runs locally and can re-stage auto-fixed files.
 
 ### Business Assumptions
 

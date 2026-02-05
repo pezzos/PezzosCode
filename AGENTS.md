@@ -32,7 +32,7 @@ Rules:
 - Tester writes only `docs/02-features/<feature>/validation-log.md`.
 - Reporter writes only `docs/02-features/<feature>/reporter-log.md`.
 - Patcher can edit anywhere except the role-scoped log files.
-- Orchestrator writes `docs/02-features/<feature>/feature-worktrees.json` and squashes outputs into `main`.
+- Orchestrator uses a single worktree per feature and squashes role outputs into `main` (no `feature-worktrees.json`).
 
 ## Setup commands
 

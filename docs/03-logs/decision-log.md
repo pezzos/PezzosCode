@@ -104,6 +104,64 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-017] - Observability-first workflow hardening
+
+**Date:** 2026-02-05
+
+**Status:** Approved
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Token burn, limited observability, and inconsistent role behavior were causing regressions and slow debugging.
+
+**Problem Statement:**
+How do we reduce deterministic token burn and improve traceability without expanding scope or adding new infrastructure?
+
+**Options Considered:**
+
+#### Option 1: Keep ad-hoc LLM-driven execution
+
+**Description:** Rely on manual prompts and unstructured outputs.
+
+**Pros:**
+
+- Minimal tooling changes
+
+**Cons:**
+
+- Continued token waste
+- Hard-to-debug failures
+- Inconsistent role behavior
+
+**Estimated effort:** Low
+
+#### Option 2: Standardize runner + structured logs + role prompts (chosen)
+
+**Description:** Introduce a shared runner, structured logs, incremental PRD → features, plan review, and human-gated improvement proposals.
+
+**Pros:**
+
+- Deterministic execution for repeatable steps
+- Tail-friendly, timestamped logs
+- Clear role boundaries and plan validation
+
+**Cons:**
+
+- Requires updates across docs/tools
+
+**Estimated effort:** Moderate
+
+**Decision:**
+Adopt Option 2 and make observability-first, script-driven execution the default.
+
+**Consequences:**
+
+- Logs live at `logs/<WI>/<step>.log` with standard prefixes.
+- Plan Reviewer is required before patching.
+- PRD → features is incremental; Done features are not regenerated.
+- Single worktree per feature; no `feature-worktrees.json`.
+
 ### [DEC-016] - Defer global log updates until feature completion
 
 **Date:** 2026-02-05
@@ -833,7 +891,7 @@ Clear ownership boundaries and automated consolidation reduce integration overhe
 
 - Planner/tester/reporter can only write their feature log files.
 - Patcher must not touch those files.
-- Worktrees are tracked in `feature-worktrees.json` and removed after success.
+- Single worktree per feature; no `feature-worktrees.json` tracking file.
 - All role changes are squashed into one commit on `main`.
 
 **Success Criteria:**
