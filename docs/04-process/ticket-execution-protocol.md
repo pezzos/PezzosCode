@@ -52,6 +52,8 @@
 
 6. **Plan → Patch → Test → Report**
    - Plan: approach, files, risks, tests, and work-item-specific DoD.
+   - Plan must include anti-hardcode coverage (fixtures per critical path, seed strategy, invariant checks, contract boundaries).
+   - Block the work item if the Plan/TDD Plan does not state fixture count (>=2 per critical path), seed strategy, and invariant checks.
    - Patch: make the smallest diff that satisfies the work item (TDD where applicable).
    - Test: run agreed checks and record results.
    - Tests must be listed in the **Allowed Tests** section of the dev-tasks execution log (exact commands).
@@ -72,6 +74,7 @@
    - Run tests and confirm they fail for the right reason.
    - Implement minimal code changes to pass tests.
    - Re-run tests and confirm they pass.
+   - Tests must satisfy the anti-hardcode requirements in `docs/04-process/testing-strategy.md`.
 
 9. **Docs Sync (Mandatory)**
    - Update required docs/logs per dev-tasks execution log entry.

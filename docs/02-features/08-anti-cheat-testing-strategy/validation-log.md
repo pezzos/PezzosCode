@@ -2,6 +2,27 @@
 
 ## Entries
 
+### WI-20260205-01 - 2026-02-05
+
+Outcome: FAIL
+Tests run: make ci
+Notes: Results: make ci -> 2
+Work Item ID: WI-20260205-01
+
+### WI-20260205-01 - 2026-02-05
+
+Outcome: PASS
+Tests run: make ci
+Notes: Results: make ci -> 0
+Work Item ID: WI-20260205-01
+
+### WI-20260205-01 - 2026-02-05
+
+Outcome: PASS
+Tests run: make ci
+Notes: Results: make ci -> 0
+Work Item ID: WI-20260205-01
+
 ### WI-20260205-02 - 2026-02-05
 
 Outcome: PASS

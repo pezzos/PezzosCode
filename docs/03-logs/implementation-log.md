@@ -44,9 +44,9 @@ This helps with:
 
 **What Changed:**
 
-- Documented anti-hardcode requirements and log sync rules in process docs and templates.
+- Documented anti-hardcode requirements, workflow enforcement rules, and log sync rules in process docs and templates.
 - Hardened pc-feature Allowed Tests handling with smoke-only guardrails and process-doc logging placeholders.
-- Restored a deprecated `pc-ticket` stub for bootstrap compatibility.
+- Restored a deprecated `pc-ticket` stub with an anti-hardcode reminder for bootstrap compatibility.
 
 **Why:**
 

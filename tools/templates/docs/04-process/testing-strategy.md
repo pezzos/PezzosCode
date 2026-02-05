@@ -25,6 +25,12 @@ Anti-hardcode requirements
 - Contract tests at boundaries (requests/responses, status codes, error shapes).
 - Avoid “golden-only” tests for behaviors that should generalize.
 
+Enforcement in workflow
+
+- The Preflight Report or TDD Plan must state fixture coverage (>=2 fixtures per critical path), seed strategy, and invariant checks.
+- Work items are blocked until the Plan/TDD Plan includes those details and contract coverage at boundaries.
+- Tests must include at least two fixtures per critical path and at least one invariant-based assertion.
+
 Deterministic randomness
 
 - Use a fixed seed in tests that use randomization.

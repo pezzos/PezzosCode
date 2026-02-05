@@ -4,5 +4,13 @@ set -euo pipefail
 cat <<'EOF'
 pc-ticket has been deprecated in favor of pc-feature.
 Use: tools/pc-feature F=<feature-id>
+
+Reminder: tests must satisfy anti-hardcode requirements in
+docs/04-process/testing-strategy.md.
+At minimum, the Plan/TDD Plan must state:
+- multi-fixture coverage (>=2 fixtures per critical path)
+- seeded randomness strategy (deterministic seed)
+- invariant checks (property-style assertions)
+- contract coverage at boundaries
 EOF
 exit 1
