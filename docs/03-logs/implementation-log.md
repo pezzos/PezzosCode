@@ -27,6 +27,33 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Harden pc-feature worktree hygiene and global log enforcement
+
+**Feature/Bug:** Process/Tooling - pc-feature worktree hygiene
+
+**Changed Files:**
+
+- `tools/pc-feature`
+
+**What Changed:**
+
+- Auto-recreate dirty worktrees instead of prompting.
+- Added preflight cleanup for global logs and enforced them as read-only until gates pass.
+- Added post-role cleanliness checkpoints that recreate the worktree if it is dirty after role commits.
+
+**Why:**
+
+- Prevent role-scope failures caused by leftover worktree dirt from interrupted runs.
+
+**How:**
+
+- Introduced global log tracking/cleanup helpers and a clean-worktree checkpoint utility.
+- Updated role-scope enforcement to block global log edits before gates.
+
+**Trade-offs / Notes:**
+
+- Recreate-on-dirty assumes role commits already captured intended changes.
+
 ### 2026-02-05 - Sync ticket-execution-protocol template to living guidance
 
 **Feature/Bug:** Process/Tooling - template sync

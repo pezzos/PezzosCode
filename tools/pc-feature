@@ -21,6 +21,13 @@ ROLE_LOG_FILES = {
     "reporter": "reporter-log.md",
     "tester": "validation-log.md",
 }
+GLOBAL_LOG_FILES = (
+    "bug-log.md",
+    "decision-log.md",
+    "implementation-log.md",
+    "insights.md",
+    "validation-log.md",
+)
 
 
 SECTION_ORDER = [
@@ -582,6 +589,10 @@ def role_log_paths(feature_dir: str) -> List[str]:
     return list(worktree_role_paths(feature_dir).values())
 
 
+def global_log_paths() -> List[str]:
+    return [os.path.join("docs", "03-logs", name) for name in GLOBAL_LOG_FILES]
+
+
 def reset_role_logs_to_head(worktree_path: str, feature_dir: str) -> None:
     paths = role_log_paths(feature_dir)
     if not paths:
@@ -614,6 +625,72 @@ def cleanup_dirty_role_logs(worktree_path: str, feature_dir: str) -> None:
             full_path = os.path.join(worktree_path, path)
             if os.path.exists(full_path):
                 os.remove(full_path)
+
+
+def cleanup_dirty_global_logs(worktree_path: str) -> None:
+    log_paths = global_log_paths()
+    if not log_paths:
+        return
+    dirty = [path for path in get_status_paths(worktree_path) if path in log_paths]
+    if not dirty:
+        return
+    for path in dirty:
+        result = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", path],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=worktree_path,
+        )
+        if result.returncode == 0:
+            subprocess.run(
+                ["git", "checkout", "--", path], check=False, cwd=worktree_path
+            )
+        else:
+            full_path = os.path.join(worktree_path, path)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+
+
+def recreate_worktree(root: str, path: str, branch: str) -> None:
+    result = subprocess.run(
+        ["git", "worktree", "remove", "--force", path],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to remove worktree at {path}\n{result.stderr}")
+    if not git_branch_exists(root, branch):
+        die(f"pc-feature: expected branch {branch} to exist for worktree recreate")
+    result = subprocess.run(
+        ["git", "worktree", "add", path, branch],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to recreate worktree for {branch}\n{result.stderr}")
+
+
+def ensure_clean_worktree(
+    root: str, worktree_path: str, branch: str, label: str
+) -> None:
+    paths = filter_ignored_paths(get_status_paths(worktree_path))
+    if not paths:
+        return
+    recreate_worktree(root, worktree_path, branch)
+    paths = filter_ignored_paths(get_status_paths(worktree_path))
+    if paths:
+        die(
+            f"pc-feature: {label} worktree still dirty after recreate: "
+            + ", ".join(sorted(paths))
+        )
 
 
 def remove_worktree(root: str, path: str, branch: str) -> None:
@@ -682,6 +759,7 @@ def enforce_role_scope(
     if not paths:
         return
     role_paths = worktree_role_paths(feature_dir)
+    global_logs = set(global_log_paths())
     dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
     allowed = set()
     forbidden = set(role_paths.values())
@@ -691,6 +769,12 @@ def enforce_role_scope(
     if role == "planner":
         allowed.add(dev_tasks_path)
     if role == "patcher":
+        illegal_globals = [path for path in paths if path in global_logs]
+        if illegal_globals:
+            die(
+                "pc-feature: global logs are read-only until gates pass: "
+                + ", ".join(sorted(illegal_globals))
+            )
         illegal = [path for path in paths if path in forbidden]
         if illegal:
             die(
@@ -698,6 +782,12 @@ def enforce_role_scope(
                 + ", ".join(sorted(illegal))
             )
         return
+    illegal_globals = [path for path in paths if path in global_logs]
+    if illegal_globals:
+        die(
+            "pc-feature: global logs are read-only until gates pass: "
+            + ", ".join(sorted(illegal_globals))
+        )
     illegal = [path for path in paths if path not in allowed]
     if illegal:
         die(
@@ -1014,13 +1104,7 @@ def main() -> None:
         dirty = worktree_is_dirty(patcher_path)
         ahead = branch_ahead_count(root, "refs/heads/main", patcher_branch) > 0
         if dirty or ahead:
-            reason = "not clean" if dirty else "ahead of main"
-            if prompt_yes_no(
-                f"pc-feature: The worktree is {reason} and will be deleted and recreated. Do you want to continue? (y/n)"
-            ):
-                remove_worktree(root, patcher_path, patcher_branch)
-            else:
-                die("pc-feature: aborted by user")
+            remove_worktree(root, patcher_path, patcher_branch)
     dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
     if not os.path.exists(dev_tasks_path):
         die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")
@@ -1136,6 +1220,8 @@ def main() -> None:
     for role, rel_path in role_paths.items():
         ensure_role_log(os.path.join(root, rel_path), role)
     cleanup_dirty_role_logs(patcher_path, feature_dir)
+    cleanup_dirty_global_logs(patcher_path)
+    ensure_clean_worktree(root, patcher_path, patcher_branch, "preflight")
     write_worktree_manifest(
         feature_dir,
         [
@@ -1177,6 +1263,7 @@ def main() -> None:
             format_role_changes("planner", planner_path, feature_dir)
             enforce_role_scope(planner_path, "planner", feature_dir)
             commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
+            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
 
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Patch"):
@@ -1197,6 +1284,7 @@ def main() -> None:
             reset_role_logs_to_head(patcher_path, feature_dir)
             enforce_role_scope(patcher_path, "patcher", feature_dir)
             commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
+            ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
 
         content = read_file(dev_tasks_path)
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
@@ -1269,6 +1357,7 @@ def main() -> None:
             format_role_changes("tester", tester_path, feature_dir)
             enforce_role_scope(tester_path, "tester", feature_dir)
             commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
+            ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
             die("pc-feature: missing or forbidden allowed tests; update Allowed Tests")
 
         test_results: List[str] = []
@@ -1296,6 +1385,7 @@ def main() -> None:
         format_role_changes("tester", tester_path, feature_dir)
         enforce_role_scope(tester_path, "tester", feature_dir)
         commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
+        ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
 
         reporter_prompt = (
             "You are the Reporter agent. Review changes for scope and completeness. "
