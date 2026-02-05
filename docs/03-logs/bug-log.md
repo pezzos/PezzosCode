@@ -126,6 +126,56 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-002] - Shared worktree role-scope false positive
+
+**Date Discovered:** 2026-02-04
+
+**Discovered By:** CLI run (`make feature F=07`)
+
+**Severity:** Medium
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Any user resuming a work item with prefilled Plan section
+
+**Symptoms:**
+`pc-feature` fails with `tester edited out-of-scope files` when planner-log is created but no planner step runs.
+
+**Steps to Reproduce:**
+
+1. Ensure a work item already has a completed Plan section.
+2. Run `make feature F=07`.
+3. Observe: tester step fails with out-of-scope error on `planner-log.md`.
+
+**Expected Behavior:**
+Role enforcement should only consider files the role modifies.
+
+**Actual Behavior:**
+Unneeded role logs were created up-front, causing false positives.
+
+**Root Cause:**
+`pc-feature` pre-created all role logs in the shared patcher worktree, leaving untracked role logs when a role step is skipped.
+
+**Fix:**
+Create role logs lazily, immediately before writing each role's log entry.
+
+**Files Changed:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/bug-log.md`
+- `docs/03-logs/validation-log.md`
+
+**Prevention:**
+
+- Process changes: Avoid pre-creating role-scoped files in shared worktrees.
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-04
+
 ### [BUG-001] - Users Unable to Save Profile Changes
 
 **Date Discovered:** 2025-01-15

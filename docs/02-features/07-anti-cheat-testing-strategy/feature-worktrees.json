@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-02-04T22:14:16",
+  "worktrees": [
+    {
+      "role": "planner",
+      "path": "/Users/alexandrepezzotta/repos/PezzosCode-07-anti-cheat-testing-strategy-patcher",
+      "branch": "feature-07-anti-cheat-testing-strategy-patcher"
+    },
+    {
+      "role": "patcher",
+      "path": "/Users/alexandrepezzotta/repos/PezzosCode-07-anti-cheat-testing-strategy-patcher",
+      "branch": "feature-07-anti-cheat-testing-strategy-patcher"
+    },
+    {
+      "role": "tester",
+      "path": "/Users/alexandrepezzotta/repos/PezzosCode-07-anti-cheat-testing-strategy-patcher",
+      "branch": "feature-07-anti-cheat-testing-strategy-patcher"
+    },
+    {
+      "role": "reporter",
+      "path": "/Users/alexandrepezzotta/repos/PezzosCode-07-anti-cheat-testing-strategy-patcher",
+      "branch": "feature-07-anti-cheat-testing-strategy-patcher"
+    }
+  ]
+}

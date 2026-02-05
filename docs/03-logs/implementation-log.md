@@ -27,6 +27,29 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-04 - Prevent role-scope failures in shared worktree runs
+
+**Feature/Bug:** Process/Tooling - pc-feature role log handling
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/bug-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Deferred creating role log files in the patcher worktree until the role actually writes to them, avoiding out-of-scope enforcement errors on resume.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (no test command specified)
+
+**Author:** Codex
+
 ### 2026-02-04 - Align ticket execution protocol template
 
 **Feature/Bug:** Process/Tooling - template sync follow-up

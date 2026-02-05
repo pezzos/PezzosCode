@@ -889,8 +889,6 @@ def main() -> None:
     role_paths = worktree_role_paths(feature_dir)
     for role, rel_path in role_paths.items():
         ensure_role_log(os.path.join(root, rel_path), role)
-    for role in role_paths:
-        ensure_role_log(os.path.join(patcher_path, role_paths[role]), role)
     write_worktree_manifest(
         feature_dir,
         [
@@ -919,6 +917,9 @@ def main() -> None:
             content = update_entry_field(content, work_item_id, "Planner", "Codex")
             content = replace_entry_section(content, work_item_id, "Plan", plan_text)
             write_file(dev_tasks_path, content)
+            ensure_role_log(
+                os.path.join(planner_path, role_paths["planner"]), "planner"
+            )
             append_role_log(
                 os.path.join(planner_path, role_paths["planner"]),
                 work_item_id,
@@ -977,6 +978,7 @@ def main() -> None:
         if tests_run:
             content = update_entry_field(content, work_item_id, "Tests run", tests_run)
         write_file(dev_tasks_path, content)
+        ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
         append_role_log(
             os.path.join(tester_path, role_paths["tester"]),
             work_item_id,
@@ -1013,6 +1015,7 @@ def main() -> None:
                 content, work_item_id, "Docs/logs updated", docs_updated
             )
         write_file(dev_tasks_path, content)
+        ensure_role_log(os.path.join(reporter_path, role_paths["reporter"]), "reporter")
         append_role_log(
             os.path.join(reporter_path, role_paths["reporter"]),
             work_item_id,

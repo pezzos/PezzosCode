@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-04 - pc-feature role-scope fix validation pending
+
+- Not run (no test command specified).
+
 ### 2026-02-04 - Template sync hook pass after doc-template alignment
 
 - `tools/offload-proxy/pp tools/pc-template-sync` (PASS)
