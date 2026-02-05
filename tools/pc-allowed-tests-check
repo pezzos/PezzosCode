@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import shlex
+
+
+def module_to_path(module: str) -> str:
+    return os.path.join(*module.split(".")) + ".py"
+
+
+def check_unittest(parts: list[str]) -> list[str]:
+    missing: list[str] = []
+    for arg in parts[3:]:
+        if arg.startswith("-"):
+            continue
+        target = arg.split(":", 1)[0]
+        if not target:
+            continue
+        file_path = module_to_path(target)
+        if os.path.exists(file_path):
+            continue
+        pkg_path = os.path.join(*target.split("."))
+        if os.path.isdir(pkg_path) and os.path.exists(
+            os.path.join(pkg_path, "__init__.py")
+        ):
+            continue
+        missing.append(arg)
+    return missing
+
+
+def check_pytest(parts: list[str], start_idx: int) -> list[str]:
+    missing: list[str] = []
+    for arg in parts[start_idx:]:
+        if arg.startswith("-"):
+            continue
+        target = arg.split("::", 1)[0]
+        if "/" in target or target.endswith(".py"):
+            if not os.path.exists(target):
+                missing.append(arg)
+    return missing
+
+
+def check_command(raw: str) -> list[str]:
+    try:
+        parts = shlex.split(raw)
+    except ValueError:
+        return [raw]
+    if not parts:
+        return []
+    if (
+        parts[0] in {"python", "python3"}
+        and len(parts) >= 3
+        and parts[1] == "-m"
+        and parts[2] == "unittest"
+    ):
+        return check_unittest(parts)
+    if parts[0] in {"pytest", "py.test"}:
+        return check_pytest(parts, 1)
+    if (
+        parts[0] in {"python", "python3"}
+        and len(parts) >= 3
+        and parts[1] == "-m"
+        and parts[2] == "pytest"
+    ):
+        return check_pytest(parts, 3)
+    return []
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Validate that allowed test commands reference existing tests."
+    )
+    parser.add_argument("--cmd", action="append", default=[], help="Test command")
+    args = parser.parse_args()
+
+    missing: list[str] = []
+    for raw in args.cmd:
+        missing.extend(check_command(raw))
+
+    if missing:
+        for entry in missing:
+            print(entry)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

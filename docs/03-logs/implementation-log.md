@@ -27,6 +27,33 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Move Allowed Tests fixes to Planner and validate test existence
+
+**Feature/Bug:** Process/Tooling - pc-feature Allowed Tests
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/pc-allowed-tests-check`
+
+**What Changed:**
+
+- Allowed Tests auto-fix now runs only in the Planner step and is committed there.
+- Added a pre-Tester reset for dirty `dev-tasks.md`.
+- Added a small script to verify that Allowed Tests reference existing test targets.
+
+**Why:**
+
+- Prevent tester scope failures caused by mid-run dev-tasks edits and missing tests.
+
+**How:**
+
+- Introduced a helper script that validates unittest/pytest targets and integrated it into Planner validation.
+
+**Trade-offs / Notes:**
+
+- Unknown command formats are treated as unverified and may still pass validation.
+
 ### 2026-02-05 - Prevent global log edits during patch/test steps
 
 **Feature/Bug:** Process/Tooling - pc-feature global log guard

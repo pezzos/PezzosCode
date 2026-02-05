@@ -609,6 +609,43 @@ def reset_global_logs_to_head(worktree_path: str) -> None:
     subprocess.run(cmd, check=False, cwd=worktree_path)
 
 
+def reset_dev_tasks_if_dirty(worktree_path: str, dev_tasks_path: str) -> None:
+    paths = get_status_paths(worktree_path)
+    if dev_tasks_path not in paths:
+        return
+    subprocess.run(
+        ["git", "checkout", "--", dev_tasks_path], check=False, cwd=worktree_path
+    )
+
+
+def check_allowed_tests_exist(
+    allowed_tests: List[str], worktree_path: str
+) -> List[str]:
+    if not allowed_tests:
+        return []
+    cmd = ["tools/pc-allowed-tests-check"]
+    for entry in allowed_tests:
+        cmd.extend(["--cmd", entry])
+    result = subprocess.run(
+        cmd,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=worktree_path,
+    )
+    missing = []
+    if result.stdout:
+        missing.extend(
+            line.strip() for line in result.stdout.splitlines() if line.strip()
+        )
+    if result.stderr:
+        missing.extend(
+            line.strip() for line in result.stderr.splitlines() if line.strip()
+        )
+    return missing if result.returncode != 0 else []
+
+
 def cleanup_dirty_role_logs(worktree_path: str, feature_dir: str) -> None:
     role_paths = role_log_paths(feature_dir)
     if not role_paths:
@@ -1297,60 +1334,69 @@ def main() -> None:
             ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
 
         content = read_file(dev_tasks_path)
+        planner_updates = False
+        for attempt_fix in range(2):
+            allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
+            allowed_tests = parse_allowed_tests(allowed_section)
+            forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
+            missing = check_allowed_tests_exist(allowed_tests, planner_path)
+            if not allowed_tests or forbidden or missing:
+                issues: List[str] = []
+                if not allowed_tests:
+                    issues.append("No allowed tests are listed.")
+                if forbidden:
+                    issues.append("Forbidden commands detected.")
+                if missing:
+                    issues.append("Missing tests: " + "; ".join(sorted(set(missing))))
+                planner_prompt = (
+                    "Allowed Tests must list specific, scoped commands that exist. "
+                    "`make feature` and `pc-feature` are forbidden. "
+                    "Return ONLY the Allowed Tests section body (bulleted commands).\n"
+                    f"Work Item ID: {work_item_id}\n"
+                    f"Issues: {' '.join(issues)}\n"
+                )
+                planner_response = codex_exec(
+                    planner_prompt, cwd=planner_path, profile="Planner"
+                ).strip()
+                if planner_response:
+                    content = replace_entry_section(
+                        content, work_item_id, "Allowed Tests", planner_response
+                    )
+                    write_file(dev_tasks_path, content)
+                    planner_updates = True
+                    content = read_file(dev_tasks_path)
+                    continue
+            break
+        if planner_updates:
+            if not extract_field(content, "Planner"):
+                content = update_entry_field(content, work_item_id, "Planner", "Codex")
+                write_file(dev_tasks_path, content)
+            ensure_role_log(
+                os.path.join(planner_path, role_paths["planner"]), "planner"
+            )
+            append_role_log(
+                os.path.join(planner_path, role_paths["planner"]),
+                work_item_id,
+                "Updated Allowed Tests to satisfy existence and scope checks.",
+            )
+            format_role_changes("planner", planner_path, feature_dir)
+            enforce_role_scope(planner_path, "planner", feature_dir)
+            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
+            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+
+        reset_dev_tasks_if_dirty(tester_path, dev_tasks_path)
+        content = read_file(dev_tasks_path)
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
         allowed_tests = parse_allowed_tests(allowed_section)
-        if not allowed_tests:
-            planner_prompt = (
-                "No allowed tests are listed. "
-                "Please add specific, scoped tests to the Allowed Tests section. "
-                "`make feature` and `pc-feature` are forbidden as tests. "
-                "Return ONLY the Allowed Tests section body (bulleted commands).\n"
-                f"Work Item ID: {work_item_id}\n"
-                f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
-            )
-            planner_response = codex_exec(
-                planner_prompt, cwd=planner_path, profile="Planner"
-            ).strip()
-            if planner_response:
-                content = replace_entry_section(
-                    content, work_item_id, "Allowed Tests", planner_response
-                )
-                write_file(dev_tasks_path, content)
-                content = read_file(dev_tasks_path)
-                allowed_section = get_entry_section(
-                    content, work_item_id, "Allowed Tests"
-                )
-                allowed_tests = parse_allowed_tests(allowed_section)
         forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
-        if forbidden:
-            planner_prompt = (
-                "Allowed Tests contains forbidden commands. "
-                "Replace them with specific, scoped tests. "
-                "`make feature` and `pc-feature` are forbidden. "
-                "Return ONLY the Allowed Tests section body (bulleted commands).\n"
-                f"Work Item ID: {work_item_id}\n"
-                f"Forbidden: {'; '.join(forbidden)}\n"
-            )
-            planner_response = codex_exec(
-                planner_prompt, cwd=planner_path, profile="Planner"
-            ).strip()
-            if planner_response:
-                content = replace_entry_section(
-                    content, work_item_id, "Allowed Tests", planner_response
-                )
-                write_file(dev_tasks_path, content)
-                content = read_file(dev_tasks_path)
-                allowed_section = get_entry_section(
-                    content, work_item_id, "Allowed Tests"
-                )
-                allowed_tests = parse_allowed_tests(allowed_section)
-            forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
-        if not allowed_tests or forbidden:
-            note = (
-                "No allowed tests are listed."
-                if not allowed_tests
-                else ("Forbidden tests detected: " + "; ".join(forbidden))
-            )
+        missing = check_allowed_tests_exist(allowed_tests, tester_path)
+        if not allowed_tests or forbidden or missing:
+            if not allowed_tests:
+                note = "No allowed tests are listed."
+            elif forbidden:
+                note = "Forbidden tests detected: " + "; ".join(forbidden)
+            else:
+                note = "Missing tests: " + "; ".join(sorted(set(missing)))
             tester_feedback = (
                 "Outcome: FAIL\n"
                 "Tests run: (none)\n"
