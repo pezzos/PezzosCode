@@ -27,6 +27,33 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Add smoke test normalization and auto-log placeholders for process docs
+
+**Feature/Bug:** Process/Tooling - pc-feature workflow resilience
+
+**Changed Files:**
+
+- `tools/pc-feature`
+
+**What Changed:**
+
+- Treated `make ci` as forbidden in Allowed Tests and auto-inserted a smoke placeholder when missing.
+- Added a pre-patch smoke run that records results without aborting.
+- Detected process doc changes and auto-appended placeholder global log entries after gates if missing.
+- Updated reporter prompt to avoid failing solely on missing global logs when auto-appending is queued.
+
+**Why:**
+
+- Prevent loop exhaustion from missing logs or heavy test commands in Allowed Tests.
+
+**How:**
+
+- Added process-doc diff detection and post-gate fallback logging; moved Allowed Tests fixes earlier.
+
+**Trade-offs / Notes:**
+
+- Placeholder smoke commands require follow-up to set real smoke tests.
+
 ### 2026-02-05 - Restore pc-ticket stub and align execution protocol log sync wording
 
 **Feature/Bug:** Process/Tooling - docs + bootstrap

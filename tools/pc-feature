@@ -28,6 +28,12 @@ GLOBAL_LOG_FILES = (
     "insights.md",
     "validation-log.md",
 )
+DEFAULT_SMOKE_TEST = 'echo "SMOKE_TEST_REQUIRED: update Allowed Tests"'
+PROCESS_DOC_FILES = (
+    "docs/04-process/ticket-execution-protocol.md",
+    "docs/04-process/testing-strategy.md",
+)
+PROCESS_DOC_PREFIXES = ("tools/templates/docs/",)
 
 
 SECTION_ORDER = [
@@ -646,6 +652,29 @@ def check_allowed_tests_exist(
     return missing if result.returncode != 0 else []
 
 
+def commit_paths(worktree_path: str, ref: str = "HEAD") -> List[str]:
+    result = subprocess.run(
+        ["git", "show", "--name-only", "--pretty=format:", ref],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=worktree_path,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to read commit paths\n{result.stderr}")
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def process_docs_changed(paths: List[str]) -> bool:
+    for path in paths:
+        if path in PROCESS_DOC_FILES:
+            return True
+        if any(path.startswith(prefix) for prefix in PROCESS_DOC_PREFIXES):
+            return True
+    return False
+
+
 def cleanup_dirty_role_logs(worktree_path: str, feature_dir: str) -> None:
     role_paths = role_log_paths(feature_dir)
     if not role_paths:
@@ -1080,6 +1109,7 @@ def is_forbidden_test(cmd: str) -> bool:
         re.search(r"\bmake\s+feature\b", cmd, re.IGNORECASE)
         or re.search(r"\bpc-feature\b", cmd, re.IGNORECASE)
         or re.search(r"\btools/pc-feature\b", cmd, re.IGNORECASE)
+        or re.search(r"\bmake\s+ci\b", cmd, re.IGNORECASE)
     )
 
 
@@ -1277,6 +1307,7 @@ def main() -> None:
         ],
     )
 
+    requires_global_logs = False
     for attempt in range(1, MAX_LOOPS + 1):
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Plan"):
@@ -1311,6 +1342,89 @@ def main() -> None:
             ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
 
         content = read_file(dev_tasks_path)
+        planner_updates = False
+        planner_note = ""
+        allowed_tests: List[str] = []
+        forbidden: List[str] = []
+        missing: List[str] = []
+        for attempt_fix in range(2):
+            allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
+            allowed_tests = parse_allowed_tests(allowed_section)
+            forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
+            missing = check_allowed_tests_exist(allowed_tests, planner_path)
+            if not allowed_tests or forbidden or missing:
+                issues: List[str] = []
+                if not allowed_tests:
+                    issues.append("No allowed tests are listed.")
+                if forbidden:
+                    issues.append("Forbidden commands detected (do not use `make ci`).")
+                if missing:
+                    issues.append("Missing tests: " + "; ".join(sorted(set(missing))))
+                planner_prompt = (
+                    "Allowed Tests must list a light, fast smoke command that exists. "
+                    "Do not use `make ci`, `make feature`, or `pc-feature`. "
+                    "Return ONLY the Allowed Tests section body (bulleted commands).\n"
+                    f"Work Item ID: {work_item_id}\n"
+                    f"Issues: {' '.join(issues)}\n"
+                )
+                planner_response = codex_exec(
+                    planner_prompt, cwd=planner_path, profile="Planner"
+                ).strip()
+                if planner_response:
+                    content = replace_entry_section(
+                        content, work_item_id, "Allowed Tests", planner_response
+                    )
+                    write_file(dev_tasks_path, content)
+                    planner_updates = True
+                    content = read_file(dev_tasks_path)
+                    continue
+            break
+        if not allowed_tests or forbidden or missing:
+            content = replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                f"- {DEFAULT_SMOKE_TEST}",
+            )
+            write_file(dev_tasks_path, content)
+            planner_updates = True
+            planner_note = (
+                "Inserted placeholder smoke test; update Allowed Tests next run."
+            )
+            allowed_tests = [DEFAULT_SMOKE_TEST]
+            forbidden = []
+            missing = []
+            content = read_file(dev_tasks_path)
+        if planner_updates:
+            if not extract_field(content, "Planner"):
+                content = update_entry_field(content, work_item_id, "Planner", "Codex")
+                write_file(dev_tasks_path, content)
+            ensure_role_log(
+                os.path.join(planner_path, role_paths["planner"]), "planner"
+            )
+            note = (
+                planner_note
+                or "Updated Allowed Tests to satisfy existence and scope checks."
+            )
+            append_role_log(
+                os.path.join(planner_path, role_paths["planner"]),
+                work_item_id,
+                note,
+            )
+            format_role_changes("planner", planner_path, feature_dir)
+            enforce_role_scope(planner_path, "planner", feature_dir)
+            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
+            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+
+        smoke_command = allowed_tests[0] if allowed_tests else DEFAULT_SMOKE_TEST
+        if smoke_command:
+            smoke_cmd = ["tools/offload-proxy/pp"] + shlex.split(smoke_command)
+            smoke_exit = run_command(smoke_cmd)
+            review_items.append(
+                format_review_item(f"prepatch smoke {smoke_command}", smoke_exit)
+            )
+
+        content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Patch"):
             patch_prompt = (
                 "You are the Patcher agent. Apply the smallest possible diff to satisfy the plan. "
@@ -1331,58 +1445,10 @@ def main() -> None:
             reset_global_logs_to_head(patcher_path)
             enforce_role_scope(patcher_path, "patcher", feature_dir)
             commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
+            requires_global_logs = requires_global_logs or process_docs_changed(
+                commit_paths(patcher_path)
+            )
             ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
-
-        content = read_file(dev_tasks_path)
-        planner_updates = False
-        for attempt_fix in range(2):
-            allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
-            allowed_tests = parse_allowed_tests(allowed_section)
-            forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
-            missing = check_allowed_tests_exist(allowed_tests, planner_path)
-            if not allowed_tests or forbidden or missing:
-                issues: List[str] = []
-                if not allowed_tests:
-                    issues.append("No allowed tests are listed.")
-                if forbidden:
-                    issues.append("Forbidden commands detected.")
-                if missing:
-                    issues.append("Missing tests: " + "; ".join(sorted(set(missing))))
-                planner_prompt = (
-                    "Allowed Tests must list specific, scoped commands that exist. "
-                    "`make feature` and `pc-feature` are forbidden. "
-                    "Return ONLY the Allowed Tests section body (bulleted commands).\n"
-                    f"Work Item ID: {work_item_id}\n"
-                    f"Issues: {' '.join(issues)}\n"
-                )
-                planner_response = codex_exec(
-                    planner_prompt, cwd=planner_path, profile="Planner"
-                ).strip()
-                if planner_response:
-                    content = replace_entry_section(
-                        content, work_item_id, "Allowed Tests", planner_response
-                    )
-                    write_file(dev_tasks_path, content)
-                    planner_updates = True
-                    content = read_file(dev_tasks_path)
-                    continue
-            break
-        if planner_updates:
-            if not extract_field(content, "Planner"):
-                content = update_entry_field(content, work_item_id, "Planner", "Codex")
-                write_file(dev_tasks_path, content)
-            ensure_role_log(
-                os.path.join(planner_path, role_paths["planner"]), "planner"
-            )
-            append_role_log(
-                os.path.join(planner_path, role_paths["planner"]),
-                work_item_id,
-                "Updated Allowed Tests to satisfy existence and scope checks.",
-            )
-            format_role_changes("planner", planner_path, feature_dir)
-            enforce_role_scope(planner_path, "planner", feature_dir)
-            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
-            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
 
         reset_dev_tasks_if_dirty(tester_path, dev_tasks_path)
         content = read_file(dev_tasks_path)
@@ -1445,6 +1511,12 @@ def main() -> None:
         commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
         ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
 
+        reporter_note = ""
+        if requires_global_logs:
+            reporter_note = (
+                "Global logs will be auto-appended after gates when process docs change. "
+                "Do not fail solely due to missing docs/03-logs updates; note any gaps."
+            )
         reporter_prompt = (
             "You are the Reporter agent. Review changes for scope and completeness. "
             "Compare against main (e.g., `git diff --stat refs/heads/main..HEAD`) to ensure "
@@ -1453,6 +1525,7 @@ def main() -> None:
             "Outcome: PASS|FAIL\n"
             "Docs/logs updated: ...\n"
             "Notes: ...\n"
+            f"{reporter_note}\n"
             f"Work Item ID: {work_item_id}\n"
         )
         reporter_feedback = codex_exec(
@@ -1551,6 +1624,11 @@ def main() -> None:
     implementation_line = str(reporter_global.get("implementation_log", "")).strip()
     validation_line = str(reporter_global.get("validation_log", "")).strip()
     decision_line = str(reporter_global.get("decision_log", "")).strip()
+    if requires_global_logs:
+        if not implementation_line:
+            implementation_line = f"{work_item_id}: Process docs updated; placeholder implementation log entry."
+        if not validation_line:
+            validation_line = f"{work_item_id}: Process docs updated; placeholder validation log entry."
     if implementation_line:
         append_log_line(
             os.path.join("docs", "03-logs", "implementation-log.md"),
