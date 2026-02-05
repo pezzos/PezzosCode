@@ -918,6 +918,14 @@ def ensure_allowed_tests_section(content: str, work_item_id: str) -> str:
     return "\n".join(lines[:start] + entry_lines + lines[end:]) + "\n"
 
 
+def extract_json_payload(raw: str) -> str:
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return raw
+    return raw[start : end + 1]
+
+
 def entry_outcome(content: str, work_item_id: str) -> str:
     entry_lines = content.splitlines()
     start, end = find_entry_block(entry_lines, work_item_id)
@@ -994,7 +1002,8 @@ def main() -> None:
     if not entry_section_complete(content, work_item_id, "Preflight Report"):
         preflight_prompt = (
             "You are preparing preflight data for a work item execution.\n"
-            "Return ONLY valid JSON with keys: prd_ref, scope_in, scope_out, non_goals_reminder, "
+            "Return ONLY valid JSON. No prose, no markdown, no extra text.\n"
+            "Required keys: prd_ref, scope_in, scope_out, non_goals_reminder, "
             "files_to_change (array), planned_new_modules (int), touches_secret_blocking (bool), "
             "touches_restore (bool), touches_secret_scanning (bool), cross_cutting_refactor_modules (int), "
             "tdd_tests (array), doc_updates (array).\n"
@@ -1005,8 +1014,9 @@ def main() -> None:
             f"Dev tasks:\n{content}\n"
         )
         preflight_raw = codex_exec(preflight_prompt).strip()
+        preflight_json = extract_json_payload(preflight_raw)
         try:
-            preflight_data = json.loads(preflight_raw)
+            preflight_data = json.loads(preflight_json)
         except json.JSONDecodeError:
             die(f"pc-feature: failed to parse preflight JSON\n{preflight_raw}")
 

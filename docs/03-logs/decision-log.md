@@ -104,6 +104,70 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-014] - Extract JSON payloads for preflight parsing
+
+**Date:** 2026-02-05
+
+**Status:** Implemented
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+The preflight JSON response sometimes includes extra prose, causing parsing failures and halting `pc-feature`.
+
+**Problem Statement:**
+How do we make preflight JSON parsing resilient to non-JSON prefixes/suffixes while still enforcing structured output?
+
+**Options Considered:**
+
+#### Option 1: Retry on parse failure with a stricter prompt
+
+**Description:** Add a second prompt when JSON parsing fails.
+
+**Pros:**
+
+- Keeps strict JSON format
+
+**Cons:**
+
+- Adds another model call
+
+**Estimated effort:** Low
+
+#### Option 2: Extract JSON payload from the response
+
+**Description:** Parse only the content between the first `{` and last `}` before JSON decoding.
+
+**Pros:**
+
+- Handles stray prose without extra calls
+- Simple and deterministic
+
+**Cons:**
+
+- Could accept unintended JSON if multiple objects are present
+
+**Estimated effort:** Low
+
+**Decision:**
+We chose **Option 2: Extract JSON payload from the response**, plus a stricter prompt.
+
+**Rationale:**
+It reduces failure modes with minimal overhead while still instructing the model to output JSON only.
+
+**Implications:**
+
+- `pc-feature` strips non-JSON prefixes/suffixes before parsing.
+- Prompt explicitly forbids prose or markdown.
+
+**Success Criteria:**
+
+- Preflight JSON parsing no longer fails due to stray prose.
+
+**Review Date:** 2026-03-01
+
+**Actual Outcome:** _Pending_
+
 ### [DEC-013] - Enforce Allowed Tests allowlist and forbid recursive feature runs
 
 **Date:** 2026-02-05

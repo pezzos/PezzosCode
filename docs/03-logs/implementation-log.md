@@ -27,6 +27,30 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Harden preflight JSON parsing for pc-feature
+
+**Feature/Bug:** Process/Tooling - pc-feature preflight
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Tightened the preflight prompt to require JSON-only output.
+- Added JSON payload extraction to strip non-JSON prefixes/suffixes before parsing.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (no test command specified)
+
+**Author:** Codex
+
 ### 2026-02-05 - Add allowed test allowlist and forbid recursive feature runs
 
 **Feature/Bug:** Process/Tooling - pc-feature test execution
