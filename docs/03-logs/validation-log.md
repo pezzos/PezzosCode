@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-05 - Allowed Tests enforcement validation pending
+
+- Not run (no test command specified).
+
 ### 2026-02-05 - pc-feature role isolation hardening validation pending
 
 - Not run (no test command specified).

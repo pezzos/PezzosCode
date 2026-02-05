@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -26,6 +27,7 @@ ROLE_LOG_FILES = {
 SECTION_ORDER = [
     "Preflight Report",
     "TDD Plan",
+    "Allowed Tests",
     "Files to Change + Change Budget",
     "Docs Updated",
     "Plan",
@@ -844,7 +846,7 @@ def prompt_yes_no(message: str) -> bool:
 
 
 def build_execution_entry(work_item_id: str) -> str:
-    return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
+    return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Allowed Tests\n\n- (list exact commands; do not include `make feature` or `pc-feature`)\n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
 
 
 def entry_section_complete(content: str, work_item_id: str, section: str) -> bool:
@@ -863,6 +865,57 @@ def entry_section_complete(content: str, work_item_id: str, section: str) -> boo
             and len(body.split("Commit message:", 1)[1].strip()) > 0
         )
     return True
+
+
+def parse_allowed_tests(section: str) -> List[str]:
+    commands: List[str] = []
+    for line in section.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith(("-", "*")):
+            stripped = stripped[1:].strip()
+        if re.match(r"^\d+\.\s+", stripped):
+            stripped = re.sub(r"^\d+\.\s+", "", stripped).strip()
+        if "list exact commands" in stripped:
+            continue
+        if stripped and "(pending)" not in stripped:
+            commands.append(stripped)
+    return commands
+
+
+def is_forbidden_test(cmd: str) -> bool:
+    return bool(
+        re.search(r"\bmake\s+feature\b", cmd, re.IGNORECASE)
+        or re.search(r"\bpc-feature\b", cmd, re.IGNORECASE)
+        or re.search(r"\btools/pc-feature\b", cmd, re.IGNORECASE)
+    )
+
+
+def ensure_allowed_tests_section(content: str, work_item_id: str) -> str:
+    lines = content.splitlines()
+    start, end = find_entry_block(lines, work_item_id)
+    entry_lines = lines[start:end]
+    header = f"{SECTION_PREFIX}Allowed Tests"
+    if any(line.strip() == header for line in entry_lines):
+        return content
+    insert_before = f"{SECTION_PREFIX}Files to Change + Change Budget"
+    insert_idx = None
+    for idx, line in enumerate(entry_lines):
+        if line.strip() == insert_before:
+            insert_idx = idx
+            break
+    block = [
+        header,
+        "",
+        "- (list exact commands; do not include `make feature` or `pc-feature`)",
+        "",
+    ]
+    if insert_idx is None:
+        entry_lines.extend([""] + block)
+    else:
+        entry_lines = entry_lines[:insert_idx] + block + entry_lines[insert_idx:]
+    return "\n".join(lines[:start] + entry_lines + lines[end:]) + "\n"
 
 
 def entry_outcome(content: str, work_item_id: str) -> str:
@@ -923,6 +976,9 @@ def main() -> None:
         entry = build_execution_entry(work_item_id)
         content = insert_execution_entry(content, entry)
         write_file(dev_tasks_path, content)
+    content = read_file(dev_tasks_path)
+    content = ensure_allowed_tests_section(content, work_item_id)
+    write_file(dev_tasks_path, content)
 
     if manual:
         print("pc-feature: manual mode enabled; execution log entry ready")
@@ -1026,7 +1082,9 @@ def main() -> None:
         if not entry_section_complete(content, work_item_id, "Plan"):
             plan_prompt = (
                 "You are the Planner agent. Provide a concise plan for this work item. "
-                "Include approach, files to change, risks, and tests.\n"
+                "Include approach, files to change, risks, and tests. "
+                "Also fill the Allowed Tests section with exact commands; "
+                "do not include `make feature` or `pc-feature`.\n"
                 f"Work Item ID: {work_item_id}\n"
                 f"Feature spec:\n{feature_spec}\n\n"
                 f"Tech design:\n{tech_design}\n\n"
@@ -1080,19 +1138,107 @@ def main() -> None:
             enforce_role_scope(patcher_path, "patcher", feature_dir)
             commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
 
-        test_prompt = (
-            "You are the Tester agent. Run the agreed tests and report results. "
-            "Return in this exact format:\n"
-            "Outcome: PASS|FAIL\n"
-            "Tests run: ...\n"
-            "Notes: ...\n"
+        content = read_file(dev_tasks_path)
+        allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
+        allowed_tests = parse_allowed_tests(allowed_section)
+        if not allowed_tests:
+            planner_prompt = (
+                "No allowed tests are listed. "
+                "Please add specific, scoped tests to the Allowed Tests section. "
+                "`make feature` and `pc-feature` are forbidden as tests. "
+                "Return ONLY the Allowed Tests section body (bulleted commands).\n"
+                f"Work Item ID: {work_item_id}\n"
+                f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
+            )
+            planner_response = codex_exec(
+                planner_prompt, cwd=planner_path, profile="Planner"
+            ).strip()
+            if planner_response:
+                content = replace_entry_section(
+                    content, work_item_id, "Allowed Tests", planner_response
+                )
+                write_file(dev_tasks_path, content)
+                content = read_file(dev_tasks_path)
+                allowed_section = get_entry_section(
+                    content, work_item_id, "Allowed Tests"
+                )
+                allowed_tests = parse_allowed_tests(allowed_section)
+        forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
+        if forbidden:
+            planner_prompt = (
+                "Allowed Tests contains forbidden commands. "
+                "Replace them with specific, scoped tests. "
+                "`make feature` and `pc-feature` are forbidden. "
+                "Return ONLY the Allowed Tests section body (bulleted commands).\n"
+                f"Work Item ID: {work_item_id}\n"
+                f"Forbidden: {'; '.join(forbidden)}\n"
+            )
+            planner_response = codex_exec(
+                planner_prompt, cwd=planner_path, profile="Planner"
+            ).strip()
+            if planner_response:
+                content = replace_entry_section(
+                    content, work_item_id, "Allowed Tests", planner_response
+                )
+                write_file(dev_tasks_path, content)
+                content = read_file(dev_tasks_path)
+                allowed_section = get_entry_section(
+                    content, work_item_id, "Allowed Tests"
+                )
+                allowed_tests = parse_allowed_tests(allowed_section)
+            forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
+        if not allowed_tests or forbidden:
+            note = (
+                "No allowed tests are listed."
+                if not allowed_tests
+                else ("Forbidden tests detected: " + "; ".join(forbidden))
+            )
+            tester_feedback = (
+                "Outcome: FAIL\n"
+                "Tests run: (none)\n"
+                f"Notes: {note} Add specific, scoped tests to Allowed Tests; "
+                "`make feature` and `pc-feature` are forbidden.\n"
+                f"Work Item ID: {work_item_id}\n"
+            )
+            content = read_file(dev_tasks_path)
+            content = update_entry_field(content, work_item_id, "Tester", "Codex")
+            content = replace_entry_section(
+                content, work_item_id, "Test Results", tester_feedback
+            )
+            content = replace_entry_section(
+                content, work_item_id, "Tester Feedback", tester_feedback
+            )
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            write_file(dev_tasks_path, content)
+            ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
+            append_role_log(
+                os.path.join(tester_path, role_paths["tester"]),
+                work_item_id,
+                tester_feedback,
+            )
+            format_role_changes("tester", tester_path, feature_dir)
+            enforce_role_scope(tester_path, "tester", feature_dir)
+            commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
+            die("pc-feature: missing or forbidden allowed tests; update Allowed Tests")
+
+        test_results: List[str] = []
+        failed = False
+        for cmd in allowed_tests:
+            cmd_list = ["tools/offload-proxy/pp"] + shlex.split(cmd)
+            exit_code = run_command(cmd_list)
+            test_results.append(f"{cmd} -> {exit_code}")
+            if exit_code != 0:
+                failed = True
+        tester_outcome = "FAIL" if failed else "PASS"
+        tests_run = "; ".join(allowed_tests)
+        tester_feedback = (
+            f"Outcome: {tester_outcome}\n"
+            f"Tests run: {tests_run}\n"
+            f"Notes: Results: {'; '.join(test_results)}\n"
             f"Work Item ID: {work_item_id}\n"
         )
-        tester_feedback = codex_exec(
-            test_prompt, cwd=tester_path, profile="Tester"
-        ).strip()
-        tester_outcome = parse_outcome(tester_feedback)
-        tests_run = extract_field(tester_feedback, "Tests run")
         content = read_file(dev_tasks_path)
         content = update_entry_field(content, work_item_id, "Tester", "Codex")
         content = replace_entry_section(
@@ -1101,8 +1247,7 @@ def main() -> None:
         content = replace_entry_section(
             content, work_item_id, "Tester Feedback", tester_feedback
         )
-        if tests_run:
-            content = update_entry_field(content, work_item_id, "Tests run", tests_run)
+        content = update_entry_field(content, work_item_id, "Tests run", tests_run)
         write_file(dev_tasks_path, content)
         ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
         append_role_log(

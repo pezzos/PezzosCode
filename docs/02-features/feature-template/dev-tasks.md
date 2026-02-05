@@ -65,6 +65,10 @@ Record each execution round here. Link any related logs in `docs/03-logs/`.
 
 - Tests to write first:
 
+#### Allowed Tests
+
+- (list exact commands; do not include `make feature` or `pc-feature`)
+
 #### Files to Change + Change Budget
 
 - Files:

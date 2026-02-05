@@ -27,6 +27,36 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-05 - Add allowed test allowlist and forbid recursive feature runs
+
+**Feature/Bug:** Process/Tooling - pc-feature test execution
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `docs/02-features/08-anti-cheat-testing-strategy/dev-tasks.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added an Allowed Tests section to dev-tasks and enforced it in `pc-feature`.
+- Blocked recursive `make feature`/`pc-feature` tests and required Planner/Patcher to specify scoped tests.
+- Ran role-scoped testing only from allowlisted commands.
+
+**Status:** Completed
+
+**Testing:**
+
+- Not run (no test command specified)
+
+**Author:** Codex
+
 ### 2026-02-05 - Harden pc-feature role isolation and worktree hygiene
 
 **Feature/Bug:** Process/Tooling - pc-feature role enforcement

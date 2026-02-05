@@ -54,6 +54,10 @@
    - Plan: approach, files, risks, tests, and work-item-specific DoD.
    - Patch: make the smallest diff that satisfies the work item (TDD where applicable).
    - Test: run agreed checks and record results.
+   - Tests must be listed in the **Allowed Tests** section of the dev-tasks execution log (exact commands).
+     - Planner or Patcher must populate Allowed Tests before the Tester runs.
+     - The Tester runs only those commands.
+     - `make feature` and `pc-feature` are forbidden as tests.
    - Report: summarize what changed, commands run, and outcomes.
 
 7. **Feedback Loop (Planner ↔ Patcher ↔ Tester ↔ Reporter)**

@@ -104,6 +104,87 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-013] - Enforce Allowed Tests allowlist and forbid recursive feature runs
+
+**Date:** 2026-02-05
+
+**Status:** Implemented
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Tester steps were running `make feature F=<id>` recursively, causing unsafe worktree mutations, sandbox failures, and runaway token usage.
+
+**Problem Statement:**
+How do we keep tests scoped to patcher changes and prevent recursive feature execution?
+
+**Options Considered:**
+
+#### Option 1: Allow Tester to choose tests
+
+**Description:** Keep the Tester autonomous to decide what to run.
+
+**Pros:**
+
+- Minimal process friction
+
+**Cons:**
+
+- Recursion risk (`make feature`), uncontrolled worktree changes
+- Inconsistent test scope
+
+**Estimated effort:** Low
+
+#### Option 2: Explicit Allowed Tests allowlist in dev-tasks
+
+**Description:** Planner/Patcher lists exact test commands; Tester runs only those.
+
+**Pros:**
+
+- Scoped, predictable tests
+- Blocks recursive `make feature`/`pc-feature`
+
+**Cons:**
+
+- Requires explicit test planning
+
+**Estimated effort:** Medium
+
+#### Option 3: Hardcoded test suite per feature
+
+**Description:** Each feature defines a fixed test suite in code/config.
+
+**Pros:**
+
+- Repeatable and enforceable
+
+**Cons:**
+
+- Additional config overhead
+- Less flexible during discovery
+
+**Estimated effort:** Medium-high
+
+**Decision:**
+We chose **Option 2: Explicit Allowed Tests allowlist in dev-tasks**.
+
+**Rationale:**
+It keeps tests scoped to patcher changes while preventing recursive feature execution and sandbox violations.
+
+**Implications:**
+
+- `pc-feature` requires Allowed Tests and blocks `make feature`/`pc-feature` as tests.
+- Planner/Patcher must define specific, non-recursive tests before Tester runs.
+
+**Success Criteria:**
+
+- `make feature F=<id>` no longer triggers recursive runs.
+- Tester only executes allowlisted, scoped tests.
+
+**Review Date:** 2026-03-01
+
+**Actual Outcome:** _Pending_
+
 ### [DEC-012] - Role-scoped formatting and auto-clean worktrees in pc-feature
 
 **Date:** 2026-02-05
