@@ -1081,6 +1081,34 @@ def parse_plan_reviewer_decision(text: str) -> str:
     return match.group(1).upper()
 
 
+def parse_feedback_plan_decision(text: str) -> str:
+    match = re.search(
+        r"Decision:\s*(PLAN_STILL_VALID|REVISE_PLAN|REVISED PLAN REQUIRED|PLAN STILL VALID)\b",
+        text,
+        re.IGNORECASE,
+    )
+    if not match:
+        return "REVISE_PLAN"
+    decision = match.group(1).upper().replace(" ", "_")
+    if decision in {"REVISED_PLAN_REQUIRED", "REVISE_PLAN"}:
+        return "REVISE_PLAN"
+    return "PLAN_STILL_VALID"
+
+
+def parse_feedback_revised_plan(text: str) -> str:
+    match = re.search(r"Revised Plan:\s*\n(.+)$", text, re.IGNORECASE | re.DOTALL)
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
+def parse_feedback_rationale(text: str) -> str:
+    match = re.search(r"Rationale:\s*(.+)$", text, re.IGNORECASE | re.MULTILINE)
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
 def parse_commit_message(section: str) -> str:
     for line in section.splitlines():
         stripped = line.strip()
@@ -1768,8 +1796,93 @@ def main() -> None:
 
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
             content = read_file(dev_tasks_path)
+            current_plan = get_entry_section(content, work_item_id, "Plan")
+            feedback_blob = (
+                "Tester feedback:\n"
+                f"{tester_feedback.strip()}\n\n"
+                "Reporter feedback:\n"
+                f"{reporter_feedback.strip()}\n"
+            )
+            planner_feedback_prompt = render_prompt_template(
+                load_prompt_template("planner", "update_from_feedback"),
+                {
+                    "work_item_id": work_item_id,
+                    "current_plan": current_plan,
+                    "tester_feedback": tester_feedback.strip(),
+                    "reporter_feedback": reporter_feedback.strip(),
+                    "failure_feedback": feedback_blob.strip(),
+                },
+            )
+            planner_feedback = codex_exec(
+                planner_feedback_prompt,
+                cwd=planner_path,
+                profile="Planner",
+            ).strip()
+            planner_decision = parse_feedback_plan_decision(planner_feedback)
+            planner_rationale = parse_feedback_rationale(planner_feedback)
+            updated_plan = current_plan
+            if planner_decision == "REVISE_PLAN":
+                revised_plan = parse_feedback_revised_plan(planner_feedback)
+                if not revised_plan:
+                    die(
+                        "pc-feature: planner marked REVISE_PLAN but returned no Revised Plan section"
+                    )
+                content = replace_entry_section(
+                    content, work_item_id, "Plan", revised_plan
+                )
+                updated_plan = revised_plan
+            ensure_role_log(
+                os.path.join(planner_path, role_paths["planner"]), "planner"
+            )
+            append_role_log(
+                os.path.join(planner_path, role_paths["planner"]),
+                work_item_id,
+                planner_feedback,
+                role="planner",
+            )
+            format_role_changes("planner", planner_path, feature_dir)
+            enforce_role_scope(planner_path, "planner", feature_dir)
+            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
+            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+
+            patcher_feedback_prompt = render_prompt_template(
+                load_prompt_template("patcher", "update_from_feedback"),
+                {
+                    "work_item_id": work_item_id,
+                    "plan": updated_plan,
+                    "tester_feedback": tester_feedback.strip(),
+                    "reporter_feedback": reporter_feedback.strip(),
+                    "failure_feedback": feedback_blob.strip(),
+                    "planner_decision": planner_decision,
+                    "planner_rationale": planner_rationale,
+                },
+            )
+            codex_exec(
+                patcher_feedback_prompt,
+                capture_output=True,
+                cwd=patcher_path,
+                profile="Patcher",
+            ).strip()
+            format_role_changes("patcher", patcher_path, feature_dir)
+            reset_role_logs_to_head(patcher_path, feature_dir)
+            reset_global_logs_to_head(patcher_path)
+            enforce_role_scope(patcher_path, "patcher", feature_dir)
+            commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
+            requires_global_logs = requires_global_logs or process_docs_changed(
+                commit_paths(patcher_path)
+            )
+            ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
+
+            rationale = planner_rationale if planner_rationale else "(not provided)"
             content = update_entry_field(
                 content, work_item_id, "Outcome", "needs replan"
+            )
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                f"Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}; "
+                f"planner decision={planner_decision}; rationale={rationale}; "
+                "patcher feedback task executed.",
             )
             write_file(dev_tasks_path, content)
             continue

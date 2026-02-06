@@ -27,6 +27,32 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - pc-feature Step 09: enforce replanning/repaching after feedback failures
+
+**Feature/Bug:** Workflow hardening (Step 09)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `prompts/planner-update_from_feedback.md`
+- `prompts/patcher-update_from_feedback.md`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added a deterministic failure loop in `pc-feature` that, on tester/reporter failure, aggregates feedback, invokes planner feedback review, optionally revises the Plan section, then invokes a dedicated patcher feedback task before retest.
+- Added parser helpers for planner feedback decision/rationale/revised-plan extraction.
+- Appended Iteration Log rationale notes for each failure cycle.
+- Added regression coverage for planner feedback decision parsing and fail-loop planner/patcher enforcement.
+
+**Why:**
+
+- Ensure the workflow cannot skip planner re-evaluation and targeted repatching after failed validation/review cycles.
+
+**How:**
+
+- Extended the main loop failure branch in `tools/pc-feature`, added task-specific prompt templates, and validated with focused unit tests.
+
 ### 2026-02-06 - F-09 completion: add tests/ci structured logs in pc-feature
 
 **Feature/Bug:** F-09 Runner library + structured logs

@@ -244,6 +244,26 @@ class TestPcFeature(unittest.TestCase):
             "BLOCK",
         )
 
+    def test_parse_feedback_plan_decision(self):
+        self.assertEqual(
+            self.pc_feature.parse_feedback_plan_decision("Decision: PLAN_STILL_VALID"),
+            "PLAN_STILL_VALID",
+        )
+        self.assertEqual(
+            self.pc_feature.parse_feedback_plan_decision("Decision: REVISE_PLAN"),
+            "REVISE_PLAN",
+        )
+        self.assertEqual(
+            self.pc_feature.parse_feedback_plan_decision(
+                "Decision: revised plan required"
+            ),
+            "REVISE_PLAN",
+        )
+        self.assertEqual(
+            self.pc_feature.parse_feedback_plan_decision("unexpected output"),
+            "REVISE_PLAN",
+        )
+
     def test_format_review_item_marks_failure(self):
         line = self.pc_feature.format_review_item("make feature F=01", 2)
         self.assertEqual(line, "make feature F=01: FAIL")
@@ -578,6 +598,13 @@ class TestPcFeature(unittest.TestCase):
                         side_effect=fake_run_with_step_log,
                     )
                 )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        return_value="Decision: Approve\nReasons:\n- clear",
+                    )
+                )
                 with self.assertRaises(StopMain):
                     self.pc_feature.main()
             self.assertEqual(captured.get("cwd"), str(patcher_path))
@@ -631,6 +658,13 @@ class TestPcFeature(unittest.TestCase):
                         self.pc_feature,
                         "run_command",
                         side_effect=fake_run_command,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        return_value="Decision: Approve\nReasons:\n- clear",
                     )
                 )
                 with self.assertRaises(StopMain):
@@ -1012,6 +1046,132 @@ class TestPcFeature(unittest.TestCase):
 
             self.assertEqual(reviewer_calls["count"], 1)
             self.assertEqual(planner_update_calls["count"], 0)
+
+    def test_failure_loop_invokes_planner_and_patcher_feedback_and_logs_iteration(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-12"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            planner_feedback_calls = {"count": 0}
+            patcher_feedback_calls = {"count": 0}
+            test_runs = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "You are the Reporter agent." in prompt:
+                    return (
+                        "Outcome: PASS\nDocs/logs updated: ok\n"
+                        "Notes: reporter review complete\n"
+                    )
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    planner_feedback_calls["count"] += 1
+                    return (
+                        "Decision: REVISE_PLAN\n"
+                        "Rationale: tighten assertions before rerun\n"
+                        "Revised Plan:\n"
+                        "- revised plan from failure feedback"
+                    )
+                if (
+                    "Apply the smallest possible patch based on failure feedback"
+                    in prompt
+                ):
+                    patcher_feedback_calls["count"] += 1
+                    return "Patched based on feedback."
+                return "ok"
+
+            def fake_run_with_step_log(
+                cmd,
+                metadata,
+                *,
+                step,
+                root,
+                label,
+                **kwargs,
+            ):
+                if step == "tests":
+                    test_runs["count"] += 1
+                    if test_runs["count"] == 1:
+                        return 1
+                    raise StopMain()
+                return 0
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        side_effect=fake_run_with_step_log,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "commit_paths",
+                        return_value=[],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(planner_feedback_calls["count"], 1)
+            self.assertEqual(patcher_feedback_calls["count"], 1)
+            self.assertGreaterEqual(test_runs["count"], 2)
+            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            self.assertIn("revised plan from failure feedback", dev_tasks)
+            self.assertIn("patcher feedback task executed", dev_tasks)
 
 
 if __name__ == "__main__":

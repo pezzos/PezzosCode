@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-06 - Step 09 replanning/repatch enforcement validation
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS)
+
 ### 2026-02-06 - F-09 completion validation (tests/ci structured logs)
 
 - `tools/offload-proxy/pp make ci` (FAIL: pre-commit `end-of-file-fixer` permission error on `.codex/skills/*`)
