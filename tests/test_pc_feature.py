@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 from lib.pc_runner import build_metadata
 
@@ -24,6 +26,113 @@ def load_pc_feature():
 class TestPcFeature(unittest.TestCase):
     def setUp(self):
         self.pc_feature = load_pc_feature()
+
+    def _build_entry_content(
+        self,
+        work_item_id: str,
+        *,
+        outcome: str = "needs replan",
+        commit_message: str = "",
+    ) -> str:
+        content = "## Execution Log\n\n" + self.pc_feature.build_execution_entry(
+            work_item_id
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Outcome", outcome
+        )
+        if commit_message:
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Commit",
+                f"- Commit message: {commit_message}",
+            )
+        return content
+
+    def _write_feature_workspace(self, root: Path, dev_tasks_content: str) -> Path:
+        feature_dir = root / "docs" / "02-features" / "01-workflow-hardening"
+        feature_dir.mkdir(parents=True, exist_ok=True)
+        (feature_dir / "dev-tasks.md").write_text(dev_tasks_content, encoding="utf-8")
+        (feature_dir / "feature-spec.md").write_text(
+            "# feature spec\n", encoding="utf-8"
+        )
+        (feature_dir / "tech-design.md").write_text("# tech design\n", encoding="utf-8")
+        (feature_dir / "test-plan.md").write_text("# test plan\n", encoding="utf-8")
+        logs_dir = root / "docs" / "03-logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        (logs_dir / "implementation-log.md").write_text("# impl\n", encoding="utf-8")
+        (logs_dir / "validation-log.md").write_text("# validation\n", encoding="utf-8")
+        (logs_dir / "decision-log.md").write_text("# decision\n", encoding="utf-8")
+        return feature_dir
+
+    def _patch_main_base(self, root: Path, feature_dir: Path, patcher_path: Path):
+        return [
+            mock.patch.object(
+                self.pc_feature, "parse_args", return_value=("01", False)
+            ),
+            mock.patch.object(self.pc_feature.os, "getcwd", return_value=str(root)),
+            mock.patch.object(
+                self.pc_feature, "git_current_branch", return_value="main"
+            ),
+            mock.patch.object(
+                self.pc_feature, "resolve_feature_dir", return_value=str(feature_dir)
+            ),
+            mock.patch.object(
+                self.pc_feature, "build_worktree_path", return_value=str(patcher_path)
+            ),
+            mock.patch.object(
+                self.pc_feature, "build_worktree_branch", return_value="patcher-branch"
+            ),
+            mock.patch.object(self.pc_feature, "worktree_is_dirty", return_value=False),
+            mock.patch.object(self.pc_feature, "branch_ahead_count", return_value=0),
+            mock.patch.object(
+                self.pc_feature,
+                "prepare_worktree",
+                return_value=(str(patcher_path), "patcher-branch"),
+            ),
+            mock.patch.object(
+                self.pc_feature, "cleanup_dirty_role_logs", return_value=None
+            ),
+            mock.patch.object(
+                self.pc_feature, "cleanup_dirty_global_logs", return_value=None
+            ),
+            mock.patch.object(
+                self.pc_feature, "ensure_clean_worktree", return_value=None
+            ),
+            mock.patch.object(self.pc_feature, "ensure_role_log", return_value=None),
+            mock.patch.object(self.pc_feature, "append_role_log", return_value=None),
+            mock.patch.object(
+                self.pc_feature, "format_role_changes", return_value=None
+            ),
+            mock.patch.object(self.pc_feature, "enforce_role_scope", return_value=None),
+            mock.patch.object(
+                self.pc_feature, "commit_worktree_changes", return_value=None
+            ),
+            mock.patch.object(
+                self.pc_feature, "reset_dev_tasks_if_dirty", return_value=None
+            ),
+            mock.patch.object(
+                self.pc_feature, "reset_global_logs_to_head", return_value=None
+            ),
+            mock.patch.object(
+                self.pc_feature, "reset_role_logs_to_head", return_value=None
+            ),
+            mock.patch.object(self.pc_feature, "cleanup_worktrees", return_value=None),
+            mock.patch.object(
+                self.pc_feature, "check_allowed_tests_exist", return_value=[]
+            ),
+            mock.patch.object(
+                self.pc_feature, "process_docs_changed", return_value=False
+            ),
+            mock.patch.object(self.pc_feature, "apply_branch_diff", return_value=True),
+            mock.patch.object(
+                self.pc_feature.pc_runner, "build_metadata", return_value=object()
+            ),
+            mock.patch.object(
+                self.pc_feature.pc_runner, "log_message", return_value=None
+            ),
+            mock.patch.object(self.pc_feature, "append_log_line", return_value=None),
+        ]
 
     def test_build_preflight_block_accepts_missing_review_summary(self):
         block = self.pc_feature.build_preflight_block(
@@ -115,6 +224,462 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn("[WI-20260206-02][pc-feature][tests]", content)
             self.assertIn("start python smoke", content)
             self.assertIn("complete python smoke: exit=0", content)
+
+    def test_main_resumes_newest_in_progress_work_item(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            newest = "WI-20260206-02"
+            older = "WI-20260206-01"
+            content = "## Execution Log\n\n"
+            content += self.pc_feature.build_execution_entry(newest) + "\n"
+            content += self.pc_feature.build_execution_entry(older)
+            feature_dir = self._write_feature_workspace(root, content)
+            selected = {}
+
+            def capture_allowed(content: str, work_item_id: str) -> str:
+                selected["work_item_id"] = work_item_id
+                raise StopMain()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_allowed_tests_section",
+                        side_effect=capture_allowed,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+            self.assertEqual(selected.get("work_item_id"), newest)
+
+    def test_main_dirty_existing_worktree_continue_preserves_state(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            (patcher_path / ".git").write_text("gitdir: /tmp/fake\n", encoding="utf-8")
+            work_item_id = "WI-20260206-07"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            remove_worktree_mock = mock.Mock()
+            prepare_worktree_mock = mock.Mock(
+                return_value=(str(patcher_path), "patcher-branch")
+            )
+            prompt_yes_no_mock = mock.Mock(return_value=True)
+            print_mock = mock.Mock()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "worktree_is_dirty",
+                        return_value=True,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "branch_ahead_count",
+                        return_value=1,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "prompt_yes_no",
+                        prompt_yes_no_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "prepare_worktree",
+                        prepare_worktree_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "remove_worktree",
+                        remove_worktree_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_allowed_tests_section",
+                        side_effect=StopMain(),
+                    )
+                )
+                stack.enter_context(mock.patch("builtins.print", print_mock))
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            remove_worktree_mock.assert_not_called()
+            prepare_worktree_mock.assert_called_once()
+            prompt_yes_no_mock.assert_called_once()
+            self.assertTrue(
+                any(
+                    "existing patcher worktree is not pristine" in str(call.args[0])
+                    for call in print_mock.call_args_list
+                )
+            )
+
+    def test_main_dirty_existing_worktree_abort_exits_without_cleanup(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            (patcher_path / ".git").write_text("gitdir: /tmp/fake\n", encoding="utf-8")
+            work_item_id = "WI-20260206-08"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            remove_worktree_mock = mock.Mock()
+            prepare_worktree_mock = mock.Mock(
+                return_value=(str(patcher_path), "patcher-branch")
+            )
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "worktree_is_dirty",
+                        return_value=True,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "branch_ahead_count",
+                        return_value=1,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "prompt_yes_no",
+                        return_value=False,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "prepare_worktree",
+                        prepare_worktree_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "remove_worktree",
+                        remove_worktree_mock,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "aborted by user; existing patcher worktree preserved",
+                stderr_capture.getvalue(),
+            )
+            remove_worktree_mock.assert_not_called()
+            prepare_worktree_mock.assert_not_called()
+
+    def test_allowed_tests_run_in_worktree_cwd(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-03"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            captured = {}
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_run_with_step_log(
+                cmd,
+                metadata,
+                *,
+                step,
+                root,
+                label,
+                **kwargs,
+            ):
+                if step == "tests":
+                    captured["cwd"] = kwargs.get("cwd")
+                    raise StopMain()
+                return 0
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "write_worktree_manifest", return_value=None
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        side_effect=fake_run_with_step_log,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+            self.assertEqual(captured.get("cwd"), str(patcher_path))
+
+    def test_main_does_not_write_feature_worktree_manifest(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-04"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            manifest_writer = mock.Mock()
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section == "Preflight Report":
+                    return True
+                if section == "Plan":
+                    raise StopMain()
+                return True
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "write_worktree_manifest",
+                        manifest_writer,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+            manifest_writer.assert_not_called()
+
+    def test_main_avoids_git_add_all_for_final_staging(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-05"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            git_commands = []
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "Review changes for scope and completeness" in prompt:
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: ok"
+                if "Provide short, single-line summaries for global logs" in prompt:
+                    return (
+                        '{"implementation_log":"none","validation_log":"none",'
+                        '"decision_log":"none"}'
+                    )
+                if "generating a concise, scoped commit message" in prompt:
+                    return "workflow: finalize scoped changes"
+                return "ok"
+
+            def fake_subprocess_run(cmd, **kwargs):
+                git_commands.append(list(cmd))
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "write_worktree_manifest", return_value=None
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        return_value=0,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.subprocess,
+                        "run",
+                        side_effect=fake_subprocess_run,
+                    )
+                )
+                self.pc_feature.main()
+            self.assertNotIn(["git", "add", "-A"], git_commands)
+
+    def test_main_skips_commit_generation_if_commit_section_already_filled(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-06"
+            content = self._build_entry_content(
+                work_item_id,
+                commit_message="existing scoped message",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "Review changes for scope and completeness" in prompt:
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: ok"
+                if "Provide short, single-line summaries for global logs" in prompt:
+                    return (
+                        '{"implementation_log":"none","validation_log":"none",'
+                        '"decision_log":"none"}'
+                    )
+                if "generating a concise, scoped commit message" in prompt:
+                    return "unexpected generated message"
+                return "ok"
+
+            codex_exec_mock = mock.Mock(side_effect=fake_codex_exec)
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "write_worktree_manifest", return_value=None
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        return_value=0,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "codex_exec", codex_exec_mock)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.subprocess,
+                        "run",
+                        return_value=SimpleNamespace(
+                            returncode=0, stdout="", stderr=""
+                        ),
+                    )
+                )
+                self.pc_feature.main()
+
+            commit_prompts = [
+                call
+                for call in codex_exec_mock.call_args_list
+                if "generating a concise, scoped commit message" in call.args[0]
+            ]
+            self.assertEqual(commit_prompts, [])
 
 
 if __name__ == "__main__":

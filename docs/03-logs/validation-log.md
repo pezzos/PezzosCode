@@ -616,3 +616,15 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - [Insights](insights.md) - Patterns and improvements
 - [Implementation Log](implementation-log.md) - What was built
 - [Bug Log](bug-log.md) - Issues found post-launch
+
+## 2026-02-06 - Workflow hardening Step 01 validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: FAIL (expected for baseline harness); targeted regressions reproduced:
+  - newest in-progress resume selection
+  - worktree cwd for Allowed Tests execution
+  - `feature-worktrees.json` side effect
+  - blanket `git add -A` final staging
+  - commit prompt execution even when Commit section already filled
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"`
+- Result: FAIL (expected for baseline harness); valid `python -m unittest discover ...` commands are currently flagged as missing.

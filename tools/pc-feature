@@ -1226,7 +1226,19 @@ def main() -> None:
         dirty = worktree_is_dirty(patcher_path)
         ahead = branch_ahead_count(root, "refs/heads/main", patcher_branch) > 0
         if dirty or ahead:
-            remove_worktree(root, patcher_path, patcher_branch)
+            reasons: List[str] = []
+            if dirty:
+                reasons.append("dirty")
+            if ahead:
+                reasons.append("ahead-of-main")
+            print(
+                "pc-feature: existing patcher worktree is not pristine "
+                f"({', '.join(reasons)}): {patcher_path}"
+            )
+            if not prompt_yes_no(
+                "pc-feature: continue with existing patcher worktree? [y/N]"
+            ):
+                die("pc-feature: aborted by user; existing patcher worktree preserved")
     dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
     if not os.path.exists(dev_tasks_path):
         die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")

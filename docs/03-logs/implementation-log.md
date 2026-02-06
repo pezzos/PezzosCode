@@ -3270,6 +3270,34 @@ Track when debt is paid down:
 - [Validation Log](validation-log.md) - Post-deployment learnings
 - [Insights](insights.md) - Patterns and improvements
 
+### 2026-02-06 - Workflow hardening Step 01 baseline regression harness
+
+**Feature/Bug:** `tools/pc-feature` workflow hardening (manual todo Step 01)
+
+**Changed Files:**
+
+- `tests/test_pc_feature.py`
+- `tests/test_pc_allowed_tests_check.py`
+
+**What Changed:**
+
+- Added focused regression tests that encode expected workflow fixes before refactor:
+  - resume should pick the newest in-progress work item.
+  - Allowed Tests execution should run from worktree cwd.
+  - orchestration should not write `feature-worktrees.json`.
+  - final staging should avoid blanket `git add -A`.
+  - commit generation should be skipped when Commit section is already populated.
+- Added `pc-allowed-tests-check` tests for valid `python -m unittest discover ...` commands.
+
+**Why:**
+
+- Lock desired behavior in tests first so follow-up workflow fixes can be implemented safely and verified deterministically.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (fails on targeted regressions)
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"` (fails on discover command handling)
+
 ---
 
 ## 2026-02-05
