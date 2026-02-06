@@ -2,6 +2,13 @@
 
 ## Entries
 
+### WI-20260206-02 - 2026-02-06
+
+Outcome: PASS
+Docs/logs updated: `tools/pc-feature`, `tests/test_pc_feature.py`, `docs/02-features/09-runner-structured-logs/dev-tasks.md`, `docs/02-features/09-runner-structured-logs/validation-log.md`, `docs/02-features/09-runner-structured-logs/reporter-log.md`, `docs/03-logs/implementation-log.md`, `docs/03-logs/validation-log.md`
+Notes: Closed the remaining F-09 acceptance gap by adding structured logs for Allowed Tests (`tests` step) and CI gate execution (`ci` step) in `pc-feature`; added unit coverage for step-level logging; marked feature status Done with explicit CI environment caveat.
+Work Item ID: WI-20260206-02
+
 ### WI-20260205-01 - 2026-02-05
 
 Outcome: PASS

@@ -2,6 +2,13 @@
 
 ## Entries
 
+### WI-20260206-02 - 2026-02-06
+
+Outcome: PASS (feature scope)
+Tests run: tools/offload-proxy/pp make ci; tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"; tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_runner.py"
+Notes: `make ci` failed due pre-commit PermissionError on `.codex/skills/*` (`end-of-file-fixer`). Feature-targeted validation passed: `test_pc_feature.py` (9 tests), `test_pc_runner.py` (2 tests).
+Work Item ID: WI-20260206-02
+
 ### WI-20260205-01 - 2026-02-05
 
 Outcome: PASS

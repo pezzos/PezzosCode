@@ -27,6 +27,38 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - F-09 completion: add tests/ci structured logs in pc-feature
+
+**Feature/Bug:** F-09 Runner library + structured logs
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/02-features/09-runner-structured-logs/dev-tasks.md`
+- `docs/02-features/09-runner-structured-logs/validation-log.md`
+- `docs/02-features/09-runner-structured-logs/reporter-log.md`
+
+**What Changed:**
+
+- Added `run_command_with_step_log(...)` to centralize command execution logging in `pc-feature`.
+- Instrumented Allowed Tests execution with structured `tests` step logs.
+- Instrumented CI gate execution with structured `ci` step logs.
+- Added focused unit test verifying step-level structured log writes.
+- Marked F-09 `dev-tasks.md` status as Done and completed execution report fields.
+
+**Why:**
+
+- F-09 acceptance criteria required logs for CI/tests/precommit/feature runs; tests/ci logging was the remaining gap.
+
+**How:**
+
+- Updated command execution paths in `pc-feature`, then validated with focused unit test suites.
+
+**Trade-offs / Notes:**
+
+- Full `make ci` is currently blocked by a pre-commit permission issue on `.codex/skills/*`, unrelated to this feature logic.
+
 ### 2026-02-06 - F-09 log hygiene + per-feature work item IDs
 
 **Feature/Bug:** F-09 Runner library + structured logs (workflow hardening)

@@ -1043,6 +1043,23 @@ def run_command(cmd: List[str]) -> int:
     return result.returncode
 
 
+def run_command_with_step_log(
+    cmd: List[str],
+    metadata: "pc_runner.RunMetadata",
+    *,
+    step: str,
+    root: Path,
+    label: str,
+) -> int:
+    command_text = " ".join(shlex.quote(part) for part in cmd)
+    pc_runner.log_message(metadata, step, f"start {label}: {command_text}", root=root)
+    exit_code = run_command(cmd)
+    pc_runner.log_message(
+        metadata, step, f"complete {label}: exit={exit_code}", root=root
+    )
+    return exit_code
+
+
 def prompt_yes_no(message: str) -> bool:
     reply = input(f"{message} ").strip().lower()
     return reply in {"y", "yes"}
@@ -1528,7 +1545,13 @@ def main() -> None:
         failed = False
         for cmd in allowed_tests:
             cmd_list = ["tools/offload-proxy/pp"] + shlex.split(cmd)
-            exit_code = run_command(cmd_list)
+            exit_code = run_command_with_step_log(
+                cmd_list,
+                runner_metadata,
+                step="tests",
+                root=Path(root),
+                label=cmd,
+            )
             test_results.append(f"{cmd} -> {exit_code}")
             if exit_code != 0:
                 failed = True
@@ -1619,7 +1642,13 @@ def main() -> None:
     autofix_notes: List[str] = []
     for attempt in range(1, MAX_AUTOFIX_ATTEMPTS + 1):
         cmd = ["tools/offload-proxy/pp", "make", "ci"]
-        exit_code = run_command(cmd)
+        exit_code = run_command_with_step_log(
+            cmd,
+            runner_metadata,
+            step="ci",
+            root=Path(root),
+            label=f"make ci attempt={attempt}",
+        )
         review_items.append(
             format_review_item("tools/offload-proxy/pp make ci", exit_code)
         )

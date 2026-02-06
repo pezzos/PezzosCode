@@ -2,10 +2,12 @@ import contextlib
 import importlib.machinery
 import importlib.util
 import io
+import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
 
+from lib.pc_runner import build_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 PC_FEATURE_PATH = ROOT / "tools" / "pc-feature"
@@ -94,6 +96,25 @@ class TestPcFeature(unittest.TestCase):
     def test_build_gates_block_uses_command(self):
         line = self.pc_feature.build_gates_block("make ci", "PASS")
         self.assertEqual(line, "- make ci: PASS")
+
+    def test_run_command_with_step_log_writes_tests_log(self):
+        metadata = build_metadata("WI-20260206-02", "pc-feature", "run-abc123")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            exit_code = self.pc_feature.run_command_with_step_log(
+                ["python3", "-c", "print('ok')"],
+                metadata,
+                step="tests",
+                root=root,
+                label="python smoke",
+            )
+            self.assertEqual(exit_code, 0)
+            log_path = root / "logs" / "WI-20260206-02" / "tests.log"
+            self.assertTrue(log_path.exists())
+            content = log_path.read_text(encoding="utf-8")
+            self.assertIn("[WI-20260206-02][pc-feature][tests]", content)
+            self.assertIn("start python smoke", content)
+            self.assertIn("complete python smoke: exit=0", content)
 
 
 if __name__ == "__main__":
