@@ -637,3 +637,13 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - continue path keeps existing dirty/ahead patcher worktree and proceeds without cleanup.
   - abort path exits early with explicit preserve-state message.
   - no destructive `remove_worktree` call is issued in either path.
+
+## 2026-02-06 - Workflow hardening Step 03 validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "select_resume_work_item_id"`
+- Result: PASS (`2` tests)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "resumes_newest_in_progress_work_item"`
+- Result: PASS (`1` test)
+- Verified:
+  - mixed WI outcomes resume the newest non-pass WI.
+  - newest WI with `Outcome: pass` does not resume and triggers new WI creation path.

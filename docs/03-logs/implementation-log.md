@@ -3322,6 +3322,33 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "dirty_existing_worktree"`
 
+### 2026-02-06 - Workflow hardening Step 03 correct work item resume selection
+
+**Feature/Bug:** `tools/pc-feature` resume logic in execution log
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added `select_resume_work_item_id(content)` helper to encapsulate resume-selection logic.
+- Updated `main()` to use that helper instead of manually selecting `headers[-1]`.
+- Resume selection now uses document order semantics (top-most/latest entry):
+  - newest entry outcome `pass` => no resume (create new WI).
+  - newest entry outcome non-pass => resume newest WI.
+- Added unit tests for mixed outcomes and newest-pass behavior.
+
+**Why:**
+
+- Fix wrong WI resume target caused by selecting the oldest header when entries are prepended.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "select_resume_work_item_id"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "resumes_newest_in_progress_work_item"`
+
 ---
 
 ## 2026-02-05

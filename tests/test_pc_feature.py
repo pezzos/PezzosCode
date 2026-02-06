@@ -198,6 +198,38 @@ class TestPcFeature(unittest.TestCase):
         finally:
             self.pc_feature.datetime = original_datetime
 
+    def test_select_resume_work_item_id_resumes_newest_non_pass(self):
+        newest = "WI-20260206-03"
+        middle = "WI-20260206-02"
+        oldest = "WI-20260206-01"
+        content = "## Execution Log\n\n"
+        content += self.pc_feature.build_execution_entry(newest) + "\n"
+        content += self.pc_feature.build_execution_entry(middle) + "\n"
+        content += self.pc_feature.build_execution_entry(oldest)
+        content = self.pc_feature.update_entry_field(
+            content, newest, "Outcome", "needs replan"
+        )
+        content = self.pc_feature.update_entry_field(content, middle, "Outcome", "pass")
+        content = self.pc_feature.update_entry_field(
+            content, oldest, "Outcome", "needs replan"
+        )
+        self.assertEqual(
+            self.pc_feature.select_resume_work_item_id(content),
+            newest,
+        )
+
+    def test_select_resume_work_item_id_returns_none_when_newest_pass(self):
+        newest = "WI-20260206-03"
+        older = "WI-20260206-02"
+        content = "## Execution Log\n\n"
+        content += self.pc_feature.build_execution_entry(newest) + "\n"
+        content += self.pc_feature.build_execution_entry(older)
+        content = self.pc_feature.update_entry_field(content, newest, "Outcome", "pass")
+        content = self.pc_feature.update_entry_field(
+            content, older, "Outcome", "needs replan"
+        )
+        self.assertIsNone(self.pc_feature.select_resume_work_item_id(content))
+
     def test_format_review_item_marks_failure(self):
         line = self.pc_feature.format_review_item("make feature F=01", 2)
         self.assertEqual(line, "make feature F=01: FAIL")

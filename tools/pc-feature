@@ -1201,6 +1201,18 @@ def entry_outcome(content: str, work_item_id: str) -> str:
     return field.lower()
 
 
+def select_resume_work_item_id(content: str) -> Optional[str]:
+    headers = list_entry_headers(content.splitlines())
+    if not headers:
+        return None
+    newest_id = headers[0]
+    normalize_work_item_id(newest_id)
+    outcome = entry_outcome(content, newest_id)
+    if outcome and outcome.startswith("pass"):
+        return None
+    return newest_id
+
+
 def append_log_line(path: str, line: str) -> None:
     content = read_file(path)
     if line in content:
@@ -1245,17 +1257,7 @@ def main() -> None:
     content = read_file(dev_tasks_path)
     ensure_execution_log(content)
 
-    lines = content.splitlines()
-    headers = list_entry_headers(lines)
-    work_item_id = None
-    if headers:
-        last_id = headers[-1]
-        normalize_work_item_id(last_id)
-        outcome = entry_outcome(content, last_id)
-        if outcome and outcome.startswith("pass"):
-            work_item_id = None
-        else:
-            work_item_id = last_id
+    work_item_id = select_resume_work_item_id(content)
     if not work_item_id:
         work_item_id = next_work_item_id(content)
         entry = build_execution_entry(work_item_id)
