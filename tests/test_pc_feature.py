@@ -527,6 +527,62 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.main()
             self.assertEqual(captured.get("cwd"), str(patcher_path))
 
+    def test_prepatch_smoke_runs_in_worktree_cwd(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-09"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            captured = {}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    raise StopMain()
+                return True
+
+            def fake_run_command(cmd, cwd=None):
+                if cmd and cmd[0] == "tools/offload-proxy/pp":
+                    captured["cwd"] = cwd
+                return 0
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command",
+                        side_effect=fake_run_command,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(captured.get("cwd"), str(patcher_path))
+
     def test_main_does_not_write_feature_worktree_manifest(self):
         class StopMain(RuntimeError):
             pass

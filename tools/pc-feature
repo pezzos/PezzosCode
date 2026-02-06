@@ -1053,8 +1053,8 @@ def extract_field(text: str, label: str) -> str:
     return match.group(1).strip() if match else ""
 
 
-def run_command(cmd: List[str]) -> int:
-    result = subprocess.run(cmd, check=False)
+def run_command(cmd: List[str], cwd: Optional[str] = None) -> int:
+    result = subprocess.run(cmd, check=False, cwd=cwd)
     return result.returncode
 
 
@@ -1065,10 +1065,11 @@ def run_command_with_step_log(
     step: str,
     root: Path,
     label: str,
+    cwd: Optional[str] = None,
 ) -> int:
     command_text = " ".join(shlex.quote(part) for part in cmd)
     pc_runner.log_message(metadata, step, f"start {label}: {command_text}", root=root)
-    exit_code = run_command(cmd)
+    exit_code = run_command(cmd, cwd=cwd)
     pc_runner.log_message(
         metadata, step, f"complete {label}: exit={exit_code}", root=root
     )
@@ -1527,7 +1528,7 @@ def main() -> None:
         smoke_command = allowed_tests[0] if allowed_tests else DEFAULT_SMOKE_TEST
         if smoke_command:
             smoke_cmd = ["tools/offload-proxy/pp"] + shlex.split(smoke_command)
-            smoke_exit = run_command(smoke_cmd)
+            smoke_exit = run_command(smoke_cmd, cwd=patcher_path)
             review_items.append(
                 format_review_item(f"prepatch smoke {smoke_command}", smoke_exit)
             )
@@ -1602,6 +1603,7 @@ def main() -> None:
                 step="tests",
                 root=Path(root),
                 label=cmd,
+                cwd=tester_path,
             )
             test_results.append(f"{cmd} -> {exit_code}")
             if exit_code != 0:

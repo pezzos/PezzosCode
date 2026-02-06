@@ -3402,6 +3402,32 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "does_not_write_feature_worktree_manifest"`
 - `tools/offload-proxy/pp rg -n "write_worktree_manifest|feature-worktrees\\.json" /Users/alexandrepezzotta/repos/PezzosCode/tools/pc-feature`
 
+### 2026-02-06 - Workflow hardening Step 06 run smoke/tests in worktree cwd
+
+**Feature/Bug:** `tools/pc-feature` test execution context isolation
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Extended `run_command(...)` with optional `cwd`.
+- Extended `run_command_with_step_log(...)` with optional `cwd` and passed it through to `run_command(...)`.
+- Updated prepatch smoke command to run with `cwd=patcher_path`.
+- Updated Allowed Tests execution loop to run with `cwd=tester_path` while keeping structured logs rooted at orchestrator root.
+- Added regression test for smoke cwd behavior.
+
+**Why:**
+
+- Ensure smoke and Allowed Tests run against worktree code, not orchestrator/root state.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "allowed_tests_run_in_worktree_cwd"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "prepatch_smoke_runs_in_worktree_cwd"`
+
 ---
 
 ## 2026-02-05

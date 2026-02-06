@@ -670,3 +670,14 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Additional safety checks:
   - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "avoids_git_add_all_for_final_staging"` -> PASS
   - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "skips_commit_generation_if_commit_section_already_filled"` -> PASS
+
+## 2026-02-06 - Workflow hardening Step 06 validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "allowed_tests_run_in_worktree_cwd"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "prepatch_smoke_runs_in_worktree_cwd"`
+- Result: PASS (`1` test)
+- Verified:
+  - Allowed Tests run with `cwd=tester_path`.
+  - Prepatch smoke runs with `cwd=patcher_path`.
+  - Structured logging flow remains unchanged (logs written via root metadata path).
