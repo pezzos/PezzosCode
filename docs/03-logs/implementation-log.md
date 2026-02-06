@@ -3378,6 +3378,30 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "avoids_git_add_all_for_final_staging"`
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "skips_commit_generation_if_commit_section_already_filled"`
 
+### 2026-02-06 - Workflow hardening Step 05 remove feature-worktrees manifest tracking
+
+**Feature/Bug:** `tools/pc-feature` worktree tracking cleanup
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Removed `write_worktree_manifest(...)` from `pc-feature`.
+- Removed orchestration call that wrote `docs/02-features/<feature>/feature-worktrees.json`.
+- Updated tests to validate no manifest file creation directly, without mocking deleted helper.
+
+**Why:**
+
+- Process/docs explicitly require single-worktree orchestration without `feature-worktrees.json`.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "does_not_write_feature_worktree_manifest"`
+- `tools/offload-proxy/pp rg -n "write_worktree_manifest|feature-worktrees\\.json" /Users/alexandrepezzotta/repos/PezzosCode/tools/pc-feature`
+
 ---
 
 ## 2026-02-05

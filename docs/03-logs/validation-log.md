@@ -660,3 +660,13 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - final staging no longer uses blanket `git add -A`.
   - commit generation is skipped when `Commit` section is already filled.
   - unrelated dirty files block final commit with actionable output.
+
+## 2026-02-06 - Workflow hardening Step 05 validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "does_not_write_feature_worktree_manifest"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp rg -n "write_worktree_manifest|feature-worktrees\\.json" /Users/alexandrepezzotta/repos/PezzosCode/tools/pc-feature`
+- Result: no matches (`rg` exit code `1`, expected for empty result)
+- Additional safety checks:
+  - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "avoids_git_add_all_for_final_staging"` -> PASS
+  - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "skips_commit_generation_if_commit_section_already_filled"` -> PASS

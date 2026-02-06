@@ -514,11 +514,6 @@ class TestPcFeature(unittest.TestCase):
                     )
                 )
                 stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature, "write_worktree_manifest", return_value=None
-                    )
-                )
-                stack.enter_context(
                     mock.patch.object(self.pc_feature, "run_command", return_value=0)
                 )
                 stack.enter_context(
@@ -543,7 +538,7 @@ class TestPcFeature(unittest.TestCase):
             work_item_id = "WI-20260206-04"
             content = self._build_entry_content(work_item_id)
             feature_dir = self._write_feature_workspace(root, content)
-            manifest_writer = mock.Mock()
+            manifest_path = feature_dir / "feature-worktrees.json"
 
             def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
                 if section == "Preflight Report":
@@ -562,16 +557,9 @@ class TestPcFeature(unittest.TestCase):
                         side_effect=fake_entry_complete,
                     )
                 )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "write_worktree_manifest",
-                        manifest_writer,
-                    )
-                )
                 with self.assertRaises(StopMain):
                     self.pc_feature.main()
-            manifest_writer.assert_not_called()
+            self.assertFalse(manifest_path.exists())
 
     def test_main_avoids_git_add_all_for_final_staging(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -622,11 +610,6 @@ class TestPcFeature(unittest.TestCase):
                         return_value=[
                             "python -m unittest discover -s tests -p test_pc_feature.py"
                         ],
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature, "write_worktree_manifest", return_value=None
                     )
                 )
                 stack.enter_context(
@@ -717,11 +700,6 @@ class TestPcFeature(unittest.TestCase):
                         return_value=[
                             "python -m unittest discover -s tests -p test_pc_feature.py"
                         ],
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature, "write_worktree_manifest", return_value=None
                     )
                 )
                 stack.enter_context(

@@ -939,15 +939,6 @@ def commit_worktree_changes(
         die(f"pc-feature: failed to commit changes for {role}\n{detail}")
 
 
-def write_worktree_manifest(feature_dir: str, entries: List[Dict[str, str]]) -> None:
-    manifest = {
-        "generated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-        "worktrees": entries,
-    }
-    path = os.path.join(feature_dir, "feature-worktrees.json")
-    write_file(path, json.dumps(manifest, indent=2) + "\n")
-
-
 def branch_ahead_count(root: str, base_ref: str, branch: str) -> int:
     result = subprocess.run(
         ["git", "rev-list", "--count", f"{base_ref}..{branch}"],
@@ -1421,15 +1412,6 @@ def main() -> None:
     cleanup_dirty_role_logs(patcher_path, feature_dir)
     cleanup_dirty_global_logs(patcher_path)
     ensure_clean_worktree(root, patcher_path, patcher_branch, "preflight")
-    write_worktree_manifest(
-        feature_dir,
-        [
-            {"role": "planner", "path": patcher_path, "branch": patcher_branch},
-            {"role": "patcher", "path": patcher_path, "branch": patcher_branch},
-            {"role": "tester", "path": patcher_path, "branch": patcher_branch},
-            {"role": "reporter", "path": patcher_path, "branch": patcher_branch},
-        ],
-    )
 
     requires_global_logs = False
     for attempt in range(1, MAX_LOOPS + 1):
