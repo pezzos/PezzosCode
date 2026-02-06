@@ -27,6 +27,41 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - pc-feature Step 15: autofix scope lockdown
+
+**Feature/Bug:** Workflow hardening (Step 15)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Replaced autofix `pre-commit --all-files` path with staged-scope-only autofix flow.
+- Added helpers:
+  - `get_staged_paths(...)`
+  - `run_scoped_autofix(...)`
+- New autofix behavior:
+  - capture/stage scoped paths before autofix
+  - run `tools/offload-proxy/pp pre-commit run --files <scoped paths>`
+  - fail if any out-of-scope files are touched
+  - re-stage only the same scoped file list
+- Added test coverage for:
+  - out-of-scope touch detection in scoped autofix
+  - CI retry autofix using `--files` scoped list (no `--all-files`)
+- Updated protocol docs/template with scoped-autofix requirements.
+
+**Why:**
+
+- Prevent autofix from expanding commit scope or mutating unrelated files.
+
+**How:**
+
+- Integrated scoped staging + autofix checks in the CI retry gate and validated behavior with focused unit tests.
+
 ### 2026-02-06 - pc-feature Step 14: escalation broker + worktree-first ordering
 
 **Feature/Bug:** Workflow hardening (Step 14)

@@ -93,6 +93,7 @@
 
 - Run `make ci` only at the final gate after the Plan→Patch→Test→Report loop passes.
 - CI attempts are capped at 2 total runs: initial run + optional single autofix rerun.
+- Autofix must run pre-commit on the staged scoped file list only (`--files`), re-stage only that same list, and fail if out-of-scope files are touched.
 - Autofix prompt template: `docs/04-process/ci-autofix-prompt.md`.
 
 11. **Commit**

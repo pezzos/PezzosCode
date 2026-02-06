@@ -421,6 +421,30 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("README.md", stderr_capture.getvalue())
 
+    def test_run_scoped_autofix_blocks_out_of_scope_files(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stderr_capture = io.StringIO()
+            with mock.patch.object(self.pc_feature, "run_command", return_value=0):
+                with mock.patch.object(
+                    self.pc_feature,
+                    "get_status_paths",
+                    return_value=[
+                        "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                        "README.md",
+                    ],
+                ):
+                    with self.assertRaises(SystemExit):
+                        with contextlib.redirect_stderr(stderr_capture):
+                            self.pc_feature.run_scoped_autofix(
+                                str(root),
+                                ["docs/02-features/01-workflow-hardening/dev-tasks.md"],
+                            )
+            self.assertIn(
+                "scoped autofix touched out-of-scope files", stderr_capture.getvalue()
+            )
+            self.assertIn("README.md", stderr_capture.getvalue())
+
     def test_main_resumes_newest_in_progress_work_item(self):
         class StopMain(RuntimeError):
             pass
@@ -1084,6 +1108,7 @@ class TestPcFeature(unittest.TestCase):
             feature_dir = self._write_feature_workspace(root, content)
             original_entry_complete = self.pc_feature.entry_section_complete
             ci_attempts = {"count": 0}
+            scoped_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
 
             def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
                 if section in {"Preflight Report", "Plan", "Patch"}:
@@ -1147,6 +1172,13 @@ class TestPcFeature(unittest.TestCase):
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
+                        "collect_allowed_final_stage_paths",
+                        return_value=[scoped_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
                         "codex_exec",
                         side_effect=fake_codex_exec,
                     )
@@ -1176,6 +1208,7 @@ class TestPcFeature(unittest.TestCase):
             original_entry_complete = self.pc_feature.entry_section_complete
             ci_attempts = {"count": 0}
             autofix_calls = {"count": 0}
+            scoped_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
 
             def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
                 if section in {"Preflight Report", "Plan", "Patch"}:
@@ -1190,12 +1223,14 @@ class TestPcFeature(unittest.TestCase):
                 return "ok"
 
             def fake_run_command(cmd, cwd=None):
-                if cmd == [
+                if cmd[:4] == [
                     "tools/offload-proxy/pp",
                     "pre-commit",
                     "run",
-                    "--all-files",
+                    "--files",
                 ]:
+                    self.assertNotIn("--all-files", cmd)
+                    self.assertIn(scoped_path, cmd)
                     autofix_calls["count"] += 1
                 return 0
 
@@ -1251,6 +1286,43 @@ class TestPcFeature(unittest.TestCase):
                         self.pc_feature,
                         "run_command_with_step_log",
                         side_effect=fake_run_with_step_log,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_allowed_final_stage_paths",
+                        return_value=[scoped_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "stage_scoped_final_paths",
+                        return_value=[scoped_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "get_staged_paths",
+                        return_value=[scoped_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "get_status_paths",
+                        return_value=[scoped_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.subprocess,
+                        "run",
+                        return_value=SimpleNamespace(
+                            returncode=0, stdout="", stderr=""
+                        ),
                     )
                 )
                 stack.enter_context(

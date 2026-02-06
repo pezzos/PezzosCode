@@ -1553,6 +1553,49 @@ def stage_scoped_final_paths(root: str, allowed_paths: List[str]) -> List[str]:
     return stage_paths
 
 
+def get_staged_paths(root: str) -> List[str]:
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to read staged paths\n{result.stderr}")
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def run_scoped_autofix(root: str, staged_paths: List[str]) -> int:
+    scoped_paths = sorted(set(filter_ignored_paths(staged_paths)))
+    if not scoped_paths:
+        die("pc-feature: no staged files available for scoped autofix")
+    autofix_cmd = [
+        "tools/offload-proxy/pp",
+        "pre-commit",
+        "run",
+        "--files",
+    ] + scoped_paths
+    autofix_exit = run_command(autofix_cmd, cwd=root)
+    status_paths = set(filter_ignored_paths(get_status_paths(root)))
+    scoped_set = set(scoped_paths)
+    unexpected = sorted(path for path in status_paths if path not in scoped_set)
+    if unexpected:
+        die(
+            "pc-feature: scoped autofix touched out-of-scope files: "
+            + ", ".join(unexpected)
+        )
+    add_result = subprocess.run(
+        ["git", "add", "--"] + scoped_paths,
+        check=False,
+        cwd=root,
+    )
+    if add_result.returncode != 0:
+        die("pc-feature: failed to restage scoped autofix files")
+    return autofix_exit
+
+
 def append_log_line(path: str, line: str) -> None:
     content = read_file(path)
     if line in content:
@@ -2150,6 +2193,9 @@ def main() -> None:
             write_file(dev_tasks_path, content)
             die("pc-feature: conflict detected while collecting worktrees")
 
+    allowed_stage_paths = collect_allowed_final_stage_paths(
+        root, "refs/heads/main", patcher_branch, dev_tasks_path
+    )
     gate_status = "FAIL"
     autofix_notes: List[str] = []
     ci_cmd = ["tools/offload-proxy/pp", "make", "ci"]
@@ -2166,11 +2212,14 @@ def main() -> None:
     if first_ci_exit == 0:
         gate_status = "PASS"
     else:
-        autofix_cmd = ["tools/offload-proxy/pp", "pre-commit", "run", "--all-files"]
-        autofix_exit = run_command(autofix_cmd)
+        scoped_autofix_paths = stage_scoped_final_paths(root, allowed_stage_paths)
+        staged_before_autofix = get_staged_paths(root)
+        if sorted(set(scoped_autofix_paths)) != sorted(set(staged_before_autofix)):
+            die("pc-feature: staged scope changed before autofix; aborting")
+        autofix_exit = run_scoped_autofix(root, staged_before_autofix)
         autofix_notes.append(
             format_review_item(
-                "tools/offload-proxy/pp pre-commit run --all-files", autofix_exit
+                "tools/offload-proxy/pp pre-commit run --files <scoped>", autofix_exit
             )
         )
         second_ci_exit = run_command_with_step_log(
@@ -2289,9 +2338,6 @@ def main() -> None:
     write_file(dev_tasks_path, content)
 
     if not commit_already_done:
-        allowed_stage_paths = collect_allowed_final_stage_paths(
-            root, "refs/heads/main", patcher_branch, dev_tasks_path
-        )
         staged_paths = stage_scoped_final_paths(root, allowed_stage_paths)
         commit_cmd = ["tools/pc-commit", "--yes", "--message", commit_message]
         for path in staged_paths:
