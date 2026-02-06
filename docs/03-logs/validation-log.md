@@ -27,6 +27,12 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-06 - Step 16 final validation sweep
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS)
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"` (PASS)
+- `tools/offload-proxy/pp make ci` (FAIL: pre-commit `end-of-file-fixer` permission error on `.codex/skills/*`)
+
 ### 2026-02-06 - Step 15 autofix scope lockdown validation
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS)
