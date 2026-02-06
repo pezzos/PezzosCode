@@ -1362,6 +1362,35 @@ def prompt_yes_no(message: str) -> bool:
     return reply in {"y", "yes"}
 
 
+def parse_bool_env(name: str) -> Optional[bool]:
+    raw = os.environ.get(name)
+    if raw is None:
+        return None
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "y", "on"}:
+        return True
+    if value in {"0", "false", "no", "n", "off"}:
+        return False
+    return None
+
+
+def approve_high_risk_interactive(risk_level: str, triggers: List[str]) -> bool:
+    if risk_level != "HIGH":
+        return True
+    override = parse_bool_env("APPROVE_HIGH_RISK")
+    if override is not None:
+        return override
+    trigger_text = ", ".join(triggers) if triggers else "(none)"
+    print(f"pc-feature: high-risk triggers: {trigger_text}")
+    if not sys.stdin.isatty():
+        print(
+            "pc-feature: non-interactive session; set APPROVE_HIGH_RISK=1 to continue.",
+            file=sys.stderr,
+        )
+        return False
+    return prompt_yes_no("pc-feature: approve high-risk work item and continue? [y/N]")
+
+
 def build_execution_entry(work_item_id: str) -> str:
     return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Allowed Tests\n\n- (list exact commands; do not include `make feature` or `pc-feature`)\n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
 
@@ -1751,14 +1780,15 @@ def main() -> None:
         write_file(dev_tasks_path, content)
 
         if risk_level == "HIGH":
-            content = update_entry_field(
-                content, work_item_id, "Outcome", "needs replan"
-            )
-            content = update_entry_field(
-                content, work_item_id, "Notes", "Awaiting PO Approval"
-            )
-            write_file(dev_tasks_path, content)
-            die("pc-feature: high-risk work item requires PO approval")
+            if not approve_high_risk_interactive(risk_level, triggers):
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = update_entry_field(
+                    content, work_item_id, "Notes", "Awaiting PO Approval"
+                )
+                write_file(dev_tasks_path, content)
+                die("pc-feature: high-risk work item requires PO approval")
 
     requires_global_logs = False
     for attempt in range(1, MAX_LOOPS + 1):

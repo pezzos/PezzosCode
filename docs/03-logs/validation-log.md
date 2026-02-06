@@ -27,6 +27,11 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-06 - Interactive high-risk approval gate validation
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS)
+- `tools/offload-proxy/pp env APPROVE_HIGH_RISK=1 make feature F=10` (FAIL: existing permission/network/session issues in worktree `.codex_subagent`, unrelated to high-risk prompt logic)
+
 ### 2026-02-06 - Step 16 final validation sweep
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS)

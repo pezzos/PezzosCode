@@ -203,6 +203,149 @@ class TestPcFeature(unittest.TestCase):
         self.assertEqual(triggers.count("touches restore/ path"), 1)
         self.assertIn("touches detectors/ path", triggers)
 
+    def test_high_risk_preflight_approved_interactively_continues(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-16"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "preparing preflight data for a work item execution" in prompt:
+                    return (
+                        '{"prd_ref":"F-10","scope_in":"x","scope_out":"y",'
+                        '"non_goals_reminder":"z","files_to_change":["restore/apply.py"],'
+                        '"planned_new_modules":0,"touches_secret_blocking":false,'
+                        '"touches_restore":true,"touches_secret_scanning":false,'
+                        '"cross_cutting_refactor_modules":0,"tdd_tests":[],"doc_updates":[]}'
+                    )
+                if "You are the Planner agent. Provide a concise plan" in prompt:
+                    raise StopMain()
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "prompt_yes_no", return_value=True
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.sys.stdin, "isatty", return_value=True
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+    def test_high_risk_preflight_denied_stops_with_awaiting_po(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-17"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "preparing preflight data for a work item execution" in prompt:
+                    return (
+                        '{"prd_ref":"F-10","scope_in":"x","scope_out":"y",'
+                        '"non_goals_reminder":"z","files_to_change":["restore/apply.py"],'
+                        '"planned_new_modules":0,"touches_secret_blocking":false,'
+                        '"touches_restore":true,"touches_secret_scanning":false,'
+                        '"cross_cutting_refactor_modules":0,"tdd_tests":[],"doc_updates":[]}'
+                    )
+                return "ok"
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "prompt_yes_no", return_value=False
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.sys.stdin, "isatty", return_value=True
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "high-risk work item requires PO approval", stderr_capture.getvalue()
+            )
+            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            self.assertIn("- Notes: Awaiting PO Approval", dev_tasks)
+
+    def test_high_risk_preflight_non_interactive_requires_env_override(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-18"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "preparing preflight data for a work item execution" in prompt:
+                    return (
+                        '{"prd_ref":"F-10","scope_in":"x","scope_out":"y",'
+                        '"non_goals_reminder":"z","files_to_change":["restore/apply.py"],'
+                        '"planned_new_modules":0,"touches_secret_blocking":false,'
+                        '"touches_restore":true,"touches_secret_scanning":false,'
+                        '"cross_cutting_refactor_modules":0,"tdd_tests":[],"doc_updates":[]}'
+                    )
+                return "ok"
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.dict(self.pc_feature.os.environ, {}, clear=True)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.sys.stdin, "isatty", return_value=False
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "prompt_yes_no", return_value=True
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn("APPROVE_HIGH_RISK=1", stderr_capture.getvalue())
+
     def test_normalize_work_item_id_accepts_format(self):
         self.assertEqual(
             self.pc_feature.normalize_work_item_id("WI-20260204-01"),

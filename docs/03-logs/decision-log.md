@@ -104,6 +104,23 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-018] - Interactive HIGH-risk approval gate for `pc-feature`
+
+**Date:** 2026-02-06
+
+**Status:** Implemented
+
+**Decision:**
+Use an interactive approval prompt when a work item is classified HIGH risk, instead of always requiring a separate PO-file update/restart loop.
+
+**Rationale:**
+This keeps the safety gate while reducing workflow friction. For unattended/non-interactive runs, safety remains fail-closed by default unless `APPROVE_HIGH_RISK=1` is explicitly set.
+
+**Implications:**
+
+- Interactive runs can continue in the same `make feature` session after explicit approval.
+- Non-interactive automation still blocks high-risk work unless opt-in override is provided.
+
 ### [DEC-017] - Observability-first workflow hardening
 
 **Date:** 2026-02-05

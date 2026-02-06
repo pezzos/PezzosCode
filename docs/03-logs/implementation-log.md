@@ -27,6 +27,39 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - Interactive high-risk approval gate in pc-feature
+
+**Feature/Bug:** F-10 workflow usability (high-risk gate)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added `APPROVE_HIGH_RISK` override parsing (`1/true/yes` approve, `0/false/no` deny).
+- Added interactive high-risk gate helper that:
+  - prints detected risk triggers,
+  - prompts `approve high-risk work item and continue? [y/N]` when interactive,
+  - defaults to deny in non-interactive mode unless `APPROVE_HIGH_RISK=1`.
+- Replaced unconditional high-risk stop with the new approval check.
+- Added focused regression tests for:
+  - interactive approve continues execution,
+  - interactive deny keeps `Awaiting PO Approval` stop,
+  - non-interactive deny without override.
+- Synced protocol docs/template to document interactive approval + non-interactive override behavior.
+
+**Why:**
+
+- Allow continuing high-risk work in the same `make feature` run while keeping safe default behavior for unattended runs.
+
+**How:**
+
+- Introduced explicit approval helper functions and integrated them in preflight HIGH-risk handling.
+
 ### 2026-02-06 - Step 16 docs/template sync + end-to-end validation pass
 
 **Feature/Bug:** Workflow hardening (Step 16)

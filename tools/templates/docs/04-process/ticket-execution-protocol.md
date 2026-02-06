@@ -49,7 +49,8 @@
    - Classify the work item as LOW or HIGH risk using the deterministic rules below.
 
 5. **Approval Gate (HIGH Risk Only)**
-   - If HIGH, stop after Preflight and request PO approval.
+   - If HIGH, display triggers and request interactive approval to continue (`[y/N]`).
+   - Non-interactive runs default to deny unless `APPROVE_HIGH_RISK=1` is set.
    - No implementation work until approval is explicitly granted.
    - Record **Awaiting PO Approval** in the execution log entry.
 
