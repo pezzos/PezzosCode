@@ -8,7 +8,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 PROMPTS_DIR = ROOT / "prompts"
@@ -22,6 +22,7 @@ SECTION_PREFIX = "#### "
 DEFAULT_CHANGE_BUDGET = {"max_files": 6, "max_new_modules": 1}
 MAX_LOOPS = 3
 MAX_CI_ATTEMPTS = 2
+MAX_ESCALATION_ROUNDS = 2
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
 ROLE_LOG_FILES = {
     "planner": "planner-log.md",
@@ -40,6 +41,19 @@ PROCESS_DOC_FILES = (
     "docs/04-process/testing-strategy.md",
 )
 PROCESS_DOC_PREFIXES = ("tools/templates/docs/",)
+ESCALATION_ALLOWLIST_PREFIXES: Tuple[Tuple[str, ...], ...] = (
+    ("tools/offload-proxy/pp",),
+    ("git", "status"),
+    ("git", "diff"),
+    ("git", "show"),
+    ("git", "log"),
+    ("python", "-m", "unittest"),
+    ("python3", "-m", "unittest"),
+    ("python", "-m", "pytest"),
+    ("python3", "-m", "pytest"),
+    ("pytest",),
+    ("make", "ci"),
+)
 RISK_PATH_TRIGGERS = (
     ("sanitizer/", "touches sanitizer/ path"),
     ("detectors/", "touches detectors/ path"),
@@ -403,6 +417,120 @@ def classify_risk(
     return ("HIGH" if deduped else "LOW", deduped)
 
 
+def parse_escalation_request(raw: str) -> Optional[Dict[str, Any]]:
+    payload = extract_json_payload(raw)
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    if isinstance(data.get("escalation_request"), dict):
+        request = data["escalation_request"]
+    elif str(data.get("type", "")).lower() == "escalation_request":
+        request = data
+    else:
+        return None
+    command = request.get("command")
+    if not command:
+        return None
+    return request
+
+
+def normalize_escalation_command(command: Any) -> List[str]:
+    if isinstance(command, list):
+        if not all(isinstance(part, str) and part.strip() for part in command):
+            return []
+        return [part.strip() for part in command]
+    if isinstance(command, str):
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            return []
+        return [part.strip() for part in parts if part.strip()]
+    return []
+
+
+def escalation_command_allowed(command: List[str]) -> bool:
+    if not command:
+        return False
+    forbidden_heads = {"rm", "dd", "mkfs", "shutdown", "reboot"}
+    if command[0] in forbidden_heads:
+        return False
+    if command[:3] == ["git", "reset", "--hard"]:
+        return False
+    for prefix in ESCALATION_ALLOWLIST_PREFIXES:
+        if len(command) >= len(prefix) and tuple(command[: len(prefix)]) == prefix:
+            return True
+    return False
+
+
+def format_escalation_result(result: Dict[str, Any]) -> str:
+    return "Escalation broker result (JSON):\n" + json.dumps(
+        result, ensure_ascii=True, sort_keys=True, indent=2
+    )
+
+
+def process_escalation_request(
+    request: Dict[str, Any],
+    *,
+    root: str,
+    default_cwd: Optional[str],
+    runner_metadata: Optional["pc_runner.RunMetadata"] = None,
+) -> Dict[str, Any]:
+    command = normalize_escalation_command(request.get("command"))
+    reason = str(request.get("reason", "")).strip()
+    target_cwd = str(request.get("cwd", "")).strip() or (default_cwd or root)
+    if not os.path.isabs(target_cwd):
+        target_cwd = os.path.join(root, target_cwd)
+    target_cwd = os.path.abspath(target_cwd)
+    root_abs = os.path.abspath(root)
+    if not target_cwd.startswith(root_abs):
+        target_cwd = root_abs
+    result: Dict[str, Any] = {
+        "decision": "DENY",
+        "reason": reason or "no reason provided",
+        "command": command,
+        "cwd": target_cwd,
+    }
+    if not command:
+        result["error"] = "invalid command format"
+        return result
+    if not escalation_command_allowed(command):
+        result["error"] = "command not allowed by escalation policy"
+        return result
+    if not os.path.isdir(target_cwd):
+        result["error"] = "cwd does not exist"
+        return result
+    if runner_metadata:
+        pc_runner.log_message(
+            runner_metadata,
+            "escalation",
+            f"request approved: {shlex.join(command)}",
+            root=Path(root),
+        )
+    run_result = subprocess.run(
+        command,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=target_cwd,
+    )
+    result["decision"] = "APPROVE"
+    result["exit_code"] = run_result.returncode
+    result["stdout"] = run_result.stdout.strip()
+    result["stderr"] = run_result.stderr.strip()
+    if runner_metadata:
+        pc_runner.log_message(
+            runner_metadata,
+            "escalation",
+            f"request complete: exit={run_result.returncode} command={shlex.join(command)}",
+            root=Path(root),
+        )
+    return result
+
+
 def git_repo_root(path: Optional[str]) -> str:
     result = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
@@ -438,7 +566,7 @@ def codex_overrides() -> List[str]:
     ]
 
 
-def codex_exec(
+def codex_exec_once(
     prompt: str,
     capture_output: bool = True,
     cwd: Optional[str] = None,
@@ -503,6 +631,58 @@ def codex_exec(
             combined += result.stderr
         die(f"pc-feature: codex exec failed\n{combined}")
     return result.stdout or ""
+
+
+def codex_exec(
+    prompt: str,
+    capture_output: bool = True,
+    cwd: Optional[str] = None,
+    profile: Optional[str] = None,
+    runner_metadata: Optional["pc_runner.RunMetadata"] = None,
+    root: Optional[str] = None,
+) -> str:
+    response = codex_exec_once(
+        prompt,
+        capture_output=capture_output,
+        cwd=cwd,
+        profile=profile,
+    )
+    if not capture_output:
+        return response
+    root_dir = root or git_repo_root(cwd)
+    current_prompt = prompt
+    for _ in range(MAX_ESCALATION_ROUNDS):
+        request = parse_escalation_request(response)
+        if not request:
+            return response
+        broker_result = process_escalation_request(
+            request,
+            root=root_dir,
+            default_cwd=cwd,
+            runner_metadata=runner_metadata,
+        )
+        if runner_metadata:
+            pc_runner.log_message(
+                runner_metadata,
+                "escalation",
+                f"decision={broker_result.get('decision')} command={broker_result.get('command')}",
+                root=Path(root_dir),
+            )
+        current_prompt = (
+            current_prompt
+            + "\n\n"
+            + format_escalation_result(broker_result)
+            + "\nUse this result and continue the task. "
+            "Return the requested final output format only."
+        )
+        response = codex_exec_once(
+            current_prompt,
+            capture_output=capture_output,
+            cwd=cwd,
+            profile=profile,
+        )
+    die("pc-feature: escalation loop exceeded max rounds")
+    return ""
 
 
 def build_worktree_path(root: str, feature_name: str, agent: str) -> str:
@@ -1416,6 +1596,18 @@ def main() -> None:
         die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")
     content = read_file(dev_tasks_path)
     ensure_execution_log(content)
+    patcher_path, patcher_branch = prepare_worktree(
+        root, feature_slug, "patcher", "main"
+    )
+    planner_path = patcher_path
+    tester_path = patcher_path
+    reporter_path = patcher_path
+    role_paths = worktree_role_paths(feature_dir)
+    for role, rel_path in role_paths.items():
+        ensure_role_log(os.path.join(root, rel_path), role)
+    cleanup_dirty_role_logs(patcher_path, feature_dir)
+    cleanup_dirty_global_logs(patcher_path)
+    ensure_clean_worktree(root, patcher_path, patcher_branch, "preflight")
 
     work_item_id = select_resume_work_item_id(content)
     if not work_item_id:
@@ -1465,7 +1657,11 @@ def main() -> None:
             f"Test plan:\n{test_plan}\n\n"
             f"Dev tasks:\n{content}\n"
         )
-        preflight_raw = codex_exec(preflight_prompt).strip()
+        preflight_raw = codex_exec(
+            preflight_prompt,
+            runner_metadata=runner_metadata,
+            root=root,
+        ).strip()
         preflight_json = extract_json_payload(preflight_raw)
         try:
             preflight_data = json.loads(preflight_json)
@@ -1521,19 +1717,6 @@ def main() -> None:
             write_file(dev_tasks_path, content)
             die("pc-feature: high-risk work item requires PO approval")
 
-    patcher_path, patcher_branch = prepare_worktree(
-        root, feature_slug, "patcher", "main"
-    )
-    planner_path = patcher_path
-    tester_path = patcher_path
-    reporter_path = patcher_path
-    role_paths = worktree_role_paths(feature_dir)
-    for role, rel_path in role_paths.items():
-        ensure_role_log(os.path.join(root, rel_path), role)
-    cleanup_dirty_role_logs(patcher_path, feature_dir)
-    cleanup_dirty_global_logs(patcher_path)
-    ensure_clean_worktree(root, patcher_path, patcher_branch, "preflight")
-
     requires_global_logs = False
     for attempt in range(1, MAX_LOOPS + 1):
         content = read_file(dev_tasks_path)
@@ -1548,7 +1731,11 @@ def main() -> None:
                 },
             )
             plan_text = codex_exec(
-                plan_prompt, cwd=planner_path, profile="Planner"
+                plan_prompt,
+                cwd=planner_path,
+                profile="Planner",
+                runner_metadata=runner_metadata,
+                root=root,
             ).strip()
             content = read_file(dev_tasks_path)
             content = update_entry_field(content, work_item_id, "Planner", "Codex")
@@ -1595,7 +1782,11 @@ def main() -> None:
                     },
                 )
                 planner_response = codex_exec(
-                    planner_prompt, cwd=planner_path, profile="Planner"
+                    planner_prompt,
+                    cwd=planner_path,
+                    profile="Planner",
+                    runner_metadata=runner_metadata,
+                    root=root,
                 ).strip()
                 if planner_response:
                     content = replace_entry_section(
@@ -1660,6 +1851,8 @@ def main() -> None:
             plan_reviewer_prompt,
             cwd=planner_path,
             profile="Planner",
+            runner_metadata=runner_metadata,
+            root=root,
         ).strip()
         reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
         if reviewer_decision == "BLOCK":
@@ -1684,6 +1877,8 @@ def main() -> None:
                 planner_update_prompt,
                 cwd=planner_path,
                 profile="Planner",
+                runner_metadata=runner_metadata,
+                root=root,
             ).strip()
             if not revised_plan:
                 die("pc-feature: planner returned empty plan after reviewer block")
@@ -1723,6 +1918,8 @@ def main() -> None:
                 capture_output=True,
                 cwd=patcher_path,
                 profile="Patcher",
+                runner_metadata=runner_metadata,
+                root=root,
             ).strip()
             format_role_changes("patcher", patcher_path, feature_dir)
             reset_role_logs_to_head(patcher_path, feature_dir)
@@ -1818,7 +2015,11 @@ def main() -> None:
             },
         )
         reporter_feedback = codex_exec(
-            reporter_prompt, cwd=reporter_path, profile="Reporter"
+            reporter_prompt,
+            cwd=reporter_path,
+            profile="Reporter",
+            runner_metadata=runner_metadata,
+            root=root,
         ).strip()
         reporter_outcome = parse_outcome(reporter_feedback)
         ensure_role_log(os.path.join(reporter_path, role_paths["reporter"]), "reporter")
@@ -1855,6 +2056,8 @@ def main() -> None:
                 planner_feedback_prompt,
                 cwd=planner_path,
                 profile="Planner",
+                runner_metadata=runner_metadata,
+                root=root,
             ).strip()
             planner_decision = parse_feedback_plan_decision(planner_feedback)
             planner_rationale = parse_feedback_rationale(planner_feedback)
@@ -1900,6 +2103,8 @@ def main() -> None:
                 capture_output=True,
                 cwd=patcher_path,
                 profile="Patcher",
+                runner_metadata=runner_metadata,
+                root=root,
             ).strip()
             format_role_changes("patcher", patcher_path, feature_dir)
             reset_role_logs_to_head(patcher_path, feature_dir)
@@ -2006,7 +2211,11 @@ def main() -> None:
         },
     )
     reporter_global_raw = codex_exec(
-        reporter_global_prompt, cwd=reporter_path, profile="Reporter"
+        reporter_global_prompt,
+        cwd=reporter_path,
+        profile="Reporter",
+        runner_metadata=runner_metadata,
+        root=root,
     ).strip()
     reporter_global_json = extract_json_payload(reporter_global_raw)
     try:
@@ -2053,7 +2262,11 @@ def main() -> None:
                 "work_item_id": work_item_id,
             },
         )
-        commit_message = codex_exec(commit_prompt).strip()
+        commit_message = codex_exec(
+            commit_prompt,
+            runner_metadata=runner_metadata,
+            root=root,
+        ).strip()
         if not commit_message:
             die("pc-feature: empty commit message from agent")
         content = replace_entry_section(

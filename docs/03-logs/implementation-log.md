@@ -27,6 +27,42 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - pc-feature Step 14: escalation broker + worktree-first ordering
+
+**Feature/Bug:** Workflow hardening (Step 14)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added orchestrator-side escalation broker utilities in `pc-feature`:
+  - structured escalation request parsing (`parse_escalation_request`)
+  - command normalization/allowlist enforcement
+  - broker decision + command dispatch (`process_escalation_request`)
+  - broker result formatting + escalation loop handling in `codex_exec`
+- Added escalation logging via runner logs (`logs/<WI>/escalation.log`) for request approval, decision, and completion.
+- Updated `codex_exec` usage sites to pass runner metadata/root so broker actions are logged.
+- Moved patcher worktree preparation/cleaning before the first mutable workflow writes to avoid pre-create root-write drift.
+- Added focused tests for:
+  - escalation request parsing
+  - denied escalation path (allowlist rejection)
+  - approved escalation dispatch
+  - worktree preparation ordering before first `dev-tasks.md` write
+- Synced protocol docs/template with orchestrator-mediated escalation policy.
+
+**Why:**
+
+- Keep escalation execution under orchestrator control and prevent state drift caused by mutable writes before worktree setup.
+
+**How:**
+
+- Refactored `codex_exec` into a one-shot runner + escalation-aware wrapper, introduced broker helpers, and reordered early main-flow setup.
+
 ### 2026-02-06 - pc-feature Step 13: deterministic risk path triggers from planned + actual paths
 
 **Feature/Bug:** Workflow hardening (Step 13)

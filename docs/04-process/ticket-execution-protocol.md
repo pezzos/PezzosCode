@@ -106,6 +106,7 @@
 
 - Use Serena for code navigation and symbol-aware edits when available.
 - Offload large outputs using `tools/offload-proxy/pp` to reduce token usage.
+- Subagent escalations are orchestrator-mediated: subagent returns a structured escalation request, orchestrator validates it against policy allowlist, records decision/action, and executes only approved commands.
 
 ---
 

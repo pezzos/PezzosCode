@@ -303,6 +303,33 @@ class TestPcFeature(unittest.TestCase):
             "REVISE_PLAN",
         )
 
+    def test_parse_escalation_request_supports_nested_payload(self):
+        request = self.pc_feature.parse_escalation_request(
+            '{"escalation_request":{"command":["git","status"],"reason":"need git output"}}'
+        )
+        self.assertIsNotNone(request)
+        self.assertEqual(request["command"], ["git", "status"])
+
+    def test_process_escalation_request_denies_disallowed_command(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result = self.pc_feature.process_escalation_request(
+                {"command": ["git", "reset", "--hard"], "reason": "unsafe"},
+                root=tmp_dir,
+                default_cwd=tmp_dir,
+            )
+        self.assertEqual(result["decision"], "DENY")
+        self.assertIn("not allowed", result["error"])
+
+    def test_process_escalation_request_approves_and_dispatches_allowed_command(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result = self.pc_feature.process_escalation_request(
+                {"command": ["python3", "-m", "unittest", "-h"], "reason": "check cli"},
+                root=tmp_dir,
+                default_cwd=tmp_dir,
+            )
+        self.assertEqual(result["decision"], "APPROVE")
+        self.assertIn("exit_code", result)
+
     def test_format_review_item_marks_failure(self):
         line = self.pc_feature.format_review_item("make feature F=01", 2)
         self.assertEqual(line, "make feature F=01: FAIL")
@@ -805,6 +832,51 @@ class TestPcFeature(unittest.TestCase):
                 with self.assertRaises(StopMain):
                     self.pc_feature.main()
             self.assertFalse(manifest_path.exists())
+
+    def test_main_prepares_worktree_before_first_dev_tasks_write(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            feature_dir = self._write_feature_workspace(root, "## Execution Log\n\n")
+            events = []
+            original_write_file = self.pc_feature.write_file
+            dev_tasks_suffix = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+
+            def fake_prepare_worktree(*args, **kwargs):
+                events.append("prepare")
+                return (str(patcher_path), "patcher-branch")
+
+            def fake_write_file(path: str, content: str):
+                if path.endswith(dev_tasks_suffix):
+                    events.append("devtasks-write")
+                    raise StopMain()
+                return original_write_file(path, content)
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "prepare_worktree",
+                        side_effect=fake_prepare_worktree,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "write_file", side_effect=fake_write_file
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertIn("prepare", events)
+            self.assertIn("devtasks-write", events)
+            self.assertLess(events.index("prepare"), events.index("devtasks-write"))
 
     def test_main_avoids_git_add_all_for_final_staging(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
