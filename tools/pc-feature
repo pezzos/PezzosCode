@@ -1237,9 +1237,16 @@ def branch_ahead_count(root: str, base_ref: str, branch: str) -> int:
     return int(result.stdout.strip() or "0")
 
 
-def apply_branch_diff(root: str, base_ref: str, branch: str) -> bool:
+def apply_branch_diff(
+    root: str, base_ref: str, branch: str, include_paths: Optional[List[str]] = None
+) -> bool:
+    cmd = ["git", "diff", "--binary", f"{base_ref}..{branch}"]
+    if include_paths is not None:
+        if not include_paths:
+            return True
+        cmd.extend(["--"] + include_paths)
     result = subprocess.run(
-        ["git", "diff", "--binary", f"{base_ref}..{branch}"],
+        cmd,
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -1278,6 +1285,31 @@ def branch_diff_paths(root: str, base_ref: str, branch: str) -> List[str]:
     if result.returncode != 0:
         die(f"pc-feature: failed to list changed paths for {branch}\n{result.stderr}")
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def is_ephemeral_collection_path(
+    path: str, dev_tasks_path: str, feature_dir: str
+) -> bool:
+    if path == dev_tasks_path:
+        return True
+    if path in set(role_log_paths(feature_dir)):
+        return True
+    if path in set(global_log_paths()):
+        return True
+    if path.startswith("logs/"):
+        return True
+    return False
+
+
+def collect_branch_merge_paths(
+    root: str, base_ref: str, branch: str, dev_tasks_path: str, feature_dir: str
+) -> List[str]:
+    paths = filter_ignored_paths(branch_diff_paths(root, base_ref, branch))
+    return sorted(
+        path
+        for path in paths
+        if not is_ephemeral_collection_path(path, dev_tasks_path, feature_dir)
+    )
 
 
 def cleanup_worktrees(root: str) -> None:
@@ -1834,9 +1866,11 @@ def record_trace_event(
 
 
 def collect_allowed_final_stage_paths(
-    root: str, base_ref: str, branch: str, dev_tasks_path: str
+    root: str, base_ref: str, branch: str, dev_tasks_path: str, feature_dir: str
 ) -> List[str]:
-    allowed = set(filter_ignored_paths(branch_diff_paths(root, base_ref, branch)))
+    allowed = set(
+        collect_branch_merge_paths(root, base_ref, branch, dev_tasks_path, feature_dir)
+    )
     allowed.add(dev_tasks_path)
     allowed.update(global_log_paths())
     return sorted(allowed)
@@ -2645,7 +2679,10 @@ def main() -> None:
     for branch in role_branches:
         if branch_ahead_count(root, base_ref, branch) == 0:
             continue
-        if not apply_branch_diff(root, base_ref, branch):
+        merge_paths = collect_branch_merge_paths(
+            root, base_ref, branch, dev_tasks_path, feature_dir
+        )
+        if not apply_branch_diff(root, base_ref, branch, include_paths=merge_paths):
             content = read_file(dev_tasks_path)
             content = update_entry_field(
                 content, work_item_id, "Outcome", "needs replan"
@@ -2657,7 +2694,7 @@ def main() -> None:
             die("pc-feature: conflict detected while collecting worktrees")
 
     allowed_stage_paths = collect_allowed_final_stage_paths(
-        root, "refs/heads/main", patcher_branch, dev_tasks_path
+        root, "refs/heads/main", patcher_branch, dev_tasks_path, feature_dir
     )
     gate_status = "FAIL"
     autofix_notes: List[str] = []

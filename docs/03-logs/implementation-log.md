@@ -3919,3 +3919,38 @@ Track when debt is paid down:
 **Testing:**
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+
+### 2026-02-06 - Harden worktree collection against volatile path conflicts
+
+**Feature/Bug:** Unified autofix pre-commit workflow collection conflict (`pc-feature: conflict detected while collecting worktrees`)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added `collect_branch_merge_paths(...)` to filter branch diffs before final collection.
+- Excluded volatile paths from branch replay:
+  - feature `dev-tasks.md`
+  - role-scoped logs (`planner-log.md`, `reporter-log.md`, `validation-log.md`)
+  - global logs in `docs/03-logs/*.md`
+  - runtime artifacts under `logs/`
+- Updated final worktree collection to apply only filtered merge paths.
+- Updated final-stage allowed path collection to use the same filtered branch set and then explicitly add `dev-tasks.md` + global logs from `main`.
+- Added regression tests for filtering and empty include-path no-op behavior.
+
+**Why:**
+
+- Repeated runs with an ahead patcher branch accumulated volatile log/doc changes that are expected to diverge from `main` and caused `git apply --3way` collection conflicts.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Slightly improved (smaller replay patch)
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`

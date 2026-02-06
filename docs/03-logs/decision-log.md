@@ -1584,3 +1584,16 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Faster failure for non-progress loops.
   - Better diagnostics for where and why execution stopped.
+
+### DEC-020 - Exclude volatile workflow artifacts from patcher branch replay
+
+- **Date:** 2026-02-06
+- **Status:** Accepted
+- **Context:** `pc-feature` final collection replays `patcher` branch changes onto `main`. Repeated executions accumulate volatile artifacts (role logs, global logs, run logs, and local execution-trace edits) that can diverge from `main` and trigger `git apply --3way` conflicts.
+- **Decision:**
+  - Filter patcher branch replay to durable implementation paths only.
+  - Exclude `dev-tasks.md`, role-scoped logs, `docs/03-logs/*.md`, and `logs/` artifacts from branch replay.
+  - Keep final commit scope explicit by adding `dev-tasks.md` and global logs from `main` at final staging, rather than replaying their branch versions.
+- **Consequences:**
+  - Final collection becomes resilient to repeated-run log churn.
+  - Runtime `logs/WI-*` files are no longer implicitly allowed via branch diff drift.

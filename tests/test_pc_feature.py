@@ -611,6 +611,62 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("README.md", stderr_capture.getvalue())
 
+    def test_collect_branch_merge_paths_excludes_ephemeral_and_role_logs(self):
+        feature_dir = "docs/02-features/10-unified-autofix-precommit"
+        dev_tasks_path = f"{feature_dir}/dev-tasks.md"
+        with mock.patch.object(
+            self.pc_feature,
+            "branch_diff_paths",
+            return_value=[
+                "tools/pc-feature",
+                dev_tasks_path,
+                f"{feature_dir}/planner-log.md",
+                f"{feature_dir}/reporter-log.md",
+                "docs/03-logs/implementation-log.md",
+                "logs/WI-20260206-01/feature.log",
+            ],
+        ):
+            filtered = self.pc_feature.collect_branch_merge_paths(
+                "/tmp/repo",
+                "refs/heads/main",
+                "feature-10-unified-autofix-precommit-patcher",
+                dev_tasks_path,
+                feature_dir,
+            )
+        self.assertEqual(filtered, ["tools/pc-feature"])
+
+    def test_collect_allowed_final_stage_paths_adds_dev_tasks_and_global_logs(self):
+        feature_dir = "docs/02-features/10-unified-autofix-precommit"
+        dev_tasks_path = f"{feature_dir}/dev-tasks.md"
+        with mock.patch.object(
+            self.pc_feature,
+            "collect_branch_merge_paths",
+            return_value=["tools/pc-feature"],
+        ):
+            allowed = self.pc_feature.collect_allowed_final_stage_paths(
+                "/tmp/repo",
+                "refs/heads/main",
+                "feature-10-unified-autofix-precommit-patcher",
+                dev_tasks_path,
+                feature_dir,
+            )
+        self.assertIn("tools/pc-feature", allowed)
+        self.assertIn(dev_tasks_path, allowed)
+        self.assertIn("docs/03-logs/implementation-log.md", allowed)
+        self.assertIn("docs/03-logs/validation-log.md", allowed)
+        self.assertIn("docs/03-logs/decision-log.md", allowed)
+
+    def test_apply_branch_diff_skips_diff_when_include_paths_empty(self):
+        with mock.patch.object(self.pc_feature.subprocess, "run") as run_mock:
+            ok = self.pc_feature.apply_branch_diff(
+                "/tmp/repo",
+                "HEAD",
+                "feature-branch",
+                include_paths=[],
+            )
+        self.assertTrue(ok)
+        run_mock.assert_not_called()
+
     def test_run_scoped_autofix_blocks_out_of_scope_files(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

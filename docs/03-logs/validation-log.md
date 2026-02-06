@@ -777,3 +777,16 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Trace updates are rendered as a single per-attempt flow line.
   - Multiple events on same attempt update the same flow line (no duplicate attempt lines).
   - Runtime writes flow state across reviewer, patch, tests, reporter, feedback, and CI phases.
+
+## 2026-02-06 - Worktree collection conflict hardening validation
+
+- Command: `tools/offload-proxy/pp git log --oneline --decorate --graph --max-count=80 --all`
+- Result: PASS (identified repeated `feature-10-unified-autofix-precommit-patcher` role commits and divergence from `main`)
+- Command: `tools/offload-proxy/pp git diff --name-status HEAD..refs/heads/feature-10-unified-autofix-precommit-patcher`
+- Result: PASS (confirmed volatile-path drift in branch diff: role logs, global logs, runtime logs, and docs)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`49` tests)
+- Verified:
+  - branch replay paths are filtered to durable implementation files.
+  - volatile docs/log artifacts are excluded from replay and from branch-derived final staging scope.
+  - empty filtered replay set safely no-ops (no diff/apply call).
