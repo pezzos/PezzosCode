@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
+PROMPTS_DIR = ROOT / "prompts"
 sys.path.insert(0, str(ROOT))
 
 from lib import pc_runner  # noqa: E402
@@ -75,6 +76,41 @@ def read_file(path: str) -> str:
 def write_file(path: str, content: str) -> None:
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(content)
+
+
+def prompt_template_candidates(role: str, task: Optional[str] = None) -> List[Path]:
+    candidates: List[Path] = []
+    if task:
+        candidates.append(PROMPTS_DIR / f"{role}-{task}.md")
+    candidates.append(PROMPTS_DIR / f"{role}.md")
+    return candidates
+
+
+def load_prompt_template(role: str, task: Optional[str] = None) -> str:
+    checked = []
+    for path in prompt_template_candidates(role, task):
+        checked.append(str(path))
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    if task:
+        die(
+            "pc-feature: missing prompt template "
+            f"for role={role} task={task}; checked: {', '.join(checked)}"
+        )
+    die(
+        "pc-feature: missing prompt template "
+        f"for role={role}; checked: {', '.join(checked)}"
+    )
+    return ""
+
+
+def render_prompt_template(template: str, values: Dict[str, str]) -> str:
+    class StrictMap(dict):
+        def __missing__(self, key):
+            die(f"pc-feature: prompt template missing value for '{key}'")
+            return ""
+
+    return template.format_map(StrictMap(values))
 
 
 def parse_args(argv: List[str]) -> Tuple[str, bool]:
@@ -1437,15 +1473,14 @@ def main() -> None:
     for attempt in range(1, MAX_LOOPS + 1):
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Plan"):
-            plan_prompt = (
-                "You are the Planner agent. Provide a concise plan for this work item. "
-                "Include approach, files to change, risks, and tests. "
-                "Also fill the Allowed Tests section with exact commands; "
-                "do not include `make feature` or `pc-feature`.\n"
-                f"Work Item ID: {work_item_id}\n"
-                f"Feature spec:\n{feature_spec}\n\n"
-                f"Tech design:\n{tech_design}\n\n"
-                f"Dev tasks:\n{content}\n"
+            plan_prompt = render_prompt_template(
+                load_prompt_template("planner", "create"),
+                {
+                    "work_item_id": work_item_id,
+                    "feature_spec": feature_spec,
+                    "tech_design": tech_design,
+                    "dev_tasks": content,
+                },
             )
             plan_text = codex_exec(
                 plan_prompt, cwd=planner_path, profile="Planner"
@@ -1487,12 +1522,12 @@ def main() -> None:
                     issues.append("Forbidden commands detected (do not use `make ci`).")
                 if missing:
                     issues.append("Missing tests: " + "; ".join(sorted(set(missing))))
-                planner_prompt = (
-                    "Allowed Tests must list a light, fast smoke command that exists. "
-                    "Do not use `make ci`, `make feature`, or `pc-feature`. "
-                    "Return ONLY the Allowed Tests section body (bulleted commands).\n"
-                    f"Work Item ID: {work_item_id}\n"
-                    f"Issues: {' '.join(issues)}\n"
+                planner_prompt = render_prompt_template(
+                    load_prompt_template("planner", "update-allowed-tests"),
+                    {
+                        "work_item_id": work_item_id,
+                        "issues": " ".join(issues),
+                    },
                 )
                 planner_response = codex_exec(
                     planner_prompt, cwd=planner_path, profile="Planner"
@@ -1547,19 +1582,13 @@ def main() -> None:
         content = read_file(dev_tasks_path)
         current_plan = get_entry_section(content, work_item_id, "Plan")
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
-        plan_reviewer_prompt = (
-            "You are the Plan Reviewer agent. Review the current plan before patching. "
-            "Return exactly:\n"
-            "Decision: Approve|Block\n"
-            "Reasons:\n"
-            "- ...\n"
-            "Required changes:\n"
-            "- ...\n"
-            "Optional suggestions:\n"
-            "- ...\n"
-            f"Work Item ID: {work_item_id}\n"
-            f"Plan:\n{current_plan}\n\n"
-            f"Allowed Tests:\n{allowed_section}\n"
+        plan_reviewer_prompt = render_prompt_template(
+            load_prompt_template("plan-reviewer", "gate"),
+            {
+                "work_item_id": work_item_id,
+                "current_plan": current_plan,
+                "allowed_tests": allowed_section,
+            },
         )
         reviewer_feedback = codex_exec(
             plan_reviewer_prompt,
@@ -1577,12 +1606,13 @@ def main() -> None:
                 f"Plan Reviewer feedback (BLOCK):\n{reviewer_feedback}",
                 role="planner",
             )
-            planner_update_prompt = (
-                "You are the Planner agent. Update the Plan section based on Plan Reviewer feedback. "
-                "Return ONLY the revised Plan section body.\n"
-                f"Work Item ID: {work_item_id}\n"
-                f"Current Plan:\n{current_plan}\n\n"
-                f"Plan Reviewer feedback:\n{reviewer_feedback}\n"
+            planner_update_prompt = render_prompt_template(
+                load_prompt_template("planner", "update-from-feedback"),
+                {
+                    "work_item_id": work_item_id,
+                    "current_plan": current_plan,
+                    "reviewer_feedback": reviewer_feedback,
+                },
             )
             revised_plan = codex_exec(
                 planner_update_prompt,
@@ -1615,13 +1645,12 @@ def main() -> None:
 
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Patch"):
-            patch_prompt = (
-                "You are the Patcher agent. Apply the smallest possible diff to satisfy the plan. "
-                "Return a concise summary of what changed and any commands run. "
-                "Do not edit any role-scoped logs (planner/reporter/validation), "
-                "any global logs under docs/03-logs, or dev-tasks.md.\n"
-                f"Work Item ID: {work_item_id}\n"
-                f"Plan:\n{get_entry_section(content, work_item_id, 'Plan')}\n"
+            patch_prompt = render_prompt_template(
+                load_prompt_template("patcher", "apply"),
+                {
+                    "work_item_id": work_item_id,
+                    "plan": get_entry_section(content, work_item_id, "Plan"),
+                },
             )
             codex_exec(
                 patch_prompt,
@@ -1715,18 +1744,12 @@ def main() -> None:
                 "Global logs will be auto-appended after gates when process docs change. "
                 "Do not fail solely due to missing docs/03-logs updates; note any gaps."
             )
-        reporter_prompt = (
-            "You are the Reporter agent. Review changes for scope and completeness. "
-            "Compare against main (e.g., `git diff --stat refs/heads/main..HEAD`) to ensure "
-            "you are reviewing the patcher's changes, not just working tree status. "
-            "Do not claim the reporter log was not updated; you are updating it. "
-            "Global logs under docs/03-logs are written after completion; do not fail solely for their absence. "
-            "Return in this exact format:\n"
-            "Outcome: PASS|FAIL\n"
-            "Docs/logs updated: ...\n"
-            "Notes: ...\n"
-            f"{reporter_note}\n"
-            f"Work Item ID: {work_item_id}\n"
+        reporter_prompt = render_prompt_template(
+            load_prompt_template("reporter", "review"),
+            {
+                "work_item_id": work_item_id,
+                "reporter_note": reporter_note,
+            },
         )
         reporter_feedback = codex_exec(
             reporter_prompt, cwd=reporter_path, profile="Reporter"
@@ -1811,12 +1834,11 @@ def main() -> None:
         write_file(dev_tasks_path, content)
         die("pc-feature: make ci failed after autofix attempts")
 
-    reporter_global_prompt = (
-        "You are the Reporter agent. The feature completed successfully. "
-        "Provide short, single-line summaries for global logs. "
-        "Return ONLY valid JSON with keys: implementation_log, validation_log, decision_log. "
-        "Use 'none' if no decision entry is needed.\n"
-        f"Work Item ID: {work_item_id}\n"
+    reporter_global_prompt = render_prompt_template(
+        load_prompt_template("reporter", "global-log"),
+        {
+            "work_item_id": work_item_id,
+        },
     )
     reporter_global_raw = codex_exec(
         reporter_global_prompt, cwd=reporter_path, profile="Reporter"
@@ -1860,10 +1882,11 @@ def main() -> None:
             get_entry_section(content, work_item_id, "Commit")
         )
     if not commit_message:
-        commit_prompt = (
-            "You are generating a concise, scoped commit message for this work item. "
-            "Return ONLY the commit subject line.\n"
-            f"Work Item ID: {work_item_id}\n"
+        commit_prompt = render_prompt_template(
+            load_prompt_template("commit-message"),
+            {
+                "work_item_id": work_item_id,
+            },
         )
         commit_message = codex_exec(commit_prompt).strip()
         if not commit_message:

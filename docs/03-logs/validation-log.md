@@ -694,3 +694,26 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - reviewer `BLOCK` triggers planner replan path and loop continuation.
   - reviewer `APPROVE` allows patch phase to execute.
   - patch step is not reached in the blocked iteration.
+
+## 2026-02-06 - Workflow hardening Step 08 validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "load_prompt_template_prefers_task_specific_then_fallback"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "render_prompt_template_substitutes_variables"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "load_prompt_template_missing_file_has_clear_error"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_block_routes_back_to_planner_before_patch"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_approve_allows_patch"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "avoids_git_add_all_for_final_staging"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "skips_commit_generation_if_commit_section_already_filled"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp rg -n "You are the Planner agent|You are the Patcher agent|You are the Reporter agent|You are the Plan Reviewer agent|generating a concise, scoped commit message|Allowed Tests must list" /Users/alexandrepezzotta/repos/PezzosCode/tools/pc-feature`
+- Result: no matches (`rg` exit code `1`, expected for empty result)
+- Verified:
+  - prompt content for role/task executions is now file-sourced.
+  - task-specific prompt fallback and variable rendering work deterministically.
+  - missing prompt templates fail with explicit checked-path error text.

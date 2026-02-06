@@ -3460,6 +3460,55 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_block_routes_back_to_planner_before_patch"`
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_approve_allows_patch"`
 
+### 2026-02-06 - Workflow hardening Step 08 externalize role prompts
+
+**Feature/Bug:** `tools/pc-feature` prompt sourcing and templating
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/planner-create.md`
+- `prompts/planner-update-allowed-tests.md`
+- `prompts/plan-reviewer-gate.md`
+- `prompts/planner-update-from-feedback.md`
+- `prompts/patcher-apply.md`
+- `prompts/reporter-review.md`
+- `prompts/reporter-global-log.md`
+- `prompts/commit-message.md`
+
+**What Changed:**
+
+- Added prompt loader + renderer utilities in `pc-feature`:
+  - task-first fallback lookup (`prompts/<role>-<task>.md` then `prompts/<role>.md`)
+  - strict variable substitution with clear error on missing values.
+- Replaced inline role/task prompt literals with loaded templates for:
+  - planner create
+  - planner allowed-tests update
+  - plan-reviewer gate
+  - planner update-from-feedback
+  - patcher apply
+  - reporter review
+  - reporter global-log summary
+  - commit message generation
+- Added unit tests covering loader fallback, variable rendering, and missing template error quality.
+- Updated existing tests to account for mandatory plan-reviewer prompt path.
+
+**Why:**
+
+- Enforce repository policy that role prompts come from files and support task-specific prompt evolution without hardcoded literals.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "load_prompt_template_prefers_task_specific_then_fallback"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "render_prompt_template_substitutes_variables"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "load_prompt_template_missing_file_has_clear_error"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_block_routes_back_to_planner_before_patch"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_approve_allows_patch"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "avoids_git_add_all_for_final_staging"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "skips_commit_generation_if_commit_section_already_filled"`
+- `tools/offload-proxy/pp rg -n "You are the Planner agent|You are the Patcher agent|You are the Reporter agent|You are the Plan Reviewer agent|generating a concise, scoped commit message|Allowed Tests must list" /Users/alexandrepezzotta/repos/PezzosCode/tools/pc-feature`
+
 ---
 
 ## 2026-02-05

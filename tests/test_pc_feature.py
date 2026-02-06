@@ -271,6 +271,47 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn("start python smoke", content)
             self.assertIn("complete python smoke: exit=0", content)
 
+    def test_load_prompt_template_prefers_task_specific_then_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            prompts_dir = Path(tmp_dir)
+            (prompts_dir / "planner.md").write_text(
+                "fallback {work_item_id}\n", encoding="utf-8"
+            )
+            original_prompts_dir = self.pc_feature.PROMPTS_DIR
+            self.pc_feature.PROMPTS_DIR = prompts_dir
+            try:
+                fallback = self.pc_feature.load_prompt_template("planner", "create")
+                self.assertEqual(fallback, "fallback {work_item_id}\n")
+                (prompts_dir / "planner-create.md").write_text(
+                    "specific {work_item_id}\n",
+                    encoding="utf-8",
+                )
+                specific = self.pc_feature.load_prompt_template("planner", "create")
+                self.assertEqual(specific, "specific {work_item_id}\n")
+            finally:
+                self.pc_feature.PROMPTS_DIR = original_prompts_dir
+
+    def test_render_prompt_template_substitutes_variables(self):
+        rendered = self.pc_feature.render_prompt_template(
+            "Work Item ID: {work_item_id}\nPlan:\n{plan}",
+            {"work_item_id": "WI-20260206-01", "plan": "- test"},
+        )
+        self.assertEqual(rendered, "Work Item ID: WI-20260206-01\nPlan:\n- test")
+
+    def test_load_prompt_template_missing_file_has_clear_error(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            original_prompts_dir = self.pc_feature.PROMPTS_DIR
+            self.pc_feature.PROMPTS_DIR = Path(tmp_dir)
+            stderr_capture = io.StringIO()
+            try:
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.load_prompt_template("planner", "create")
+            finally:
+                self.pc_feature.PROMPTS_DIR = original_prompts_dir
+        self.assertIn("missing prompt template", stderr_capture.getvalue())
+        self.assertIn("role=planner task=create", stderr_capture.getvalue())
+
     def test_stage_scoped_final_paths_blocks_unrelated_dirty_paths(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -655,6 +696,8 @@ class TestPcFeature(unittest.TestCase):
                         '{"implementation_log":"none","validation_log":"none",'
                         '"decision_log":"none"}'
                     )
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
                 if "generating a concise, scoped commit message" in prompt:
                     return "workflow: finalize scoped changes"
                 return "ok"
@@ -747,6 +790,8 @@ class TestPcFeature(unittest.TestCase):
                         '{"implementation_log":"none","validation_log":"none",'
                         '"decision_log":"none"}'
                     )
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
                 if "generating a concise, scoped commit message" in prompt:
                     return "unexpected generated message"
                 return "ok"
