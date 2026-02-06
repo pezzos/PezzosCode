@@ -647,3 +647,16 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - mixed WI outcomes resume the newest non-pass WI.
   - newest WI with `Outcome: pass` does not resume and triggers new WI creation path.
+
+## 2026-02-06 - Workflow hardening Step 04 validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "stage_scoped_final_paths_blocks_unrelated_dirty_paths"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "avoids_git_add_all_for_final_staging"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "skips_commit_generation_if_commit_section_already_filled"`
+- Result: PASS (`1` test)
+- Verified:
+  - final staging no longer uses blanket `git add -A`.
+  - commit generation is skipped when `Commit` section is already filled.
+  - unrelated dirty files block final commit with actionable output.

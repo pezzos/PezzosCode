@@ -991,6 +991,20 @@ def apply_branch_diff(root: str, base_ref: str, branch: str) -> bool:
     return True
 
 
+def branch_diff_paths(root: str, base_ref: str, branch: str) -> List[str]:
+    result = subprocess.run(
+        ["git", "diff", "--name-only", f"{base_ref}..{branch}"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to list changed paths for {branch}\n{result.stderr}")
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
 def cleanup_worktrees(root: str) -> None:
     result = subprocess.run(
         ["git", "worktree", "list", "--porcelain"],
@@ -1031,6 +1045,16 @@ def parse_outcome(text: str) -> str:
     if not match:
         return "FAIL"
     return match.group(1).upper()
+
+
+def parse_commit_message(section: str) -> str:
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("-", "*")):
+            stripped = stripped[1:].strip()
+        if stripped.lower().startswith("commit message:"):
+            return stripped.split(":", 1)[1].strip()
+    return ""
 
 
 def extract_field(text: str, label: str) -> str:
@@ -1211,6 +1235,37 @@ def select_resume_work_item_id(content: str) -> Optional[str]:
     if outcome and outcome.startswith("pass"):
         return None
     return newest_id
+
+
+def collect_allowed_final_stage_paths(
+    root: str, base_ref: str, branch: str, dev_tasks_path: str
+) -> List[str]:
+    allowed = set(filter_ignored_paths(branch_diff_paths(root, base_ref, branch)))
+    allowed.add(dev_tasks_path)
+    allowed.update(global_log_paths())
+    return sorted(allowed)
+
+
+def stage_scoped_final_paths(root: str, allowed_paths: List[str]) -> List[str]:
+    current_paths = set(filter_ignored_paths(get_status_paths(root)))
+    allowed = set(filter_ignored_paths(allowed_paths))
+    unexpected = sorted(path for path in current_paths if path not in allowed)
+    if unexpected:
+        die(
+            "pc-feature: unrelated dirty paths block final commit; "
+            "clean/stash these first: " + ", ".join(unexpected)
+        )
+    stage_paths = sorted(path for path in current_paths if path in allowed)
+    if not stage_paths:
+        die("pc-feature: no scoped changes to commit at final stage")
+    commit_result = subprocess.run(
+        ["git", "add", "--"] + stage_paths,
+        check=False,
+        cwd=root,
+    )
+    if commit_result.returncode != 0:
+        die("pc-feature: failed to stage scoped changes")
+    return stage_paths
 
 
 def append_log_line(path: str, line: str) -> None:
@@ -1733,21 +1788,28 @@ def main() -> None:
             decision_line,
         )
 
-    commit_prompt = (
-        "You are generating a concise, scoped commit message for this work item. "
-        "Return ONLY the commit subject line.\n"
-        f"Work Item ID: {work_item_id}\n"
-    )
-    commit_message = codex_exec(commit_prompt).strip()
-    if not commit_message:
-        die("pc-feature: empty commit message from agent")
     content = read_file(dev_tasks_path)
-    content = replace_entry_section(
-        content,
-        work_item_id,
-        "Commit",
-        f"- Commit message: {commit_message}",
-    )
+    commit_already_done = entry_section_complete(content, work_item_id, "Commit")
+    commit_message = ""
+    if commit_already_done:
+        commit_message = parse_commit_message(
+            get_entry_section(content, work_item_id, "Commit")
+        )
+    if not commit_message:
+        commit_prompt = (
+            "You are generating a concise, scoped commit message for this work item. "
+            "Return ONLY the commit subject line.\n"
+            f"Work Item ID: {work_item_id}\n"
+        )
+        commit_message = codex_exec(commit_prompt).strip()
+        if not commit_message:
+            die("pc-feature: empty commit message from agent")
+        content = replace_entry_section(
+            content,
+            work_item_id,
+            "Commit",
+            f"- Commit message: {commit_message}",
+        )
 
     final_report = (
         "What changed (files): (see git diff)\n"
@@ -1761,20 +1823,18 @@ def main() -> None:
     content = update_entry_field(content, work_item_id, "Outcome", "pass")
     write_file(dev_tasks_path, content)
 
-    commit_result = subprocess.run(
-        ["git", "add", "-A"],
-        check=False,
-        cwd=root,
-    )
-    if commit_result.returncode != 0:
-        die("pc-feature: failed to stage collected changes")
-    commit_result = subprocess.run(
-        ["git", "commit", "-m", commit_message],
-        check=False,
-        cwd=root,
-    )
-    if commit_result.returncode != 0:
-        die("pc-feature: failed to commit collected changes")
+    if not commit_already_done:
+        allowed_stage_paths = collect_allowed_final_stage_paths(
+            root, "refs/heads/main", patcher_branch, dev_tasks_path
+        )
+        stage_scoped_final_paths(root, allowed_stage_paths)
+        commit_result = subprocess.run(
+            ["git", "commit", "-m", commit_message],
+            check=False,
+            cwd=root,
+        )
+        if commit_result.returncode != 0:
+            die("pc-feature: failed to commit collected changes")
     cleanup_worktrees(root)
 
     pc_runner.log_message(runner_metadata, "feature", "complete", root=Path(root))

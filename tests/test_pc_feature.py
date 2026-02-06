@@ -257,6 +257,29 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn("start python smoke", content)
             self.assertIn("complete python smoke: exit=0", content)
 
+    def test_stage_scoped_final_paths_blocks_unrelated_dirty_paths(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stderr_capture = io.StringIO()
+            with mock.patch.object(
+                self.pc_feature,
+                "get_status_paths",
+                return_value=[
+                    "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                    "README.md",
+                ],
+            ):
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.stage_scoped_final_paths(
+                            str(root),
+                            ["docs/02-features/01-workflow-hardening/dev-tasks.md"],
+                        )
+            self.assertIn(
+                "unrelated dirty paths block final commit", stderr_capture.getvalue()
+            )
+            self.assertIn("README.md", stderr_capture.getvalue())
+
     def test_main_resumes_newest_in_progress_work_item(self):
         class StopMain(RuntimeError):
             pass
@@ -619,6 +642,20 @@ class TestPcFeature(unittest.TestCase):
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature, "codex_exec", side_effect=fake_codex_exec
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_allowed_final_stage_paths",
+                        return_value=[str(feature_dir / "dev-tasks.md")],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "stage_scoped_final_paths",
+                        return_value=[str(feature_dir / "dev-tasks.md")],
                     )
                 )
                 stack.enter_context(

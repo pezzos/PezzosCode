@@ -3349,6 +3349,35 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "select_resume_work_item_id"`
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "resumes_newest_in_progress_work_item"`
 
+### 2026-02-06 - Workflow hardening Step 04 scoped final staging + commit resume guard
+
+**Feature/Bug:** `tools/pc-feature` final commit safety
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added commit resume guard in finalization:
+  - if current WI `Commit` section already contains a commit message, skip commit message generation and skip final `git commit`.
+- Replaced blanket final staging with scoped staging:
+  - added helpers to collect allowed stage paths from workflow-owned artifacts (`main..patcher_branch` diff + dev-tasks + global logs).
+  - stage only allowed dirty paths via `git add -- <scoped-paths>`.
+- Added pre-commit clean-tree block:
+  - if dirty paths outside allowed scope are present, workflow exits with actionable error listing those paths.
+
+**Why:**
+
+- Prevent unrelated files from being committed and avoid duplicate commit attempts on resume.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "stage_scoped_final_paths_blocks_unrelated_dirty_paths"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "avoids_git_add_all_for_final_staging"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "skips_commit_generation_if_commit_section_already_filled"`
+
 ---
 
 ## 2026-02-05
