@@ -1597,3 +1597,17 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Final collection becomes resilient to repeated-run log churn.
   - Runtime `logs/WI-*` files are no longer implicitly allowed via branch diff drift.
+
+### DEC-021 - Treat high-risk approval as persisted state, not inferred risk
+
+- **Date:** 2026-02-06
+- **Status:** Accepted
+- **Context:** Resumed work items with `Risk level: HIGH` could still carry `Notes: Awaiting PO Approval`. The workflow inferred approval from risk level when building policy basis, which could trigger a false `plan-reviewer policy conflict` abort.
+- **Decision:**
+  - Persist explicit approval marker in Notes when high-risk gate is approved.
+  - On resume, re-run high-risk approval gate when marker is missing.
+  - Build plan-reviewer policy basis from actual approval state.
+  - Route first policy contradiction through planner correction and fail only on repeated contradiction.
+- **Consequences:**
+  - Retries no longer fail immediately due stale high-risk notes.
+  - High-risk gating behavior remains explicit and auditable across reruns.

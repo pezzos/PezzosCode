@@ -23,7 +23,9 @@ DEFAULT_CHANGE_BUDGET = {"max_files": 6, "max_new_modules": 1}
 MAX_LOOPS = 3
 MAX_CI_ATTEMPTS = 2
 MAX_ESCALATION_ROUNDS = 2
+MAX_POLICY_CONFLICT_BLOCKS = 2
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
+HIGH_RISK_APPROVED_NOTE = "High-risk gate approved interactively."
 ROLE_LOG_FILES = {
     "planner": "planner-log.md",
     "reporter": "reporter-log.md",
@@ -1381,6 +1383,26 @@ def reviewer_requests_preflight_stop(text: str) -> bool:
     return any(token in normalized for token in checks)
 
 
+def parse_preflight_trigger_list(raw: str) -> List[str]:
+    cleaned = raw.strip()
+    if not cleaned:
+        return []
+    if cleaned.lower() in {"(none)", "none", "-"}:
+        return []
+    separator = ";" if ";" in cleaned else ","
+    return [part.strip() for part in cleaned.split(separator) if part.strip()]
+
+
+def entry_field_value(content: str, work_item_id: str, field: str) -> str:
+    lines = content.splitlines()
+    start, end = find_entry_block(lines, work_item_id)
+    return parse_field_value(lines[start:end], field)
+
+
+def notes_mark_high_risk_approved(notes: str) -> bool:
+    return HIGH_RISK_APPROVED_NOTE.lower() in notes.lower()
+
+
 def parse_feedback_plan_decision(text: str) -> str:
     match = re.search(
         r"Decision:\s*(PLAN_STILL_VALID|REVISE_PLAN|REVISED PLAN REQUIRED|PLAN STILL VALID)\b",
@@ -2025,6 +2047,7 @@ def main() -> None:
     test_plan = read_file(os.path.join(feature_dir, "test-plan.md"))
 
     review_items: List[str] = []
+    high_risk_approved = False
 
     content = read_file(dev_tasks_path)
     if not entry_section_complete(content, work_item_id, "Preflight Report"):
@@ -2106,15 +2129,47 @@ def main() -> None:
                 )
                 write_file(dev_tasks_path, content)
                 die("pc-feature: high-risk work item requires PO approval")
+            content = update_entry_field(
+                content, work_item_id, "Notes", HIGH_RISK_APPROVED_NOTE
+            )
+            write_file(dev_tasks_path, content)
+            high_risk_approved = True
 
+    content = read_file(dev_tasks_path)
     preflight_section = get_entry_section(content, work_item_id, "Preflight Report")
     preflight_risk = parse_field_value(preflight_section.splitlines(), "Risk level")
     preflight_triggers = parse_field_value(preflight_section.splitlines(), "Triggers")
+    preflight_trigger_list = parse_preflight_trigger_list(preflight_triggers)
+    if preflight_risk.upper() == "HIGH" and not high_risk_approved:
+        current_notes = entry_field_value(content, work_item_id, "Notes")
+        if notes_mark_high_risk_approved(current_notes):
+            high_risk_approved = True
+        else:
+            if not approve_high_risk_interactive("HIGH", preflight_trigger_list):
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = update_entry_field(
+                    content, work_item_id, "Notes", "Awaiting PO Approval"
+                )
+                write_file(dev_tasks_path, content)
+                die("pc-feature: high-risk work item requires PO approval")
+            content = update_entry_field(
+                content, work_item_id, "Notes", HIGH_RISK_APPROVED_NOTE
+            )
+            write_file(dev_tasks_path, content)
+            high_risk_approved = True
+
     policy_basis = (
         "Risk gate baseline: LOW risk (no preflight stop required)."
         if preflight_risk.upper() != "HIGH"
-        else "Risk gate baseline: HIGH risk approved interactively; continue execution "
-        "after preflight. Do not require stop-after-preflight or Awaiting PO Approval."
+        else (
+            "Risk gate baseline: HIGH risk approved interactively; continue execution "
+            "after preflight. Do not require stop-after-preflight or Awaiting PO Approval."
+            if high_risk_approved
+            else "Risk gate baseline: HIGH risk not approved; stop after preflight and "
+            "set Notes to Awaiting PO Approval."
+        )
     )
     if preflight_risk.upper() == "HIGH" and preflight_triggers:
         policy_basis += f" Triggers: {preflight_triggers}."
@@ -2131,6 +2186,7 @@ def main() -> None:
     requires_global_logs = False
     repeated_reporter_failures: Dict[str, int] = {}
     reviewer_blocks = 0
+    policy_conflicts = 0
     execution_attempt = 0
     while execution_attempt < MAX_LOOPS:
         content = read_file(dev_tasks_path)
@@ -2272,21 +2328,29 @@ def main() -> None:
         reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
         if reviewer_decision == "BLOCK":
             reviewer_blocks += 1
-            if reviewer_requests_preflight_stop(reviewer_feedback) and (
-                "high risk approved interactively" in policy_basis.lower()
+            if (
+                reviewer_requests_preflight_stop(reviewer_feedback)
+                and high_risk_approved
             ):
+                policy_conflicts += 1
                 content = record_trace_event(
                     content,
                     work_item_id,
                     attempt=max(1, execution_attempt + 1),
                     step="plan-reviewer",
-                    status="CONFLICT",
+                    status="WARN",
                     details="blocked on stop-after-preflight policy despite approved high-risk gate",
                 )
                 write_file(dev_tasks_path, content)
-                die(
-                    "pc-feature: plan-reviewer policy conflict: stop-after-preflight "
-                    "requested after approved high-risk gate"
+                if policy_conflicts >= MAX_POLICY_CONFLICT_BLOCKS:
+                    die(
+                        "pc-feature: plan-reviewer policy conflict: stop-after-preflight "
+                        "requested repeatedly after approved high-risk gate"
+                    )
+                reviewer_feedback = (
+                    reviewer_feedback
+                    + "\n\nPolicy correction: High-risk gate is already approved; "
+                    "continue execution after preflight and do not require Awaiting PO Approval."
                 )
             ensure_role_log(
                 os.path.join(planner_path, role_paths["planner"]), "planner"

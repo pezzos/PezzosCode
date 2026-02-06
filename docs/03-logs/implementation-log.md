@@ -3954,3 +3954,43 @@ Track when debt is paid down:
 **Testing:**
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+
+### 2026-02-06 - Fix resumed high-risk gate handling in plan-reviewer loop
+
+**Feature/Bug:** `pc-feature` false policy conflict on retry (`stop-after-preflight requested after approved high-risk gate`)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added explicit persisted note marker for approved high-risk gates: `High-risk gate approved interactively.`
+- On resumed work items with `Preflight Report` already present and `Risk level: HIGH`, `pc-feature` now:
+  - checks whether approval is already recorded in Notes,
+  - re-prompts for approval when Notes still indicate `Awaiting PO Approval`,
+  - updates Notes to the approval marker once approved.
+- Updated policy-basis construction to depend on real approval state instead of assuming approval from risk level alone.
+- Replaced immediate hard-fail on first plan-reviewer policy contradiction with:
+  - trace warning (`status=WARN`),
+  - planner feedback correction pass,
+  - bounded fail after repeated conflicts (`MAX_POLICY_CONFLICT_BLOCKS=2`).
+- Added regression tests for:
+  - resumed high-risk re-approval path,
+  - first policy conflict routing through planner without immediate process abort.
+
+**Why:**
+
+- Retries of the same high-risk WI can retain `Notes: Awaiting PO Approval`, causing plan-reviewer to block while workflow logic incorrectly treated the gate as already approved and aborted with a policy-conflict error.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Negligible
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py`

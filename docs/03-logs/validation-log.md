@@ -790,3 +790,15 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - branch replay paths are filtered to durable implementation files.
   - volatile docs/log artifacts are excluded from replay and from branch-derived final staging scope.
   - empty filtered replay set safely no-ops (no diff/apply call).
+
+## 2026-02-06 - High-risk resume policy-conflict fix validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`51` tests)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Verified:
+  - resumed high-risk entries with `Notes: Awaiting PO Approval` re-run approval gate before plan-reviewer.
+  - approval is persisted with explicit note marker and reused on next retries.
+  - first plan-reviewer contradiction against approved high-risk policy records `WARN` and routes planner correction instead of immediate hard-fail.
+  - repeated contradiction remains bounded by conflict cap.
