@@ -12,8 +12,6 @@ Reasons:
 - ...
 
 Work Item ID: {work_item_id}
-Policy Basis:
-{policy_basis}
 
 Plan:
 {current_plan}

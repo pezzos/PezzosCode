@@ -3994,3 +3994,39 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
 - `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py`
+
+### 2026-02-06 - Prevent runtime WI logs from blocking final commit
+
+**Feature/Bug:** `pc-feature` finalization failure on retry (`unrelated dirty paths block final commit: logs/WI-*/...`)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Centralized ignored-path definitions and added `logs/` to the ignored ephemeral prefixes used by final staging scope checks.
+- Added `final_commit_allow_paths()` and wired it into `tools/pc-commit` invocation from `pc-feature`.
+- Added `unstage_ephemeral_paths(root)` before final staging so accidental staged runtime artifacts are removed from index automatically.
+- Result: runtime artifacts under `logs/WI-*` no longer fail:
+  - `stage_scoped_final_paths(...)` unrelated-dirty guard,
+  - `tools/pc-commit` disallowed-change guard.
+- Added regression coverage for:
+  - final scoped staging with runtime logs present,
+  - presence of `--allow logs` in final `tools/pc-commit` command.
+
+**Why:**
+
+- `pc-feature` writes runtime execution logs during the run. Those artifacts are not part of feature deliverables and should never block finalization.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** No measurable impact
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py`

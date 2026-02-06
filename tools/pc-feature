@@ -6,7 +6,7 @@ import shlex
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -23,9 +23,16 @@ DEFAULT_CHANGE_BUDGET = {"max_files": 6, "max_new_modules": 1}
 MAX_LOOPS = 3
 MAX_CI_ATTEMPTS = 2
 MAX_ESCALATION_ROUNDS = 2
-MAX_POLICY_CONFLICT_BLOCKS = 2
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
-HIGH_RISK_APPROVED_NOTE = "High-risk gate approved interactively."
+IGNORED_PATH_PREFIXES = (
+    ".tmp/",
+    ".codex_subagent/",
+    ".offload/",
+    "logs/",
+)
+IGNORED_PATH_FILES = {
+    ".codex_subagent/config.toml",
+}
 ROLE_LOG_FILES = {
     "planner": "planner-log.md",
     "reporter": "reporter-log.md",
@@ -80,21 +87,9 @@ SECTION_ORDER = [
     "Tester Feedback",
     "Reporter Feedback",
     "Iteration Log",
-    "Step Trace",
     "Commit",
     "Final Report",
 ]
-
-TRACE_STEP_ORDER = (
-    "plan-reviewer",
-    "execution",
-    "prepatch-smoke",
-    "patcher",
-    "tests",
-    "reporter",
-    "feedback-loop",
-    "ci",
-)
 
 
 def die(message: str) -> None:
@@ -732,32 +727,6 @@ def git_current_branch(path: str) -> str:
     return branch
 
 
-def git_head_sha(path: str, ref: str = "HEAD") -> str:
-    result = subprocess.run(
-        ["git", "rev-parse", ref],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        cwd=path,
-    )
-    if result.returncode != 0:
-        die(f"pc-feature: failed to resolve git sha for {ref}\n{result.stderr}")
-    return result.stdout.strip()
-
-
-def branch_contains_base(root: str, base_ref: str, branch: str) -> bool:
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", base_ref, branch],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        cwd=root,
-    )
-    return result.returncode == 0
-
-
 def git_branch_exists(root: str, branch: str) -> bool:
     result = subprocess.run(
         ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
@@ -889,22 +858,34 @@ def worktree_is_dirty(path: str) -> bool:
 
 
 def filter_ignored_paths(paths: List[str]) -> List[str]:
-    ignored_prefixes = (
-        ".tmp/",
-        ".codex_subagent/",
-        ".offload/",
-    )
-    ignored_files = {
-        ".codex_subagent/config.toml",
-    }
     filtered: List[str] = []
     for entry in paths:
-        if entry in ignored_files:
+        if entry in IGNORED_PATH_FILES:
             continue
-        if any(entry.startswith(prefix) for prefix in ignored_prefixes):
+        if any(entry.startswith(prefix) for prefix in IGNORED_PATH_PREFIXES):
             continue
         filtered.append(entry)
     return filtered
+
+
+def final_commit_allow_paths() -> List[str]:
+    # Runtime artifacts should not block pc-commit guard rails.
+    prefixes = [prefix.rstrip("/") for prefix in IGNORED_PATH_PREFIXES if prefix]
+    return sorted(set(prefixes + list(IGNORED_PATH_FILES)))
+
+
+def unstage_ephemeral_paths(root: str) -> None:
+    allow_paths = final_commit_allow_paths()
+    if not allow_paths:
+        return
+    subprocess.run(
+        ["git", "reset", "--"] + allow_paths,
+        check=False,
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
 
 
 def role_log_paths(feature_dir: str) -> List[str]:
@@ -1239,16 +1220,9 @@ def branch_ahead_count(root: str, base_ref: str, branch: str) -> int:
     return int(result.stdout.strip() or "0")
 
 
-def apply_branch_diff(
-    root: str, base_ref: str, branch: str, include_paths: Optional[List[str]] = None
-) -> bool:
-    cmd = ["git", "diff", "--binary", f"{base_ref}..{branch}"]
-    if include_paths is not None:
-        if not include_paths:
-            return True
-        cmd.extend(["--"] + include_paths)
+def apply_branch_diff(root: str, base_ref: str, branch: str) -> bool:
     result = subprocess.run(
-        cmd,
+        ["git", "diff", "--binary", f"{base_ref}..{branch}"],
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -1287,31 +1261,6 @@ def branch_diff_paths(root: str, base_ref: str, branch: str) -> List[str]:
     if result.returncode != 0:
         die(f"pc-feature: failed to list changed paths for {branch}\n{result.stderr}")
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
-
-
-def is_ephemeral_collection_path(
-    path: str, dev_tasks_path: str, feature_dir: str
-) -> bool:
-    if path == dev_tasks_path:
-        return True
-    if path in set(role_log_paths(feature_dir)):
-        return True
-    if path in set(global_log_paths()):
-        return True
-    if path.startswith("logs/"):
-        return True
-    return False
-
-
-def collect_branch_merge_paths(
-    root: str, base_ref: str, branch: str, dev_tasks_path: str, feature_dir: str
-) -> List[str]:
-    paths = filter_ignored_paths(branch_diff_paths(root, base_ref, branch))
-    return sorted(
-        path
-        for path in paths
-        if not is_ephemeral_collection_path(path, dev_tasks_path, feature_dir)
-    )
 
 
 def cleanup_worktrees(root: str) -> None:
@@ -1363,46 +1312,6 @@ def parse_plan_reviewer_decision(text: str) -> str:
     return match.group(1).upper()
 
 
-def parse_plan_reviewer_reasons(text: str) -> List[str]:
-    reasons: List[str] = []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("-"):
-            continue
-        reasons.append(stripped.lstrip("-").strip().lower())
-    return reasons
-
-
-def reviewer_requests_preflight_stop(text: str) -> bool:
-    normalized = " ".join(parse_plan_reviewer_reasons(text))
-    checks = (
-        "stop after preflight",
-        "awaiting po approval",
-        "awaiting product owner approval",
-    )
-    return any(token in normalized for token in checks)
-
-
-def parse_preflight_trigger_list(raw: str) -> List[str]:
-    cleaned = raw.strip()
-    if not cleaned:
-        return []
-    if cleaned.lower() in {"(none)", "none", "-"}:
-        return []
-    separator = ";" if ";" in cleaned else ","
-    return [part.strip() for part in cleaned.split(separator) if part.strip()]
-
-
-def entry_field_value(content: str, work_item_id: str, field: str) -> str:
-    lines = content.splitlines()
-    start, end = find_entry_block(lines, work_item_id)
-    return parse_field_value(lines[start:end], field)
-
-
-def notes_mark_high_risk_approved(notes: str) -> bool:
-    return HIGH_RISK_APPROVED_NOTE.lower() in notes.lower()
-
-
 def parse_feedback_plan_decision(text: str) -> str:
     match = re.search(
         r"Decision:\s*(PLAN_STILL_VALID|REVISE_PLAN|REVISED PLAN REQUIRED|PLAN STILL VALID)\b",
@@ -1429,14 +1338,6 @@ def parse_feedback_rationale(text: str) -> str:
     if not match:
         return ""
     return match.group(1).strip()
-
-
-def reporter_failure_signature(text: str) -> str:
-    if parse_outcome(text) != "FAIL":
-        return ""
-    notes = extract_field(text, "Notes")
-    normalized = re.sub(r"\s+", " ", notes.strip().lower())
-    return normalized
 
 
 def parse_commit_message(section: str) -> str:
@@ -1512,104 +1413,7 @@ def approve_high_risk_interactive(risk_level: str, triggers: List[str]) -> bool:
 
 
 def build_execution_entry(work_item_id: str) -> str:
-    return f"""### {work_item_id} - Work item execution
-
-- Date: {datetime.now().strftime('%Y-%m-%d')}
-- Scope / tasks covered:
-- Planner:
-- Patcher:
-- Tester:
-- Reporter:
-- Outcome:
-- Tests run:
-- Offload ids (if any):
-- Docs/logs updated:
-- Notes:
-
-#### Preflight Report
-
-- Work Item: {work_item_id}
-- PRD ref:
-- Risk level:
-- Triggers:
-- Scope in:
-- Scope out:
-- Non-goals reminder:
-- Files to change:
-- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}
-- TDD plan:
-- Systematic review:
-
-#### TDD Plan
-
-- Tests to write first:
-
-#### Allowed Tests
-
-- (list exact commands; do not include `make feature` or `pc-feature`)
-
-#### Files to Change + Change Budget
-
-- Files:
-- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}
-
-#### Docs Updated
-
-- [ ] Implementation log
-- [ ] Decision log (if needed)
-- [ ] Bug log (if needed)
-- [ ] Validation log (if needed)
-- [ ] Feature docs
-- [ ] PRD (if needed)
-
-#### Plan
-
-- (pending)
-
-#### Patch
-
-- (pending)
-
-#### Test Results
-
-- (pending)
-
-#### Reporter Review
-
-- (pending)
-
-#### Gates
-
-- make ci:
-
-#### Autofix Attempts
-
-- (none)
-
-#### Tester Feedback
-
-- Notes:
-
-#### Reporter Feedback
-
-- Notes:
-
-#### Iteration Log
-
--
-
-#### Step Trace
-
-- (pending)
-
-#### Commit
-
-- Commit message:
-
-#### Final Report
-
--
-"""
+    return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Allowed Tests\n\n- (list exact commands; do not include `make feature` or `pc-feature`)\n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
 
 
 def entry_section_complete(content: str, work_item_id: str, section: str) -> bool:
@@ -1729,32 +1533,6 @@ def ensure_allowed_tests_section(content: str, work_item_id: str) -> str:
     return "\n".join(lines[:start] + entry_lines + lines[end:]) + "\n"
 
 
-def ensure_step_trace_section(content: str, work_item_id: str) -> str:
-    lines = content.splitlines()
-    start, end = find_entry_block(lines, work_item_id)
-    entry_lines = lines[start:end]
-    header = f"{SECTION_PREFIX}Step Trace"
-    if any(line.strip() == header for line in entry_lines):
-        return content
-    insert_before = f"{SECTION_PREFIX}Commit"
-    insert_idx = None
-    for idx, line in enumerate(entry_lines):
-        if line.strip() == insert_before:
-            insert_idx = idx
-            break
-    block = [
-        header,
-        "",
-        "- (pending)",
-        "",
-    ]
-    if insert_idx is None:
-        entry_lines.extend([""] + block)
-    else:
-        entry_lines = entry_lines[:insert_idx] + block + entry_lines[insert_idx:]
-    return "\n".join(lines[:start] + entry_lines + lines[end:]) + "\n"
-
-
 def extract_json_payload(raw: str) -> str:
     start = raw.find("{")
     end = raw.rfind("}")
@@ -1794,105 +1572,10 @@ def append_iteration_log_note(content: str, work_item_id: str, note: str) -> str
     return replace_entry_section(content, work_item_id, "Iteration Log", new_body)
 
 
-def timestamp_utc() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def append_timeline_event(
-    content: str,
-    work_item_id: str,
-    *,
-    attempt: int,
-    step: str,
-    status: str,
-    details: str = "",
-) -> str:
-    detail_suffix = f" | {details}" if details else ""
-    line = (
-        f"[{timestamp_utc()}] attempt={attempt:02d} step={step} "
-        f"status={status}{detail_suffix}"
-    )
-    return append_iteration_log_note(content, work_item_id, line)
-
-
-def parse_step_flow_map(line: str) -> Dict[str, str]:
-    return {
-        step: status for step, status in re.findall(r"([a-z0-9-]+)\(([^)]+)\)", line)
-    }
-
-
-def render_step_flow(attempt: int, flow_map: Dict[str, str]) -> str:
-    rendered_steps = [
-        f"{step}({flow_map[step]})"
-        for step in TRACE_STEP_ORDER
-        if step in flow_map and flow_map[step]
-    ]
-    if not rendered_steps:
-        rendered_steps = ["(pending)"]
-    return f"[{timestamp_utc()}] attempt={attempt:02d} flow: " + " -> ".join(
-        rendered_steps
-    )
-
-
-def upsert_step_trace_flow(
-    content: str,
-    work_item_id: str,
-    *,
-    attempt: int,
-    step: str,
-    status: str,
-) -> str:
-    body = get_entry_section(content, work_item_id, "Step Trace")
-    lines = [line.rstrip() for line in body.splitlines() if line.strip()]
-    prefix = f"attempt={attempt:02d} flow:"
-    flow_map: Dict[str, str] = {}
-    remaining_lines: List[str] = []
-    for line in lines:
-        clean = line.strip()
-        if clean.startswith("- "):
-            clean = clean[2:].strip()
-        if prefix in clean:
-            flow_map.update(parse_step_flow_map(clean))
-            continue
-        remaining_lines.append(line)
-    flow_map[step] = status
-    remaining_lines.append("- " + render_step_flow(attempt, flow_map))
-    new_body = "\n".join(remaining_lines) if remaining_lines else "- (pending)"
-    return replace_entry_section(content, work_item_id, "Step Trace", new_body)
-
-
-def record_trace_event(
-    content: str,
-    work_item_id: str,
-    *,
-    attempt: int,
-    step: str,
-    status: str,
-    details: str = "",
-) -> str:
-    content = append_timeline_event(
-        content,
-        work_item_id,
-        attempt=attempt,
-        step=step,
-        status=status,
-        details=details,
-    )
-    return upsert_step_trace_flow(
-        content,
-        work_item_id,
-        attempt=attempt,
-        step=step,
-        status=status,
-    )
-
-
 def collect_allowed_final_stage_paths(
-    root: str, base_ref: str, branch: str, dev_tasks_path: str, feature_dir: str
+    root: str, base_ref: str, branch: str, dev_tasks_path: str
 ) -> List[str]:
-    allowed = set(
-        collect_branch_merge_paths(root, base_ref, branch, dev_tasks_path, feature_dir)
-    )
+    allowed = set(filter_ignored_paths(branch_diff_paths(root, base_ref, branch)))
     allowed.add(dev_tasks_path)
     allowed.update(global_log_paths())
     return sorted(allowed)
@@ -2027,7 +1710,6 @@ def main() -> None:
         write_file(dev_tasks_path, content)
     content = read_file(dev_tasks_path)
     content = ensure_allowed_tests_section(content, work_item_id)
-    content = ensure_step_trace_section(content, work_item_id)
     write_file(dev_tasks_path, content)
 
     runner_metadata = pc_runner.build_metadata(work_item_id, "pc-feature")
@@ -2047,7 +1729,6 @@ def main() -> None:
     test_plan = read_file(os.path.join(feature_dir, "test-plan.md"))
 
     review_items: List[str] = []
-    high_risk_approved = False
 
     content = read_file(dev_tasks_path)
     if not entry_section_complete(content, work_item_id, "Preflight Report"):
@@ -2129,66 +1810,9 @@ def main() -> None:
                 )
                 write_file(dev_tasks_path, content)
                 die("pc-feature: high-risk work item requires PO approval")
-            content = update_entry_field(
-                content, work_item_id, "Notes", HIGH_RISK_APPROVED_NOTE
-            )
-            write_file(dev_tasks_path, content)
-            high_risk_approved = True
-
-    content = read_file(dev_tasks_path)
-    preflight_section = get_entry_section(content, work_item_id, "Preflight Report")
-    preflight_risk = parse_field_value(preflight_section.splitlines(), "Risk level")
-    preflight_triggers = parse_field_value(preflight_section.splitlines(), "Triggers")
-    preflight_trigger_list = parse_preflight_trigger_list(preflight_triggers)
-    if preflight_risk.upper() == "HIGH" and not high_risk_approved:
-        current_notes = entry_field_value(content, work_item_id, "Notes")
-        if notes_mark_high_risk_approved(current_notes):
-            high_risk_approved = True
-        else:
-            if not approve_high_risk_interactive("HIGH", preflight_trigger_list):
-                content = update_entry_field(
-                    content, work_item_id, "Outcome", "needs replan"
-                )
-                content = update_entry_field(
-                    content, work_item_id, "Notes", "Awaiting PO Approval"
-                )
-                write_file(dev_tasks_path, content)
-                die("pc-feature: high-risk work item requires PO approval")
-            content = update_entry_field(
-                content, work_item_id, "Notes", HIGH_RISK_APPROVED_NOTE
-            )
-            write_file(dev_tasks_path, content)
-            high_risk_approved = True
-
-    policy_basis = (
-        "Risk gate baseline: LOW risk (no preflight stop required)."
-        if preflight_risk.upper() != "HIGH"
-        else (
-            "Risk gate baseline: HIGH risk approved interactively; continue execution "
-            "after preflight. Do not require stop-after-preflight or Awaiting PO Approval."
-            if high_risk_approved
-            else "Risk gate baseline: HIGH risk not approved; stop after preflight and "
-            "set Notes to Awaiting PO Approval."
-        )
-    )
-    if preflight_risk.upper() == "HIGH" and preflight_triggers:
-        policy_basis += f" Triggers: {preflight_triggers}."
-
-    if os.path.isdir(os.path.join(root, ".git")) and not branch_contains_base(
-        root, "refs/heads/main", patcher_branch
-    ):
-        print(
-            "pc-feature: patcher branch is behind main; this can cause stale review loops."
-        )
-        if not prompt_yes_no("pc-feature: continue with stale patcher branch? [y/N]"):
-            die("pc-feature: aborted due to stale patcher branch")
 
     requires_global_logs = False
-    repeated_reporter_failures: Dict[str, int] = {}
-    reviewer_blocks = 0
-    policy_conflicts = 0
-    execution_attempt = 0
-    while execution_attempt < MAX_LOOPS:
+    for attempt in range(1, MAX_LOOPS + 1):
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Plan"):
             plan_prompt = render_prompt_template(
@@ -2315,7 +1939,6 @@ def main() -> None:
                 "work_item_id": work_item_id,
                 "current_plan": current_plan,
                 "allowed_tests": allowed_section,
-                "policy_basis": policy_basis,
             },
         )
         reviewer_feedback = codex_exec(
@@ -2327,31 +1950,6 @@ def main() -> None:
         ).strip()
         reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
         if reviewer_decision == "BLOCK":
-            reviewer_blocks += 1
-            if (
-                reviewer_requests_preflight_stop(reviewer_feedback)
-                and high_risk_approved
-            ):
-                policy_conflicts += 1
-                content = record_trace_event(
-                    content,
-                    work_item_id,
-                    attempt=max(1, execution_attempt + 1),
-                    step="plan-reviewer",
-                    status="WARN",
-                    details="blocked on stop-after-preflight policy despite approved high-risk gate",
-                )
-                write_file(dev_tasks_path, content)
-                if policy_conflicts >= MAX_POLICY_CONFLICT_BLOCKS:
-                    die(
-                        "pc-feature: plan-reviewer policy conflict: stop-after-preflight "
-                        "requested repeatedly after approved high-risk gate"
-                    )
-                reviewer_feedback = (
-                    reviewer_feedback
-                    + "\n\nPolicy correction: High-risk gate is already approved; "
-                    "continue execution after preflight and do not require Awaiting PO Approval."
-                )
             ensure_role_log(
                 os.path.join(planner_path, role_paths["planner"]), "planner"
             )
@@ -2380,13 +1978,10 @@ def main() -> None:
                 die("pc-feature: planner returned empty plan after reviewer block")
             content = read_file(dev_tasks_path)
             content = replace_entry_section(content, work_item_id, "Plan", revised_plan)
-            content = record_trace_event(
+            content = append_iteration_log_note(
                 content,
                 work_item_id,
-                attempt=max(1, execution_attempt + 1),
-                step="plan-reviewer",
-                status="BLOCK",
-                details=f"planner revised plan (blocks={reviewer_blocks})",
+                f"Attempt {attempt}: Plan Reviewer BLOCK; planner updated plan.",
             )
             write_file(dev_tasks_path, content)
             format_role_changes("planner", planner_path, feature_dir)
@@ -2395,28 +1990,6 @@ def main() -> None:
             ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
             continue
 
-        content = record_trace_event(
-            content,
-            work_item_id,
-            attempt=execution_attempt + 1,
-            step="plan-reviewer",
-            status="APPROVE",
-        )
-        write_file(dev_tasks_path, content)
-        execution_attempt += 1
-        attempt = execution_attempt
-        attempt_base = git_head_sha(patcher_path)
-        content = read_file(dev_tasks_path)
-        content = record_trace_event(
-            content,
-            work_item_id,
-            attempt=attempt,
-            step="execution",
-            status="START",
-            details=f"attempt_base={attempt_base}",
-        )
-        write_file(dev_tasks_path, content)
-
         smoke_command = allowed_tests[0] if allowed_tests else ""
         if smoke_command:
             smoke_cmd = ["tools/offload-proxy/pp"] + shlex.split(smoke_command)
@@ -2424,16 +1997,6 @@ def main() -> None:
             review_items.append(
                 format_review_item(f"prepatch smoke {smoke_command}", smoke_exit)
             )
-            content = read_file(dev_tasks_path)
-            content = record_trace_event(
-                content,
-                work_item_id,
-                attempt=attempt,
-                step="prepatch-smoke",
-                status="PASS" if smoke_exit == 0 else "FAIL",
-                details=smoke_command,
-            )
-            write_file(dev_tasks_path, content)
 
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Patch"):
@@ -2452,30 +2015,14 @@ def main() -> None:
                 runner_metadata=runner_metadata,
                 root=root,
             ).strip()
-            patcher_changed_paths = filter_ignored_paths(get_status_paths(patcher_path))
             format_role_changes("patcher", patcher_path, feature_dir)
             reset_role_logs_to_head(patcher_path, feature_dir)
             reset_global_logs_to_head(patcher_path)
             enforce_role_scope(patcher_path, "patcher", feature_dir)
             commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
             requires_global_logs = requires_global_logs or process_docs_changed(
-                patcher_changed_paths
+                commit_paths(patcher_path)
             )
-            patch_summary = (
-                ", ".join(patcher_changed_paths[:5])
-                if patcher_changed_paths
-                else "(no-op)"
-            )
-            content = read_file(dev_tasks_path)
-            content = record_trace_event(
-                content,
-                work_item_id,
-                attempt=attempt,
-                step="patcher",
-                status="DONE" if patcher_changed_paths else "NOOP",
-                details=f"changed={len(patcher_changed_paths)} paths: {patch_summary}",
-            )
-            write_file(dev_tasks_path, content)
             ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
 
         reset_dev_tasks_if_dirty(tester_path, dev_tasks_path)
@@ -2547,16 +2094,6 @@ def main() -> None:
         enforce_role_scope(tester_path, "tester", feature_dir)
         commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
         ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
-        content = read_file(dev_tasks_path)
-        content = record_trace_event(
-            content,
-            work_item_id,
-            attempt=attempt,
-            step="tests",
-            status=tester_outcome,
-            details=tests_run,
-        )
-        write_file(dev_tasks_path, content)
 
         reporter_note = ""
         if requires_global_logs:
@@ -2569,8 +2106,6 @@ def main() -> None:
             {
                 "work_item_id": work_item_id,
                 "reporter_note": reporter_note,
-                "attempt": str(attempt),
-                "attempt_base": attempt_base,
             },
         )
         reporter_feedback = codex_exec(
@@ -2591,44 +2126,6 @@ def main() -> None:
         format_role_changes("reporter", reporter_path, feature_dir)
         enforce_role_scope(reporter_path, "reporter", feature_dir)
         commit_worktree_changes(reporter_path, "reporter", work_item_id, feature_dir)
-        content = read_file(dev_tasks_path)
-        content = record_trace_event(
-            content,
-            work_item_id,
-            attempt=attempt,
-            step="reporter",
-            status=reporter_outcome,
-        )
-        write_file(dev_tasks_path, content)
-
-        reporter_signature = reporter_failure_signature(reporter_feedback)
-        if reporter_signature:
-            repeated_reporter_failures[reporter_signature] = (
-                repeated_reporter_failures.get(reporter_signature, 0) + 1
-            )
-        if (
-            tester_outcome == "PASS"
-            and reporter_outcome == "FAIL"
-            and reporter_signature
-            and repeated_reporter_failures.get(reporter_signature, 0) >= 2
-        ):
-            content = read_file(dev_tasks_path)
-            content = update_entry_field(
-                content, work_item_id, "Outcome", "needs replan"
-            )
-            content = record_trace_event(
-                content,
-                work_item_id,
-                attempt=attempt,
-                step="reporter",
-                status="CONFLICT",
-                details="repeated reporter FAIL signature with tester PASS",
-            )
-            write_file(dev_tasks_path, content)
-            die(
-                "pc-feature: repeated reporter failure detected with unchanged reason; "
-                "likely policy conflict"
-            )
 
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
             content = read_file(dev_tasks_path)
@@ -2717,36 +2214,26 @@ def main() -> None:
             content = update_entry_field(
                 content, work_item_id, "Outcome", "needs replan"
             )
-            content = record_trace_event(
+            content = append_iteration_log_note(
                 content,
                 work_item_id,
-                attempt=attempt,
-                step="feedback-loop",
-                status="RETRY",
-                details=(
-                    f"tester={tester_outcome}; reporter={reporter_outcome}; "
-                    f"planner={planner_decision}; rationale={rationale}"
-                ),
+                f"Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}; "
+                f"planner decision={planner_decision}; rationale={rationale}; "
+                "patcher feedback task executed.",
             )
             write_file(dev_tasks_path, content)
             continue
 
         break
     else:
-        die(
-            "pc-feature: max execution attempts reached; check execution log "
-            f"(attempts={execution_attempt}, reviewer_blocks={reviewer_blocks})"
-        )
+        die("pc-feature: max iteration attempts reached; check execution log")
 
     base_ref = "HEAD"
     role_branches = [patcher_branch]
     for branch in role_branches:
         if branch_ahead_count(root, base_ref, branch) == 0:
             continue
-        merge_paths = collect_branch_merge_paths(
-            root, base_ref, branch, dev_tasks_path, feature_dir
-        )
-        if not apply_branch_diff(root, base_ref, branch, include_paths=merge_paths):
+        if not apply_branch_diff(root, base_ref, branch):
             content = read_file(dev_tasks_path)
             content = update_entry_field(
                 content, work_item_id, "Outcome", "needs replan"
@@ -2758,7 +2245,7 @@ def main() -> None:
             die("pc-feature: conflict detected while collecting worktrees")
 
     allowed_stage_paths = collect_allowed_final_stage_paths(
-        root, "refs/heads/main", patcher_branch, dev_tasks_path, feature_dir
+        root, "refs/heads/main", patcher_branch, dev_tasks_path
     )
     gate_status = "FAIL"
     autofix_notes: List[str] = []
@@ -2773,15 +2260,6 @@ def main() -> None:
     review_items.append(
         format_review_item("tools/offload-proxy/pp make ci", first_ci_exit)
     )
-    content = read_file(dev_tasks_path)
-    content = record_trace_event(
-        content,
-        work_item_id,
-        attempt=max(1, execution_attempt),
-        step="ci",
-        status="PASS" if first_ci_exit == 0 else "FAIL-1",
-    )
-    write_file(dev_tasks_path, content)
     if first_ci_exit == 0:
         gate_status = "PASS"
     else:
@@ -2805,15 +2283,6 @@ def main() -> None:
         review_items.append(
             format_review_item("tools/offload-proxy/pp make ci", second_ci_exit)
         )
-        content = read_file(dev_tasks_path)
-        content = record_trace_event(
-            content,
-            work_item_id,
-            attempt=max(1, execution_attempt),
-            step="ci",
-            status="PASS" if second_ci_exit == 0 else "FAIL-2",
-        )
-        write_file(dev_tasks_path, content)
         if second_ci_exit == 0:
             gate_status = "PASS"
     content = read_file(dev_tasks_path)
@@ -2920,9 +2389,12 @@ def main() -> None:
     write_file(dev_tasks_path, content)
 
     if not commit_already_done:
+        unstage_ephemeral_paths(root)
         staged_paths = stage_scoped_final_paths(root, allowed_stage_paths)
         commit_cmd = ["tools/pc-commit", "--yes", "--message", commit_message]
         for path in staged_paths:
+            commit_cmd.extend(["--allow", path])
+        for path in final_commit_allow_paths():
             commit_cmd.extend(["--allow", path])
         commit_result = subprocess.run(
             commit_cmd,

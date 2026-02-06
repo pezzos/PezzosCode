@@ -1611,3 +1611,16 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Retries no longer fail immediately due stale high-risk notes.
   - High-risk gating behavior remains explicit and auditable across reruns.
+
+### DEC-022 - Runtime `logs/` artifacts are ephemeral for pc-feature finalization
+
+- **Date:** 2026-02-06
+- **Status:** Accepted
+- **Context:** `pc-feature` produces execution logs under `logs/WI-*` while running. These runtime artifacts caused false blockers in final scoped staging and `tools/pc-commit` disallowed-change checks.
+- **Decision:**
+  - Treat `logs/` as ignored ephemeral paths for scoped final staging checks.
+  - Pass ephemeral allow paths (including `logs`) to final `tools/pc-commit` invocation.
+  - Reset ephemeral paths from index before final staging so they cannot be committed accidentally.
+- **Consequences:**
+  - Runtime logs no longer block `make feature F=<id>` finalization.
+  - Feature completion is based on implementation/doc deliverables, not transient run artifacts.

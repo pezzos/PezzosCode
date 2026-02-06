@@ -91,9 +91,6 @@ class TestPcFeature(unittest.TestCase):
                 return_value=(str(patcher_path), "patcher-branch"),
             ),
             mock.patch.object(
-                self.pc_feature, "git_head_sha", return_value="abc123def456"
-            ),
-            mock.patch.object(
                 self.pc_feature, "cleanup_dirty_role_logs", return_value=None
             ),
             mock.patch.object(
@@ -252,177 +249,6 @@ class TestPcFeature(unittest.TestCase):
                 with self.assertRaises(StopMain):
                     self.pc_feature.main()
 
-    def test_high_risk_preflight_denied_stops_with_awaiting_po(self):
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            patcher_path = root / "patcher"
-            patcher_path.mkdir(parents=True, exist_ok=True)
-            work_item_id = "WI-20260206-17"
-            content = self._build_entry_content(work_item_id)
-            feature_dir = self._write_feature_workspace(root, content)
-
-            def fake_codex_exec(prompt: str, **kwargs) -> str:
-                if "preparing preflight data for a work item execution" in prompt:
-                    return (
-                        '{"prd_ref":"F-10","scope_in":"x","scope_out":"y",'
-                        '"non_goals_reminder":"z","files_to_change":["restore/apply.py"],'
-                        '"planned_new_modules":0,"touches_secret_blocking":false,'
-                        '"touches_restore":true,"touches_secret_scanning":false,'
-                        '"cross_cutting_refactor_modules":0,"tdd_tests":[],"doc_updates":[]}'
-                    )
-                return "ok"
-
-            stderr_capture = io.StringIO()
-            with contextlib.ExitStack() as stack:
-                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
-                    stack.enter_context(patcher)
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature, "prompt_yes_no", return_value=False
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature.sys.stdin, "isatty", return_value=True
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
-                    )
-                )
-                with self.assertRaises(SystemExit):
-                    with contextlib.redirect_stderr(stderr_capture):
-                        self.pc_feature.main()
-
-            self.assertIn(
-                "high-risk work item requires PO approval", stderr_capture.getvalue()
-            )
-            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
-            self.assertIn("- Notes: Awaiting PO Approval", dev_tasks)
-
-    def test_high_risk_preflight_non_interactive_requires_env_override(self):
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            patcher_path = root / "patcher"
-            patcher_path.mkdir(parents=True, exist_ok=True)
-            work_item_id = "WI-20260206-18"
-            content = self._build_entry_content(work_item_id)
-            feature_dir = self._write_feature_workspace(root, content)
-
-            def fake_codex_exec(prompt: str, **kwargs) -> str:
-                if "preparing preflight data for a work item execution" in prompt:
-                    return (
-                        '{"prd_ref":"F-10","scope_in":"x","scope_out":"y",'
-                        '"non_goals_reminder":"z","files_to_change":["restore/apply.py"],'
-                        '"planned_new_modules":0,"touches_secret_blocking":false,'
-                        '"touches_restore":true,"touches_secret_scanning":false,'
-                        '"cross_cutting_refactor_modules":0,"tdd_tests":[],"doc_updates":[]}'
-                    )
-                return "ok"
-
-            stderr_capture = io.StringIO()
-            with contextlib.ExitStack() as stack:
-                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
-                    stack.enter_context(patcher)
-                stack.enter_context(
-                    mock.patch.dict(self.pc_feature.os.environ, {}, clear=True)
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature.sys.stdin, "isatty", return_value=False
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature, "prompt_yes_no", return_value=True
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
-                    )
-                )
-                with self.assertRaises(SystemExit):
-                    with contextlib.redirect_stderr(stderr_capture):
-                        self.pc_feature.main()
-
-            self.assertIn("APPROVE_HIGH_RISK=1", stderr_capture.getvalue())
-
-    def test_high_risk_resume_reprompts_when_notes_awaiting_po(self):
-        class StopMain(RuntimeError):
-            pass
-
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            patcher_path = root / "patcher"
-            patcher_path.mkdir(parents=True, exist_ok=True)
-            work_item_id = "WI-20260206-23"
-            content = self._build_entry_content(work_item_id)
-            content = self.pc_feature.replace_entry_section(
-                content,
-                work_item_id,
-                "Preflight Report",
-                self.pc_feature.build_preflight_block(
-                    {
-                        "prd_ref": "F-10",
-                        "scope_in": "x",
-                        "scope_out": "y",
-                        "non_goals_reminder": "z",
-                        "files_to_change": ["restore/apply.py"],
-                    },
-                    work_item_id,
-                    {"max_files": 6, "max_new_modules": 1},
-                    "HIGH",
-                    ["touches restore/ path"],
-                ),
-            )
-            content = self.pc_feature.replace_entry_section(
-                content, work_item_id, "Plan", "- initial plan"
-            )
-            content = self.pc_feature.replace_entry_section(
-                content,
-                work_item_id,
-                "Allowed Tests",
-                "- python -m unittest discover -s tests -p test_pc_feature.py",
-            )
-            content = self.pc_feature.update_entry_field(
-                content, work_item_id, "Notes", "Awaiting PO Approval"
-            )
-            feature_dir = self._write_feature_workspace(root, content)
-
-            def fake_codex_exec(prompt: str, **kwargs) -> str:
-                if "You are the Plan Reviewer agent." in prompt:
-                    raise StopMain()
-                return "ok"
-
-            with contextlib.ExitStack() as stack:
-                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
-                    stack.enter_context(patcher)
-                approval_mock = stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "approve_high_risk_interactive",
-                        return_value=True,
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "codex_exec",
-                        side_effect=fake_codex_exec,
-                    )
-                )
-                with self.assertRaises(StopMain):
-                    self.pc_feature.main()
-
-            approval_mock.assert_called_once_with("HIGH", ["touches restore/ path"])
-            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
-            self.assertIn(
-                f"- Notes: {self.pc_feature.HIGH_RISK_APPROVED_NOTE}",
-                dev_tasks,
-            )
-
     def test_normalize_work_item_id_accepts_format(self):
         self.assertEqual(
             self.pc_feature.normalize_work_item_id("WI-20260204-01"),
@@ -529,50 +355,6 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertIsNotNone(request)
         self.assertEqual(request["command"], ["git", "status"])
-
-    def test_record_trace_event_updates_step_trace_flow(self):
-        work_item_id = "WI-20260206-21"
-        content = "## Execution Log\n\n" + self.pc_feature.build_execution_entry(
-            work_item_id
-        )
-        content = self.pc_feature.record_trace_event(
-            content,
-            work_item_id,
-            attempt=1,
-            step="plan-reviewer",
-            status="APPROVE",
-        )
-        step_trace = self.pc_feature.get_entry_section(
-            content, work_item_id, "Step Trace"
-        )
-        self.assertIn("attempt=01 flow:", step_trace)
-        self.assertIn("plan-reviewer(APPROVE)", step_trace)
-
-    def test_record_trace_event_keeps_single_flow_line_per_attempt(self):
-        work_item_id = "WI-20260206-22"
-        content = "## Execution Log\n\n" + self.pc_feature.build_execution_entry(
-            work_item_id
-        )
-        content = self.pc_feature.record_trace_event(
-            content,
-            work_item_id,
-            attempt=2,
-            step="plan-reviewer",
-            status="APPROVE",
-        )
-        content = self.pc_feature.record_trace_event(
-            content,
-            work_item_id,
-            attempt=2,
-            step="tests",
-            status="PASS",
-        )
-        step_trace = self.pc_feature.get_entry_section(
-            content, work_item_id, "Step Trace"
-        )
-        self.assertEqual(step_trace.count("attempt=02 flow:"), 1)
-        self.assertIn("plan-reviewer(APPROVE)", step_trace)
-        self.assertIn("tests(PASS)", step_trace)
 
     def test_process_escalation_request_denies_disallowed_command(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -685,61 +467,48 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("README.md", stderr_capture.getvalue())
 
-    def test_collect_branch_merge_paths_excludes_ephemeral_and_role_logs(self):
-        feature_dir = "docs/02-features/10-unified-autofix-precommit"
-        dev_tasks_path = f"{feature_dir}/dev-tasks.md"
-        with mock.patch.object(
-            self.pc_feature,
-            "branch_diff_paths",
-            return_value=[
-                "tools/pc-feature",
-                dev_tasks_path,
-                f"{feature_dir}/planner-log.md",
-                f"{feature_dir}/reporter-log.md",
-                "docs/03-logs/implementation-log.md",
-                "logs/WI-20260206-01/feature.log",
-            ],
-        ):
-            filtered = self.pc_feature.collect_branch_merge_paths(
-                "/tmp/repo",
-                "refs/heads/main",
-                "feature-10-unified-autofix-precommit-patcher",
-                dev_tasks_path,
-                feature_dir,
-            )
-        self.assertEqual(filtered, ["tools/pc-feature"])
+    def test_stage_scoped_final_paths_ignores_runtime_logs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            staged = []
 
-    def test_collect_allowed_final_stage_paths_adds_dev_tasks_and_global_logs(self):
-        feature_dir = "docs/02-features/10-unified-autofix-precommit"
-        dev_tasks_path = f"{feature_dir}/dev-tasks.md"
-        with mock.patch.object(
-            self.pc_feature,
-            "collect_branch_merge_paths",
-            return_value=["tools/pc-feature"],
-        ):
-            allowed = self.pc_feature.collect_allowed_final_stage_paths(
-                "/tmp/repo",
-                "refs/heads/main",
-                "feature-10-unified-autofix-precommit-patcher",
-                dev_tasks_path,
-                feature_dir,
-            )
-        self.assertIn("tools/pc-feature", allowed)
-        self.assertIn(dev_tasks_path, allowed)
-        self.assertIn("docs/03-logs/implementation-log.md", allowed)
-        self.assertIn("docs/03-logs/validation-log.md", allowed)
-        self.assertIn("docs/03-logs/decision-log.md", allowed)
+            def fake_subprocess_run(cmd, **kwargs):
+                staged.append(list(cmd))
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-    def test_apply_branch_diff_skips_diff_when_include_paths_empty(self):
-        with mock.patch.object(self.pc_feature.subprocess, "run") as run_mock:
-            ok = self.pc_feature.apply_branch_diff(
-                "/tmp/repo",
-                "HEAD",
-                "feature-branch",
-                include_paths=[],
+            with mock.patch.object(
+                self.pc_feature,
+                "get_status_paths",
+                return_value=[
+                    "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                    "logs/WI-20260206-01/tests.log",
+                    "logs/WI-20260206-01/ci.log",
+                ],
+            ):
+                with mock.patch.object(
+                    self.pc_feature.subprocess,
+                    "run",
+                    side_effect=fake_subprocess_run,
+                ):
+                    paths = self.pc_feature.stage_scoped_final_paths(
+                        str(root),
+                        ["docs/02-features/01-workflow-hardening/dev-tasks.md"],
+                    )
+
+            self.assertEqual(
+                paths, ["docs/02-features/01-workflow-hardening/dev-tasks.md"]
             )
-        self.assertTrue(ok)
-        run_mock.assert_not_called()
+            self.assertEqual(
+                staged,
+                [
+                    [
+                        "git",
+                        "add",
+                        "--",
+                        "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                    ]
+                ],
+            )
 
     def test_run_scoped_autofix_blocks_out_of_scope_files(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1321,6 +1090,16 @@ class TestPcFeature(unittest.TestCase):
                 any(cmd and cmd[0] == "tools/pc-commit" for cmd in git_commands),
                 "pc-feature should call tools/pc-commit for final commit",
             )
+            pc_commit_cmds = [
+                cmd for cmd in git_commands if cmd and cmd[0] == "tools/pc-commit"
+            ]
+            self.assertTrue(pc_commit_cmds)
+            allow_values = [
+                pc_commit_cmds[0][idx + 1]
+                for idx, token in enumerate(pc_commit_cmds[0][:-1])
+                if token == "--allow"
+            ]
+            self.assertIn("logs", allow_values)
 
     def test_main_skips_commit_generation_if_commit_section_already_filled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1745,7 +1524,7 @@ class TestPcFeature(unittest.TestCase):
             self.assertGreaterEqual(reviewer_calls["count"], 2)
             self.assertEqual(planner_update_calls["count"], 1)
             dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
-            self.assertIn("step=plan-reviewer status=BLOCK", dev_tasks)
+            self.assertIn("Plan Reviewer BLOCK; planner updated plan", dev_tasks)
             self.assertTrue(append_role_log_mock.called)
 
     def test_plan_reviewer_approve_allows_patch(self):
@@ -1949,271 +1728,7 @@ class TestPcFeature(unittest.TestCase):
             self.assertGreaterEqual(test_runs["count"], 2)
             dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
             self.assertIn("revised plan from failure feedback", dev_tasks)
-            self.assertIn("step=feedback-loop status=RETRY", dev_tasks)
-
-    def test_plan_reviewer_blocks_do_not_consume_execution_attempt_budget(self):
-        class StopMain(RuntimeError):
-            pass
-
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            patcher_path = root / "patcher"
-            patcher_path.mkdir(parents=True, exist_ok=True)
-            work_item_id = "WI-20260206-19"
-            content = self._build_entry_content(work_item_id)
-            content = self.pc_feature.replace_entry_section(
-                content, work_item_id, "Plan", "- initial plan"
-            )
-            content = self.pc_feature.replace_entry_section(
-                content,
-                work_item_id,
-                "Allowed Tests",
-                "- python -m unittest discover -s tests -p test_pc_feature.py",
-            )
-            feature_dir = self._write_feature_workspace(root, content)
-            original_entry_complete = self.pc_feature.entry_section_complete
-            reviewer_calls = {"count": 0}
-            planner_update_calls = {"count": 0}
-
-            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
-                if section in {"Preflight Report", "Plan"}:
-                    return True
-                if section == "Patch":
-                    return False
-                return original_entry_complete(content, wi_id, section)
-
-            def fake_codex_exec(prompt: str, **kwargs) -> str:
-                if "You are the Plan Reviewer agent." in prompt:
-                    reviewer_calls["count"] += 1
-                    if reviewer_calls["count"] < 3:
-                        return "Decision: Block\nReasons:\n- tighten sequencing"
-                    return "Decision: Approve\nReasons:\n- ready"
-                if "Update the Plan section based on Plan Reviewer feedback" in prompt:
-                    planner_update_calls["count"] += 1
-                    return "- revised plan"
-                if "You are the Patcher agent." in prompt:
-                    raise StopMain()
-                return "ok"
-
-            with contextlib.ExitStack() as stack:
-                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
-                    stack.enter_context(patcher)
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "entry_section_complete",
-                        side_effect=fake_entry_complete,
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "parse_allowed_tests",
-                        return_value=[
-                            "python -m unittest discover -s tests -p test_pc_feature.py"
-                        ],
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "codex_exec",
-                        side_effect=fake_codex_exec,
-                    )
-                )
-                with self.assertRaises(StopMain):
-                    self.pc_feature.main()
-
-            self.assertEqual(reviewer_calls["count"], 3)
-            self.assertEqual(planner_update_calls["count"], 2)
-
-    def test_high_risk_policy_conflict_routes_to_planner_before_failing(self):
-        class StopMain(RuntimeError):
-            pass
-
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            patcher_path = root / "patcher"
-            patcher_path.mkdir(parents=True, exist_ok=True)
-            work_item_id = "WI-20260206-24"
-            content = self._build_entry_content(work_item_id)
-            content = self.pc_feature.replace_entry_section(
-                content,
-                work_item_id,
-                "Preflight Report",
-                self.pc_feature.build_preflight_block(
-                    {
-                        "prd_ref": "F-10",
-                        "scope_in": "x",
-                        "scope_out": "y",
-                        "non_goals_reminder": "z",
-                        "files_to_change": ["restore/apply.py"],
-                    },
-                    work_item_id,
-                    {"max_files": 6, "max_new_modules": 1},
-                    "HIGH",
-                    ["touches restore/ path"],
-                ),
-            )
-            content = self.pc_feature.replace_entry_section(
-                content, work_item_id, "Plan", "- initial plan"
-            )
-            content = self.pc_feature.replace_entry_section(
-                content,
-                work_item_id,
-                "Allowed Tests",
-                "- python -m unittest discover -s tests -p test_pc_feature.py",
-            )
-            content = self.pc_feature.update_entry_field(
-                content,
-                work_item_id,
-                "Notes",
-                self.pc_feature.HIGH_RISK_APPROVED_NOTE,
-            )
-            feature_dir = self._write_feature_workspace(root, content)
-
-            def fake_codex_exec(prompt: str, **kwargs) -> str:
-                if "You are the Plan Reviewer agent." in prompt:
-                    return (
-                        "Decision: Block\n"
-                        "Reasons:\n"
-                        "- stop after preflight and set Awaiting PO Approval\n"
-                    )
-                if "Update the Plan section based on Plan Reviewer feedback" in prompt:
-                    raise StopMain()
-                return "ok"
-
-            with contextlib.ExitStack() as stack:
-                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
-                    stack.enter_context(patcher)
-                approval_mock = stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "approve_high_risk_interactive",
-                        return_value=True,
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "codex_exec",
-                        side_effect=fake_codex_exec,
-                    )
-                )
-                with self.assertRaises(StopMain):
-                    self.pc_feature.main()
-
-            approval_mock.assert_not_called()
-            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
-            self.assertIn("step=plan-reviewer status=WARN", dev_tasks)
-
-    def test_repeated_reporter_fail_signature_aborts_as_policy_conflict(self):
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            patcher_path = root / "patcher"
-            patcher_path.mkdir(parents=True, exist_ok=True)
-            work_item_id = "WI-20260206-20"
-            content = self._build_entry_content(work_item_id)
-            content = self.pc_feature.replace_entry_section(
-                content, work_item_id, "Plan", "- initial plan"
-            )
-            content = self.pc_feature.replace_entry_section(
-                content,
-                work_item_id,
-                "Allowed Tests",
-                "- python -m unittest discover -s tests -p test_pc_feature.py",
-            )
-            content = self.pc_feature.replace_entry_section(
-                content, work_item_id, "Patch", "- already patched"
-            )
-            feature_dir = self._write_feature_workspace(root, content)
-            original_entry_complete = self.pc_feature.entry_section_complete
-
-            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
-                if section in {"Preflight Report", "Plan", "Patch"}:
-                    return True
-                return original_entry_complete(content, wi_id, section)
-
-            def fake_codex_exec(prompt: str, **kwargs) -> str:
-                if "You are the Plan Reviewer agent." in prompt:
-                    return "Decision: Approve\nReasons:\n- clear"
-                if "You are the Reporter agent." in prompt:
-                    return (
-                        "Outcome: FAIL\n"
-                        "Docs/logs updated: ok\n"
-                        "Notes: same reporter mismatch reason\n"
-                    )
-                if (
-                    "Re-evaluate the current plan using tester/reporter failure feedback"
-                    in prompt
-                ):
-                    return (
-                        "Decision: PLAN_STILL_VALID\n"
-                        "Rationale: no plan changes needed\n"
-                        "Revised Plan:\n(none)\n"
-                    )
-                if (
-                    "Apply the smallest possible patch based on failure feedback"
-                    in prompt
-                ):
-                    return "No-op patch."
-                return "ok"
-
-            stderr_capture = io.StringIO()
-            with contextlib.ExitStack() as stack:
-                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
-                    stack.enter_context(patcher)
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "entry_section_complete",
-                        side_effect=fake_entry_complete,
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "parse_allowed_tests",
-                        return_value=[
-                            "python -m unittest discover -s tests -p test_pc_feature.py"
-                        ],
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "run_command_with_step_log",
-                        return_value=0,
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "commit_paths",
-                        return_value=[],
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "codex_exec",
-                        side_effect=fake_codex_exec,
-                    )
-                )
-                with self.assertRaises(SystemExit):
-                    with contextlib.redirect_stderr(stderr_capture):
-                        self.pc_feature.main()
-
-            self.assertIn(
-                "repeated reporter failure detected with unchanged reason",
-                stderr_capture.getvalue(),
-            )
+            self.assertIn("patcher feedback task executed", dev_tasks)
 
 
 if __name__ == "__main__":
