@@ -2041,14 +2041,17 @@ def main() -> None:
         allowed_stage_paths = collect_allowed_final_stage_paths(
             root, "refs/heads/main", patcher_branch, dev_tasks_path
         )
-        stage_scoped_final_paths(root, allowed_stage_paths)
+        staged_paths = stage_scoped_final_paths(root, allowed_stage_paths)
+        commit_cmd = ["tools/pc-commit", "--yes", "--message", commit_message]
+        for path in staged_paths:
+            commit_cmd.extend(["--allow", path])
         commit_result = subprocess.run(
-            ["git", "commit", "-m", commit_message],
+            commit_cmd,
             check=False,
             cwd=root,
         )
         if commit_result.returncode != 0:
-            die("pc-feature: failed to commit collected changes")
+            die("pc-feature: failed to commit collected changes via tools/pc-commit")
     cleanup_worktrees(root)
 
     pc_runner.log_message(runner_metadata, "feature", "complete", root=Path(root))

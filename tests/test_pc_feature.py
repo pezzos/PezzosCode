@@ -797,6 +797,14 @@ class TestPcFeature(unittest.TestCase):
                 )
                 self.pc_feature.main()
             self.assertNotIn(["git", "add", "-A"], git_commands)
+            self.assertFalse(
+                any(cmd[:2] == ["git", "commit"] for cmd in git_commands),
+                "pc-feature should not call git commit directly",
+            )
+            self.assertTrue(
+                any(cmd and cmd[0] == "tools/pc-commit" for cmd in git_commands),
+                "pc-feature should call tools/pc-commit for final commit",
+            )
 
     def test_main_skips_commit_generation_if_commit_section_already_filled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

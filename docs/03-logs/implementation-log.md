@@ -27,6 +27,34 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - pc-feature Step 11: use tools/pc-commit for final commit
+
+**Feature/Bug:** Workflow hardening (Step 11)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Replaced direct final `git commit -m ...` in `pc-feature` with `tools/pc-commit`.
+- Final commit now passes:
+  - `--yes` for non-interactive execution
+  - `--message <commit_message>` from the workflow commit section
+  - repeated `--allow <path>` values from scoped staged files
+- Added regression assertions ensuring:
+  - no direct `git commit` call is made
+  - `tools/pc-commit` is invoked during final commit path
+
+**Why:**
+
+- Align final commit flow with protocol requirements and keep commit checks centralized in `tools/pc-commit`.
+
+**How:**
+
+- Updated final commit block in `pc-feature` and extended existing final-staging test coverage.
+
 ### 2026-02-06 - pc-feature Step 10: reduce final-gate CI attempts
 
 **Feature/Bug:** Workflow hardening (Step 10)
