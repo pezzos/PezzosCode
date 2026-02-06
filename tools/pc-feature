@@ -35,7 +35,6 @@ GLOBAL_LOG_FILES = (
     "insights.md",
     "validation-log.md",
 )
-DEFAULT_SMOKE_TEST = 'echo "SMOKE_TEST_REQUIRED: update Allowed Tests"'
 PROCESS_DOC_FILES = (
     "docs/04-process/ticket-execution-protocol.md",
     "docs/04-process/testing-strategy.md",
@@ -1570,21 +1569,22 @@ def main() -> None:
                     continue
             break
         if not allowed_tests or forbidden or missing:
-            content = replace_entry_section(
-                content,
-                work_item_id,
-                "Allowed Tests",
-                f"- {DEFAULT_SMOKE_TEST}",
+            issues: List[str] = []
+            if not allowed_tests:
+                issues.append("no allowed tests listed")
+            if forbidden:
+                issues.append("forbidden commands: " + "; ".join(forbidden))
+            if missing:
+                issues.append("missing targets: " + "; ".join(sorted(set(missing))))
+            remediation = (
+                "Allowed Tests must contain only specific, existing unittest/pytest commands. "
+                "Do not include `make ci`, `make feature`, `pc-feature`, or placeholders."
             )
-            write_file(dev_tasks_path, content)
-            planner_updates = True
-            planner_note = (
-                "Inserted placeholder smoke test; update Allowed Tests next run."
+            die(
+                "pc-feature: invalid Allowed Tests after planner update attempts: "
+                + " | ".join(issues)
+                + f". {remediation}"
             )
-            allowed_tests = [DEFAULT_SMOKE_TEST]
-            forbidden = []
-            missing = []
-            content = read_file(dev_tasks_path)
         if planner_updates:
             if not extract_field(content, "Planner"):
                 content = update_entry_field(content, work_item_id, "Planner", "Codex")
@@ -1663,7 +1663,7 @@ def main() -> None:
             ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
             continue
 
-        smoke_command = allowed_tests[0] if allowed_tests else DEFAULT_SMOKE_TEST
+        smoke_command = allowed_tests[0] if allowed_tests else ""
         if smoke_command:
             smoke_cmd = ["tools/offload-proxy/pp"] + shlex.split(smoke_command)
             smoke_exit = run_command(smoke_cmd, cwd=patcher_path)
@@ -1713,7 +1713,7 @@ def main() -> None:
                 "Outcome: FAIL\n"
                 "Tests run: (none)\n"
                 f"Notes: {note} Add specific, scoped tests to Allowed Tests; "
-                "`make feature` and `pc-feature` are forbidden.\n"
+                "`make ci`, `make feature`, and `pc-feature` are forbidden.\n"
                 f"Work Item ID: {work_item_id}\n"
             )
             ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")

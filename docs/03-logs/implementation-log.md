@@ -27,6 +27,41 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - pc-feature Step 12: strict Allowed Tests enforcement and checker parsing
+
+**Feature/Bug:** Workflow hardening (Step 12)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/pc-allowed-tests-check`
+- `tests/test_pc_feature.py`
+- `tests/test_pc_allowed_tests_check.py`
+- `prompts/planner-update-allowed-tests.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Removed placeholder smoke fallback from `pc-feature`; invalid/missing Allowed Tests now fail immediately after planner remediation attempts with explicit remediation guidance.
+- Kept `make ci` forbidden in Allowed Tests and expanded remediation text.
+- Hardened `pc-allowed-tests-check` parsing:
+  - Proper `python -m unittest discover ...` option/positional parsing (`-s`, `-p`, `-t`).
+  - Validation for discover start/top directories and test-pattern matches.
+  - Improved unittest target checks for module/path targets.
+  - Stronger pytest target validation.
+  - Explicit rejection for `make ci`.
+- Updated planner Allowed Tests prompt to request meaningful unittest/pytest commands (no placeholders/narrative).
+- Synced protocol docs/template with strict failure behavior for invalid Allowed Tests.
+
+**Why:**
+
+- Prevent false-positive workflow progress with placeholder smoke commands and make Allowed Tests validation meaningful and deterministic.
+
+**How:**
+
+- Refactored Allowed Tests handling in `pc-feature`, enhanced checker parsing logic, added focused regressions, and updated process documentation.
+
 ### 2026-02-06 - pc-feature Step 11: use tools/pc-commit for final commit
 
 **Feature/Bug:** Workflow hardening (Step 11)

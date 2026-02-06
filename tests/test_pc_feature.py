@@ -672,6 +672,67 @@ class TestPcFeature(unittest.TestCase):
 
             self.assertEqual(captured.get("cwd"), str(patcher_path))
 
+    def test_main_fails_when_allowed_tests_remain_invalid_after_planner_retries(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-15"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section == "Preflight Report":
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Planner agent." in prompt and "Allowed Tests" in prompt:
+                    return ""
+                if "You are the Planner agent. Provide a concise plan" in prompt:
+                    return "- initial plan"
+                return "Decision: Approve\nReasons:\n- clear"
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "check_allowed_tests_exist",
+                        return_value=[],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn("invalid Allowed Tests", stderr_capture.getvalue())
+            self.assertIn("Do not include `make ci`", stderr_capture.getvalue())
+            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            self.assertNotIn("SMOKE_TEST_REQUIRED", dev_tasks)
+
     def test_main_does_not_write_feature_worktree_manifest(self):
         class StopMain(RuntimeError):
             pass

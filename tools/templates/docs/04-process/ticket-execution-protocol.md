@@ -63,7 +63,8 @@
    - Tests must be listed in the **Allowed Tests** section of the dev-tasks execution log (exact commands).
      - Planner must populate Allowed Tests before the Tester runs.
      - The Tester runs only those commands.
-     - `make feature` and `pc-feature` are forbidden as tests.
+     - `make ci`, `make feature`, and `pc-feature` are forbidden as tests.
+     - If Allowed Tests remain missing/invalid after planner remediation, fail with explicit remediation guidance (no placeholder smoke commands).
    - Report: summarize what changed, commands run, and outcomes.
 
 7. **Feedback Loop (Planner ↔ Patcher ↔ Tester ↔ Reporter)**

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+from pathlib import Path
 import shlex
 
 
@@ -8,13 +9,17 @@ def module_to_path(module: str) -> str:
     return os.path.join(*module.split(".")) + ".py"
 
 
-def check_unittest(parts: list[str]) -> list[str]:
+def check_unittest_targets(targets: list[str]) -> list[str]:
     missing: list[str] = []
-    for arg in parts[3:]:
+    for arg in targets:
         if arg.startswith("-"):
             continue
         target = arg.split(":", 1)[0]
         if not target:
+            continue
+        if target.endswith(".py") or "/" in target:
+            if not os.path.exists(target):
+                missing.append(arg)
             continue
         file_path = module_to_path(target)
         if os.path.exists(file_path):
@@ -28,15 +33,103 @@ def check_unittest(parts: list[str]) -> list[str]:
     return missing
 
 
+def check_unittest_discover(args: list[str]) -> list[str]:
+    missing: list[str] = []
+    start_dir: str | None = None
+    pattern: str | None = None
+    top_level_dir: str | None = None
+    positional: list[str] = []
+    idx = 0
+    while idx < len(args):
+        arg = args[idx]
+        if arg in {
+            "-s",
+            "--start-directory",
+            "-p",
+            "--pattern",
+            "-t",
+            "--top-level-directory",
+        }:
+            if idx + 1 >= len(args):
+                missing.append(f"missing value for {arg}")
+                break
+            value = args[idx + 1]
+            if arg in {"-s", "--start-directory"}:
+                start_dir = value
+            elif arg in {"-p", "--pattern"}:
+                pattern = value
+            else:
+                top_level_dir = value
+            idx += 2
+            continue
+        if arg.startswith("-"):
+            idx += 1
+            continue
+        positional.append(arg)
+        idx += 1
+
+    if positional:
+        if start_dir is None:
+            start_dir = positional[0]
+        if len(positional) > 1 and pattern is None:
+            pattern = positional[1]
+        if len(positional) > 2 and top_level_dir is None:
+            top_level_dir = positional[2]
+
+    if start_dir is None:
+        start_dir = "."
+    if pattern is None:
+        pattern = "test*.py"
+
+    start = Path(start_dir)
+    if not start.exists() or not start.is_dir():
+        missing.append(f"start directory not found: {start_dir}")
+        return missing
+
+    if top_level_dir:
+        top = Path(top_level_dir)
+        if not top.exists() or not top.is_dir():
+            missing.append(f"top-level directory not found: {top_level_dir}")
+
+    matches = list(start.rglob(pattern))
+    if not any(path.is_file() for path in matches):
+        missing.append(f"no tests match pattern '{pattern}' under '{start_dir}'")
+    return missing
+
+
+def check_unittest(parts: list[str]) -> list[str]:
+    if len(parts) <= 3:
+        return []
+    if parts[3] == "discover":
+        return check_unittest_discover(parts[4:])
+    return check_unittest_targets(parts[3:])
+
+
 def check_pytest(parts: list[str], start_idx: int) -> list[str]:
     missing: list[str] = []
-    for arg in parts[start_idx:]:
+    options_with_value = {
+        "-k",
+        "-m",
+        "-c",
+        "--maxfail",
+        "--lfnf",
+        "--durations",
+        "--rootdir",
+        "--basetemp",
+    }
+    idx = start_idx
+    while idx < len(parts):
+        arg = parts[idx]
         if arg.startswith("-"):
+            if arg in options_with_value and idx + 1 < len(parts):
+                idx += 2
+                continue
+            idx += 1
             continue
         target = arg.split("::", 1)[0]
-        if "/" in target or target.endswith(".py"):
-            if not os.path.exists(target):
-                missing.append(arg)
+        if not os.path.exists(target):
+            missing.append(arg)
+        idx += 1
     return missing
 
 
@@ -47,6 +140,8 @@ def check_command(raw: str) -> list[str]:
         return [raw]
     if not parts:
         return []
+    if len(parts) >= 2 and parts[0] == "make" and parts[1] == "ci":
+        return [f"forbidden command: {raw}"]
     if (
         parts[0] in {"python", "python3"}
         and len(parts) >= 3
