@@ -757,3 +757,23 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - prompt content for role/task executions is now file-sourced.
   - task-specific prompt fallback and variable rendering work deterministically.
   - missing prompt templates fail with explicit checked-path error text.
+
+## 2026-02-06 - Loop stability and visibility validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`44` tests)
+- Verified:
+  - Plan-reviewer BLOCK rounds can repeat without consuming execution attempt budget.
+  - Reporter review uses attempt-scoped baseline input (`attempt_base`).
+  - Repeated identical reporter FAIL with tester PASS now stops with explicit policy-conflict error.
+  - Iteration Log records timestamped timeline events with attempt/step/status.
+
+## 2026-02-06 - Visual Step Trace validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`46` tests)
+- Verified:
+  - `Step Trace` section is present for execution entries.
+  - Trace updates are rendered as a single per-attempt flow line.
+  - Multiple events on same attempt update the same flow line (no duplicate attempt lines).
+  - Runtime writes flow state across reviewer, patch, tests, reporter, feedback, and CI phases.

@@ -3851,3 +3851,71 @@ Track when debt is paid down:
 **Testing:**
 
 - `ruff check tools/pc-autofix tools/pc-feature`
+
+### 2026-02-06 - Stabilize pc-feature execution loop (policy baseline + timeline)
+
+**Feature/Bug:** Unified autofix pre-commit workflow loop reliability
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `prompts/plan-reviewer-gate.md`
+- `prompts/reporter-review.md`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Locked a preflight risk-policy baseline and passed it to plan-reviewer prompts.
+- Added policy conflict detection when plan-reviewer requests stop-after-preflight after explicit high-risk approval.
+- Split reviewer churn from execution attempts so plan-reviewer BLOCK rounds do not consume execution budget.
+- Added attempt-scoped reporter baseline (`attempt_base`) to avoid broad `main..HEAD` drift reviews.
+- Added repeated reporter FAIL signature detection to stop deterministic policy loops early.
+- Added timestamped timeline events in Iteration Log for step/status visibility.
+- Added patcher checkpoint timeline details (`changed paths` count/summary).
+- Added unit tests for reviewer-block budget behavior and repeated reporter FAIL conflict-stop behavior.
+
+**Why:**
+
+- Recent runs looped because reviewer/reporter checks used broad context and consumed attempt budget without executing meaningful patch/test progress.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal overhead (small additional log writes and parsing)
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+
+### 2026-02-06 - Add visual Step Trace for pc-feature workflow attempts
+
+**Feature/Bug:** Workflow observability during loop/retry failures
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added a dedicated `Step Trace` section to work item execution entries.
+- Added trace helpers to maintain an up-to-date per-attempt flow line (`step(status)` pipeline).
+- Added `record_trace_event` to update both timeline events and visual flow state in one call.
+- Wired trace updates through plan-reviewer, execution start, smoke, patcher, tests, reporter, feedback-loop, and CI gates.
+- Added safeguards to auto-create `Step Trace` section on resumed legacy work items.
+- Added regression tests for flow upsert behavior and single-line-per-attempt rendering.
+
+**Why:**
+
+- Timeline-only logs were hard to scan during failures. A compact per-attempt pipeline makes the break point obvious.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal additional markdown updates
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`

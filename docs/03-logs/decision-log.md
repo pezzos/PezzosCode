@@ -1570,3 +1570,17 @@ When a decision is reversed or replaced, document it here:
 - [Implementation Log](implementation-log.md) - Code changes
 - [Insights](insights.md) - Learnings from decisions
 - [Tech Design docs](../02-features/) - Feature-level decisions
+
+### DEC-019 - Treat repeated reviewer/reporter churn as policy conflict and stop early
+
+- **Date:** 2026-02-06
+- **Status:** Accepted
+- **Context:** `pc-feature` could exhaust loop attempts while repeatedly revising plans/reports without progressing patch/test state.
+- **Decision:**
+  - Lock a run-level risk policy baseline after preflight.
+  - Use attempt-scoped reporter diff baseline.
+  - Detect repeated identical reporter FAIL signatures and explicit policy contradictions, then fail fast with a clear error.
+  - Add timestamped attempt/step/status timeline notes to the work item iteration log.
+- **Consequences:**
+  - Faster failure for non-progress loops.
+  - Better diagnostics for where and why execution stopped.
