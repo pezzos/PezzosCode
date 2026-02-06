@@ -21,7 +21,7 @@ ENTRY_HEADER_PREFIX = "### "
 SECTION_PREFIX = "#### "
 DEFAULT_CHANGE_BUDGET = {"max_files": 6, "max_new_modules": 1}
 MAX_LOOPS = 3
-MAX_AUTOFIX_ATTEMPTS = 3
+MAX_CI_ATTEMPTS = 2
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
 ROLE_LOG_FILES = {
     "planner": "planner-log.md",
@@ -1909,21 +1909,20 @@ def main() -> None:
 
     gate_status = "FAIL"
     autofix_notes: List[str] = []
-    for attempt in range(1, MAX_AUTOFIX_ATTEMPTS + 1):
-        cmd = ["tools/offload-proxy/pp", "make", "ci"]
-        exit_code = run_command_with_step_log(
-            cmd,
-            runner_metadata,
-            step="ci",
-            root=Path(root),
-            label=f"make ci attempt={attempt}",
-        )
-        review_items.append(
-            format_review_item("tools/offload-proxy/pp make ci", exit_code)
-        )
-        if exit_code == 0:
-            gate_status = "PASS"
-            break
+    ci_cmd = ["tools/offload-proxy/pp", "make", "ci"]
+    first_ci_exit = run_command_with_step_log(
+        ci_cmd,
+        runner_metadata,
+        step="ci",
+        root=Path(root),
+        label="make ci attempt=1",
+    )
+    review_items.append(
+        format_review_item("tools/offload-proxy/pp make ci", first_ci_exit)
+    )
+    if first_ci_exit == 0:
+        gate_status = "PASS"
+    else:
         autofix_cmd = ["tools/offload-proxy/pp", "pre-commit", "run", "--all-files"]
         autofix_exit = run_command(autofix_cmd)
         autofix_notes.append(
@@ -1931,6 +1930,18 @@ def main() -> None:
                 "tools/offload-proxy/pp pre-commit run --all-files", autofix_exit
             )
         )
+        second_ci_exit = run_command_with_step_log(
+            ci_cmd,
+            runner_metadata,
+            step="ci",
+            root=Path(root),
+            label="make ci attempt=2",
+        )
+        review_items.append(
+            format_review_item("tools/offload-proxy/pp make ci", second_ci_exit)
+        )
+        if second_ci_exit == 0:
+            gate_status = "PASS"
     content = read_file(dev_tasks_path)
     content = replace_entry_section(
         content, work_item_id, "Gates", build_gates_block("make ci", gate_status)
@@ -1945,7 +1956,10 @@ def main() -> None:
         content = read_file(dev_tasks_path)
         content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
         write_file(dev_tasks_path, content)
-        die("pc-feature: make ci failed after autofix attempts")
+        die(
+            "pc-feature: make ci failed after final gate retry "
+            f"(max attempts: {MAX_CI_ATTEMPTS})"
+        )
 
     reporter_global_prompt = render_prompt_template(
         load_prompt_template("reporter", "global-log"),

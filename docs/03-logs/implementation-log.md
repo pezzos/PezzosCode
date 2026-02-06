@@ -27,6 +27,37 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - pc-feature Step 10: reduce final-gate CI attempts
+
+**Feature/Bug:** Workflow hardening (Step 10)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Replaced multi-attempt CI loop with a strict final gate cadence:
+  - Run `make ci` once.
+  - If it fails, run one autofix attempt.
+  - Run `make ci` one final retry (max 2 total CI runs).
+- Updated failure message to report the explicit max-attempt policy.
+- Added regression tests for:
+  - first-pass CI success uses one CI run
+  - failing CI retries exactly once with one autofix call
+- Updated protocol docs and template to match the new cadence.
+
+**Why:**
+
+- Reduce costly full-CI runs while keeping a deterministic recovery path.
+
+**How:**
+
+- Modified final gate logic in `pc-feature`, added focused tests, and synced process docs/templates.
+
 ### 2026-02-06 - pc-feature Step 09: enforce replanning/repaching after feedback failures
 
 **Feature/Bug:** Workflow hardening (Step 09)

@@ -882,6 +882,212 @@ class TestPcFeature(unittest.TestCase):
             ]
             self.assertEqual(commit_prompts, [])
 
+    def test_ci_gate_runs_make_ci_once_when_first_attempt_passes(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-13"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            ci_attempts = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Provide short, single-line summaries for global logs" in prompt:
+                    raise StopMain()
+                if "You are the Reporter agent." in prompt:
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: done"
+                return "ok"
+
+            def fake_run_with_step_log(
+                cmd,
+                metadata,
+                *,
+                step,
+                root,
+                label,
+                **kwargs,
+            ):
+                if step == "tests":
+                    return 0
+                if step == "ci":
+                    ci_attempts["count"] += 1
+                    return 0
+                return 0
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        side_effect=fake_run_with_step_log,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(ci_attempts["count"], 1)
+
+    def test_ci_gate_retries_once_after_autofix(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-14"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            ci_attempts = {"count": 0}
+            autofix_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "You are the Reporter agent." in prompt:
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: done"
+                return "ok"
+
+            def fake_run_command(cmd, cwd=None):
+                if cmd == [
+                    "tools/offload-proxy/pp",
+                    "pre-commit",
+                    "run",
+                    "--all-files",
+                ]:
+                    autofix_calls["count"] += 1
+                return 0
+
+            def fake_run_with_step_log(
+                cmd,
+                metadata,
+                *,
+                step,
+                root,
+                label,
+                **kwargs,
+            ):
+                if step == "tests":
+                    return 0
+                if step == "ci":
+                    ci_attempts["count"] += 1
+                    if ci_attempts["count"] == 1:
+                        return 1
+                    if ci_attempts["count"] == 2:
+                        return 1
+                    self.fail("ci should not run more than 2 attempts")
+                return 0
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command",
+                        side_effect=fake_run_command,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        side_effect=fake_run_with_step_log,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertEqual(ci_attempts["count"], 2)
+            self.assertEqual(autofix_calls["count"], 1)
+            self.assertIn("max attempts: 2", stderr_capture.getvalue())
+
     def test_plan_reviewer_block_routes_back_to_planner_before_patch(self):
         class StopMain(RuntimeError):
             pass
