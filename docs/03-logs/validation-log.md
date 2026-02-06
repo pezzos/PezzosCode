@@ -628,3 +628,12 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - commit prompt execution even when Commit section already filled
 - Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"`
 - Result: FAIL (expected for baseline harness); valid `python -m unittest discover ...` commands are currently flagged as missing.
+
+## 2026-02-06 - Workflow hardening Step 02 validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "dirty_existing_worktree"`
+- Result: PASS (`2` tests)
+- Verified:
+  - continue path keeps existing dirty/ahead patcher worktree and proceeds without cleanup.
+  - abort path exits early with explicit preserve-state message.
+  - no destructive `remove_worktree` call is issued in either path.

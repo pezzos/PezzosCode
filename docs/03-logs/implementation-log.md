@@ -3298,6 +3298,30 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (fails on targeted regressions)
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"` (fails on discover command handling)
 
+### 2026-02-06 - Workflow hardening Step 02 safe restart in existing worktree
+
+**Feature/Bug:** `tools/pc-feature` startup safety for existing patcher worktrees
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Replaced destructive startup behavior (auto-removing dirty/ahead patcher worktree) with explicit resume confirmation.
+- Added a short warning that reports non-pristine state reasons (`dirty`, `ahead-of-main`).
+- If user declines, the workflow exits early and preserves the existing worktree state.
+- Added unit tests for both continue and abort paths, asserting no destructive cleanup call is issued.
+
+**Why:**
+
+- Preserve unmerged local work and make resume behavior explicit and user-controlled.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "dirty_existing_worktree"`
+
 ---
 
 ## 2026-02-05

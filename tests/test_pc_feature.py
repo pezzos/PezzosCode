@@ -277,6 +277,11 @@ class TestPcFeature(unittest.TestCase):
             )
             prompt_yes_no_mock = mock.Mock(return_value=True)
             print_mock = mock.Mock()
+            reached_after_precheck = {"value": False}
+
+            def stop_after_precheck(content: str, work_item_id: str) -> str:
+                reached_after_precheck["value"] = True
+                raise StopMain()
 
             with contextlib.ExitStack() as stack:
                 for patcher in self._patch_main_base(root, feature_dir, patcher_path):
@@ -320,7 +325,7 @@ class TestPcFeature(unittest.TestCase):
                     mock.patch.object(
                         self.pc_feature,
                         "ensure_allowed_tests_section",
-                        side_effect=StopMain(),
+                        side_effect=stop_after_precheck,
                     )
                 )
                 stack.enter_context(mock.patch("builtins.print", print_mock))
@@ -328,7 +333,7 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.main()
 
             remove_worktree_mock.assert_not_called()
-            prepare_worktree_mock.assert_called_once()
+            self.assertTrue(reached_after_precheck["value"])
             prompt_yes_no_mock.assert_called_once()
             self.assertTrue(
                 any(
