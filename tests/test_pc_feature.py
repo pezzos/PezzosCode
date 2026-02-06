@@ -3,6 +3,7 @@ import importlib.machinery
 import importlib.util
 import io
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 
@@ -64,6 +65,27 @@ class TestPcFeature(unittest.TestCase):
             with contextlib.redirect_stderr(stderr_capture):
                 self.pc_feature.normalize_work_item_id("BAD")
         self.assertIn("invalid work item id", stderr_capture.getvalue())
+
+    def test_next_work_item_id_increments_per_feature(self):
+        original_datetime = self.pc_feature.datetime
+
+        class FakeDateTime:
+            @classmethod
+            def now(cls):
+                return datetime(2026, 2, 6)
+
+        self.pc_feature.datetime = FakeDateTime
+        try:
+            content = (
+                "### WI-20260204-01 - Work item execution\n"
+                "### WI-20260205-02 - Work item execution\n"
+            )
+            self.assertEqual(
+                self.pc_feature.next_work_item_id(content),
+                "WI-20260206-03",
+            )
+        finally:
+            self.pc_feature.datetime = original_datetime
 
     def test_format_review_item_marks_failure(self):
         line = self.pc_feature.format_review_item("make feature F=01", 2)

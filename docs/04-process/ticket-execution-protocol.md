@@ -25,6 +25,7 @@
    - Confirm scope, success criteria, and change budget.
    - Complexity flag: `complexity: "simple" | "complex"` recorded in the execution log entry.
    - Complex work items run an orchestrated flow with explicit tester/reporter feedback steps.
+   - Work Item IDs increment per feature; the sequence continues across dates.
 
 - Role scope is enforced (planner/tester/reporter log files only; patcher excluded from those files).
 - Planner/Tester/Reporter run in the patcher worktree so they review shared content; separate worktrees are not created for those roles.

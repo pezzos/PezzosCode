@@ -7,7 +7,13 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from lib import pc_runner  # noqa: E402
 
 EXEC_LOG_HEADER = "## Execution Log"
 ENTRY_HEADER_PREFIX = "### "
@@ -121,8 +127,6 @@ def next_work_item_id(content: str) -> str:
     pattern = re.compile(r"WI-(\d{8})-(\d{2})")
     max_seq = 0
     for match in pattern.finditer(content):
-        if match.group(1) != today:
-            continue
         seq = int(match.group(2))
         max_seq = max(max_seq, seq)
     return f"WI-{today}-{max_seq + 1:02d}"
@@ -529,12 +533,38 @@ def ensure_role_log(path: str, role: str) -> None:
     write_file(path, content)
 
 
-def append_role_log(path: str, work_item_id: str, body: str) -> None:
+def upsert_role_log_entry(content: str, work_item_id: str, entry: str) -> str:
+    header_prefix = f"### {work_item_id} -"
+    lines = content.splitlines()
+    cleaned: List[str] = []
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        if line.startswith(header_prefix):
+            idx += 1
+            while idx < len(lines) and not lines[idx].startswith("### "):
+                idx += 1
+            continue
+        cleaned.append(line)
+        idx += 1
+    base = "\n".join(cleaned).rstrip()
+    if not base:
+        base = "# Log\n\n## Entries"
+    return base + "\n\n" + entry.strip() + "\n"
+
+
+def append_role_log(
+    path: str, work_item_id: str, body: str, role: Optional[str] = None
+) -> None:
     timestamp = datetime.now().strftime("%Y-%m-%d")
     entry = f"### {work_item_id} - {timestamp}\n\n{body.strip()}\n"
     if not os.path.exists(path):
         write_file(path, "# Log\n\n## Entries\n")
     content = read_file(path).rstrip()
+    if role in {"reporter", "tester"}:
+        updated = upsert_role_log_entry(content, work_item_id, entry)
+        write_file(path, updated)
+        return
     content = content + "\n\n" + entry + "\n"
     write_file(path, content)
 
@@ -1206,7 +1236,15 @@ def main() -> None:
     content = ensure_allowed_tests_section(content, work_item_id)
     write_file(dev_tasks_path, content)
 
+    runner_metadata = pc_runner.build_metadata(work_item_id, "pc-feature")
+    pc_runner.log_message(
+        runner_metadata, "feature", "start pc-feature", root=Path(root)
+    )
+
     if manual:
+        pc_runner.log_message(
+            runner_metadata, "feature", "manual mode enabled; exit", root=Path(root)
+        )
         print("pc-feature: manual mode enabled; execution log entry ready")
         return
 
@@ -1335,6 +1373,7 @@ def main() -> None:
                 os.path.join(planner_path, role_paths["planner"]),
                 work_item_id,
                 plan_text,
+                role="planner",
             )
             format_role_changes("planner", planner_path, feature_dir)
             enforce_role_scope(planner_path, "planner", feature_dir)
@@ -1410,6 +1449,7 @@ def main() -> None:
                 os.path.join(planner_path, role_paths["planner"]),
                 work_item_id,
                 note,
+                role="planner",
             )
             format_role_changes("planner", planner_path, feature_dir)
             enforce_role_scope(planner_path, "planner", feature_dir)
@@ -1475,6 +1515,7 @@ def main() -> None:
                 os.path.join(tester_path, role_paths["tester"]),
                 work_item_id,
                 tester_feedback,
+                role="tester",
             )
             format_role_changes("tester", tester_path, feature_dir)
             reset_global_logs_to_head(tester_path)
@@ -1504,6 +1545,7 @@ def main() -> None:
             os.path.join(tester_path, role_paths["tester"]),
             work_item_id,
             tester_feedback,
+            role="tester",
         )
         format_role_changes("tester", tester_path, feature_dir)
         reset_global_logs_to_head(tester_path)
@@ -1521,6 +1563,8 @@ def main() -> None:
             "You are the Reporter agent. Review changes for scope and completeness. "
             "Compare against main (e.g., `git diff --stat refs/heads/main..HEAD`) to ensure "
             "you are reviewing the patcher's changes, not just working tree status. "
+            "Do not claim the reporter log was not updated; you are updating it. "
+            "Global logs under docs/03-logs are written after completion; do not fail solely for their absence. "
             "Return in this exact format:\n"
             "Outcome: PASS|FAIL\n"
             "Docs/logs updated: ...\n"
@@ -1537,6 +1581,7 @@ def main() -> None:
             os.path.join(reporter_path, role_paths["reporter"]),
             work_item_id,
             reporter_feedback,
+            role="reporter",
         )
         format_role_changes("reporter", reporter_path, feature_dir)
         enforce_role_scope(reporter_path, "reporter", feature_dir)
@@ -1689,6 +1734,7 @@ def main() -> None:
         die("pc-feature: failed to commit collected changes")
     cleanup_worktrees(root)
 
+    pc_runner.log_message(runner_metadata, "feature", "complete", root=Path(root))
     print("pc-feature: complete")
 
 

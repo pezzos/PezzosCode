@@ -30,6 +30,7 @@
 ## Execution Log
 
 Record each execution round here. Link any related logs in `docs/03-logs/`.
+Work Item IDs increment per feature; the sequence continues across dates.
 
 **Format:**
 

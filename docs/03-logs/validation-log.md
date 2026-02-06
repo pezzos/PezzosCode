@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-06 - F-09 log hygiene + per-feature WI IDs validation
+
+- `python -m unittest discover -s tests -p "test_*.py"` (PASS)
+
 ### 2026-02-05 - F-08 anti-cheat testing strategy validation
 
 - `pytest tests/test_pc_feature.py` (PASS)

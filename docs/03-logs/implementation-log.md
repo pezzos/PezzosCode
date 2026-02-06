@@ -27,6 +27,44 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - F-09 log hygiene + per-feature work item IDs
+
+**Feature/Bug:** F-09 Runner library + structured logs (workflow hardening)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/reporter.md`
+- `tools/templates/prompts/reporter.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `docs/02-features/09-runner-structured-logs/dev-tasks.md`
+- `docs/02-features/09-runner-structured-logs/validation-log.md`
+- `docs/02-features/09-runner-structured-logs/reporter-log.md`
+
+**What Changed:**
+
+- Work item ID generation now increments per feature (sequence continues across dates).
+- Reporter/tester log updates upsert per WI to prevent duplicate entries.
+- Reporter prompt clarifies global log timing and avoids contradictory statements.
+- Templates/docs updated to reflect the per-feature WI sequence.
+- Reconciled F-09 execution/validation/reporter logs and reran Allowed Tests.
+
+**Why:**
+
+- Fix current log inconsistencies and prevent repeat issues.
+
+**How:**
+
+- Updated `pc-feature` logic, added a unit test, and refreshed prompts/templates.
+
+**Trade-offs / Notes:**
+
+- Global logs remain deferred until feature completion per DEC-016.
+
 ### 2026-02-05 - Sync ticket execution protocol template/doc
 
 **Feature/Bug:** Docs maintenance (template-sync pre-commit fix)
@@ -3205,3 +3243,58 @@ Track when debt is paid down:
 ## 2026-02-05
 
 - Synced `tools/templates/docs/02-features/AGENTS.md` to match the updated workflow guidance in `docs/02-features/AGENTS.md` (added the five-step drafting workflow bullet).
+
+### 2026-02-06 - Allow pre-commit tooling without work item metadata
+
+**Feature/Bug:** Pre-commit automation
+
+**Changed Files:**
+
+- `tools/pc-precommit`
+- `tools/pc-autofix`
+
+**What Changed:**
+
+- `pc-precommit` no longer aborts when `PC_WORK_ITEM_ID` is missing; logging is skipped unless the env var (or CLI overrides) are set, and work-item metadata is passed through to `pc-autofix` only when available.
+- `pc-autofix` now treats the work item id as optional so follow-up autofix runs launched outside `make feature` still succeed while continuing to log when metadata exists.
+
+**Why:**
+
+- Git commits outside the runner flow were blocked because the hook required metadata that only `make feature` supplies; hooks must still run even for small manual fixes while preserving structured logging when inputs exist.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (hook change only).
+
+### 2026-02-06 - Fix ruff E402 in pre-commit helpers
+
+**Feature/Bug:** Pre-commit automation
+
+**Changed Files:**
+
+- `tools/pc-autofix`
+- `tools/pc-feature`
+
+**What Changed:**
+
+- Added `# noqa: E402` to the deferred `lib.pc_runner` imports to keep sys.path adjustments in place without violating ruff import order.
+
+**Why:**
+
+- Ruff flagged the imports as non-top-of-file because `sys.path` is adjusted before importing local helpers; the noqa keeps the intended behavior while satisfying linting.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Same
+- **Dependencies:** None
+
+**Testing:**
+
+- `ruff check tools/pc-autofix tools/pc-feature`

@@ -162,6 +162,60 @@ Adopt Option 2 and make observability-first, script-driven execution the default
 - PRD → features is incremental; Done features are not regenerated.
 - Single worktree per feature; no `feature-worktrees.json`.
 
+### [DEC-018] - Increment work item IDs per feature
+
+**Date:** 2026-02-06
+
+**Status:** Approved
+
+**Decision Makers:** Alexandre Pezzotta
+
+**Context:**
+Work item IDs reset per day, which makes it harder to track sequential work on a single feature across multiple days.
+
+**Problem Statement:**
+Should work item IDs increment per day or per feature?
+
+**Options Considered:**
+
+#### Option 1: Increment per day (status quo)
+
+**Description:** Reset the sequence daily (e.g., `WI-YYYYMMDD-01` each day).
+
+**Pros:**
+
+- Simple and date-scoped
+
+**Cons:**
+
+- Harder to follow sequential work within a feature across days
+- Creates duplicate sequence numbers for a feature
+
+**Estimated effort:** Low
+
+#### Option 2: Increment per feature (chosen)
+
+**Description:** Use the next sequence number for the feature regardless of date; keep the current date in the ID.
+
+**Pros:**
+
+- Monotonic sequencing within a feature
+- Easier to audit and reference work items
+
+**Cons:**
+
+- Sequence number no longer resets daily
+
+**Estimated effort:** Low
+
+**Decision:**
+Adopt per-feature sequencing for work item IDs.
+
+**Consequences:**
+
+- `pc-feature` generates the next WI by scanning existing feature entries.
+- Templates and docs describe the per-feature sequencing rule.
+
 ### [DEC-016] - Defer global log updates until feature completion
 
 **Date:** 2026-02-05

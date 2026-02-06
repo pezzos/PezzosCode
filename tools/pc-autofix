@@ -8,6 +8,11 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from lib import pc_runner  # noqa: E402
+
 
 def codex_overrides() -> list[str]:
     uvx_path = shutil.which("uvx") or str(Path.home() / ".local" / "bin" / "uvx")
@@ -146,14 +151,47 @@ def parse_args() -> argparse.Namespace:
         choices=("pre-commit", "stash-conflict"),
         default="pre-commit",
     )
+    parser.add_argument(
+        "--work-item-id",
+        default=os.environ.get("PC_WORK_ITEM_ID"),
+        help="Work item id (WI-YYYYMMDD-XX).",
+    )
+    parser.add_argument(
+        "--agent-name",
+        default=os.environ.get("PC_AGENT_NAME", "pc-autofix"),
+        help="Agent name for logging.",
+    )
+    parser.add_argument(
+        "--run-id",
+        default=os.environ.get("PC_RUN_ID"),
+        help="Optional run id for logging.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    metadata = None
+    if args.work_item_id:
+        try:
+            metadata = pc_runner.build_metadata(
+                args.work_item_id, args.agent_name, args.run_id
+            )
+        except ValueError as exc:
+            die(str(exc))
+    else:
+        print(
+            "pc-autofix: warning: work item id missing; structured logging disabled.",
+            file=sys.stderr,
+        )
+    root = git_root()
+    if metadata:
+        pc_runner.log_message(metadata, "autofix", f"start mode={args.mode}", root=root)
     issues = read_text(args.issues_file)
     prompt = build_prompt(args.mode, issues)
     codex_exec(prompt)
+    if metadata:
+        pc_runner.log_message(metadata, "autofix", "complete", root=root)
     return 0
 
 
