@@ -164,6 +164,45 @@ class TestPcFeature(unittest.TestCase):
         self.assertEqual(risk, "HIGH")
         self.assertIn("affects restore apply semantics or permissions", triggers)
 
+    def test_classify_risk_flags_protocol_path_triggers_from_planned_files(self):
+        path_cases = [
+            ("sanitizer/rules.py", "touches sanitizer/ path"),
+            ("detectors/scan.py", "touches detectors/ path"),
+            ("restore/apply.py", "touches restore/ path"),
+            ("git_ops/rebase.py", "touches git_ops/ path"),
+            ("metadata/index.py", "touches metadata/ path"),
+        ]
+        for file_path, expected_trigger in path_cases:
+            with self.subTest(file_path=file_path):
+                data = {"files_to_change": [file_path]}
+                risk, triggers = self.pc_feature.classify_risk(
+                    data,
+                    {"max_files": 50, "max_new_modules": 50},
+                )
+                self.assertEqual(risk, "HIGH")
+                self.assertIn(expected_trigger, triggers)
+
+    def test_classify_risk_flags_protocol_path_triggers_from_actual_changed_paths(self):
+        data = {"files_to_change": ["docs/notes.md"]}
+        risk, triggers = self.pc_feature.classify_risk(
+            data,
+            {"max_files": 50, "max_new_modules": 50},
+            actual_changed_paths=["metadata/schema.json", "src/app.py"],
+        )
+        self.assertEqual(risk, "HIGH")
+        self.assertIn("touches metadata/ path", triggers)
+
+    def test_classify_risk_deduplicates_mixed_path_triggers(self):
+        data = {"files_to_change": ["restore/plan.md", "restore/apply.py"]}
+        risk, triggers = self.pc_feature.classify_risk(
+            data,
+            {"max_files": 50, "max_new_modules": 50},
+            actual_changed_paths=["restore/cleanup.py", "detectors/rules.py"],
+        )
+        self.assertEqual(risk, "HIGH")
+        self.assertEqual(triggers.count("touches restore/ path"), 1)
+        self.assertIn("touches detectors/ path", triggers)
+
     def test_normalize_work_item_id_accepts_format(self):
         self.assertEqual(
             self.pc_feature.normalize_work_item_id("WI-20260204-01"),

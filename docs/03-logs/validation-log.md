@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-06 - Step 13 deterministic risk trigger validation
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS)
+
 ### 2026-02-06 - Step 12 Allowed Tests enforcement/parsing validation
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"` (PASS)

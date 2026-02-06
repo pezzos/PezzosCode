@@ -113,7 +113,7 @@
 
 HIGH RISK if any of the following apply:
 
-- Changes touch `sanitizer/`, `detectors/`, `restore/`, `git_ops/`, or `metadata/`.
+- Planned files OR actual changed paths (if available) touch `sanitizer/`, `detectors/`, `restore/`, `git_ops/`, or `metadata/`.
 - Changes modify secret-blocking or fail-close behavior.
 - Changes affect restore apply semantics or permissions.
 - Secret scanning dependencies/policies are added or modified.

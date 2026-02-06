@@ -40,6 +40,13 @@ PROCESS_DOC_FILES = (
     "docs/04-process/testing-strategy.md",
 )
 PROCESS_DOC_PREFIXES = ("tools/templates/docs/",)
+RISK_PATH_TRIGGERS = (
+    ("sanitizer/", "touches sanitizer/ path"),
+    ("detectors/", "touches detectors/ path"),
+    ("restore/", "touches restore/ path"),
+    ("git_ops/", "touches git_ops/ path"),
+    ("metadata/", "touches metadata/ path"),
+)
 
 
 SECTION_ORDER = [
@@ -352,7 +359,26 @@ def build_gates_block(command: str, status: str) -> str:
     return f"- {command}: {status}"
 
 
-def classify_risk(data: Dict, change_budget: Dict) -> Tuple[str, List[str]]:
+def normalize_repo_path(path: str) -> str:
+    normalized = path.replace("\\", "/").strip()
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized.lower()
+
+
+def path_risk_triggers(paths: List[str]) -> List[str]:
+    triggers: List[str] = []
+    for path in paths:
+        normalized = normalize_repo_path(path)
+        for prefix, trigger in RISK_PATH_TRIGGERS:
+            if normalized.startswith(prefix):
+                triggers.append(trigger)
+    return sorted(set(triggers))
+
+
+def classify_risk(
+    data: Dict, change_budget: Dict, actual_changed_paths: Optional[List[str]] = None
+) -> Tuple[str, List[str]]:
     triggers = []
     if data.get("touches_secret_blocking"):
         triggers.append("touches secret blocking or fail-close behavior")
@@ -369,7 +395,12 @@ def classify_risk(data: Dict, change_budget: Dict) -> Tuple[str, List[str]]:
     planned_new_modules = data.get("planned_new_modules", 0)
     if planned_new_modules > change_budget["max_new_modules"]:
         triggers.append("change budget exceeded (new modules)")
-    return ("HIGH" if triggers else "LOW", triggers)
+    planned_paths = data.get("files_to_change") or []
+    triggers.extend(path_risk_triggers(planned_paths))
+    if actual_changed_paths:
+        triggers.extend(path_risk_triggers(actual_changed_paths))
+    deduped = sorted(set(triggers))
+    return ("HIGH" if deduped else "LOW", deduped)
 
 
 def git_repo_root(path: Optional[str]) -> str:
@@ -1416,6 +1447,11 @@ def main() -> None:
 
     content = read_file(dev_tasks_path)
     if not entry_section_complete(content, work_item_id, "Preflight Report"):
+        actual_changed_paths: List[str] = []
+        if os.path.exists(patcher_path) and os.path.exists(
+            os.path.join(patcher_path, ".git")
+        ):
+            actual_changed_paths = filter_ignored_paths(get_status_paths(patcher_path))
         preflight_prompt = (
             "You are preparing preflight data for a work item execution.\n"
             "Return ONLY valid JSON. No prose, no markdown, no extra text.\n"
@@ -1436,7 +1472,9 @@ def main() -> None:
         except json.JSONDecodeError:
             die(f"pc-feature: failed to parse preflight JSON\n{preflight_raw}")
 
-        risk_level, triggers = classify_risk(preflight_data, DEFAULT_CHANGE_BUDGET)
+        risk_level, triggers = classify_risk(
+            preflight_data, DEFAULT_CHANGE_BUDGET, actual_changed_paths
+        )
         content = read_file(dev_tasks_path)
         content = replace_entry_section(
             content,

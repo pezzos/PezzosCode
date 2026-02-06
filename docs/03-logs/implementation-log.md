@@ -27,6 +27,40 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-06 - pc-feature Step 13: deterministic risk path triggers from planned + actual paths
+
+**Feature/Bug:** Workflow hardening (Step 13)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added explicit protocol path triggers in risk classification for:
+  - `sanitizer/`
+  - `detectors/`
+  - `restore/`
+  - `git_ops/`
+  - `metadata/`
+- Risk classifier now evaluates both:
+  - planned `files_to_change` from preflight JSON
+  - actual changed paths from existing patcher worktree status (when available)
+- Added helper normalization/dedup logic so trigger output remains deterministic and concise.
+- Expanded unit tests to cover each trigger path, actual-path evaluation, and deduped mixed scenarios.
+- Updated protocol docs/template wording to match planned+actual path evaluation.
+
+**Why:**
+
+- Align risk classification with protocol-defined path triggers and avoid missing HIGH-risk paths during resume/in-progress work.
+
+**How:**
+
+- Refactored `classify_risk(...)` with path-trigger helpers and wired preflight to include existing worktree changed paths.
+
 ### 2026-02-06 - pc-feature Step 12: strict Allowed Tests enforcement and checker parsing
 
 **Feature/Bug:** Workflow hardening (Step 12)
