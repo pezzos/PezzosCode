@@ -681,3 +681,16 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Allowed Tests run with `cwd=tester_path`.
   - Prepatch smoke runs with `cwd=patcher_path`.
   - Structured logging flow remains unchanged (logs written via root metadata path).
+
+## 2026-02-06 - Workflow hardening Step 07 validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "parse_plan_reviewer_decision"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_block_routes_back_to_planner_before_patch"`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_approve_allows_patch"`
+- Result: PASS (`1` test)
+- Verified:
+  - reviewer `BLOCK` triggers planner replan path and loop continuation.
+  - reviewer `APPROVE` allows patch phase to execute.
+  - patch step is not reached in the blocked iteration.

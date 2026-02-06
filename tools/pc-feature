@@ -1038,6 +1038,13 @@ def parse_outcome(text: str) -> str:
     return match.group(1).upper()
 
 
+def parse_plan_reviewer_decision(text: str) -> str:
+    match = re.search(r"Decision:\s*(Approve|Block)\b", text, re.IGNORECASE)
+    if not match:
+        return "BLOCK"
+    return match.group(1).upper()
+
+
 def parse_commit_message(section: str) -> str:
     for line in section.splitlines():
         stripped = line.strip()
@@ -1227,6 +1234,18 @@ def select_resume_work_item_id(content: str) -> Optional[str]:
     if outcome and outcome.startswith("pass"):
         return None
     return newest_id
+
+
+def append_iteration_log_note(content: str, work_item_id: str, note: str) -> str:
+    body = get_entry_section(content, work_item_id, "Iteration Log")
+    entry = f"- {note.strip()}"
+    if not body or body.strip() in {"-", "(pending)"}:
+        new_body = entry
+    elif entry in body:
+        new_body = body
+    else:
+        new_body = body.rstrip() + "\n" + entry
+    return replace_entry_section(content, work_item_id, "Iteration Log", new_body)
 
 
 def collect_allowed_final_stage_paths(
@@ -1524,6 +1543,67 @@ def main() -> None:
             enforce_role_scope(planner_path, "planner", feature_dir)
             commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
             ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+
+        content = read_file(dev_tasks_path)
+        current_plan = get_entry_section(content, work_item_id, "Plan")
+        allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
+        plan_reviewer_prompt = (
+            "You are the Plan Reviewer agent. Review the current plan before patching. "
+            "Return exactly:\n"
+            "Decision: Approve|Block\n"
+            "Reasons:\n"
+            "- ...\n"
+            "Required changes:\n"
+            "- ...\n"
+            "Optional suggestions:\n"
+            "- ...\n"
+            f"Work Item ID: {work_item_id}\n"
+            f"Plan:\n{current_plan}\n\n"
+            f"Allowed Tests:\n{allowed_section}\n"
+        )
+        reviewer_feedback = codex_exec(
+            plan_reviewer_prompt,
+            cwd=planner_path,
+            profile="Planner",
+        ).strip()
+        reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
+        if reviewer_decision == "BLOCK":
+            ensure_role_log(
+                os.path.join(planner_path, role_paths["planner"]), "planner"
+            )
+            append_role_log(
+                os.path.join(planner_path, role_paths["planner"]),
+                work_item_id,
+                f"Plan Reviewer feedback (BLOCK):\n{reviewer_feedback}",
+                role="planner",
+            )
+            planner_update_prompt = (
+                "You are the Planner agent. Update the Plan section based on Plan Reviewer feedback. "
+                "Return ONLY the revised Plan section body.\n"
+                f"Work Item ID: {work_item_id}\n"
+                f"Current Plan:\n{current_plan}\n\n"
+                f"Plan Reviewer feedback:\n{reviewer_feedback}\n"
+            )
+            revised_plan = codex_exec(
+                planner_update_prompt,
+                cwd=planner_path,
+                profile="Planner",
+            ).strip()
+            if not revised_plan:
+                die("pc-feature: planner returned empty plan after reviewer block")
+            content = read_file(dev_tasks_path)
+            content = replace_entry_section(content, work_item_id, "Plan", revised_plan)
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                f"Attempt {attempt}: Plan Reviewer BLOCK; planner updated plan.",
+            )
+            write_file(dev_tasks_path, content)
+            format_role_changes("planner", planner_path, feature_dir)
+            enforce_role_scope(planner_path, "planner", feature_dir)
+            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
+            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+            continue
 
         smoke_command = allowed_tests[0] if allowed_tests else DEFAULT_SMOKE_TEST
         if smoke_command:

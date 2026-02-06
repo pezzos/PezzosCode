@@ -230,6 +230,20 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertIsNone(self.pc_feature.select_resume_work_item_id(content))
 
+    def test_parse_plan_reviewer_decision(self):
+        self.assertEqual(
+            self.pc_feature.parse_plan_reviewer_decision("Decision: Approve"),
+            "APPROVE",
+        )
+        self.assertEqual(
+            self.pc_feature.parse_plan_reviewer_decision("Decision: Block"),
+            "BLOCK",
+        )
+        self.assertEqual(
+            self.pc_feature.parse_plan_reviewer_decision("unexpected output"),
+            "BLOCK",
+        )
+
     def test_format_review_item_marks_failure(self):
         line = self.pc_feature.format_review_item("make feature F=01", 2)
         self.assertEqual(line, "make feature F=01: FAIL")
@@ -788,6 +802,171 @@ class TestPcFeature(unittest.TestCase):
                 if "generating a concise, scoped commit message" in call.args[0]
             ]
             self.assertEqual(commit_prompts, [])
+
+    def test_plan_reviewer_block_routes_back_to_planner_before_patch(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-10"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reviewer_calls = {"count": 0}
+            planner_update_calls = {"count": 0}
+            append_role_log_mock = mock.Mock()
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    return False
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    reviewer_calls["count"] += 1
+                    if reviewer_calls["count"] == 1:
+                        return "Decision: Block\nReasons:\n- missing checks"
+                    return "Decision: Approve\nReasons:\n- looks good"
+                if "Update the Plan section based on Plan Reviewer feedback" in prompt:
+                    planner_update_calls["count"] += 1
+                    return "- revised plan after review feedback"
+                if "You are the Patcher agent." in prompt:
+                    raise StopMain()
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "append_role_log", append_role_log_mock
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertGreaterEqual(reviewer_calls["count"], 2)
+            self.assertEqual(planner_update_calls["count"], 1)
+            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            self.assertIn("Plan Reviewer BLOCK; planner updated plan", dev_tasks)
+            self.assertTrue(append_role_log_mock.called)
+
+    def test_plan_reviewer_approve_allows_patch(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-11"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reviewer_calls = {"count": 0}
+            planner_update_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    return False
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    reviewer_calls["count"] += 1
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Update the Plan section based on Plan Reviewer feedback" in prompt:
+                    planner_update_calls["count"] += 1
+                    return "- should not be called"
+                if "You are the Patcher agent." in prompt:
+                    raise StopMain()
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(reviewer_calls["count"], 1)
+            self.assertEqual(planner_update_calls["count"], 0)
 
 
 if __name__ == "__main__":

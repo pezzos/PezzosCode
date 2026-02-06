@@ -3428,6 +3428,38 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "allowed_tests_run_in_worktree_cwd"`
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "prepatch_smoke_runs_in_worktree_cwd"`
 
+### 2026-02-06 - Workflow hardening Step 07 plan-reviewer gate before patching
+
+**Feature/Bug:** `tools/pc-feature` planner approval gate
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added explicit plan-reviewer phase in each iteration before smoke/patch execution.
+- Added `parse_plan_reviewer_decision(...)` to parse `Decision: Approve|Block` (default `BLOCK` on malformed output).
+- On reviewer `BLOCK`:
+  - append reviewer feedback to planner log context.
+  - prompt planner to revise the Plan section using reviewer feedback.
+  - record a note in execution log Iteration Log.
+  - commit planner-scoped updates and continue loop (no patch execution in blocked iteration).
+- On reviewer `APPROVE`:
+  - proceed to smoke and patch phases.
+- Added helper `append_iteration_log_note(...)` for deterministic Iteration Log updates.
+
+**Why:**
+
+- Enforce protocol requirement that patching is gated by plan-reviewer approval.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "parse_plan_reviewer_decision"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_block_routes_back_to_planner_before_patch"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "plan_reviewer_approve_allows_patch"`
+
 ---
 
 ## 2026-02-05
