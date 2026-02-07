@@ -1624,3 +1624,37 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Runtime logs no longer block `make feature F=<id>` finalization.
   - Feature completion is based on implementation/doc deliverables, not transient run artifacts.
+
+### DEC-023 - Reviewer BLOCK rounds must not consume execution attempt budget
+
+- **Date:** 2026-02-06
+- **Status:** Accepted
+- **Context:** Repeated plan-reviewer BLOCK responses exhausted `MAX_LOOPS` and caused `pc-feature: max iteration attempts reached` before meaningful patch/test execution.
+- **Decision:**
+  - Track execution attempts and reviewer BLOCK rounds with separate counters.
+  - Increment execution attempts only after reviewer `APPROVE`.
+  - Add `MAX_REVIEWER_BLOCKS` cap with a specific failure message for unresolved reviewer churn.
+- **Consequences:**
+  - Plan-quality loops no longer starve patch/test execution attempts.
+  - Failure mode is explicit when reviewer feedback cannot converge.
+
+### DEC-024 - Tighten `pc-feature` execution isolation and test-command scope
+
+- **Date:** 2026-02-07
+- **Status:** Accepted
+- **Context:** Workflow safety gaps remained around broad escalation (`pp` prefix), stale worktree reuse, global cleanup side effects, and overly permissive Allowed Tests command parsing.
+- **Decision:**
+  - Scope cleanup to the current feature patcher worktree/branch only.
+  - Evaluate escalation allowlist against unwrapped `tools/offload-proxy/pp` commands, not the wrapper itself.
+  - Enforce behind-`main` freshness checks for existing patcher worktrees.
+  - Keep role logs lazy-created; remove startup pre-creation.
+  - Re-run HIGH-risk approval on resume when approval marker is missing.
+  - Record technical collection conflicts as technical notes (not PO approval state).
+  - Filter branch replay to durable implementation paths only.
+  - Restrict Allowed Tests to explicit `unittest`/`pytest` command forms.
+  - Add early root dirty-scope guard and immediate post-reviewer read-only enforcement.
+  - Enforce anti-hardcode plan requirements (fixtures/seed/invariants/contracts) before patching.
+- **Consequences:**
+  - Lower risk of cross-worktree/branch deletion and escalation abuse.
+  - Higher determinism for reruns and test execution scope.
+  - Earlier, clearer failures when scope or policy constraints are violated.

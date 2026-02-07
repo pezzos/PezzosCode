@@ -27,6 +27,28 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-07 - Workflow doc sync (orchestration + dev workflow)
+
+**Feature/Bug:** Doc sync (no feature id)
+
+**Changed Files:**
+
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/dev-workflow.md`
+
+**What Changed:**
+
+- Clarified that HIGH-risk items stop after Preflight and wait for PO approval.
+- Updated parallel-mode guidance to require separate sessions/worktrees when parallelizing.
+
+**Why:**
+
+- Align living workflow docs with the intended orchestration and parallel execution policy.
+
+**How:**
+
+- Applied the updated lines in the living docs and verified templates already matched.
+
 ### 2026-02-06 - Interactive high-risk approval gate in pc-feature
 
 **Feature/Bug:** F-10 workflow usability (high-risk gate)
@@ -4030,3 +4052,87 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
 - `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py`
+
+### 2026-02-06 - Separate reviewer-block budget from execution attempts
+
+**Feature/Bug:** `pc-feature` aborting with `max iteration attempts reached` after repeated plan-reviewer BLOCK loops
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Reworked the main loop to track execution attempts separately from reviewer BLOCK rounds.
+- Added `MAX_REVIEWER_BLOCKS` guard to cap unresolved reviewer churn with a specific failure reason.
+- Reviewer BLOCK rounds now:
+  - revise the plan,
+  - append explicit block-count iteration notes,
+  - do **not** consume execution attempts.
+- Execution attempts now increment only after a reviewer `APPROVE`.
+- Added regression tests for:
+  - many reviewer BLOCKs still reaching execution without tripping execution attempt cap,
+  - explicit failure message when reviewer BLOCK budget is exceeded.
+
+**Why:**
+
+- Previously, repeated reviewer BLOCK responses consumed the same `MAX_LOOPS` budget intended for patch/test execution, causing false terminal failures before implementation could proceed.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** No measurable impact
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py`
+
+### 2026-02-07 - Workflow hardening pass for execution safety and scope control
+
+**Feature/Bug:** `pc-feature` workflow hardening (cleanup scope, escalation scope, freshness, resume gating, replay filtering, test command restrictions)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/pc-allowed-tests-check`
+- `tools/pc-commit`
+- `prompts/planner-create.md`
+- `tests/test_pc_feature.py`
+- `tests/test_pc_allowed_tests_check.py`
+- `AGENTS.md`
+- `docs/04-process/dev-workflow.md`
+- `docs/04-process/human-orchestration-workflow.md`
+
+**What Changed:**
+
+- Replaced broad end-of-run cleanup with targeted patcher worktree cleanup.
+- Tightened escalation allowlist to validate the command wrapped by `tools/offload-proxy/pp`.
+- Added patcher worktree freshness checks for behind-`main` state.
+- Removed eager role-log pre-creation (lazy writes only).
+- Added HIGH-risk approval re-check on resume if approval marker is missing.
+- Replaced collection-conflict note text with technical conflict wording.
+- Filtered branch replay paths to durable implementation files only.
+- Restricted Allowed Tests parsing/validation to `unittest`/`pytest` commands.
+- Added immediate plan-reviewer read-only enforcement and early root-scope dirty-path guard.
+- Added anti-hardcode plan gate checks (fixtures/seed/invariants/contracts).
+- Updated process docs to align high-risk and single-worktree guidance.
+- Updated `tools/pc-commit` to avoid broad `git add -A` staging after checks.
+
+**Why:**
+
+- Prevent destructive or overly broad workflow actions and make failures deterministic earlier in the run.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Slightly improved by earlier failure detection and smaller replay scope
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"`
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_*.py"`

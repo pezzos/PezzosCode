@@ -19,15 +19,15 @@ Rules:
   guessing.
 - For any work item implementation, run `make feature F=<feature-id>` and follow `docs/04-process/ticket-execution-protocol.md`.
 - Enforce **Plan → Patch → Test → Report** for every work item.
-- If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
+- If HIGH RISK and approval is not granted, stop after Preflight and set status to "Awaiting PO Approval". If approval is granted, continue execution.
 - Codex MUST use Serena for symbol-aware navigation and edits when available.
 - Codex MUST use `tools/offload-proxy/pp` for commands that can produce large output (e.g., `rg`, `sed` on large ranges, tests, or logs).
 - Do not paste large command outputs into prompts; use `pp` and share the pointer id.
 - Do not use `tools/offload-proxy/pp` for filesystem write commands (e.g., `mkdir`, `cp`, `mv`, `rm`) to avoid unnecessary escalation.
 - Codex MUST update `docs/03-logs/*.md` to record decisions, implementation changes, bugs, validations, and insights. If no log entry is needed, explicitly state why in the response.
-- Orchestrator pattern: use separate sessions/worktrees for implementer, reviewer, and tester when parallelizing.
+- Orchestrator pattern: use separate sessions for roles when parallelizing; use a single feature worktree by default.
 - Worktree naming: `../<repo_name>-<feature_name>-<agent_name>` (e.g., `../PezzosCode-auth-impl`).
-- Role worktree scope:
+- Role scope (single feature worktree):
 - Planner writes only `docs/02-features/<feature>/planner-log.md`.
 - Tester writes only `docs/02-features/<feature>/validation-log.md`.
 - Reporter writes only `docs/02-features/<feature>/reporter-log.md`.

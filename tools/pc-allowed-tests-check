@@ -140,6 +140,10 @@ def check_command(raw: str) -> list[str]:
         return [raw]
     if not parts:
         return []
+    if parts[0] == "tools/offload-proxy/pp":
+        parts = parts[1:]
+        if not parts:
+            return [f"unsupported test command: {raw}"]
     if len(parts) >= 2 and parts[0] == "make" and parts[1] == "ci":
         return [f"forbidden command: {raw}"]
     if (
@@ -158,7 +162,7 @@ def check_command(raw: str) -> list[str]:
         and parts[2] == "pytest"
     ):
         return check_pytest(parts, 3)
-    return []
+    return [f"unsupported test command: {raw}"]
 
 
 def main() -> int:

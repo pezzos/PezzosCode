@@ -100,6 +100,24 @@ class TestPcAllowedTestsCheck(unittest.TestCase):
         missing = self.pc_allowed_tests_check.check_command("make ci")
         self.assertEqual(missing, ["forbidden command: make ci"])
 
+    def test_check_command_rejects_unsupported_commands(self):
+        missing = self.pc_allowed_tests_check.check_command("bash -lc 'echo hi'")
+        self.assertEqual(missing, ["unsupported test command: bash -lc 'echo hi'"])
+
+    def test_check_command_accepts_pp_wrapped_pytest(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tests_dir = root / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_sample.py").write_text(
+                "def test_ok():\n    assert True\n", encoding="utf-8"
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "tools/offload-proxy/pp pytest tests -q"
+                )
+            self.assertEqual(missing, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -101,17 +101,29 @@ is_allowed_path() {
   return 1
 }
 
+collect_disallowed_paths() {
+  local disallowed_local=()
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    path="${line:3}"
+    if [[ "$path" == *" -> "* ]]; then
+      path="${path##* -> }"
+    fi
+    if ! is_allowed_path "$path"; then
+      disallowed_local+=("$path")
+    fi
+  done < <(git status --porcelain)
+  printf '%s\n' "${disallowed_local[@]}"
+}
+
 disallowed=()
-while IFS= read -r line; do
-  [[ -z "$line" ]] && continue
-  path="${line:3}"
-  if [[ "$path" == *" -> "* ]]; then
-    path="${path##* -> }"
-  fi
-  if ! is_allowed_path "$path"; then
-    disallowed+=("$path")
-  fi
-done < <(git status --porcelain)
+if command -v mapfile >/dev/null 2>&1; then
+  mapfile -t disallowed < <(collect_disallowed_paths)
+else
+  while IFS= read -r line; do
+    disallowed+=("$line")
+  done < <(collect_disallowed_paths)
+fi
 
 if [[ ${#disallowed[@]} -gt 0 ]]; then
   echo "Unexpected changes detected:" >&2
@@ -169,7 +181,7 @@ auto_restage_linted() {
     fi
   done
 
-  git add -A -- "${unstaged_paths[@]}"
+  git add -- "${unstaged_paths[@]}"
   echo "Auto-restaged linted files:"
   printf ' - %s\n' "${unstaged_paths[@]}"
   return 0
@@ -190,7 +202,21 @@ else
       exit "$status"
     fi
   fi
-  git add -A
+  git add -- "${allow_paths[@]}"
+  disallowed=()
+  if command -v mapfile >/dev/null 2>&1; then
+    mapfile -t disallowed < <(collect_disallowed_paths)
+  else
+    while IFS= read -r line; do
+      disallowed+=("$line")
+    done < <(collect_disallowed_paths)
+  fi
+  if [[ ${#disallowed[@]} -gt 0 ]]; then
+    echo "Unexpected changes detected after checks:" >&2
+    printf ' - %s\n' "${disallowed[@]}" >&2
+    echo "Use --allow <path> to permit expected files." >&2
+    exit 1
+  fi
 fi
 
 allowed_types=("feat" "fix" "docs" "chore")

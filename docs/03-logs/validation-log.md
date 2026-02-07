@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-07 - Workflow doc sync validation
+
+- Not run (doc-only change; no test command specified).
+
 ### 2026-02-06 - Interactive high-risk approval gate validation
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS)
@@ -813,3 +817,30 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `stage_scoped_final_paths(...)` ignores runtime `logs/WI-*` artifacts.
   - final `tools/pc-commit` command includes ephemeral allow prefixes, including `logs`.
   - runtime logs no longer trigger `unrelated dirty paths block final commit`.
+
+## 2026-02-06 - Reviewer-block budget separation validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`43` tests)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Verified:
+  - repeated reviewer BLOCK rounds do not consume execution-attempt budget.
+  - reviewer-block churn now fails with dedicated `max plan-reviewer block attempts reached` message instead of generic max-iteration failure.
+  - block-count notes are recorded in iteration log for traceability.
+
+## 2026-02-07 - Execution safety hardening validation
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`48` tests)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"`
+- Result: PASS (`8` tests)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_*.py"`
+- Result: PASS (`109` tests)
+- Verified:
+  - patcher cleanup is scoped to the active feature worktree only.
+  - escalation requests wrapped with `tools/offload-proxy/pp` are evaluated by underlying command, not by wrapper prefix.
+  - stale behind-`main` patcher worktrees are detected before execution continues.
+  - HIGH-risk approval is revalidated on resume when approval marker is missing.
+  - branch replay excludes volatile log/doc artifacts and collection conflict notes stay technical.
+  - Allowed Tests now reject unsupported shell/general commands and accept only unittest/pytest forms.
