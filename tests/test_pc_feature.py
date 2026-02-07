@@ -1052,10 +1052,120 @@ class TestPcFeature(unittest.TestCase):
                     with contextlib.redirect_stderr(stderr_capture):
                         self.pc_feature.main()
 
-            self.assertIn("invalid Allowed Tests", stderr_capture.getvalue())
-            self.assertIn("Do not include `make ci`", stderr_capture.getvalue())
+            self.assertIn(
+                "max iteration attempts reached",
+                stderr_capture.getvalue(),
+            )
             dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
             self.assertNotIn("SMOKE_TEST_REQUIRED", dev_tasks)
+            self.assertIn("allowed-tests validation failed", dev_tasks)
+            self.assertIn(
+                "plan-reviewer no-op; reason=blocked by invalid allowed tests",
+                dev_tasks,
+            )
+            self.assertIn(
+                "patcher no-op; reason=blocked by invalid allowed tests", dev_tasks
+            )
+            self.assertIn(
+                "reporter no-op; reason=blocked by invalid allowed tests", dev_tasks
+            )
+
+    def test_reporter_is_skipped_when_tester_fails(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-18"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reporter_prompt_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    reporter_prompt_calls["count"] += 1
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: should not run on tester fail"
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    raise StopMain()
+                return "ok"
+
+            def fake_run_with_step_log(
+                cmd,
+                metadata,
+                *,
+                step,
+                root,
+                label,
+                **kwargs,
+            ):
+                if step == "tests":
+                    return 1
+                return 0
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        side_effect=fake_run_with_step_log,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(reporter_prompt_calls["count"], 0)
+            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            self.assertIn("reporter no-op; reason=tester failed", dev_tasks)
 
     def test_main_does_not_write_feature_worktree_manifest(self):
         class StopMain(RuntimeError):

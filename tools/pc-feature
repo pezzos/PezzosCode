@@ -1660,6 +1660,13 @@ def append_iteration_log_note(content: str, work_item_id: str, note: str) -> str
     return replace_entry_section(content, work_item_id, "Iteration Log", new_body)
 
 
+def append_noop_step_note(
+    content: str, work_item_id: str, *, attempt: int, step: str, reason: str
+) -> str:
+    note = f"Attempt {attempt}: {step} no-op; reason={reason.strip()}."
+    return append_iteration_log_note(content, work_item_id, note)
+
+
 def collect_allowed_final_stage_paths(
     root: str, base_ref: str, branch: str, dev_tasks_path: str, feature_dir: str
 ) -> List[str]:
@@ -1962,6 +1969,7 @@ def main() -> None:
     requires_global_logs = False
     reviewer_blocks = 0
     execution_attempt = 0
+    last_failure_context = "No failure context recorded."
     while execution_attempt < MAX_LOOPS:
         attempt = execution_attempt + 1
         content = read_file(dev_tasks_path)
@@ -1999,6 +2007,15 @@ def main() -> None:
             enforce_role_scope(planner_path, "planner", feature_dir)
             commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
             ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+        else:
+            content = append_noop_step_note(
+                content,
+                work_item_id,
+                attempt=attempt,
+                step="planner",
+                reason="plan already present",
+            )
+            write_file(dev_tasks_path, content)
 
         content = read_file(dev_tasks_path)
         planner_updates = False
@@ -2054,11 +2071,65 @@ def main() -> None:
                 "Allowed Tests must contain only specific, existing unittest/pytest commands. "
                 "Do not include `make ci`, `make feature`, `pc-feature`, or placeholders."
             )
-            die(
-                "pc-feature: invalid Allowed Tests after planner update attempts: "
-                + " | ".join(issues)
-                + f". {remediation}"
+            issue_summary = " | ".join(issues)
+            tester_feedback = (
+                "Outcome: FAIL\n"
+                "Tests run: (none)\n"
+                f"Notes: Invalid Allowed Tests after planner remediation attempts ({issue_summary}). "
+                f"{remediation}\n"
+                f"Work Item ID: {work_item_id}\n"
             )
+            ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
+            append_role_log(
+                os.path.join(tester_path, role_paths["tester"]),
+                work_item_id,
+                tester_feedback,
+                role="tester",
+            )
+            format_role_changes("tester", tester_path, feature_dir)
+            reset_global_logs_to_head(tester_path)
+            enforce_role_scope(tester_path, "tester", feature_dir)
+            commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
+            ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
+            execution_attempt += 1
+            last_failure_context = (
+                "allowed tests validation failed: "
+                + issue_summary
+                + "; remediation: "
+                + remediation
+            )
+            content = read_file(dev_tasks_path)
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                f"Attempt {attempt}: allowed-tests validation failed; routed back to planner. Issues: {issue_summary}.",
+            )
+            content = append_noop_step_note(
+                content,
+                work_item_id,
+                attempt=attempt,
+                step="plan-reviewer",
+                reason="blocked by invalid allowed tests",
+            )
+            content = append_noop_step_note(
+                content,
+                work_item_id,
+                attempt=attempt,
+                step="patcher",
+                reason="blocked by invalid allowed tests",
+            )
+            content = append_noop_step_note(
+                content,
+                work_item_id,
+                attempt=attempt,
+                step="reporter",
+                reason="blocked by invalid allowed tests",
+            )
+            write_file(dev_tasks_path, content)
+            continue
         if planner_updates:
             if not extract_field(content, "Planner"):
                 content = update_entry_field(content, work_item_id, "Planner", "Codex")
@@ -2107,6 +2178,9 @@ def main() -> None:
             ensure_plan_reviewer_read_only(planner_path)
         reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
         if reviewer_decision == "BLOCK":
+            last_failure_context = (
+                "plan reviewer blocked plan; planner revision required."
+            )
             reviewer_blocks += 1
             if reviewer_blocks > MAX_REVIEWER_BLOCKS:
                 die(
@@ -2152,6 +2226,13 @@ def main() -> None:
             commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
             ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
             continue
+        content = read_file(dev_tasks_path)
+        content = append_iteration_log_note(
+            content,
+            work_item_id,
+            f"Attempt {attempt}: Plan Reviewer APPROVE; proceeding to patch.",
+        )
+        write_file(dev_tasks_path, content)
 
         execution_attempt += 1
         smoke_command = allowed_tests[0] if allowed_tests else ""
@@ -2188,6 +2269,15 @@ def main() -> None:
                 commit_paths(patcher_path)
             )
             ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
+        else:
+            content = append_noop_step_note(
+                content,
+                work_item_id,
+                attempt=attempt,
+                step="patcher",
+                reason="patch already present",
+            )
+            write_file(dev_tasks_path, content)
 
         reset_dev_tasks_if_dirty(tester_path, dev_tasks_path)
         content = read_file(dev_tasks_path)
@@ -2259,39 +2349,79 @@ def main() -> None:
         commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
         ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
 
-        reporter_note = ""
-        if requires_global_logs:
-            reporter_note = (
-                "Global logs will be auto-appended after gates when process docs change. "
-                "Do not fail solely due to missing docs/03-logs updates; note any gaps."
+        if tester_outcome != "PASS":
+            reporter_feedback = (
+                "Outcome: SKIPPED\n"
+                "Docs/logs updated: reporter deferred\n"
+                "Notes: Reporter skipped because tester failed; planner must replan before review.\n"
+                f"Work Item ID: {work_item_id}\n"
             )
-        reporter_prompt = render_prompt_template(
-            load_prompt_template("reporter", "review"),
-            {
-                "work_item_id": work_item_id,
-                "reporter_note": reporter_note,
-            },
-        )
-        reporter_feedback = codex_exec(
-            reporter_prompt,
-            cwd=reporter_path,
-            profile="Reporter",
-            runner_metadata=runner_metadata,
-            root=root,
-        ).strip()
-        reporter_outcome = parse_outcome(reporter_feedback)
-        ensure_role_log(os.path.join(reporter_path, role_paths["reporter"]), "reporter")
-        append_role_log(
-            os.path.join(reporter_path, role_paths["reporter"]),
-            work_item_id,
-            reporter_feedback,
-            role="reporter",
-        )
-        format_role_changes("reporter", reporter_path, feature_dir)
-        enforce_role_scope(reporter_path, "reporter", feature_dir)
-        commit_worktree_changes(reporter_path, "reporter", work_item_id, feature_dir)
+            ensure_role_log(
+                os.path.join(reporter_path, role_paths["reporter"]), "reporter"
+            )
+            append_role_log(
+                os.path.join(reporter_path, role_paths["reporter"]),
+                work_item_id,
+                reporter_feedback,
+                role="reporter",
+            )
+            format_role_changes("reporter", reporter_path, feature_dir)
+            enforce_role_scope(reporter_path, "reporter", feature_dir)
+            commit_worktree_changes(
+                reporter_path, "reporter", work_item_id, feature_dir
+            )
+            content = read_file(dev_tasks_path)
+            content = append_noop_step_note(
+                content,
+                work_item_id,
+                attempt=attempt,
+                step="reporter",
+                reason="tester failed",
+            )
+            write_file(dev_tasks_path, content)
+            reporter_outcome = "SKIPPED"
+        else:
+            reporter_note = ""
+            if requires_global_logs:
+                reporter_note = (
+                    "Global logs will be auto-appended after gates when process docs change. "
+                    "Do not fail solely due to missing docs/03-logs updates; note any gaps."
+                )
+            reporter_prompt = render_prompt_template(
+                load_prompt_template("reporter", "review"),
+                {
+                    "work_item_id": work_item_id,
+                    "reporter_note": reporter_note,
+                },
+            )
+            reporter_feedback = codex_exec(
+                reporter_prompt,
+                cwd=reporter_path,
+                profile="Reporter",
+                runner_metadata=runner_metadata,
+                root=root,
+            ).strip()
+            reporter_outcome = parse_outcome(reporter_feedback)
+            ensure_role_log(
+                os.path.join(reporter_path, role_paths["reporter"]), "reporter"
+            )
+            append_role_log(
+                os.path.join(reporter_path, role_paths["reporter"]),
+                work_item_id,
+                reporter_feedback,
+                role="reporter",
+            )
+            format_role_changes("reporter", reporter_path, feature_dir)
+            enforce_role_scope(reporter_path, "reporter", feature_dir)
+            commit_worktree_changes(
+                reporter_path, "reporter", work_item_id, feature_dir
+            )
 
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
+            last_failure_context = (
+                f"tester={tester_outcome}; reporter={reporter_outcome}; "
+                "planner/patcher feedback loop required."
+            )
             content = read_file(dev_tasks_path)
             current_plan = get_entry_section(content, work_item_id, "Plan")
             feedback_blob = (
@@ -2390,6 +2520,21 @@ def main() -> None:
 
         break
     else:
+        content = read_file(dev_tasks_path)
+        content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
+        content = append_iteration_log_note(
+            content,
+            work_item_id,
+            "Loop exhausted at MAX_LOOPS; "
+            f"last failure context: {last_failure_context}",
+        )
+        content = update_entry_field(
+            content,
+            work_item_id,
+            "Notes",
+            "Loop exhausted; review Iteration Log for actionable remediation.",
+        )
+        write_file(dev_tasks_path, content)
         die("pc-feature: max iteration attempts reached; check execution log")
 
     base_ref = "HEAD"

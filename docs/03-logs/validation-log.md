@@ -844,3 +844,16 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - HIGH-risk approval is revalidated on resume when approval marker is missing.
   - branch replay excludes volatile log/doc artifacts and collection conflict notes stay technical.
   - Allowed Tests now reject unsupported shell/general commands and accept only unittest/pytest forms.
+
+## 2026-02-07 - Workflow ordering and retry-loop validation
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`49` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`
+- Result: PASS (`80` tests)
+- Verified:
+  - reporter review is skipped when tester fails and the loop routes back through planner/patcher feedback.
+  - invalid Allowed Tests now produce actionable feedback and retry within bounded `MAX_LOOPS` instead of immediate abort.
+  - no-op conditions are written to the execution iteration log when a step has nothing to do.
+  - plan-reviewer BLOCK behavior remains iterative (planner revises plan before patching) and still bounded by reviewer block limits.
+  - max-loop exhaustion records actionable failure context in the execution log before exiting.

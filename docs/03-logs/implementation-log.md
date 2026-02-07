@@ -4158,3 +4158,35 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"`
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_*.py"`
+
+### 2026-02-07 - Role-loop ordering and no-op traceability hardening
+
+**Feature/Bug:** `pc-feature` workflow loop behavior and control-flow enforcement
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Enforced strict tester gate: reporter review now runs only after tester PASS.
+- Converted invalid Allowed Tests hard-stop into bounded remediation loops that route back to planner, still capped by `MAX_LOOPS`.
+- Added explicit no-op iteration logging when steps are skipped (planner/patcher pre-completed, reporter blocked by tester failure, and blocked downstream gates on invalid test setup).
+- Kept and reinforced Plan Reviewer loop behavior: when reviewer blocks, planner revises and re-enters review before patching.
+- Improved terminal failure state on max-loop exhaustion with actionable context written to execution log notes/iteration log.
+
+**Why:**
+
+- Align runtime behavior with required gate ordering and make restart/skip paths auditable and deterministic without risking infinite loops.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** No material impact
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`
