@@ -4224,3 +4224,35 @@ Track when debt is paid down:
 - WI-20260206-01 completed; feature delivered as specified.
 - Feature 10 docs finalized: set status to `Done` in feature spec, tech design, test plan, and dev tasks.
 - Collected remaining commits from `feature-10-unified-autofix-precommit-patcher` into `main`.
+
+### 2026-02-07 - main-freeze guard for feature execution
+
+**Feature/Bug:** workflow hardening to enforce immutable `main` while `make feature` runs
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added a lock marker in execution notes: `Main head locked: <sha>`.
+- On new/resumed runs, `pc-feature` now records or validates the locked `main` commit SHA.
+- If `main` SHA changes during execution, workflow exits with `needs replan` and an iteration-log note instead of continuing on a drifting baseline.
+- Added tests for lock-note helper behavior and resume-time mismatch failure.
+
+**Why:**
+
+- Project policy is single-user, non-parallel `make feature`; `main` should remain unchanged during feature execution.
+- Enforcing this invariant removes baseline drift and prevents reporter/test false positives caused by moving `main`.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal extra `git rev-parse` checks
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`

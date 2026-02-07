@@ -879,3 +879,14 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - feature-10 documentation statuses are set to `Done`.
   - remaining feature-10 patcher worktree commits are now present on `main`.
+
+## 2026-02-07 - main-freeze guard validation
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`51` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`
+- Result: PASS (`82` tests)
+- Verified:
+  - `pc-feature` writes/maintains a locked `main` SHA marker in work-item notes.
+  - resumed runs fail fast when locked SHA differs from current `refs/heads/main`.
+  - execution loop records drift in iteration log and exits safely with `needs replan`.

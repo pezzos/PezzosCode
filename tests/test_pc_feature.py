@@ -92,6 +92,11 @@ class TestPcFeature(unittest.TestCase):
             mock.patch.object(self.pc_feature, "branch_behind_count", return_value=0),
             mock.patch.object(
                 self.pc_feature,
+                "git_ref_sha",
+                return_value="a" * 40,
+            ),
+            mock.patch.object(
+                self.pc_feature,
                 "prepare_worktree",
                 return_value=(str(patcher_path), "patcher-branch"),
             ),
@@ -493,6 +498,53 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.parse_feedback_plan_decision("unexpected output"),
             "REVISE_PLAN",
         )
+
+    def test_locked_main_head_note_helpers(self):
+        sha1 = "a" * 40
+        sha2 = "b" * 40
+        note = self.pc_feature.set_locked_main_head_note("", sha1)
+        self.assertIn(sha1, note)
+        self.assertEqual(self.pc_feature.parse_locked_main_head(note), sha1)
+        updated = self.pc_feature.set_locked_main_head_note(note, sha2)
+        self.assertIn(sha2, updated)
+        self.assertEqual(self.pc_feature.parse_locked_main_head(updated), sha2)
+        self.assertNotIn(sha1, updated)
+
+    def test_main_fails_fast_when_locked_main_head_changes_on_resume(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-19"
+            content = self._build_entry_content(work_item_id)
+            locked = "a" * 40
+            content = self.pc_feature.update_entry_field(
+                content,
+                work_item_id,
+                "Notes",
+                f"Main head locked: {locked}",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            stderr_capture = io.StringIO()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "git_ref_sha",
+                        return_value="b" * 40,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "main branch moved during feature execution",
+                stderr_capture.getvalue(),
+            )
 
     def test_parse_escalation_request_supports_nested_payload(self):
         request = self.pc_feature.parse_escalation_request(

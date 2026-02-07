@@ -25,6 +25,7 @@ MAX_REVIEWER_BLOCKS = 12
 MAX_CI_ATTEMPTS = 2
 MAX_ESCALATION_ROUNDS = 2
 HIGH_RISK_APPROVAL_NOTE = "High-risk gate approved interactively."
+MAIN_FREEZE_NOTE_PREFIX = "Main head locked:"
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
 IGNORED_PATH_PREFIXES = (
     ".tmp/",
@@ -737,6 +738,20 @@ def git_current_branch(path: str) -> str:
     return branch
 
 
+def git_ref_sha(root: str, ref: str) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", ref],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to resolve git ref {ref}\n{result.stderr}")
+    return result.stdout.strip().lower()
+
+
 def git_branch_exists(root: str, branch: str) -> bool:
     result = subprocess.run(
         ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
@@ -1415,6 +1430,26 @@ def get_entry_field(content: str, work_item_id: str, field: str) -> str:
     return parse_field_value(lines[start:end], field)
 
 
+def parse_locked_main_head(notes: str) -> str:
+    pattern = re.escape(MAIN_FREEZE_NOTE_PREFIX) + r"\s*([0-9a-f]{40})"
+    match = re.search(pattern, notes or "", re.IGNORECASE)
+    if not match:
+        return ""
+    return match.group(1).lower()
+
+
+def set_locked_main_head_note(notes: str, head_sha: str) -> str:
+    head = head_sha.strip().lower()
+    marker = f"{MAIN_FREEZE_NOTE_PREFIX} {head}"
+    base_notes = (notes or "").strip()
+    if not base_notes:
+        return marker
+    pattern = re.escape(MAIN_FREEZE_NOTE_PREFIX) + r"\s*[0-9a-f]{40}"
+    if re.search(pattern, base_notes, re.IGNORECASE):
+        return re.sub(pattern, marker, base_notes, flags=re.IGNORECASE)
+    return f"{base_notes}; {marker}"
+
+
 def preflight_risk_level(content: str, work_item_id: str) -> str:
     section = get_entry_section(content, work_item_id, "Preflight Report")
     return parse_field_value(section.splitlines(), "Risk level").upper()
@@ -1836,6 +1871,20 @@ def main() -> None:
         write_file(dev_tasks_path, content)
     content = read_file(dev_tasks_path)
     content = ensure_allowed_tests_section(content, work_item_id)
+    current_main_head = git_ref_sha(root, "refs/heads/main")
+    notes_value = get_entry_field(content, work_item_id, "Notes")
+    locked_main_head = parse_locked_main_head(notes_value)
+    if locked_main_head:
+        if locked_main_head != current_main_head:
+            die(
+                "pc-feature: main branch moved during feature execution; "
+                f"locked={locked_main_head} current={current_main_head}. "
+                "Workflow policy requires main to stay unchanged while a feature is running."
+            )
+    else:
+        notes_value = set_locked_main_head_note(notes_value, current_main_head)
+        content = update_entry_field(content, work_item_id, "Notes", notes_value)
+        locked_main_head = current_main_head
     write_file(dev_tasks_path, content)
     start_allowed_paths = collect_allowed_final_stage_paths(
         root, "refs/heads/main", patcher_branch, dev_tasks_path, feature_dir
@@ -1971,6 +2020,23 @@ def main() -> None:
     execution_attempt = 0
     last_failure_context = "No failure context recorded."
     while execution_attempt < MAX_LOOPS:
+        current_main_head = git_ref_sha(root, "refs/heads/main")
+        if current_main_head != locked_main_head:
+            content = read_file(dev_tasks_path)
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                "Main moved during execution; "
+                f"locked={locked_main_head}, current={current_main_head}.",
+            )
+            write_file(dev_tasks_path, content)
+            die(
+                "pc-feature: main branch changed during execution; "
+                "stop and restart the feature from a clean baseline."
+            )
         attempt = execution_attempt + 1
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Plan"):
