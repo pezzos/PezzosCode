@@ -8,9 +8,9 @@
 
 **Feature:** Unified autofix for CI + precommit
 
-**Status:** Draft
+**Status:** Done
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-07
 
 ### Summary
 

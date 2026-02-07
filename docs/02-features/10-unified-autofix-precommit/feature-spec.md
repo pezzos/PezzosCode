@@ -8,11 +8,11 @@
 
 **Feature ID:** `F-10`
 
-**Status:** Draft
+**Status:** Done
 
 **Owner:** Developer/PO
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-07
 
 ### Summary
 

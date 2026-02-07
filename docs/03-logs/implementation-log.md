@@ -4222,3 +4222,5 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`
 
 - WI-20260206-01 completed; feature delivered as specified.
+- Feature 10 docs finalized: set status to `Done` in feature spec, tech design, test plan, and dev tasks.
+- Collected remaining commits from `feature-10-unified-autofix-precommit-patcher` into `main`.

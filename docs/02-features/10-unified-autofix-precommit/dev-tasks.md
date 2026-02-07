@@ -10,15 +10,15 @@
 
 **Feature:** Unified autofix for CI + precommit
 
-**Status:** Not Started
+**Status:** Done
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-07
 
 ## Tasks
 
-- Task 1: Design unified script interface
-- Task 2: Update make + hook wiring
-- Task 3: Document precommit behavior
+- [x] Task 1: Design unified script interface
+- [x] Task 2: Update make + hook wiring
+- [x] Task 3: Document precommit behavior
 
 ## Execution Log
 

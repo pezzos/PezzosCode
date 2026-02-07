@@ -10,9 +10,9 @@
 
 **Feature:** Unified autofix for CI + precommit
 
-**Status:** Draft
+**Status:** Done
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-07
 
 ### Product Surfaces
 
@@ -35,9 +35,9 @@
 
 ## Approval
 
-**Approved By:** TBD
+**Approved By:** PO
 
-**Date:** TBD
+**Date:** 2026-02-07
 
 ## Related Documents
 

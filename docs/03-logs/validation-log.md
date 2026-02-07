@@ -869,3 +869,13 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - untracked files outside allowed scope still correctly fail commit guard.
 
 - Validation completed; no issues reported.
+
+## 2026-02-07 - Feature 10 closure validation
+
+- Command: `tools/offload-proxy/pp pre-commit run --files docs/02-features/10-unified-autofix-precommit/feature-spec.md docs/02-features/10-unified-autofix-precommit/tech-design.md docs/02-features/10-unified-autofix-precommit/test-plan.md docs/02-features/10-unified-autofix-precommit/dev-tasks.md`
+- Result: PASS
+- Command: `tools/offload-proxy/pp git log --oneline refs/heads/main..refs/heads/feature-10-unified-autofix-precommit-patcher`
+- Result: PASS (`5` commits identified and cherry-picked to `main`)
+- Verified:
+  - feature-10 documentation statuses are set to `Done`.
+  - remaining feature-10 patcher worktree commits are now present on `main`.
