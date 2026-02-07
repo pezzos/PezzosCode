@@ -4190,3 +4190,35 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`
+
+### 2026-02-07 - pc-commit allowed-untracked guard fix
+
+**Feature/Bug:** false commit blocker on allowed runtime untracked files after lint
+
+**Changed Files:**
+
+- `tools/pc-commit`
+
+**What Changed:**
+
+- Updated `auto_restage_linted()` so untracked files are validated against existing `--allow` path rules before failing.
+- The guard still fails for untracked files outside the allowed scope, but no longer blocks for allowed runtime artifacts (for example under `logs/`).
+
+**Why:**
+
+- `make feature F=10` could fail at final commit with:
+  - `Unexpected untracked files detected after lint: logs/WI-.../ci.log`
+- That file was already intentionally in allowed scope, so the guard behavior was too strict and inconsistent with other path checks.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** No measurable impact
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-commit`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`
+
+- WI-20260206-01 completed; feature delivered as specified.

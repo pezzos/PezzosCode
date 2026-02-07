@@ -857,3 +857,15 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - no-op conditions are written to the execution iteration log when a step has nothing to do.
   - plan-reviewer BLOCK behavior remains iterative (planner revises plan before patching) and still bounded by reviewer block limits.
   - max-loop exhaustion records actionable failure context in the execution log before exiting.
+
+## 2026-02-07 - pc-commit allowed-untracked guard validation
+
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-commit`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`
+- Result: PASS (`80` tests)
+- Verified:
+  - `tools/pc-commit` no longer fails solely due to untracked files that are already covered by `--allow` path/prefix rules.
+  - untracked files outside allowed scope still correctly fail commit guard.
+
+- Validation completed; no issues reported.

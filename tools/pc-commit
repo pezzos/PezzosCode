@@ -147,6 +147,7 @@ auto_restage_linted() {
   staged_paths=()
   unstaged_paths=()
   untracked_paths=()
+  disallowed_untracked=()
 
   if command -v mapfile >/dev/null 2>&1; then
     mapfile -t staged_paths < <(git diff --cached --name-only)
@@ -168,9 +169,17 @@ auto_restage_linted() {
     return 1
   fi
   if [[ ${#untracked_paths[@]} -gt 0 ]]; then
-    echo "Unexpected untracked files detected after lint:" >&2
-    printf ' - %s\n' "${untracked_paths[@]}" >&2
-    return 1
+    local path
+    for path in "${untracked_paths[@]}"; do
+      if ! is_allowed_path "$path"; then
+        disallowed_untracked+=("$path")
+      fi
+    done
+    if [[ ${#disallowed_untracked[@]} -gt 0 ]]; then
+      echo "Unexpected untracked files detected after lint:" >&2
+      printf ' - %s\n' "${disallowed_untracked[@]}" >&2
+      return 1
+    fi
   fi
 
   local path
