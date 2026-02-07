@@ -38,3 +38,16 @@ Reasons:
 - Add a guard: if no tests are discovered, consult process docs for test framework expectations and get PO guidance before adding new tests.
   Optional suggestions:
 - None.
+
+### WI-20260206-01 - 2026-02-07
+
+Plan Reviewer feedback (BLOCK):
+Decision: Block
+Reasons:
+
+- Plan includes patching work but does not include the required update to `docs/03-logs/*.md` (repo rule). The current step says to hand off to Reporter, which conflicts with the Patcher obligation if you are patching.
+  Required changes:
+- Add an explicit step in Report to update `docs/03-logs/*.md` (or state why no log entry is needed) consistent with role scope and repo rules.
+- Clarify role alignment: if this plan is for Patcher, remove “provide to Reporter” and perform the log update yourself; if for Planner only, remove patch steps.
+  Optional suggestions:
+- In Preflight step 3, specify how you will locate the WI doc (e.g., `rg` via `pp`) and what you’ll do if multiple matches are found.
