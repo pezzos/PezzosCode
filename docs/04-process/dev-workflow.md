@@ -102,7 +102,7 @@ then align the live root files without modifying templates.
 
 ## Orchestrator + Roles (Parallel Mode)
 
-Use separate sessions/worktrees when parallelizing work:
+Use separate sessions when parallelizing work. Use a single feature worktree by default:
 
 - **Orchestrator:** keeps scope, approves gates, merges outputs.
 - **Planner:** produces and updates the plan.

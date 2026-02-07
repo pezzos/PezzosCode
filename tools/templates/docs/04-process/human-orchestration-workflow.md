@@ -92,4 +92,4 @@ Context docs → PRD → Feature folders → dev-tasks → execution logs → Im
 
 ## When to Stop and Ask PO Approval
 
-- If risk is HIGH per `docs/04-process/ticket-execution-protocol.md`, stop after Preflight and wait for PO approval.
+- If risk is HIGH per `docs/04-process/ticket-execution-protocol.md` and approval is not granted, stop after Preflight and wait for PO approval. If approval is granted, continue.

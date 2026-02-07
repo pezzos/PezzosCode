@@ -27,6 +27,28 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-07 - Template sync for workflow docs
+
+**Feature/Bug:** Template sync (no feature id)
+
+**Changed Files:**
+
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+
+**What Changed:**
+
+- Restated the HIGH-risk approval stop/continue clause in the template.
+- Restored the single-worktree-by-default guidance in the parallel-mode template section.
+
+**Why:**
+
+- Keep templates aligned with the living workflow docs and orchestration policy.
+
+**How:**
+
+- Updated the specific lines in the templates to match the corresponding docs.
+
 ### 2026-02-07 - Workflow doc sync (orchestration + dev workflow)
 
 **Feature/Bug:** Doc sync (no feature id)

@@ -1658,3 +1658,14 @@ When a decision is reversed or replaced, document it here:
   - Lower risk of cross-worktree/branch deletion and escalation abuse.
   - Higher determinism for reruns and test execution scope.
   - Earlier, clearer failures when scope or policy constraints are violated.
+
+### DEC-025 - Templates mirror living workflow docs
+
+- **Date:** 2026-02-07
+- **Status:** Accepted
+- **Context:** Pre-commit template sync detected drift between workflow docs and their templates.
+- **Decision:**
+  - Treat the living workflow docs in `docs/04-process/` as the source of truth.
+  - Update templates to match the living docs when drift is detected.
+- **Consequences:**
+  - Template sync remains deterministic and prevents policy divergence.
