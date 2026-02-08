@@ -27,6 +27,27 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-08 - Template sync for ticket execution protocol
+
+**Feature/Bug:** Template sync (no feature id)
+
+**Changed Files:**
+
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Restored runtime artifact handling and step-routing rules in the template.
+- Aligned log location wording with the living protocol doc.
+
+**Why:**
+
+- Keep the template in lockstep with the updated execution protocol.
+
+**How:**
+
+- Applied the corresponding bullet updates from `docs/04-process/ticket-execution-protocol.md`.
+
 ### 2026-02-07 - Template sync for workflow docs
 
 **Feature/Bug:** Template sync (no feature id)
@@ -4256,3 +4277,71 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_pc_runner tests.test_orchestrator_role_gates tests.test_orchestrator_workflow_docs tests.test_docs_logs tests.test_pc_allowed_tests_check`
+
+### 2026-02-08 - Worktree-local runtime artifacts and loop hardening
+
+**Feature/Bug:** prevent stale `main` artifacts and ambiguous retry failures in `pc-feature`
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `prompts/reporter-review.md`
+- `prompts/plan-reviewer-gate.md`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Moved runtime artifact source-of-truth to the feature worktree during execution:
+  - `dev-tasks.md` is now read/written from the patcher worktree.
+  - role logs are resolved and validated from the patcher worktree.
+  - runner logs (`logs/WI-...`) are now emitted under the patcher worktree.
+- Added explicit runtime scope printout (worktree, dev-tasks, role logs, runtime log dir) at startup for easier troubleshooting.
+- Updated reporter review prompt to evaluate current worktree iteration artifacts and require actionable failure fields (`File/Path`, `Check`, `Evidence`, `Expected fix`) on FAIL.
+- Added reporter failure-context guard and richer tester failure context so planner/patcher feedback loops always receive actionable remediation data.
+- Scoped anti-hardcode plan blocking to high-risk/triggered work items instead of applying it unconditionally.
+- Preserved strict loop ordering and no-op iteration logging while improving exhaustion diagnostics.
+
+**Why:**
+
+- Previous runs could fail with `max iteration attempts reached` because reporter/planner looked at stale `main`-side artifacts instead of worktree artifacts.
+- Runtime logs in `main` could reintroduce untracked-file commit guard failures.
+- Failure loops needed stronger, structured context to converge reliably within `MAX_LOOPS`.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal (additional path checks and context formatting)
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+
+### 2026-02-08 - Sync ticket-execution-protocol template indentation
+
+**Feature/Bug:** template-sync mismatch
+
+**Changed Files:**
+
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Aligned the Step 7 feedback-loop list indentation with the canonical docs to resolve the template/living mismatch.
+
+**Why:**
+
+- Pre-commit `template-sync` failed because the template diverged from `docs/04-process/ticket-execution-protocol.md`.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (not requested).

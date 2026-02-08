@@ -1669,3 +1669,18 @@ When a decision is reversed or replaced, document it here:
   - Update templates to match the living docs when drift is detected.
 - **Consequences:**
   - Template sync remains deterministic and prevents policy divergence.
+
+### DEC-026 - Feature execution runtime artifacts are worktree-local
+
+- **Date:** 2026-02-08
+- **Status:** Accepted
+- **Context:** `pc-feature` role execution occurred in the patcher worktree, but key runtime artifacts (`dev-tasks.md` and `logs/WI-*`) were still written/read from `main`, causing stale reviewer context and untracked artifact failures.
+- **Decision:**
+  - Treat the patcher worktree as the runtime source-of-truth for feature execution artifacts.
+  - Resolve and validate `dev-tasks.md`, planner/tester/reporter logs, and `logs/<WI>/...` inside the active worktree.
+  - Require actionable failure context on reviewer/tester FAIL outcomes so retries can converge (`File/Path`, `Check`, `Evidence`, `Expected fix`).
+  - Keep strict `MAX_LOOPS` cap and no-op iteration logging as mandatory safety rails.
+- **Consequences:**
+  - Reporter/planner loops consume current iteration artifacts, not stale `main` files.
+  - Runtime logs no longer pollute `main` during execution.
+  - Retry loops have deterministic remediation context and fail with clearer diagnostics when exhausted.

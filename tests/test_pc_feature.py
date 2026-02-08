@@ -50,20 +50,44 @@ class TestPcFeature(unittest.TestCase):
         return content
 
     def _write_feature_workspace(self, root: Path, dev_tasks_content: str) -> Path:
-        feature_dir = root / "docs" / "02-features" / "01-workflow-hardening"
-        feature_dir.mkdir(parents=True, exist_ok=True)
-        (feature_dir / "dev-tasks.md").write_text(dev_tasks_content, encoding="utf-8")
-        (feature_dir / "feature-spec.md").write_text(
-            "# feature spec\n", encoding="utf-8"
-        )
-        (feature_dir / "tech-design.md").write_text("# tech design\n", encoding="utf-8")
-        (feature_dir / "test-plan.md").write_text("# test plan\n", encoding="utf-8")
-        logs_dir = root / "docs" / "03-logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        (logs_dir / "implementation-log.md").write_text("# impl\n", encoding="utf-8")
-        (logs_dir / "validation-log.md").write_text("# validation\n", encoding="utf-8")
-        (logs_dir / "decision-log.md").write_text("# decision\n", encoding="utf-8")
+        def seed_workspace(base: Path) -> Path:
+            feature_dir = base / "docs" / "02-features" / "01-workflow-hardening"
+            feature_dir.mkdir(parents=True, exist_ok=True)
+            (feature_dir / "dev-tasks.md").write_text(
+                dev_tasks_content, encoding="utf-8"
+            )
+            (feature_dir / "feature-spec.md").write_text(
+                "# feature spec\n", encoding="utf-8"
+            )
+            (feature_dir / "tech-design.md").write_text(
+                "# tech design\n", encoding="utf-8"
+            )
+            (feature_dir / "test-plan.md").write_text("# test plan\n", encoding="utf-8")
+            logs_dir = base / "docs" / "03-logs"
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            (logs_dir / "implementation-log.md").write_text(
+                "# impl\n", encoding="utf-8"
+            )
+            (logs_dir / "validation-log.md").write_text(
+                "# validation\n", encoding="utf-8"
+            )
+            (logs_dir / "decision-log.md").write_text("# decision\n", encoding="utf-8")
+            return feature_dir
+
+        feature_dir = seed_workspace(root)
+        patcher_workspace = root / "patcher"
+        if patcher_workspace.exists():
+            seed_workspace(patcher_workspace)
         return feature_dir
+
+    def _worktree_dev_tasks(self, patcher_path: Path) -> Path:
+        return (
+            patcher_path
+            / "docs"
+            / "02-features"
+            / "01-workflow-hardening"
+            / "dev-tasks.md"
+        )
 
     def _patch_main_base(self, root: Path, feature_dir: Path, patcher_path: Path):
         return [
@@ -237,7 +261,7 @@ class TestPcFeature(unittest.TestCase):
             )
         )
 
-    def test_collect_branch_merge_paths_excludes_volatile_paths(self):
+    def test_collect_branch_merge_paths_includes_feature_runtime_docs(self):
         with mock.patch.object(
             self.pc_feature,
             "branch_diff_paths",
@@ -256,7 +280,14 @@ class TestPcFeature(unittest.TestCase):
                 "docs/02-features/01-workflow-hardening/dev-tasks.md",
                 "docs/02-features/01-workflow-hardening",
             )
-        self.assertEqual(paths, ["tools/pc-feature"])
+        self.assertEqual(
+            paths,
+            [
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening/planner-log.md",
+                "tools/pc-feature",
+            ],
+        )
 
     def test_normalize_allowed_test_restricts_to_unittest_or_pytest(self):
         self.assertEqual(
@@ -288,6 +319,58 @@ class TestPcFeature(unittest.TestCase):
             "TDD plan includes fixture matrix.",
         )
         self.assertEqual(complete, [])
+
+    def test_with_failure_context_guard_appends_missing_fields_for_fail(self):
+        feedback = "Outcome: FAIL\nDocs/logs updated: none\nNotes: not enough details"
+        guarded = self.pc_feature.with_failure_context_guard(feedback, role="reporter")
+        self.assertIn(
+            "Failure context guard (reporter): missing required fields", guarded
+        )
+        self.assertIn("Expected fix:", guarded)
+
+    def test_should_enforce_anti_hardcode_only_for_high_risk_or_trigger_paths(self):
+        work_item_id = "WI-20260208-01"
+        content = "## Execution Log\n\n" + self.pc_feature.build_execution_entry(
+            work_item_id
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Preflight Report",
+            "- Work Item: WI-20260208-01\n"
+            "- PRD ref: F-11\n"
+            "- Risk level: LOW\n"
+            "- Triggers: (none)\n"
+            "- Scope in: docs\n"
+            "- Scope out: code\n"
+            "- Non-goals reminder: none\n"
+            "- Files to change: docs/04-process/ticket-execution-protocol.md\n"
+            "- Change budget: max_files=6, max_new_modules=1\n"
+            "- TDD plan: (none)\n"
+            "- Systematic review: done",
+        )
+        self.assertFalse(
+            self.pc_feature.should_enforce_anti_hardcode(content, work_item_id)
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Preflight Report",
+            "- Work Item: WI-20260208-01\n"
+            "- PRD ref: F-11\n"
+            "- Risk level: HIGH\n"
+            "- Triggers: touches restore/ path\n"
+            "- Scope in: restore\n"
+            "- Scope out: docs\n"
+            "- Non-goals reminder: none\n"
+            "- Files to change: restore/apply.py\n"
+            "- Change budget: max_files=6, max_new_modules=1\n"
+            "- TDD plan: (none)\n"
+            "- Systematic review: done",
+        )
+        self.assertTrue(
+            self.pc_feature.should_enforce_anti_hardcode(content, work_item_id)
+        )
 
     def test_high_risk_preflight_approved_interactively_continues(self):
         class StopMain(RuntimeError):
@@ -396,7 +479,7 @@ class TestPcFeature(unittest.TestCase):
                 with self.assertRaises(StopMain):
                     self.pc_feature.main()
 
-            updated = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            updated = self._worktree_dev_tasks(patcher_path).read_text(encoding="utf-8")
             self.assertIn("High-risk gate approved interactively.", updated)
 
     def test_normalize_work_item_id_accepts_format(self):
@@ -1108,7 +1191,9 @@ class TestPcFeature(unittest.TestCase):
                 "max iteration attempts reached",
                 stderr_capture.getvalue(),
             )
-            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
             self.assertNotIn("SMOKE_TEST_REQUIRED", dev_tasks)
             self.assertIn("allowed-tests validation failed", dev_tasks)
             self.assertIn(
@@ -1216,7 +1301,9 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.main()
 
             self.assertEqual(reporter_prompt_calls["count"], 0)
-            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
             self.assertIn("reporter no-op; reason=tester failed", dev_tasks)
 
     def test_main_does_not_write_feature_worktree_manifest(self):
@@ -1370,14 +1457,18 @@ class TestPcFeature(unittest.TestCase):
                     mock.patch.object(
                         self.pc_feature,
                         "collect_allowed_final_stage_paths",
-                        return_value=[str(feature_dir / "dev-tasks.md")],
+                        return_value=[
+                            "docs/02-features/01-workflow-hardening/dev-tasks.md"
+                        ],
                     )
                 )
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
                         "stage_scoped_final_paths",
-                        return_value=[str(feature_dir / "dev-tasks.md")],
+                        return_value=[
+                            "docs/02-features/01-workflow-hardening/dev-tasks.md"
+                        ],
                     )
                 )
                 stack.enter_context(
@@ -1830,7 +1921,9 @@ class TestPcFeature(unittest.TestCase):
 
             self.assertGreaterEqual(reviewer_calls["count"], 2)
             self.assertEqual(planner_update_calls["count"], 1)
-            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
             self.assertIn("Plan Reviewer BLOCK; planner updated plan", dev_tasks)
             self.assertTrue(append_role_log_mock.called)
 
@@ -1989,7 +2082,9 @@ class TestPcFeature(unittest.TestCase):
 
             self.assertEqual(reviewer_calls["count"], 5)
             self.assertEqual(planner_update_calls["count"], 4)
-            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
             self.assertIn("block count: 4", dev_tasks)
 
     def test_excessive_plan_reviewer_blocks_fail_with_specific_message(self):
@@ -2193,7 +2288,9 @@ class TestPcFeature(unittest.TestCase):
             self.assertEqual(planner_feedback_calls["count"], 1)
             self.assertEqual(patcher_feedback_calls["count"], 1)
             self.assertGreaterEqual(test_runs["count"], 2)
-            dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
             self.assertIn("revised plan from failure feedback", dev_tasks)
             self.assertIn("patcher feedback task executed", dev_tasks)
 

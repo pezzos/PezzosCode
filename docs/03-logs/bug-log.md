@@ -126,6 +126,58 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-004] - `pc-feature` loop reads stale `dev-tasks.md` from `main`
+
+**Date Discovered:** 2026-02-08
+
+**Discovered By:** CLI run (`make feature F=11`)
+
+**Severity:** High
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Anyone resuming/retrying a feature where worktree state diverges from `main`.
+
+**Symptoms:**
+Execution ends with `pc-feature: max iteration attempts reached; check execution log` even when tester/reporter outputs in the feature worktree indicate progress.
+
+**Steps to Reproduce:**
+
+1. Run `make feature F=11` with an existing patcher worktree and multiple prior loop artifacts.
+2. Let planner/tester/reporter iterate.
+3. Observe max-loop exhaustion with inconsistent role feedback caused by stale execution context.
+
+**Expected Behavior:**
+All runtime workflow artifacts are read/written in the active feature worktree; retry loops should use current artifacts.
+
+**Actual Behavior:**
+`dev-tasks.md` and runtime logs were sourced from `main` while roles executed in worktree, causing stale review context and loop churn.
+
+**Root Cause:**
+`pc-feature` mixed runtime paths: role execution happened in patcher worktree, but work-item execution log and runner logs were still rooted in `main`.
+
+**Fix:**
+Resolve runtime artifacts (`dev-tasks.md`, role logs, `logs/WI-*`) from the patcher worktree; add startup path scope printout and enforce actionable failure context in retry loops.
+
+**Files Changed:**
+
+- `tools/pc-feature`
+- `prompts/reporter-review.md`
+- `prompts/plan-reviewer-gate.md`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+
+**Prevention:**
+
+- Tests added: unit coverage for worktree-local runtime paths and failure-context guards.
+- Process changes: ticket execution protocol now explicitly states runtime artifacts remain in worktree until final success/collection.
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-08
+
 ### [BUG-003] - Allowed Tests prose triggers invalid command execution
 
 **Date Discovered:** 2026-02-05

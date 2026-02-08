@@ -890,3 +890,19 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `pc-feature` writes/maintains a locked `main` SHA marker in work-item notes.
   - resumed runs fail fast when locked SHA differs from current `refs/heads/main`.
   - execution loop records drift in iteration log and exits safely with `needs replan`.
+
+## 2026-02-08 - Worktree-local runtime artifact validation
+
+- Command: `python3 -m py_compile tools/pc-feature`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`53` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+- Result: PASS (`7` tests)
+- Verified:
+  - `pc-feature` resolves runtime `dev-tasks.md` and role logs from the patcher worktree path, not `main`.
+  - runner log root is worktree-local (`<worktree>/logs/WI-...`) during execution.
+  - reporter/tester failure loops now carry actionable failure context fields for planner/patcher retries.
+  - anti-hardcode reviewer blocking remains enforced for high-risk/triggered work items while avoiding unconditional churn on low-risk doc-only work.
+- Not run:
+  - `make feature F=11` (explicitly skipped in this validation pass per workflow testing rule to avoid invoking `make feature` from the agent side).

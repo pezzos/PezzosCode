@@ -29,10 +29,11 @@
 
 - Role scope is enforced (planner/tester/reporter log files only; patcher excluded from those files).
 - Planner/Tester/Reporter run in the patcher worktree so they review shared content; separate worktrees are not created for those roles.
+- Runtime artifacts (`dev-tasks.md`, planner/tester/reporter logs, and `logs/<WI>/...`) are worktree-local during execution and are collected into `main` only after successful completion.
 - Use a single worktree per feature and auto-collect into `main` as a single squashed commit (no `feature-worktrees.json`).
   - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.
 - Deterministic steps are executed via a shared runner library with standard metadata injection (`work_item_id`, `agent_name`, `run_id`).
-- Logs for CI/tests/precommit/feature runs are written to `logs/<WI>/<step>.log` with `[WI-...][agent][step]` prefix and timestamps.
+- Logs for CI/tests/precommit/feature runs are written inside the active feature worktree at `logs/<WI>/<step>.log` with `[WI-...][agent][step]` prefix and timestamps.
 
 2. **Resuming a Work Item (Automatic)**
    - If an execution log entry already exists, `make feature` resumes automatically.
@@ -73,6 +74,14 @@
    - Tester records failures in the feature `validation-log.md`.
    - Reporter records issues and scope gaps in the feature `reporter-log.md`.
    - Planner updates the plan and logs the loop in the execution log entry.
+   - Step routing is strict:
+     - Planner Reviewer `BLOCK` loops back to Planner revision before patching.
+     - Tester `FAIL` loops back to Planner.
+     - Tester `PASS` advances to Reporter.
+     - Reporter `FAIL` loops back to Planner.
+     - Reporter `PASS` is the only success path to final gates/commit.
+   - Retry loop is capped by `MAX_LOOPS` to prevent infinite execution.
+   - If a step has nothing to do during a retry, record a no-op entry in the iteration log and continue.
    - Repeat until feedback is resolved.
 
 8. **TDD Cycle (when applicable)**

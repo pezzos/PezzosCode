@@ -391,6 +391,69 @@ def normalize_repo_path(path: str) -> str:
     return normalized.lower()
 
 
+def normalize_repo_rel(path: str) -> str:
+    normalized = path.replace("\\", "/").strip()
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def repo_relative_path(root: str, path: str, *, label: str) -> str:
+    root_abs = os.path.abspath(root)
+    candidate = path if os.path.isabs(path) else os.path.join(root_abs, path)
+    candidate_abs = os.path.abspath(candidate)
+    try:
+        rel = os.path.relpath(candidate_abs, root_abs)
+    except ValueError:
+        die(f"pc-feature: {label} is outside repository root: {candidate_abs}")
+    rel = normalize_repo_rel(rel)
+    if rel.startswith(".."):
+        die(f"pc-feature: {label} is outside repository root: {candidate_abs}")
+    return rel
+
+
+def ensure_within_dir(base_dir: str, candidate: str, *, label: str) -> str:
+    base_abs = os.path.abspath(base_dir)
+    candidate_abs = os.path.abspath(candidate)
+    try:
+        common = os.path.commonpath([base_abs, candidate_abs])
+    except ValueError:
+        die(f"pc-feature: {label} path is invalid: {candidate_abs}")
+    if common != base_abs:
+        die(f"pc-feature: {label} must be inside worktree: {candidate_abs}")
+    return candidate_abs
+
+
+def worktree_runtime_path(
+    worktree_path: str, repo_relative: str, *, label: str, must_exist: bool = False
+) -> str:
+    rel = normalize_repo_rel(repo_relative)
+    path = ensure_within_dir(
+        worktree_path, os.path.join(worktree_path, rel), label=label
+    )
+    if must_exist and not os.path.exists(path):
+        die(f"pc-feature: missing {label} in worktree: {path}")
+    return path
+
+
+def print_runtime_scope(
+    *,
+    worktree_path: str,
+    feature_dir: str,
+    dev_tasks_path: str,
+    role_log_paths_abs: Dict[str, str],
+    work_item_id: str,
+) -> None:
+    print("pc-feature: runtime artifact scope (worktree)")
+    print(f"- Worktree: {worktree_path}")
+    print(f"- Feature dir: {feature_dir}")
+    print(f"- Dev tasks: {dev_tasks_path}")
+    print(f"- Planner log: {role_log_paths_abs['planner']}")
+    print(f"- Tester log: {role_log_paths_abs['tester']}")
+    print(f"- Reporter log: {role_log_paths_abs['reporter']}")
+    print(f"- Runtime logs: {os.path.join(worktree_path, 'logs', work_item_id)}")
+
+
 def path_risk_triggers(paths: List[str]) -> List[str]:
     triggers: List[str] = []
     for path in paths:
@@ -1319,14 +1382,9 @@ def collect_branch_merge_paths(
     feature_dir: str,
 ) -> List[str]:
     changed = branch_diff_paths(root, base_ref, branch)
-    role_logs = set(role_log_paths(feature_dir))
     global_logs = set(global_log_paths())
     merged: List[str] = []
     for path in changed:
-        if path == dev_tasks_path:
-            continue
-        if path in role_logs:
-            continue
         if path in global_logs:
             continue
         if path.startswith("logs/"):
@@ -1352,6 +1410,38 @@ def parse_outcome(text: str) -> str:
     if not match:
         return "FAIL"
     return match.group(1).upper()
+
+
+def missing_failure_context_fields(text: str) -> List[str]:
+    if parse_outcome(text) != "FAIL":
+        return []
+    required = ("File/Path", "Check", "Evidence", "Expected fix")
+    missing: List[str] = []
+    for field in required:
+        pattern = rf"^{re.escape(field)}\s*:"
+        if not re.search(pattern, text, re.IGNORECASE | re.MULTILINE):
+            missing.append(field)
+    return missing
+
+
+def with_failure_context_guard(text: str, *, role: str) -> str:
+    missing = missing_failure_context_fields(text)
+    if not missing:
+        return text
+    guard = (
+        f"Failure context guard ({role}): missing required fields: "
+        + ", ".join(missing)
+        + ".\n"
+        "Expected fix: include File/Path, Check, Evidence, and Expected fix entries."
+    )
+    return text.rstrip() + "\n" + guard + "\n"
+
+
+def summarize_feedback(feedback: str, *, max_chars: int = 420) -> str:
+    compact = " ".join((feedback or "").split())
+    if len(compact) <= max_chars:
+        return compact
+    return compact[: max_chars - 3].rstrip() + "..."
 
 
 def parse_plan_reviewer_decision(text: str) -> str:
@@ -1465,6 +1555,28 @@ def preflight_triggers(content: str, work_item_id: str) -> List[str]:
         for part in raw.split(",")
         if part.strip() and part.strip() != "(none)"
     ]
+
+
+def preflight_files_to_change(content: str, work_item_id: str) -> List[str]:
+    section = get_entry_section(content, work_item_id, "Preflight Report")
+    raw = parse_field_value(section.splitlines(), "Files to change")
+    if not raw:
+        return []
+    return [
+        normalize_repo_rel(part)
+        for part in raw.split(",")
+        if part.strip() and part.strip() != "(none)"
+    ]
+
+
+def should_enforce_anti_hardcode(content: str, work_item_id: str) -> bool:
+    risk_level = preflight_risk_level(content, work_item_id)
+    if risk_level == "HIGH":
+        return True
+    files = preflight_files_to_change(content, work_item_id)
+    if not files:
+        return False
+    return bool(path_risk_triggers(files))
 
 
 def high_risk_approval_recorded(content: str, work_item_id: str) -> bool:
@@ -1810,7 +1922,11 @@ def main() -> None:
     if current_branch != "main":
         die("pc-feature: run from main branch only")
     feature_root = os.path.join("docs", "02-features")
-    feature_dir = resolve_feature_dir(feature_root, feature_id)
+    feature_dir = repo_relative_path(
+        root,
+        resolve_feature_dir(feature_root, feature_id),
+        label=f"feature directory for id {feature_id}",
+    )
     feature_slug = os.path.basename(feature_dir)
     patcher_path = build_worktree_path(root, feature_slug, "patcher")
     patcher_branch = build_worktree_branch(feature_slug, "patcher")
@@ -1847,18 +1963,28 @@ def main() -> None:
                 "pc-feature: continue with existing patcher worktree? [y/N]"
             ):
                 die("pc-feature: aborted by user; existing patcher worktree preserved")
-    dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
-    if not os.path.exists(dev_tasks_path):
-        die(f"pc-feature: missing dev-tasks.md at {dev_tasks_path}")
-    content = read_file(dev_tasks_path)
-    ensure_execution_log(content)
+    dev_tasks_repo_path = normalize_repo_rel(os.path.join(feature_dir, "dev-tasks.md"))
     patcher_path, patcher_branch = prepare_worktree(
         root, feature_slug, "patcher", "main"
     )
     planner_path = patcher_path
     tester_path = patcher_path
     reporter_path = patcher_path
+    dev_tasks_path = worktree_runtime_path(
+        patcher_path,
+        dev_tasks_repo_path,
+        label="dev-tasks.md",
+        must_exist=True,
+    )
+    content = read_file(dev_tasks_path)
+    ensure_execution_log(content)
     role_paths = worktree_role_paths(feature_dir)
+    role_paths_abs = {
+        role: worktree_runtime_path(
+            patcher_path, role_path, label=f"{role} role log", must_exist=False
+        )
+        for role, role_path in role_paths.items()
+    }
     cleanup_dirty_role_logs(patcher_path, feature_dir)
     cleanup_dirty_global_logs(patcher_path)
     ensure_clean_worktree(root, patcher_path, patcher_branch, "preflight")
@@ -1869,6 +1995,13 @@ def main() -> None:
         entry = build_execution_entry(work_item_id)
         content = insert_execution_entry(content, entry)
         write_file(dev_tasks_path, content)
+    print_runtime_scope(
+        worktree_path=patcher_path,
+        feature_dir=feature_dir,
+        dev_tasks_path=dev_tasks_path,
+        role_log_paths_abs=role_paths_abs,
+        work_item_id=work_item_id,
+    )
     content = read_file(dev_tasks_path)
     content = ensure_allowed_tests_section(content, work_item_id)
     current_main_head = git_ref_sha(root, "refs/heads/main")
@@ -1887,25 +2020,51 @@ def main() -> None:
         locked_main_head = current_main_head
     write_file(dev_tasks_path, content)
     start_allowed_paths = collect_allowed_final_stage_paths(
-        root, "refs/heads/main", patcher_branch, dev_tasks_path, feature_dir
+        root,
+        "refs/heads/main",
+        patcher_branch,
+        dev_tasks_repo_path,
+        feature_dir,
     )
     ensure_root_start_scope(root, start_allowed_paths)
 
     runner_metadata = pc_runner.build_metadata(work_item_id, "pc-feature")
+    runner_root = Path(patcher_path)
     pc_runner.log_message(
-        runner_metadata, "feature", "start pc-feature", root=Path(root)
+        runner_metadata, "feature", "start pc-feature", root=runner_root
     )
 
     if manual:
         pc_runner.log_message(
-            runner_metadata, "feature", "manual mode enabled; exit", root=Path(root)
+            runner_metadata, "feature", "manual mode enabled; exit", root=runner_root
         )
         print("pc-feature: manual mode enabled; execution log entry ready")
         return
 
-    feature_spec = read_file(os.path.join(feature_dir, "feature-spec.md"))
-    tech_design = read_file(os.path.join(feature_dir, "tech-design.md"))
-    test_plan = read_file(os.path.join(feature_dir, "test-plan.md"))
+    feature_spec = read_file(
+        worktree_runtime_path(
+            patcher_path,
+            os.path.join(feature_dir, "feature-spec.md"),
+            label="feature-spec.md",
+            must_exist=True,
+        )
+    )
+    tech_design = read_file(
+        worktree_runtime_path(
+            patcher_path,
+            os.path.join(feature_dir, "tech-design.md"),
+            label="tech-design.md",
+            must_exist=True,
+        )
+    )
+    test_plan = read_file(
+        worktree_runtime_path(
+            patcher_path,
+            os.path.join(feature_dir, "test-plan.md"),
+            label="test-plan.md",
+            must_exist=True,
+        )
+    )
 
     review_items: List[str] = []
 
@@ -1935,7 +2094,7 @@ def main() -> None:
         preflight_raw = codex_exec(
             preflight_prompt,
             runner_metadata=runner_metadata,
-            root=root,
+            root=str(runner_root),
         ).strip()
         preflight_json = extract_json_payload(preflight_raw)
         try:
@@ -2054,7 +2213,7 @@ def main() -> None:
                 cwd=planner_path,
                 profile="Planner",
                 runner_metadata=runner_metadata,
-                root=root,
+                root=str(runner_root),
             ).strip()
             content = read_file(dev_tasks_path)
             content = update_entry_field(content, work_item_id, "Planner", "Codex")
@@ -2114,7 +2273,7 @@ def main() -> None:
                     cwd=planner_path,
                     profile="Planner",
                     runner_metadata=runner_metadata,
-                    root=root,
+                    root=str(runner_root),
                 ).strip()
                 if planner_response:
                     content = replace_entry_section(
@@ -2143,6 +2302,10 @@ def main() -> None:
                 "Tests run: (none)\n"
                 f"Notes: Invalid Allowed Tests after planner remediation attempts ({issue_summary}). "
                 f"{remediation}\n"
+                f"File/Path: {dev_tasks_repo_path}\n"
+                "Check: Allowed Tests must list existing scoped unittest/pytest commands.\n"
+                f"Evidence: {issue_summary}\n"
+                f"Expected fix: {remediation}\n"
                 f"Work Item ID: {work_item_id}\n"
             )
             ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
@@ -2222,7 +2385,11 @@ def main() -> None:
         current_plan = get_entry_section(content, work_item_id, "Plan")
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
         tdd_section = get_entry_section(content, work_item_id, "TDD Plan")
-        anti_hardcode_issues = anti_hardcode_coverage_issues(current_plan, tdd_section)
+        anti_hardcode_issues: List[str] = []
+        if should_enforce_anti_hardcode(content, work_item_id):
+            anti_hardcode_issues = anti_hardcode_coverage_issues(
+                current_plan, tdd_section
+            )
         plan_reviewer_prompt = render_prompt_template(
             load_prompt_template("plan-reviewer", "gate"),
             {
@@ -2239,7 +2406,7 @@ def main() -> None:
                 cwd=planner_path,
                 profile="Planner",
                 runner_metadata=runner_metadata,
-                root=root,
+                root=str(runner_root),
             ).strip()
             ensure_plan_reviewer_read_only(planner_path)
         reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
@@ -2249,6 +2416,23 @@ def main() -> None:
             )
             reviewer_blocks += 1
             if reviewer_blocks > MAX_REVIEWER_BLOCKS:
+                content = read_file(dev_tasks_path)
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Plan reviewer block limit reached; "
+                    f"block_count={reviewer_blocks}; feedback={summarize_feedback(reviewer_feedback)}",
+                )
+                content = update_entry_field(
+                    content,
+                    work_item_id,
+                    "Notes",
+                    "Plan-reviewer block limit reached; resolve reviewer feedback and resume.",
+                )
+                write_file(dev_tasks_path, content)
                 die(
                     "pc-feature: max plan-reviewer block attempts reached; "
                     "check planner/reviewer feedback for unresolved policy constraints"
@@ -2275,7 +2459,7 @@ def main() -> None:
                 cwd=planner_path,
                 profile="Planner",
                 runner_metadata=runner_metadata,
-                root=root,
+                root=str(runner_root),
             ).strip()
             if not revised_plan:
                 die("pc-feature: planner returned empty plan after reviewer block")
@@ -2324,7 +2508,7 @@ def main() -> None:
                 cwd=patcher_path,
                 profile="Patcher",
                 runner_metadata=runner_metadata,
-                root=root,
+                root=str(runner_root),
             ).strip()
             format_role_changes("patcher", patcher_path, feature_dir)
             reset_role_logs_to_head(patcher_path, feature_dir)
@@ -2363,6 +2547,10 @@ def main() -> None:
                 "Tests run: (none)\n"
                 f"Notes: {note} Add specific, scoped tests to Allowed Tests; "
                 "`make ci`, `make feature`, and `pc-feature` are forbidden.\n"
+                f"File/Path: {dev_tasks_repo_path}\n"
+                "Check: Allowed Tests must list existing scoped unittest/pytest commands.\n"
+                f"Evidence: {note}\n"
+                "Expected fix: Update Allowed Tests with exact commands that exit 0.\n"
                 f"Work Item ID: {work_item_id}\n"
             )
             ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
@@ -2387,7 +2575,7 @@ def main() -> None:
                 cmd_list,
                 runner_metadata,
                 step="tests",
-                root=Path(root),
+                root=runner_root,
                 label=cmd,
                 cwd=tester_path,
             )
@@ -2396,10 +2584,23 @@ def main() -> None:
                 failed = True
         tester_outcome = "FAIL" if failed else "PASS"
         tests_run = "; ".join(allowed_tests)
+        failure_evidence = "; ".join(
+            item for item in test_results if not item.strip().endswith("-> 0")
+        )
+        if tester_outcome == "FAIL":
+            tester_notes = (
+                f"Results: {'; '.join(test_results)}\n"
+                f"File/Path: logs/{work_item_id}/tests.log\n"
+                "Check: Allowed Tests commands must all exit 0.\n"
+                f"Evidence: {failure_evidence or 'non-zero exit detected'}\n"
+                "Expected fix: adjust plan/patch until all allowed tests pass."
+            )
+        else:
+            tester_notes = f"Results: {'; '.join(test_results)}"
         tester_feedback = (
             f"Outcome: {tester_outcome}\n"
             f"Tests run: {tests_run}\n"
-            f"Notes: Results: {'; '.join(test_results)}\n"
+            f"Notes: {tester_notes}\n"
             f"Work Item ID: {work_item_id}\n"
         )
         ensure_role_log(os.path.join(tester_path, role_paths["tester"]), "tester")
@@ -2458,6 +2659,8 @@ def main() -> None:
                 {
                     "work_item_id": work_item_id,
                     "reporter_note": reporter_note,
+                    "feature_dir": feature_dir,
+                    "dev_tasks_path": dev_tasks_repo_path,
                 },
             )
             reporter_feedback = codex_exec(
@@ -2465,8 +2668,11 @@ def main() -> None:
                 cwd=reporter_path,
                 profile="Reporter",
                 runner_metadata=runner_metadata,
-                root=root,
+                root=str(runner_root),
             ).strip()
+            reporter_feedback = with_failure_context_guard(
+                reporter_feedback, role="reporter"
+            )
             reporter_outcome = parse_outcome(reporter_feedback)
             ensure_role_log(
                 os.path.join(reporter_path, role_paths["reporter"]), "reporter"
@@ -2486,7 +2692,8 @@ def main() -> None:
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
             last_failure_context = (
                 f"tester={tester_outcome}; reporter={reporter_outcome}; "
-                "planner/patcher feedback loop required."
+                f"tester_feedback={summarize_feedback(tester_feedback)}; "
+                f"reporter_feedback={summarize_feedback(reporter_feedback)}"
             )
             content = read_file(dev_tasks_path)
             current_plan = get_entry_section(content, work_item_id, "Plan")
@@ -2511,7 +2718,7 @@ def main() -> None:
                 cwd=planner_path,
                 profile="Planner",
                 runner_metadata=runner_metadata,
-                root=root,
+                root=str(runner_root),
             ).strip()
             planner_decision = parse_feedback_plan_decision(planner_feedback)
             planner_rationale = parse_feedback_rationale(planner_feedback)
@@ -2558,7 +2765,7 @@ def main() -> None:
                 cwd=patcher_path,
                 profile="Patcher",
                 runner_metadata=runner_metadata,
-                root=root,
+                root=str(runner_root),
             ).strip()
             format_role_changes("patcher", patcher_path, feature_dir)
             reset_role_logs_to_head(patcher_path, feature_dir)
@@ -2612,7 +2819,7 @@ def main() -> None:
             root,
             base_ref,
             branch,
-            dev_tasks_path=dev_tasks_path,
+            dev_tasks_path=dev_tasks_repo_path,
             feature_dir=feature_dir,
         )
         if not apply_branch_diff(root, base_ref, branch, include_paths=merge_paths):
@@ -2630,7 +2837,7 @@ def main() -> None:
             die("pc-feature: conflict detected while collecting worktrees")
 
     allowed_stage_paths = collect_allowed_final_stage_paths(
-        root, "refs/heads/main", patcher_branch, dev_tasks_path, feature_dir
+        root, "refs/heads/main", patcher_branch, dev_tasks_repo_path, feature_dir
     )
     gate_status = "FAIL"
     autofix_notes: List[str] = []
@@ -2639,7 +2846,7 @@ def main() -> None:
         ci_cmd,
         runner_metadata,
         step="ci",
-        root=Path(root),
+        root=runner_root,
         label="make ci attempt=1",
     )
     review_items.append(
@@ -2662,7 +2869,7 @@ def main() -> None:
             ci_cmd,
             runner_metadata,
             step="ci",
-            root=Path(root),
+            root=runner_root,
             label="make ci attempt=2",
         )
         review_items.append(
@@ -2700,7 +2907,7 @@ def main() -> None:
         cwd=reporter_path,
         profile="Reporter",
         runner_metadata=runner_metadata,
-        root=root,
+        root=str(runner_root),
     ).strip()
     reporter_global_json = extract_json_payload(reporter_global_raw)
     try:
@@ -2750,7 +2957,7 @@ def main() -> None:
         commit_message = codex_exec(
             commit_prompt,
             runner_metadata=runner_metadata,
-            root=root,
+            root=str(runner_root),
         ).strip()
         if not commit_message:
             die("pc-feature: empty commit message from agent")
@@ -2790,7 +2997,7 @@ def main() -> None:
             die("pc-feature: failed to commit collected changes via tools/pc-commit")
     remove_worktree(root, patcher_path, patcher_branch)
 
-    pc_runner.log_message(runner_metadata, "feature", "complete", root=Path(root))
+    pc_runner.log_message(runner_metadata, "feature", "complete", root=runner_root)
     print("pc-feature: complete")
 
 
