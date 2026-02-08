@@ -1177,6 +1177,35 @@ def cleanup_dirty_global_logs(worktree_path: str) -> None:
                 os.remove(full_path)
 
 
+def restore_dirty_paths(worktree_path: str, paths: List[str]) -> None:
+    for path in sorted(set(paths)):
+        if not path:
+            continue
+        result = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", path],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=worktree_path,
+        )
+        if result.returncode == 0:
+            subprocess.run(
+                ["git", "checkout", "--", path],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=worktree_path,
+            )
+            continue
+        full_path = os.path.join(worktree_path, path)
+        if os.path.isdir(full_path):
+            shutil.rmtree(full_path, ignore_errors=True)
+        elif os.path.exists(full_path):
+            os.remove(full_path)
+
+
 def recreate_worktree(root: str, path: str, branch: str) -> None:
     result = subprocess.run(
         ["git", "worktree", "remove", "--force", path],
@@ -1993,6 +2022,22 @@ def parse_allowed_tests(section: str) -> List[str]:
     return commands
 
 
+def format_allowed_tests_body(commands: List[str]) -> str:
+    unique: List[str] = []
+    seen = set()
+    for cmd in commands:
+        if cmd in seen:
+            continue
+        seen.add(cmd)
+        unique.append(cmd)
+    return "\n".join(f"- `{cmd}`" for cmd in unique)
+
+
+def sanitize_allowed_tests_response(response: str) -> str:
+    parsed = parse_allowed_tests(response)
+    return format_allowed_tests_body(parsed)
+
+
 def normalize_allowed_test(raw: str) -> Optional[str]:
     text = raw.strip()
     if not text:
@@ -2616,6 +2661,7 @@ def main() -> None:
                         "issues": " ".join(issues),
                     },
                 )
+                allowed_tests_snapshot = collect_dirty_snapshot(planner_path)
                 planner_response = codex_exec(
                     planner_prompt,
                     cwd=planner_path,
@@ -2623,9 +2669,34 @@ def main() -> None:
                     runner_metadata=runner_metadata,
                     root=str(runner_root),
                 ).strip()
+                _, planner_dirty_delta = ensure_plan_reviewer_read_only(
+                    planner_path,
+                    baseline_snapshot=allowed_tests_snapshot,
+                )
+                if planner_dirty_delta:
+                    restore_dirty_paths(planner_path, planner_dirty_delta)
+                    _, residual_delta = ensure_plan_reviewer_read_only(
+                        planner_path,
+                        baseline_snapshot=allowed_tests_snapshot,
+                    )
+                    if residual_delta:
+                        die(
+                            "pc-feature: planner allowed-tests update modified files and cleanup failed: "
+                            + ", ".join(sorted(residual_delta))
+                        )
+                    print(
+                        "pc-feature: discarded planner allowed-tests side effects: "
+                        + ", ".join(sorted(planner_dirty_delta))
+                    )
                 if planner_response:
+                    sanitized_response = sanitize_allowed_tests_response(
+                        planner_response
+                    )
+                    if not sanitized_response:
+                        planner_note = "Ignored planner Allowed Tests response with no valid test commands."
+                        continue
                     content = replace_entry_section(
-                        content, work_item_id, "Allowed Tests", planner_response
+                        content, work_item_id, "Allowed Tests", sanitized_response
                     )
                     write_file(dev_tasks_path, content)
                     planner_updates = True

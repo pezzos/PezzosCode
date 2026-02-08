@@ -325,6 +325,70 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.normalize_allowed_test("node scripts/test.js")
         )
 
+    def test_sanitize_allowed_tests_response_keeps_only_commands(self):
+        response = (
+            "**Allowed Tests**\n"
+            "- `python -m unittest tests.test_pc_feature`\n"
+            "**Patch**\n"
+            "- Updated docs/03-logs/implementation-log.md\n"
+            "- `pytest tests/test_pc_feature.py -q`\n"
+            "Note: keep only test commands.\n"
+        )
+        sanitized = self.pc_feature.sanitize_allowed_tests_response(response)
+        self.assertEqual(
+            sanitized,
+            "- `python -m unittest tests.test_pc_feature`\n"
+            "- `pytest tests/test_pc_feature.py -q`",
+        )
+
+    def test_restore_dirty_paths_resets_tracked_and_removes_untracked(self):
+        run_calls = []
+        removed_files = []
+        removed_dirs = []
+
+        def fake_run(cmd, **kwargs):
+            run_calls.append(list(cmd))
+            if cmd[:3] == ["git", "ls-files", "--error-unmatch"]:
+                if cmd[3] == "tracked.txt":
+                    return SimpleNamespace(returncode=0, stdout="", stderr="")
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        def fake_exists(path):
+            return not str(path).endswith("missing")
+
+        def fake_isdir(path):
+            return str(path).endswith("new-dir")
+
+        with mock.patch.object(self.pc_feature.subprocess, "run", side_effect=fake_run):
+            with mock.patch.object(
+                self.pc_feature.os.path, "exists", side_effect=fake_exists
+            ):
+                with mock.patch.object(
+                    self.pc_feature.os.path, "isdir", side_effect=fake_isdir
+                ):
+                    with mock.patch.object(
+                        self.pc_feature.os, "remove", side_effect=removed_files.append
+                    ):
+                        with mock.patch.object(
+                            self.pc_feature.shutil,
+                            "rmtree",
+                            side_effect=lambda p, ignore_errors: removed_dirs.append(
+                                (p, ignore_errors)
+                            ),
+                        ):
+                            self.pc_feature.restore_dirty_paths(
+                                "/tmp/worktree",
+                                ["tracked.txt", "new-file", "new-dir"],
+                            )
+
+        self.assertIn(
+            ["git", "checkout", "--", "tracked.txt"],
+            run_calls,
+        )
+        self.assertIn("/tmp/worktree/new-file", removed_files)
+        self.assertIn(("/tmp/worktree/new-dir", True), removed_dirs)
+
     def test_plan_policy_violations_detects_forbidden_paths_and_commands(self):
         plan = (
             "- Edit docs/02-features/12-incremental-prd-to-features/dev-tasks.md\n"
@@ -1523,6 +1587,85 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn(
                 "reporter no-op; reason=blocked by invalid allowed tests", dev_tasks
             )
+
+    def test_main_discards_allowed_tests_side_effect_files(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260209-03"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "Allowed Tests must list specific, meaningful" in prompt:
+                    return (
+                        "- `python -m unittest tests.test_pc_feature`\n"
+                        "**Patch**\n"
+                        "- Updated docs/03-logs/implementation-log.md\n"
+                    )
+                if "You are the Plan Reviewer agent." in prompt:
+                    raise StopMain()
+                return "Decision: Approve\nReasons:\n- clear"
+
+            restore_mock = mock.Mock(return_value=None)
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_plan_reviewer_read_only",
+                        side_effect=[
+                            ([], ["docs/03-logs/implementation-log.md"]),
+                            ([], []),
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "restore_dirty_paths",
+                        restore_mock,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            restore_mock.assert_called_once_with(
+                str(patcher_path), ["docs/03-logs/implementation-log.md"]
+            )
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("`python -m unittest tests.test_pc_feature`", dev_tasks)
+            self.assertNotIn("**Patch**", dev_tasks)
 
     def test_reporter_is_skipped_when_tester_fails(self):
         class StopMain(RuntimeError):
