@@ -217,6 +217,45 @@ Added orchestrator-side plan-policy validation before patcher execution and expa
 
 **Fixed Date:** 2026-02-08
 
+### [BUG-006] - Reviewer read-only guard falsely blames pre-existing planner edits
+
+**Date Discovered:** 2026-02-08
+
+**Discovered By:** CLI run (`make feature F=12`) failure report
+
+**Severity:** High
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Any resumed/retried feature run where planner/orchestrator wrote `dev-tasks.md` before reviewer execution.
+
+**Symptoms:**
+`pc-feature` aborts with `plan reviewer modified files in writable worktree: .../dev-tasks.md` when reviewer did not edit files.
+
+**Root Cause:**
+Read-only guard checked for any dirty files after reviewer step; it did not differentiate pre-existing dirt from reviewer-introduced changes.
+
+**Fix:**
+Switched reviewer guard to pre/post dirty snapshot delta checks, moved planner no-op write to post-reviewer verification, and added pre-review hygiene checkpointing for planner-owned files.
+
+**Files Changed:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/plan-reviewer-gate.md`
+- `docs/04-process/ticket-execution-protocol.md`
+
+**Prevention:**
+
+- Added unit/integration regression tests for unchanged pre-existing dirty paths and real reviewer dirty deltas.
+- Added explicit process note that reviewer enforcement is delta-based.
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-08
+
 ### [BUG-003] - Allowed Tests prose triggers invalid command execution
 
 **Date Discovered:** 2026-02-05

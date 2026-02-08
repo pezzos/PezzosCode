@@ -4418,6 +4418,58 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
 
+### 2026-02-08 - Template-sync mismatch fix
+
+**Feature/Bug:** Docs maintenance (template-sync gate)
+
+**Changed Files:**
+
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Staged the template copy of the ticket execution protocol to match the updated living doc line about plan-reviewer delta snapshots.
+
+**Why:**
+
+- Pre-commit `template-sync` failed because the template file was not staged alongside the updated living doc.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp tools/pc-template-sync`
+
+### 2026-02-08 - Sync plan-reviewer delta guard note into template
+
+**Feature/Bug:** keep template docs aligned with current ticket execution protocol
+
+**Changed Files:**
+
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added the plan-reviewer read-only delta-guard note to the template so it matches the source protocol doc.
+
+**Why:**
+
+- The source protocol includes the reviewer delta-guard guidance; the template was missing the same line.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (documentation-only change)
+
 ### 2026-02-08 - Sync ticket-execution-protocol template indentation
 
 **Feature/Bug:** template-sync mismatch
@@ -4474,6 +4526,42 @@ Track when debt is paid down:
 
 - **Breaking changes:** No
 - **Performance:** Minimal (string policy checks during plan gate)
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+
+### 2026-02-08 - Reviewer delta-guard and no-op ordering hardening
+
+**Feature/Bug:** eliminate false `plan reviewer modified files` failures caused by pre-existing planner/orchestrator edits
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/plan-reviewer-gate.md`
+- `docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Reworked plan-reviewer read-only check to compare pre/post worktree dirty snapshots and block only reviewer-introduced deltas.
+- Moved planner no-op iteration-note write (`plan already present`) to after reviewer verification, removing the pre-review false-positive path.
+- Persisted deferred planner no-op notes immediately after reviewer verification so later `dev-tasks.md` reloads cannot drop the note.
+- Added pre-review hygiene checkpoint (`AUTO_REVIEWER_HYGIENE`, default enabled): auto-commits allowed planner-owned pre-existing dirt and blocks unexpected dirty paths.
+- Improved reviewer guard diagnostics with delta/pre-existing path context and iteration-log trace on failure.
+- Added regression tests for unchanged pre-existing dirty paths, true dirty deltas, and end-to-end no-misattribution flow.
+
+**Why:**
+
+- Feature 12 run failed with `plan reviewer modified files in writable worktree: .../dev-tasks.md` even though the change came from orchestrator/planner no-op write, not reviewer edits.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal (file hashing on dirty paths around reviewer gate)
 - **Dependencies:** None
 
 **Testing:**

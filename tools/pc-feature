@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 import os
 import re
@@ -27,6 +28,7 @@ MAX_ESCALATION_ROUNDS = 2
 HIGH_RISK_APPROVAL_NOTE = "High-risk gate approved interactively."
 MAIN_FREEZE_NOTE_PREFIX = "Main head locked:"
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
+AUTO_REVIEWER_HYGIENE_ENV = "AUTO_REVIEWER_HYGIENE"
 IGNORED_PATH_PREFIXES = (
     ".tmp/",
     ".codex_subagent/",
@@ -1646,13 +1648,52 @@ def high_risk_approval_recorded(content: str, work_item_id: str) -> bool:
     return HIGH_RISK_APPROVAL_NOTE.lower() in notes.lower()
 
 
-def ensure_plan_reviewer_read_only(worktree_path: str) -> None:
-    dirty = filter_ignored_paths(get_status_paths(worktree_path))
-    if dirty:
-        die(
-            "pc-feature: plan reviewer modified files in writable worktree: "
-            + ", ".join(sorted(dirty))
-        )
+def collect_dirty_snapshot(worktree_path: str) -> Dict[str, str]:
+    snapshot: Dict[str, str] = {}
+    paths = sorted(filter_ignored_paths(get_status_paths(worktree_path)))
+    for rel_path in paths:
+        absolute = os.path.join(worktree_path, rel_path)
+        if not os.path.exists(absolute):
+            snapshot[rel_path] = "<missing>"
+            continue
+        if os.path.isdir(absolute):
+            snapshot[rel_path] = "<dir>"
+            continue
+        try:
+            with open(absolute, "rb") as handle:
+                digest = hashlib.sha256(handle.read()).hexdigest()
+        except OSError:
+            snapshot[rel_path] = "<unreadable>"
+            continue
+        snapshot[rel_path] = digest
+    return snapshot
+
+
+def dirty_delta_paths(before: Dict[str, str], after: Dict[str, str]) -> List[str]:
+    delta: List[str] = []
+    for path, digest in after.items():
+        if path not in before:
+            delta.append(path)
+            continue
+        if before[path] != digest:
+            delta.append(path)
+    return sorted(set(delta))
+
+
+def ensure_plan_reviewer_read_only(
+    worktree_path: str,
+    *,
+    baseline_snapshot: Optional[Dict[str, str]] = None,
+) -> Tuple[List[str], List[str]]:
+    before = baseline_snapshot or {}
+    after = collect_dirty_snapshot(worktree_path)
+    delta = (
+        dirty_delta_paths(before, after)
+        if baseline_snapshot is not None
+        else sorted(after.keys())
+    )
+    preexisting = sorted(before.keys())
+    return preexisting, delta
 
 
 def parse_commit_message(section: str) -> str:
@@ -2268,6 +2309,7 @@ def main() -> None:
                 "stop and restart the feature from a clean baseline."
             )
         attempt = execution_attempt + 1
+        planner_noop_pending = False
         content = read_file(dev_tasks_path)
         if not entry_section_complete(content, work_item_id, "Plan"):
             plan_prompt = render_prompt_template(
@@ -2304,14 +2346,7 @@ def main() -> None:
             commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
             ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
         else:
-            content = append_noop_step_note(
-                content,
-                work_item_id,
-                attempt=attempt,
-                step="planner",
-                reason="plan already present",
-            )
-            write_file(dev_tasks_path, content)
+            planner_noop_pending = True
 
         content = read_file(dev_tasks_path)
         planner_updates = False
@@ -2456,6 +2491,40 @@ def main() -> None:
         current_plan = get_entry_section(content, work_item_id, "Plan")
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
         tdd_section = get_entry_section(content, work_item_id, "TDD Plan")
+        pre_reviewer_snapshot = collect_dirty_snapshot(planner_path)
+        auto_reviewer_hygiene = parse_bool_env(AUTO_REVIEWER_HYGIENE_ENV)
+        if auto_reviewer_hygiene is None:
+            auto_reviewer_hygiene = True
+        if auto_reviewer_hygiene and pre_reviewer_snapshot:
+            allowed_preexisting = {
+                os.path.join(feature_dir, "dev-tasks.md"),
+                role_paths["planner"],
+            }
+            unexpected_preexisting = sorted(
+                path
+                for path in pre_reviewer_snapshot.keys()
+                if path not in allowed_preexisting
+            )
+            if unexpected_preexisting:
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Pre-review hygiene failed; unexpected dirty paths: "
+                    + ", ".join(unexpected_preexisting),
+                )
+                write_file(dev_tasks_path, content)
+                die(
+                    "pc-feature: pre-review hygiene found unexpected dirty paths: "
+                    + ", ".join(unexpected_preexisting)
+                )
+            format_role_changes("planner", planner_path, feature_dir)
+            enforce_role_scope(planner_path, "planner", feature_dir)
+            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
+            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+            pre_reviewer_snapshot = collect_dirty_snapshot(planner_path)
         anti_hardcode_issues: List[str] = []
         if should_enforce_anti_hardcode(content, work_item_id):
             anti_hardcode_issues = anti_hardcode_coverage_issues(
@@ -2471,6 +2540,8 @@ def main() -> None:
         )
         if anti_hardcode_issues:
             reviewer_feedback = anti_hardcode_block_feedback(anti_hardcode_issues)
+            preexisting_dirty: List[str] = sorted(pre_reviewer_snapshot.keys())
+            reviewer_dirty_delta: List[str] = []
         else:
             reviewer_feedback = codex_exec(
                 plan_reviewer_prompt,
@@ -2479,7 +2550,49 @@ def main() -> None:
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
-            ensure_plan_reviewer_read_only(planner_path)
+            preexisting_dirty, reviewer_dirty_delta = ensure_plan_reviewer_read_only(
+                planner_path, baseline_snapshot=pre_reviewer_snapshot
+            )
+        if reviewer_dirty_delta:
+            content = read_file(dev_tasks_path)
+            if planner_noop_pending:
+                content = append_noop_step_note(
+                    content,
+                    work_item_id,
+                    attempt=attempt,
+                    step="planner",
+                    reason="plan already present",
+                )
+                planner_noop_pending = False
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            delta_text = ", ".join(reviewer_dirty_delta)
+            preexisting_text = (
+                ", ".join(preexisting_dirty) if preexisting_dirty else "(none)"
+            )
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                f"Attempt {attempt}: plan-reviewer dirty delta detected; delta=[{delta_text}]; preexisting=[{preexisting_text}].",
+            )
+            write_file(dev_tasks_path, content)
+            die(
+                "pc-feature: plan reviewer modified files in writable worktree: "
+                + delta_text
+                + "; pre-existing dirty files before reviewer: "
+                + preexisting_text
+            )
+        if planner_noop_pending:
+            content = append_noop_step_note(
+                content,
+                work_item_id,
+                attempt=attempt,
+                step="planner",
+                reason="plan already present",
+            )
+            planner_noop_pending = False
+            write_file(dev_tasks_path, content)
         reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
         policy_issues = plan_policy_violations(current_plan)
         if reviewer_decision == "APPROVE" and policy_issues:
@@ -2491,7 +2604,6 @@ def main() -> None:
             )
             reviewer_blocks += 1
             if reviewer_blocks > MAX_REVIEWER_BLOCKS:
-                content = read_file(dev_tasks_path)
                 content = update_entry_field(
                     content, work_item_id, "Outcome", "needs replan"
                 )

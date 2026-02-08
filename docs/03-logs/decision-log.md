@@ -1698,3 +1698,18 @@ When a decision is reversed or replaced, document it here:
   - Invalid plans are stopped deterministically before patching.
   - Feature-id/context mismatches become visible earlier.
   - Failure mode shifts from late patcher guard crashes to actionable planner revision loops.
+
+### DEC-028 - Plan-reviewer read-only guard is delta-based
+
+- **Date:** 2026-02-08
+- **Status:** Accepted
+- **Context:** Reviewer guard previously failed on any dirty worktree path, including orchestrator/planner writes made before reviewer execution (notably planner no-op notes in `dev-tasks.md`).
+- **Decision:**
+  - Capture pre-review dirty snapshot and compare against post-review snapshot.
+  - Treat only reviewer-introduced dirty deltas as violations.
+  - Move planner no-op note write to after reviewer verification.
+  - Add pre-review hygiene checkpoint (`AUTO_REVIEWER_HYGIENE`) to auto-clean planner-owned pre-existing dirt and block unexpected paths.
+- **Consequences:**
+  - Prevents false attribution of planner/orchestrator edits to reviewer.
+  - Preserves strict read-only enforcement for real reviewer modifications.
+  - Improves failure diagnostics and loop traceability for reruns.

@@ -938,3 +938,35 @@ Overall, this was a successful launch with clear areas for improvement. The core
 
 - Command: `tools/offload-proxy/pp tools/pc-template-sync`
 - Result: PASS
+
+## 2026-02-08 - Reviewer delta-guard validation
+
+- Command: `python3 -m py_compile tools/pc-feature`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`57` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+- Result: PASS (`7` tests)
+- Verified:
+  - pre-existing unchanged dirty paths do not trigger reviewer-modified failures.
+  - reviewer-introduced dirty deltas are still detected and blocked.
+  - planner no-op note is recorded after reviewer verification, avoiding false attribution.
+  - pre-review hygiene checkpoint remains scoped to planner-owned files and rejects unexpected paths.
+- Not run:
+  - `make feature F=12` (agent-side execution intentionally skipped per workflow test rule).
+
+## 2026-02-08 - Template-sync mismatch fix validation
+
+- Command: `tools/offload-proxy/pp tools/pc-template-sync`
+- Result: PASS
+
+## 2026-02-08 - Reviewer guard follow-up regression validation
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`60` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+- Result: PASS (`7` tests)
+- Verified:
+  - shared `main()` test harness stubs reviewer snapshot paths (`collect_dirty_snapshot`) and tuple-return guard contract.
+  - deferred planner no-op iteration notes persist in `dev-tasks.md` when reviewer approves.
+  - no `git status` lookups are attempted against non-repository temp directories in unit tests.

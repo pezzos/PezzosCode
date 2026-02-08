@@ -168,7 +168,12 @@ class TestPcFeature(unittest.TestCase):
                 self.pc_feature, "anti_hardcode_coverage_issues", return_value=[]
             ),
             mock.patch.object(
-                self.pc_feature, "ensure_plan_reviewer_read_only", return_value=None
+                self.pc_feature, "collect_dirty_snapshot", return_value={}
+            ),
+            mock.patch.object(
+                self.pc_feature,
+                "ensure_plan_reviewer_read_only",
+                return_value=([], []),
             ),
             mock.patch.object(self.pc_feature, "apply_branch_diff", return_value=True),
             mock.patch.object(
@@ -350,6 +355,46 @@ class TestPcFeature(unittest.TestCase):
                         "docs/02-features/11-simplify-worktree-tracking",
                     )
         self.assertIn("patcher edited role-scoped files", stderr_capture.getvalue())
+
+    def test_ensure_plan_reviewer_read_only_allows_preexisting_unchanged_dirty(self):
+        baseline = {
+            "docs/02-features/12-incremental-prd-to-features/dev-tasks.md": "abc"
+        }
+        with mock.patch.object(
+            self.pc_feature,
+            "collect_dirty_snapshot",
+            return_value=dict(baseline),
+        ):
+            preexisting, delta = self.pc_feature.ensure_plan_reviewer_read_only(
+                "/tmp/worktree", baseline_snapshot=baseline
+            )
+        self.assertEqual(
+            preexisting,
+            ["docs/02-features/12-incremental-prd-to-features/dev-tasks.md"],
+        )
+        self.assertEqual(delta, [])
+
+    def test_ensure_plan_reviewer_read_only_detects_delta_on_changed_dirty(self):
+        baseline = {
+            "docs/02-features/12-incremental-prd-to-features/dev-tasks.md": "abc"
+        }
+        with mock.patch.object(
+            self.pc_feature,
+            "collect_dirty_snapshot",
+            return_value={
+                "docs/02-features/12-incremental-prd-to-features/dev-tasks.md": "xyz"
+            },
+        ):
+            preexisting, delta = self.pc_feature.ensure_plan_reviewer_read_only(
+                "/tmp/worktree", baseline_snapshot=baseline
+            )
+        self.assertEqual(
+            preexisting,
+            ["docs/02-features/12-incremental-prd-to-features/dev-tasks.md"],
+        )
+        self.assertEqual(
+            delta, ["docs/02-features/12-incremental-prd-to-features/dev-tasks.md"]
+        )
 
     def test_anti_hardcode_coverage_issues_requires_all_signals(self):
         missing = self.pc_feature.anti_hardcode_coverage_issues(
@@ -2133,6 +2178,102 @@ class TestPcFeature(unittest.TestCase):
             self.assertEqual(reviewer_calls["count"], 1)
             self.assertEqual(planner_update_calls["count"], 1)
             self.assertEqual(patcher_calls["count"], 0)
+
+    def test_preexisting_dirty_before_reviewer_is_not_misattributed(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260208-03"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    return False
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "You are the Patcher agent." in prompt:
+                    raise StopMain()
+                return "ok"
+
+            dirty_snapshot = {
+                "docs/02-features/01-workflow-hardening/dev-tasks.md": "same-hash"
+            }
+
+            def fake_parse_bool_env(name: str):
+                if name == "AUTO_REVIEWER_HYGIENE":
+                    return False
+                return None
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_dirty_snapshot",
+                        return_value=dirty_snapshot,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_bool_env",
+                        side_effect=fake_parse_bool_env,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("planner no-op; reason=plan already present", dev_tasks)
 
     def test_plan_reviewer_blocks_do_not_consume_execution_attempt_budget(self):
         class StopMain(RuntimeError):
