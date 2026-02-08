@@ -12,32 +12,32 @@
 
 **Owner:** Developer/PO
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-08
 
 ### Summary
 
-Add soft feature gating in precommit and mine repeated prompts to propose reusable skills.
+Add two lightweight governance capabilities: (1) precommit soft warnings when work bypasses earlier unfinished features, and (2) mining repeated prompt patterns into skill proposals.
 
 ## User Intent
 
 ### Who is this for?
 
 - **Primary users:** Developer/PO (single user)
-- **User goals:** reduce regressions and repetitive work
-- **Current pain:** later features advance while earlier ones are incomplete; prompt patterns repeat
+- **User goals:** protect implementation order and reuse repeated workflow patterns
+- **Current pain:** feature sequencing drift and repeated prompt writing are not surfaced early
 
 ### Why do they need it?
 
 **As a** developer/PO
 
-**I want to** soft gating and skill proposals
+**I want to** receive actionable sequencing warnings and reusable skill proposals
 
-**So that** better sequencing and reusable workflows
+**So that** backlog execution is more disciplined and repetitive work is captured once
 
 ### User Value
 
-- **Value proposition:** better sequencing and reusable workflows
-- **Expected impact:** Lower token burn and fewer regressions
+- **Value proposition:** safer sequencing with lower repetition cost
+- **Expected impact:** fewer priority inversions and faster repeated workflows
 - **Priority:** P2 - per PRD
 
 ## Feature Requirements
@@ -46,13 +46,16 @@ Add soft feature gating in precommit and mine repeated prompts to propose reusab
 
 #### Core Functionality
 
-- **Requirement 1:** Soft warning when modifying a feature while earlier features are not Done
-- **Requirement 2:** Detect recurring prompt patterns and propose new skills (e.g., `fix-issue.md`)
+- **Requirement 1:** Precommit emits a non-blocking warning when changes target feature `N` while any earlier feature folder has `Status` not set to `Done` in `dev-tasks.md`.
+- **Requirement 2:** Warning includes actionable context (earlier feature ids/statuses and remediation path) and allows continued commit.
+- **Requirement 3:** Skill-mining scans repeated prompt/task patterns (prompts, workflow logs, offloaded outputs) and generates candidate skill proposals.
+- **Requirement 4:** Candidate skills are written as human-gated proposals (not auto-installed/auto-applied).
 
 #### Edge Cases
 
-- **Edge Case 1:** False positive warnings
-- **Edge Case 2:** Low-signal prompt patterns
+- **Edge Case 1:** False warnings caused by parsing malformed `dev-tasks.md` status lines.
+- **Edge Case 2:** Very low-signal prompt repetition creating noisy skill suggestions.
+- **Edge Case 3:** Multi-feature commits where sequencing warning should still be advisory only.
 
 ### Product Surfaces
 
@@ -65,25 +68,34 @@ Add soft feature gating in precommit and mine repeated prompts to propose reusab
 
 ## Acceptance Criteria
 
-- Warnings are informative and non-blocking
+- Precommit warning fires for out-of-order feature edits and remains non-blocking.
+- Warning message includes earlier incomplete features and expected remediation.
+- Skill-mining outputs candidate skills with rationale and evidence references.
+- Candidate skills are recorded as proposals for human approval.
 
 ## Scope
 
 ### In Scope
 
-- Precommit checks
-- Prompt analysis
+- Precommit status parsing + warning output
+- Skill-mining heuristics for repeated prompt/workflow patterns
+- Proposal output format and location
+- Tests for warning behavior and mining signal thresholds
 
 ### Out of Scope
 
-- Hard blocking precommit
+- Hard-blocking commits
+- Automatic skill installation
+- External analytics platforms
 
 ## Dependencies
 
 ### Requires
 
-- **Docs/Process rules:** `docs/04-process/`
-- **Templates/tools:** PezzosCode repo
+- **Precommit tooling:** `tools/pc-precommit`
+- **Feature status source:** `docs/02-features/*/dev-tasks.md`
+- **Prompt/workflow signals:** `prompts/`, `logs/`, `.offload/`
+- **Proposal destination:** `docs/possible-improvements.md` (or approved equivalent)
 
 ### Blocks
 
@@ -91,4 +103,5 @@ Add soft feature gating in precommit and mine repeated prompts to propose reusab
 
 ## Risks & Considerations
 
-- Developer fatigue from warnings
+- Warning fatigue can reduce effectiveness if messaging is noisy.
+- Skill-mining heuristics need conservative thresholds to avoid low-value proposals.

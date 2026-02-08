@@ -10,11 +10,11 @@
 
 **Status:** Draft
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-08
 
 ### Summary
 
-Add prompt files and wire them into process docs; plan reviewer gate is enforced in workflow.
+This design updates F-13 from “create prompts” to “stabilize prompt contracts.” The implementation aligns role prompts, task-specific prompt variants, and Plan Reviewer gate behavior with the live `pc-feature` workflow.
 
 ### Product Surfaces
 
@@ -27,37 +27,71 @@ Add prompt files and wire them into process docs; plan reviewer gate is enforced
 
 ## Technical Requirements
 
-- Prompt files
-- Doc references
+- Prompt loading remains file-based (`prompts/*.md`) with task fallback.
+- Prompt/template parity between root and `tools/templates/prompts/`.
+- Plan Reviewer gate uses explicit context (preflight, allowed tests, policy basis).
+- Tests cover prompt loading paths and plan-reviewer gate transitions.
 
 ## Architecture
 
 ### System Context
 
+```text
+Developer/PO -> make feature -> tools/pc-feature
+                    |            |
+                    |            +-> prompts/*.md
+                    |            +-> tests/test_pc_feature.py
+                    |
+                    +-> docs/04-process/*.md
 ```
-User/PO → CLI tools/scripts → Repo docs/logs
-```
+
+### Artifact Map
+
+- Runtime prompts: `prompts/*.md`
+- Template prompts: `tools/templates/prompts/*.md`
+- Workflow engine: `tools/pc-feature`
+- Gate tests: `tests/test_pc_feature.py`
+- Process references: `docs/04-process/*.md`
 
 ### Data Model
 
-None beyond local repo files unless otherwise specified.
+No persistent datastore changes. Artifacts are markdown prompt files and workflow code/tests.
+
+## Implementation Plan
+
+1. Audit prompt files used by `tools/pc-feature` (role + task variants).
+2. Reconcile root prompt files and template prompt files to the same contract.
+3. Tighten Plan Reviewer gate wording where it conflicts with current risk-policy behavior.
+4. Add/refresh workflow tests for prompt loading and reviewer gate outcomes.
+5. Sync process docs if gate wording changed.
+
+## Validation Strategy
+
+- Unit/integration tests in `tests/test_pc_feature.py` must cover:
+  - prompt lookup success/failure paths
+  - plan-reviewer approve path
+  - plan-reviewer block retry path
+  - plan-reviewer policy conflict path
+- Doc checks ensure process docs reference canonical prompt paths and role behavior.
 
 ## Documentation Needs
 
 - [x] Process/doc updates
+- [x] Implementation log entry
+- [x] Validation log entry (if tests executed)
 - [ ] API documentation
 - [ ] User guide updates
-- [ ] Runbook for operations
 
 ## Related Documents
 
-- Feature Spec: [link to feature-spec.md]
-- Dev Tasks: [link to dev-tasks.md]
-- Test Plan: [link to test-plan.md]
-- System Map: [link to docs/00-context/system-map.md]
+- Feature Spec: `docs/02-features/13-role-prompts-plan-reviewer/feature-spec.md`
+- Dev Tasks: `docs/02-features/13-role-prompts-plan-reviewer/dev-tasks.md`
+- Test Plan: `docs/02-features/13-role-prompts-plan-reviewer/test-plan.md`
+- Ticket Protocol: `docs/04-process/ticket-execution-protocol.md`
 
 ## Change Log
 
-| Date       | Version | Changes        | Author       |
-| ---------- | ------- | -------------- | ------------ |
-| 2026-02-05 | 0.1     | Initial design | Primary user |
+| Date       | Version | Changes                              | Author       |
+| ---------- | ------- | ------------------------------------ | ------------ |
+| 2026-02-08 | 0.2     | Rebased design to current prompt set | Codex        |
+| 2026-02-05 | 0.1     | Initial design                       | Primary user |

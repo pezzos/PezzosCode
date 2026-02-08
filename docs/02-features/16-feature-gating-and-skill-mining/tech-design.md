@@ -10,11 +10,11 @@
 
 **Status:** Draft
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-08
 
 ### Summary
 
-Add a soft gating check and a lightweight prompt-analysis pipeline to propose skills.
+Implement a soft precommit sequencing warning and a bounded skill-mining pipeline that proposes reusable skills from repeated workflow patterns.
 
 ### Product Surfaces
 
@@ -27,37 +27,71 @@ Add a soft gating check and a lightweight prompt-analysis pipeline to propose sk
 
 ## Technical Requirements
 
-- Access to feature status
-- Prompt capture
+- Parse feature completion status from `docs/02-features/*/dev-tasks.md`.
+- Emit non-blocking warnings in `tools/pc-precommit` when sequencing policy is violated.
+- Mine repeated prompt/workflow patterns with threshold-based heuristics.
+- Output proposals as human-reviewed artifacts (no auto-install).
 
 ## Architecture
 
 ### System Context
 
-```
-User/PO → CLI tools/scripts → Repo docs/logs
+```text
+git commit -> tools/pc-precommit
+              |-> parse feature statuses -> soft warning
+              |-> continue commit flow
+
+periodic/manual miner -> prompts + logs + .offload
+                       -> repeated pattern detector
+                       -> skill proposal entries
 ```
 
 ### Data Model
 
-None beyond local repo files unless otherwise specified.
+Gating input:
+
+- feature id (folder prefix)
+- `Status:` line from each feature `dev-tasks.md`
+
+Skill-mining candidate fields:
+
+- pattern signature
+- frequency/count
+- evidence locations
+- proposed skill name/description
+
+## Implementation Plan
+
+1. Add status parser helper for feature `dev-tasks.md` files.
+2. Add non-blocking sequencing warning to precommit path.
+3. Implement pattern-mining heuristics with minimum-frequency threshold.
+4. Render candidate skill proposals in markdown format for PO review.
+5. Add tests for parser correctness, warning behavior, and mining thresholds.
+
+## Validation Strategy
+
+- Parser tests for valid/malformed status lines.
+- Precommit tests asserting warning text and non-blocking exit behavior.
+- Mining tests confirming repeated patterns produce proposals while one-offs do not.
 
 ## Documentation Needs
 
 - [x] Process/doc updates
+- [x] Implementation log entry
+- [x] Validation log entry (if tests executed)
 - [ ] API documentation
 - [ ] User guide updates
-- [ ] Runbook for operations
 
 ## Related Documents
 
-- Feature Spec: [link to feature-spec.md]
-- Dev Tasks: [link to dev-tasks.md]
-- Test Plan: [link to test-plan.md]
-- System Map: [link to docs/00-context/system-map.md]
+- Feature Spec: `docs/02-features/16-feature-gating-and-skill-mining/feature-spec.md`
+- Dev Tasks: `docs/02-features/16-feature-gating-and-skill-mining/dev-tasks.md`
+- Test Plan: `docs/02-features/16-feature-gating-and-skill-mining/test-plan.md`
+- Precommit Tooling: `tools/pc-precommit`
 
 ## Change Log
 
-| Date       | Version | Changes        | Author       |
-| ---------- | ------- | -------------- | ------------ |
-| 2026-02-05 | 0.1     | Initial design | Primary user |
+| Date       | Version | Changes                                        | Author       |
+| ---------- | ------- | ---------------------------------------------- | ------------ |
+| 2026-02-08 | 0.2     | Rebased design to explicit warning/mining flow | Codex        |
+| 2026-02-05 | 0.1     | Initial design                                 | Primary user |

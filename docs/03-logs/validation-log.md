@@ -27,6 +27,11 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-08 - Feature docs 13-16 rebaseline validation
+
+- `tools/offload-proxy/pp rg -n "link to feature-spec.md|link to dev-tasks.md|link to test-plan.md|link to docs/00-context/system-map.md" docs/02-features/13-role-prompts-plan-reviewer docs/02-features/14-learning-loop-improvement-proposals docs/02-features/15-offload-audit-and-log-compaction docs/02-features/16-feature-gating-and-skill-mining` (PASS: no placeholder links found)
+- `tools/offload-proxy/pp rg -n "Last Updated:\\*\\*\\s*2026-02-05" docs/02-features/13-role-prompts-plan-reviewer docs/02-features/14-learning-loop-improvement-proposals docs/02-features/15-offload-audit-and-log-compaction docs/02-features/16-feature-gating-and-skill-mining` (PASS: no stale 2026-02-05 metadata remains in features 13-16 docs)
+
 ### 2026-02-07 - Workflow doc sync validation
 
 - Not run (doc-only change; no test command specified).

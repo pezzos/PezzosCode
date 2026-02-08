@@ -27,6 +27,51 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-08 - Rebaseline backlog feature docs for F-13 to F-16
+
+**Feature/Bug:** Documentation alignment (F-13/F-14/F-15/F-16)
+
+**Changed Files:**
+
+- `docs/02-features/13-role-prompts-plan-reviewer/feature-spec.md`
+- `docs/02-features/13-role-prompts-plan-reviewer/tech-design.md`
+- `docs/02-features/13-role-prompts-plan-reviewer/dev-tasks.md`
+- `docs/02-features/13-role-prompts-plan-reviewer/test-plan.md`
+- `docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md`
+- `docs/02-features/14-learning-loop-improvement-proposals/tech-design.md`
+- `docs/02-features/14-learning-loop-improvement-proposals/dev-tasks.md`
+- `docs/02-features/14-learning-loop-improvement-proposals/test-plan.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/feature-spec.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/tech-design.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/test-plan.md`
+- `docs/02-features/16-feature-gating-and-skill-mining/feature-spec.md`
+- `docs/02-features/16-feature-gating-and-skill-mining/tech-design.md`
+- `docs/02-features/16-feature-gating-and-skill-mining/dev-tasks.md`
+- `docs/02-features/16-feature-gating-and-skill-mining/test-plan.md`
+
+**What Changed:**
+
+- Rewrote feature specs/designs/tasks/test plans for features 13-16 to match the current prompt/process architecture.
+- Reframed F-13 from initial prompt creation to prompt-contract maintenance and Plan Reviewer gate validation.
+- Added explicit implementation targets for:
+  - fail/stall proposal capture and dedup in F-14,
+  - offload index/list/get/purge and compaction scope in F-15,
+  - soft precommit sequencing warnings plus skill-mining proposals in F-16.
+- Replaced placeholder related-document links with concrete repository paths and refreshed metadata dates.
+
+**Why:**
+
+- The original feature docs were generated before recent prompt/workflow hardening and no longer represented the current implementation context.
+
+**How:**
+
+- Audited `prompts/*`, workflow/process docs, and existing logs; then updated each feature document set in place.
+
+**Trade-offs / Notes:**
+
+- Feature `Status` values remain draft/not-started; this change updates scope/requirements, not execution completion.
+
 ### 2026-02-08 - Template sync for ticket execution protocol
 
 **Feature/Bug:** Template sync (no feature id)
