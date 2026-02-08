@@ -256,6 +256,57 @@ Switched reviewer guard to pre/post dirty snapshot delta checks, moved planner n
 
 **Fixed Date:** 2026-02-08
 
+### [BUG-007] - Auto-resume path missing deterministic startup handling for existing feature worktrees
+
+**Date Discovered:** 2026-02-08
+
+**Discovered By:** workflow regression review (`make feature` rerun behavior)
+
+**Severity:** High
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Anyone rerunning `make feature` on an existing in-progress feature worktree.
+
+**Symptoms:**
+
+- Resume could require manual prompt flow or fail unpredictably with dirty/stale/parallel state.
+- Existing runtime state in `dev-tasks.md` could be lost or rejected without actionable startup policy.
+
+**Root Cause:**
+
+Resume startup relied on prompt-era heuristics and pristine assumptions, without a deterministic state model for:
+
+- mode selection,
+- dirty-scope validation,
+- stale/behind-main rejection,
+- cross-feature active-worktree exclusion.
+
+**Fix:**
+
+- Added `RESUME_MODE` (`auto|prompt|fresh`) and made `auto` deterministic default.
+- Added single-active-feature startup guard across patcher worktrees.
+- Added runtime vs non-runtime dirty classification and fail-fast diagnostics.
+- Added auto-checkpoint commit for dirty `dev-tasks.md` when a resumable work item exists.
+- Updated tests to cover resume startup policy and failure modes.
+
+**Files Changed:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+
+**Prevention:**
+
+- Regression tests for startup mode parsing and resume-state classification.
+- Explicit workflow docs for resume mode behavior and stale/main-freeze constraints.
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-08
+
 ### [BUG-003] - Allowed Tests prose triggers invalid command execution
 
 **Date Discovered:** 2026-02-05

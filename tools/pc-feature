@@ -29,6 +29,15 @@ HIGH_RISK_APPROVAL_NOTE = "High-risk gate approved interactively."
 MAIN_FREEZE_NOTE_PREFIX = "Main head locked:"
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
 AUTO_REVIEWER_HYGIENE_ENV = "AUTO_REVIEWER_HYGIENE"
+RESUME_MODE_ENV = "RESUME_MODE"
+RESUME_MODE_AUTO = "auto"
+RESUME_MODE_PROMPT = "prompt"
+RESUME_MODE_FRESH = "fresh"
+RESUME_MODE_VALUES = {
+    RESUME_MODE_AUTO,
+    RESUME_MODE_PROMPT,
+    RESUME_MODE_FRESH,
+}
 IGNORED_PATH_PREFIXES = (
     ".tmp/",
     ".codex_subagent/",
@@ -790,6 +799,17 @@ def build_worktree_branch(feature_name: str, agent: str) -> str:
     return f"feature-{safe_feature}-{safe_agent}"
 
 
+def normalize_feature_token(value: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9]+", "-", value).strip("-").lower()
+
+
+def patcher_branch_feature_token(branch: str) -> Optional[str]:
+    match = re.match(r"^feature-(?P<feature>.+)-patcher$", branch.strip())
+    if not match:
+        return None
+    return normalize_feature_token(match.group("feature"))
+
+
 def git_current_branch(path: str) -> str:
     result = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -867,6 +887,43 @@ def prepare_worktree(
     if result.returncode != 0:
         die(f"pc-feature: failed to create worktree for {agent}\n{result.stderr}")
     return path, branch
+
+
+def list_worktree_entries(root: str) -> List[Tuple[str, Optional[str]]]:
+    result = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(f"pc-feature: failed to list worktrees\n{result.stderr}")
+
+    entries: List[Tuple[str, Optional[str]]] = []
+    current_path: Optional[str] = None
+    current_branch: Optional[str] = None
+    for raw_line in result.stdout.splitlines() + [""]:
+        line = raw_line.strip()
+        if not line:
+            if current_path:
+                entries.append((current_path, current_branch))
+            current_path = None
+            current_branch = None
+            continue
+        if line.startswith("worktree "):
+            if current_path:
+                entries.append((current_path, current_branch))
+            current_path = line.split(" ", 1)[1].strip()
+            current_branch = None
+            continue
+        if line.startswith("branch "):
+            current_branch = line.split(" ", 1)[1].strip()
+            if current_branch.startswith("refs/heads/"):
+                current_branch = current_branch[len("refs/heads/") :]
+            continue
+    return entries
 
 
 def worktree_role_paths(feature_dir: str) -> Dict[str, str]:
@@ -1751,6 +1808,118 @@ def parse_bool_env(name: str) -> Optional[bool]:
     return None
 
 
+def parse_resume_mode() -> str:
+    raw = os.environ.get(RESUME_MODE_ENV, RESUME_MODE_AUTO)
+    value = raw.strip().lower()
+    if not value:
+        return RESUME_MODE_AUTO
+    if value not in RESUME_MODE_VALUES:
+        die(
+            f"pc-feature: invalid {RESUME_MODE_ENV} value '{raw}'; "
+            f"expected one of: {', '.join(sorted(RESUME_MODE_VALUES))}"
+        )
+    return value
+
+
+def classify_resume_dirty_paths(
+    dirty_paths: List[str], feature_dir: str, dev_tasks_path: str
+) -> Tuple[List[str], List[str]]:
+    filtered = sorted(filter_ignored_paths(dirty_paths))
+    allowed = {dev_tasks_path}
+    allowed.update(role_log_paths(feature_dir))
+    allowed.update(global_log_paths())
+    runtime_dirty = sorted(path for path in filtered if path in allowed)
+    unexpected_dirty = sorted(path for path in filtered if path not in allowed)
+    return runtime_dirty, unexpected_dirty
+
+
+def checkpoint_resume_dev_tasks(
+    worktree_path: str, work_item_id: str, dev_tasks_path: str
+) -> bool:
+    dirty = sorted(filter_ignored_paths(get_status_paths(worktree_path)))
+    if dev_tasks_path not in dirty:
+        return False
+    unexpected = [path for path in dirty if path != dev_tasks_path]
+    if unexpected:
+        die(
+            "pc-feature: cannot checkpoint resume state; unexpected dirty paths: "
+            + ", ".join(unexpected)
+        )
+    add_result = subprocess.run(
+        ["git", "add", "--", dev_tasks_path],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=worktree_path,
+    )
+    if add_result.returncode != 0:
+        die(
+            "pc-feature: failed to stage resume checkpoint for dev-tasks.md\n"
+            + (add_result.stderr or add_result.stdout)
+        )
+    commit_message = f"orchestrator: resume checkpoint for {work_item_id}"
+    commit_result = subprocess.run(
+        ["git", "commit", "--no-verify", "-m", commit_message],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=worktree_path,
+    )
+    if commit_result.returncode == 0:
+        return True
+    detail = (commit_result.stdout or "") + (commit_result.stderr or "")
+    if "nothing to commit" in detail.lower():
+        return False
+    die(
+        "pc-feature: failed to checkpoint resume dev-tasks.md\n"
+        + (detail or "(no git output)")
+    )
+    return False
+
+
+def active_other_feature_worktrees(
+    root: str, feature_slug: str, patcher_path: str
+) -> List[str]:
+    current_token = normalize_feature_token(feature_slug)
+    current_path_abs = os.path.abspath(patcher_path)
+    blockers: List[str] = []
+    for worktree_path, branch in list_worktree_entries(root):
+        if not branch:
+            continue
+        feature_token = patcher_branch_feature_token(branch)
+        if feature_token is None:
+            continue
+        if os.path.abspath(worktree_path) == current_path_abs:
+            continue
+        if feature_token == current_token:
+            continue
+        dirty = bool(filter_ignored_paths(get_status_paths(worktree_path)))
+        ahead = branch_ahead_count(root, "refs/heads/main", branch) > 0
+        if not dirty and not ahead:
+            continue
+        reasons: List[str] = []
+        if dirty:
+            reasons.append("dirty")
+        if ahead:
+            reasons.append("ahead-of-main")
+        blockers.append(f"{worktree_path} ({branch}; reasons: {', '.join(reasons)})")
+    return blockers
+
+
+def enforce_single_active_feature(
+    root: str, feature_slug: str, patcher_path: str
+) -> None:
+    blockers = active_other_feature_worktrees(root, feature_slug, patcher_path)
+    if not blockers:
+        return
+    die(
+        "pc-feature: another feature is already in progress; "
+        "finish or clean it before starting this run: " + "; ".join(blockers)
+    )
+
+
 def approve_high_risk_interactive(risk_level: str, triggers: List[str]) -> bool:
     if risk_level != "HIGH":
         return True
@@ -2034,28 +2203,56 @@ def main() -> None:
     print(
         f"pc-feature: requested feature id={feature_id}; resolved feature={feature_slug}"
     )
+    resume_mode = parse_resume_mode()
     patcher_path = build_worktree_path(root, feature_slug, "patcher")
     patcher_branch = build_worktree_branch(feature_slug, "patcher")
-    if os.path.exists(patcher_path) and os.path.exists(
+    enforce_single_active_feature(root, feature_slug, patcher_path)
+    existing_patcher_worktree = os.path.exists(patcher_path) and os.path.exists(
         os.path.join(patcher_path, ".git")
-    ):
+    )
+    if existing_patcher_worktree:
         existing_branch = git_current_branch(patcher_path)
-        dirty = worktree_is_dirty(patcher_path)
+        if existing_branch == "main":
+            die("pc-feature: existing patcher worktree is on main")
+        if existing_branch != patcher_branch:
+            die(
+                "pc-feature: existing patcher worktree branch mismatch; "
+                f"expected={patcher_branch} actual={existing_branch}"
+            )
+        dirty = bool(filter_ignored_paths(get_status_paths(patcher_path)))
         ahead = branch_ahead_count(root, "refs/heads/main", existing_branch) > 0
         behind = branch_behind_count(root, existing_branch, "refs/heads/main") > 0
-        if behind:
+        if resume_mode == RESUME_MODE_FRESH:
+            print(
+                "pc-feature: RESUME_MODE=fresh; recreating existing patcher worktree: "
+                f"{patcher_path}"
+            )
+            remove_worktree(root, patcher_path, existing_branch)
+            existing_patcher_worktree = False
+            dirty = False
+            ahead = False
+            behind = False
+        elif behind:
             print(
                 "pc-feature: existing patcher worktree is behind main "
                 f"(stale): {patcher_path}"
             )
-            if not prompt_yes_no(
-                "pc-feature: recreate stale patcher worktree from main? [y/N]"
-            ):
-                die("pc-feature: aborted by user; stale patcher worktree preserved")
-            remove_worktree(root, patcher_path, existing_branch)
-            dirty = False
-            ahead = False
-        if dirty or ahead:
+            if resume_mode == RESUME_MODE_PROMPT:
+                if not prompt_yes_no(
+                    "pc-feature: recreate stale patcher worktree from main? [y/N]"
+                ):
+                    die("pc-feature: aborted by user; stale patcher worktree preserved")
+                remove_worktree(root, patcher_path, existing_branch)
+                existing_patcher_worktree = False
+                dirty = False
+                ahead = False
+            else:
+                die(
+                    "pc-feature: existing patcher worktree is stale (behind main); "
+                    "main must remain unchanged while a feature is in progress. "
+                    f"Path: {patcher_path}"
+                )
+        if existing_patcher_worktree and (dirty or ahead):
             reasons: List[str] = []
             if dirty:
                 reasons.append("dirty")
@@ -2065,10 +2262,17 @@ def main() -> None:
                 "pc-feature: existing patcher worktree is not pristine "
                 f"({', '.join(reasons)}): {patcher_path}"
             )
-            if not prompt_yes_no(
-                "pc-feature: continue with existing patcher worktree? [y/N]"
-            ):
-                die("pc-feature: aborted by user; existing patcher worktree preserved")
+            if resume_mode == RESUME_MODE_PROMPT:
+                if not prompt_yes_no(
+                    "pc-feature: continue with existing patcher worktree? [y/N]"
+                ):
+                    die(
+                        "pc-feature: aborted by user; existing patcher worktree preserved"
+                    )
+            else:
+                print(
+                    "pc-feature: auto-resume enabled; continuing existing patcher worktree."
+                )
     dev_tasks_repo_path = normalize_repo_rel(os.path.join(feature_dir, "dev-tasks.md"))
     patcher_path, patcher_branch = prepare_worktree(
         root, feature_slug, "patcher", "main"
@@ -2091,10 +2295,48 @@ def main() -> None:
         )
         for role, role_path in role_paths.items()
     }
+    resume_work_item_id = select_resume_work_item_id(content)
+    runtime_dirty, unexpected_dirty = classify_resume_dirty_paths(
+        get_status_paths(patcher_path),
+        feature_dir,
+        dev_tasks_repo_path,
+    )
+    if unexpected_dirty:
+        die(
+            "pc-feature: existing patcher worktree has non-runtime dirty paths; "
+            "cannot auto-resume safely: " + ", ".join(unexpected_dirty)
+        )
+    if runtime_dirty:
+        print(
+            "pc-feature: resume runtime dirty paths detected: "
+            + ", ".join(runtime_dirty)
+        )
     cleanup_dirty_role_logs(patcher_path, feature_dir)
     cleanup_dirty_global_logs(patcher_path)
+    dirty_after_cleanup = sorted(filter_ignored_paths(get_status_paths(patcher_path)))
+    unexpected_after_cleanup = sorted(
+        path for path in dirty_after_cleanup if path != dev_tasks_repo_path
+    )
+    if unexpected_after_cleanup:
+        die(
+            "pc-feature: preflight cleanup left unexpected dirty paths: "
+            + ", ".join(unexpected_after_cleanup)
+        )
+    if dev_tasks_repo_path in dirty_after_cleanup:
+        if not resume_work_item_id:
+            die(
+                "pc-feature: dev-tasks.md is dirty but no in-progress work item exists; "
+                "set RESUME_MODE=fresh to restart cleanly."
+            )
+        if checkpoint_resume_dev_tasks(
+            patcher_path, resume_work_item_id, dev_tasks_repo_path
+        ):
+            print(
+                "pc-feature: checkpointed resume state from dev-tasks.md "
+                f"for {resume_work_item_id}"
+            )
     ensure_clean_worktree(root, patcher_path, patcher_branch, "preflight")
-
+    content = read_file(dev_tasks_path)
     work_item_id = select_resume_work_item_id(content)
     if not work_item_id:
         work_item_id = next_work_item_id(content)

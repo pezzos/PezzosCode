@@ -970,3 +970,18 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - shared `main()` test harness stubs reviewer snapshot paths (`collect_dirty_snapshot`) and tuple-return guard contract.
   - deferred planner no-op iteration notes persist in `dev-tasks.md` when reviewer approves.
   - no `git status` lookups are attempted against non-repository temp directories in unit tests.
+
+## 2026-02-08 - Auto-resume startup hardening validation
+
+- Command: `python3 -m py_compile tools/pc-feature`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`67` tests)
+- Verified:
+  - `RESUME_MODE` parsing supports `auto|prompt|fresh` with deterministic invalid-value failure.
+  - existing in-progress feature worktrees auto-resume in `auto` mode without startup prompt.
+  - startup blocks non-runtime dirty paths and parallel active feature worktrees.
+  - dirty `dev-tasks.md` is checkpointed on resumable work items before preflight clean enforcement.
+  - runs fail fast when dirty `dev-tasks.md` exists without an in-progress work item (`RESUME_MODE=fresh` remediation).
+- Not run:
+  - `make feature F=11` / `make feature F=12` (explicitly skipped per workflow testing rule to avoid agent-side `make feature` execution).

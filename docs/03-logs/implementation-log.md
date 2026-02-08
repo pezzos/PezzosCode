@@ -27,6 +27,26 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-08 - Sync resume policy block into ticket execution protocol template
+
+**Feature/Bug:** Template sync (no feature id)
+
+**Changed Files:**
+
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Restored the resume startup policy block (RESUME_MODE options and guards) in the template.
+
+**Why:**
+
+- Keep the template aligned with the living execution protocol guidance.
+
+**How:**
+
+- Copied the missing resume policy bullets from `docs/04-process/ticket-execution-protocol.md`.
+
 ### 2026-02-08 - Rebaseline feature docs for F-12 incremental PRD-to-features
 
 **Feature/Bug:** Documentation alignment (F-12)
@@ -4569,3 +4589,41 @@ Track when debt is paid down:
 - `python3 -m py_compile tools/pc-feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+
+### 2026-02-08 - Auto-resume restoration with deterministic startup guards
+
+**Feature/Bug:** restore safe automatic feature resume for existing in-progress worktrees without reintroducing dirty-state ambiguity
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added `RESUME_MODE` startup policy (`auto` default, `prompt`, `fresh`).
+- Replaced implicit startup prompts with deterministic resume handling in `auto` mode:
+  - continue existing ahead/dirty patcher worktree automatically when safe.
+  - block stale behind-`main` worktrees (policy: `main` must remain unchanged during feature execution).
+  - block non-runtime dirty paths before execution.
+- Added runtime-dirty classification for resume startup (`dev-tasks.md`, role logs, global logs only).
+- Added automatic resume checkpoint commit for dirty `dev-tasks.md` when a resumable work item exists.
+- Added single-active-feature guard across patcher worktrees to prevent overlapping active features.
+- Expanded regression coverage for resume mode parsing, startup guard behavior, runtime dirty classification, and checkpoint flow.
+
+**Why:**
+
+- Resume behavior had been partially removed/hardened toward pristine-only startup, which reduced reliability for normal reruns of in-progress features.
+- We need automatic resume back, but with strict controls to avoid cross-feature and dirty-state failures.
+
+**Impact:**
+
+- **Breaking changes:** Yes (startup policy now fails fast for stale/non-runtime-dirty/parallel-active-feature states unless explicitly handled by mode)
+- **Performance:** Minimal (worktree-list + status checks at startup)
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`

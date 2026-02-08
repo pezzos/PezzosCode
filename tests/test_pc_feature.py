@@ -111,7 +111,14 @@ class TestPcFeature(unittest.TestCase):
             mock.patch.object(
                 self.pc_feature, "build_worktree_branch", return_value="patcher-branch"
             ),
+            mock.patch.object(
+                self.pc_feature, "parse_resume_mode", return_value="auto"
+            ),
+            mock.patch.object(
+                self.pc_feature, "enforce_single_active_feature", return_value=None
+            ),
             mock.patch.object(self.pc_feature, "worktree_is_dirty", return_value=False),
+            mock.patch.object(self.pc_feature, "get_status_paths", return_value=[]),
             mock.patch.object(self.pc_feature, "branch_ahead_count", return_value=0),
             mock.patch.object(self.pc_feature, "branch_behind_count", return_value=0),
             mock.patch.object(
@@ -154,6 +161,14 @@ class TestPcFeature(unittest.TestCase):
             mock.patch.object(self.pc_feature, "remove_worktree", return_value=None),
             mock.patch.object(
                 self.pc_feature, "collect_allowed_final_stage_paths", return_value=[]
+            ),
+            mock.patch.object(
+                self.pc_feature,
+                "classify_resume_dirty_paths",
+                return_value=([], []),
+            ),
+            mock.patch.object(
+                self.pc_feature, "checkpoint_resume_dev_tasks", return_value=False
             ),
             mock.patch.object(
                 self.pc_feature, "ensure_root_start_scope", return_value=None
@@ -639,6 +654,107 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertIsNone(self.pc_feature.select_resume_work_item_id(content))
 
+    def test_parse_resume_mode_defaults_to_auto(self):
+        with mock.patch.dict(self.pc_feature.os.environ, {}, clear=False):
+            self.assertEqual(self.pc_feature.parse_resume_mode(), "auto")
+
+    def test_parse_resume_mode_invalid_value_exits(self):
+        stderr_capture = io.StringIO()
+        with mock.patch.dict(
+            self.pc_feature.os.environ, {"RESUME_MODE": "invalid"}, clear=False
+        ):
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stderr(stderr_capture):
+                    self.pc_feature.parse_resume_mode()
+        self.assertIn("invalid RESUME_MODE value", stderr_capture.getvalue())
+
+    def test_classify_resume_dirty_paths_separates_runtime_and_unexpected(self):
+        feature_dir = "docs/02-features/01-workflow-hardening"
+        dev_tasks = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+        runtime, unexpected = self.pc_feature.classify_resume_dirty_paths(
+            [
+                dev_tasks,
+                "docs/02-features/01-workflow-hardening/planner-log.md",
+                "docs/03-logs/implementation-log.md",
+                "README.md",
+            ],
+            feature_dir,
+            dev_tasks,
+        )
+        self.assertEqual(
+            runtime,
+            [
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening/planner-log.md",
+                "docs/03-logs/implementation-log.md",
+            ],
+        )
+        self.assertEqual(unexpected, ["README.md"])
+
+    def test_enforce_single_active_feature_blocks_other_active_patcher(self):
+        stderr_capture = io.StringIO()
+        with mock.patch.object(
+            self.pc_feature,
+            "list_worktree_entries",
+            return_value=[
+                (
+                    "/tmp/current",
+                    "feature-11-simplify-worktree-tracking-patcher",
+                ),
+                (
+                    "/tmp/other",
+                    "feature-12-incremental-prd-to-features-patcher",
+                ),
+            ],
+        ):
+            with mock.patch.object(
+                self.pc_feature,
+                "get_status_paths",
+                return_value=[
+                    "docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+                ],
+            ):
+                with mock.patch.object(
+                    self.pc_feature, "branch_ahead_count", return_value=0
+                ):
+                    with self.assertRaises(SystemExit):
+                        with contextlib.redirect_stderr(stderr_capture):
+                            self.pc_feature.enforce_single_active_feature(
+                                "/tmp/root",
+                                "11-simplify-worktree-tracking",
+                                "/tmp/current",
+                            )
+        self.assertIn(
+            "another feature is already in progress", stderr_capture.getvalue()
+        )
+
+    def test_enforce_single_active_feature_allows_clean_other_patcher(self):
+        with mock.patch.object(
+            self.pc_feature,
+            "list_worktree_entries",
+            return_value=[
+                (
+                    "/tmp/current",
+                    "feature-11-simplify-worktree-tracking-patcher",
+                ),
+                (
+                    "/tmp/other",
+                    "feature-12-incremental-prd-to-features-patcher",
+                ),
+            ],
+        ):
+            with mock.patch.object(
+                self.pc_feature, "get_status_paths", return_value=[]
+            ):
+                with mock.patch.object(
+                    self.pc_feature, "branch_ahead_count", return_value=0
+                ):
+                    self.pc_feature.enforce_single_active_feature(
+                        "/tmp/root",
+                        "11-simplify-worktree-tracking",
+                        "/tmp/current",
+                    )
+
     def test_parse_plan_reviewer_decision(self):
         self.assertEqual(
             self.pc_feature.parse_plan_reviewer_decision("Decision: Approve"),
@@ -939,7 +1055,99 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.main()
             self.assertEqual(selected.get("work_item_id"), newest)
 
-    def test_main_dirty_existing_worktree_continue_preserves_state(self):
+    def test_main_resume_checkpoints_dirty_dev_tasks_for_in_progress_item(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260209-01"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            dev_tasks_repo_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            checkpoint_mock = mock.Mock(return_value=True)
+
+            def stop_after_precheck(content: str, work_item_id: str) -> str:
+                raise StopMain()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "classify_resume_dirty_paths",
+                        return_value=([dev_tasks_repo_path], []),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "get_status_paths",
+                        return_value=[dev_tasks_repo_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "checkpoint_resume_dev_tasks",
+                        checkpoint_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_allowed_tests_section",
+                        side_effect=stop_after_precheck,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            checkpoint_mock.assert_called_once_with(
+                str(patcher_path), work_item_id, dev_tasks_repo_path
+            )
+
+    def test_main_dirty_dev_tasks_without_resume_item_requires_fresh_mode(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260209-02"
+            content = self._build_entry_content(work_item_id, outcome="pass")
+            feature_dir = self._write_feature_workspace(root, content)
+            dev_tasks_repo_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            stderr_capture = io.StringIO()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "classify_resume_dirty_paths",
+                        return_value=([dev_tasks_repo_path], []),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "get_status_paths",
+                        return_value=[dev_tasks_repo_path],
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "set RESUME_MODE=fresh to restart cleanly",
+                stderr_capture.getvalue(),
+            )
+
+    def test_main_dirty_existing_worktree_auto_resume_preserves_state(self):
         class StopMain(RuntimeError):
             pass
 
@@ -955,7 +1163,6 @@ class TestPcFeature(unittest.TestCase):
             prepare_worktree_mock = mock.Mock(
                 return_value=(str(patcher_path), "patcher-branch")
             )
-            prompt_yes_no_mock = mock.Mock(return_value=True)
             print_mock = mock.Mock()
             reached_after_precheck = {"value": False}
 
@@ -969,13 +1176,6 @@ class TestPcFeature(unittest.TestCase):
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
-                        "worktree_is_dirty",
-                        return_value=True,
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
                         "branch_ahead_count",
                         return_value=1,
                     )
@@ -983,8 +1183,8 @@ class TestPcFeature(unittest.TestCase):
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
-                        "prompt_yes_no",
-                        prompt_yes_no_mock,
+                        "parse_resume_mode",
+                        return_value="auto",
                     )
                 )
                 stack.enter_context(
@@ -1014,15 +1214,20 @@ class TestPcFeature(unittest.TestCase):
 
             remove_worktree_mock.assert_not_called()
             self.assertTrue(reached_after_precheck["value"])
-            prompt_yes_no_mock.assert_called_once()
             self.assertTrue(
                 any(
                     "existing patcher worktree is not pristine" in str(call.args[0])
                     for call in print_mock.call_args_list
                 )
             )
+            self.assertTrue(
+                any(
+                    "auto-resume enabled" in str(call.args[0])
+                    for call in print_mock.call_args_list
+                )
+            )
 
-    def test_main_dirty_existing_worktree_abort_exits_without_cleanup(self):
+    def test_main_existing_worktree_non_runtime_dirty_exits_without_cleanup(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             patcher_path = root / "patcher"
@@ -1043,22 +1248,8 @@ class TestPcFeature(unittest.TestCase):
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
-                        "worktree_is_dirty",
-                        return_value=True,
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "branch_ahead_count",
-                        return_value=1,
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "prompt_yes_no",
-                        return_value=False,
+                        "classify_resume_dirty_paths",
+                        return_value=([], ["README.md"]),
                     )
                 )
                 stack.enter_context(
@@ -1080,11 +1271,11 @@ class TestPcFeature(unittest.TestCase):
                         self.pc_feature.main()
 
             self.assertIn(
-                "aborted by user; existing patcher worktree preserved",
+                "non-runtime dirty paths",
                 stderr_capture.getvalue(),
             )
             remove_worktree_mock.assert_not_called()
-            prepare_worktree_mock.assert_not_called()
+            prepare_worktree_mock.assert_called_once()
 
     def test_allowed_tests_run_in_worktree_cwd(self):
         class StopMain(RuntimeError):

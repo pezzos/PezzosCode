@@ -1710,6 +1710,23 @@ When a decision is reversed or replaced, document it here:
   - Move planner no-op note write to after reviewer verification.
   - Add pre-review hygiene checkpoint (`AUTO_REVIEWER_HYGIENE`) to auto-clean planner-owned pre-existing dirt and block unexpected paths.
 - **Consequences:**
-  - Prevents false attribution of planner/orchestrator edits to reviewer.
-  - Preserves strict read-only enforcement for real reviewer modifications.
-  - Improves failure diagnostics and loop traceability for reruns.
+- Prevents false attribution of planner/orchestrator edits to reviewer.
+- Preserves strict read-only enforcement for real reviewer modifications.
+- Improves failure diagnostics and loop traceability for reruns.
+
+### DEC-029 - Restore auto-resume with strict startup state gating
+
+- **Date:** 2026-02-08
+- **Status:** Accepted
+- **Context:** Resume behavior is required for in-progress features, but previous simplification toward pristine-only startup removed reliable resume while recent failures showed dirty/stale/parallel-state hazards.
+- **Decision:**
+  - Reintroduce automatic resume by default via `RESUME_MODE=auto`.
+  - Add explicit startup modes: `auto`, `prompt`, `fresh`.
+  - Treat stale behind-`main` feature worktrees as hard failures in `auto` mode.
+  - Allow resume only when dirty state is runtime-scoped; block non-runtime dirty files.
+  - Auto-checkpoint dirty `dev-tasks.md` when a resumable work item exists.
+  - Enforce single active feature across patcher worktrees.
+- **Consequences:**
+  - In-progress feature reruns resume without manual prompts in the common case.
+  - Startup failures become deterministic and actionable for stale/unsafe states.
+  - Parallel active feature attempts are blocked to preserve single-feature execution guarantees.
