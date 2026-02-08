@@ -58,6 +58,7 @@
 6. **Plan → Patch → Test → Report**
    - Plan: approach, files, risks, tests, and work-item-specific DoD.
    - Plan is reviewed by Plan Reviewer (no code edits) before patching.
+   - Before patching, enforce deterministic plan policy checks and block if the plan includes role-scoped/global log files or forbidden commands (`make feature`, `pc-feature`).
    - Plan must include anti-hardcode coverage (fixtures per critical path, seed strategy, invariant checks, contract boundaries).
    - Block the work item if the Plan/TDD Plan does not state fixture count (>=2 per critical path), seed strategy, and invariant checks.
    - Patch: make the smallest diff that satisfies the work item (TDD where applicable).

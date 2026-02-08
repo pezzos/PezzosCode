@@ -1684,3 +1684,17 @@ When a decision is reversed or replaced, document it here:
   - Reporter/planner loops consume current iteration artifacts, not stale `main` files.
   - Runtime logs no longer pollute `main` during execution.
   - Retry loops have deterministic remediation context and fail with clearer diagnostics when exhausted.
+
+### DEC-027 - Enforce deterministic plan policy before patcher execution
+
+- **Date:** 2026-02-08
+- **Status:** Accepted
+- **Context:** Planner output can still contain forbidden instructions (role-scoped files/global logs/forbidden commands). If reviewer misses this, patcher fails later with role-scope errors and wastes loop budget.
+- **Decision:**
+  - Add orchestrator-side plan policy validation before patcher execution.
+  - Treat violations as `BLOCK` and route back to planner with actionable required changes.
+  - Expand patcher role-scope checks to block role-scoped files across all feature folders, not just current feature.
+- **Consequences:**
+  - Invalid plans are stopped deterministically before patching.
+  - Feature-id/context mismatches become visible earlier.
+  - Failure mode shifts from late patcher guard crashes to actionable planner revision loops.

@@ -305,6 +305,52 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.normalize_allowed_test("node scripts/test.js")
         )
 
+    def test_plan_policy_violations_detects_forbidden_paths_and_commands(self):
+        plan = (
+            "- Edit docs/02-features/12-incremental-prd-to-features/dev-tasks.md\n"
+            "- Update docs/03-logs/implementation-log.md\n"
+            "- Run make feature F=12\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(plan)
+        self.assertTrue(any("dev-tasks.md" in item for item in violations))
+        self.assertTrue(any("docs/03-logs" in item for item in violations))
+        self.assertTrue(any("make feature" in item for item in violations))
+
+    def test_role_scoped_path_forbidden_for_patcher_detects_cross_feature_docs(self):
+        self.assertTrue(
+            self.pc_feature.role_scoped_path_forbidden_for_patcher(
+                "docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+            )
+        )
+        self.assertTrue(
+            self.pc_feature.role_scoped_path_forbidden_for_patcher(
+                "docs/03-logs/validation-log.md"
+            )
+        )
+        self.assertFalse(
+            self.pc_feature.role_scoped_path_forbidden_for_patcher(
+                "docs/02-features/12-incremental-prd-to-features/feature-spec.md"
+            )
+        )
+
+    def test_enforce_role_scope_blocks_patcher_cross_feature_role_docs(self):
+        stderr_capture = io.StringIO()
+        with mock.patch.object(
+            self.pc_feature,
+            "get_status_paths",
+            return_value=[
+                "docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+            ],
+        ):
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stderr(stderr_capture):
+                    self.pc_feature.enforce_role_scope(
+                        "/tmp/worktree",
+                        "patcher",
+                        "docs/02-features/11-simplify-worktree-tracking",
+                    )
+        self.assertIn("patcher edited role-scoped files", stderr_capture.getvalue())
+
     def test_anti_hardcode_coverage_issues_requires_all_signals(self):
         missing = self.pc_feature.anti_hardcode_coverage_issues(
             "Plan with tests only",
@@ -2003,6 +2049,90 @@ class TestPcFeature(unittest.TestCase):
 
             self.assertEqual(reviewer_calls["count"], 1)
             self.assertEqual(planner_update_calls["count"], 0)
+
+    def test_plan_policy_block_routes_back_to_planner_before_patcher(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260208-02"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Plan",
+                "- update docs/02-features/12-incremental-prd-to-features/dev-tasks.md\n"
+                "- run make feature F=12",
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reviewer_calls = {"count": 0}
+            planner_update_calls = {"count": 0}
+            patcher_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    return False
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    reviewer_calls["count"] += 1
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Update the Plan section based on Plan Reviewer feedback" in prompt:
+                    planner_update_calls["count"] += 1
+                    raise StopMain()
+                if "You are the Patcher agent." in prompt:
+                    patcher_calls["count"] += 1
+                    return "should not patch"
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(reviewer_calls["count"], 1)
+            self.assertEqual(planner_update_calls["count"], 1)
+            self.assertEqual(patcher_calls["count"], 0)
 
     def test_plan_reviewer_blocks_do_not_consume_execution_attempt_budget(self):
         class StopMain(RuntimeError):

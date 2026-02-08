@@ -178,6 +178,45 @@ Resolve runtime artifacts (`dev-tasks.md`, role logs, `logs/WI-*`) from the patc
 
 **Fixed Date:** 2026-02-08
 
+### [BUG-005] - Planner/reviewer can allow forbidden patcher targets
+
+**Date Discovered:** 2026-02-08
+
+**Discovered By:** CLI run (`make feature F=11`) failure report
+
+**Severity:** High
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Feature runs where planner output includes role-scoped/global-log edits.
+
+**Symptoms:**
+`pc-feature` aborts late with `patcher edited role-scoped files: docs/02-features/<other-feature>/dev-tasks.md`.
+
+**Root Cause:**
+Role-scope guard existed at patcher stage, but no deterministic pre-patcher policy gate blocked forbidden plan instructions when reviewer approved them.
+
+**Fix:**
+Added orchestrator-side plan-policy validation before patcher execution and expanded patcher guard to block role-scoped docs across all features.
+
+**Files Changed:**
+
+- `tools/pc-feature`
+- `prompts/plan-reviewer-gate.md`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+
+**Prevention:**
+
+- Tests added for policy violation detection and cross-feature role-scope blocking.
+- Process updated to require deterministic pre-patcher plan policy checks.
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-08
+
 ### [BUG-003] - Allowed Tests prose triggers invalid command execution
 
 **Date Discovered:** 2026-02-05

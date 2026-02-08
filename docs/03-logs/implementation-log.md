@@ -27,6 +27,59 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-08 - Rebaseline feature docs for F-12 incremental PRD-to-features
+
+**Feature/Bug:** Documentation alignment (F-12)
+
+**Changed Files:**
+
+- `docs/02-features/12-incremental-prd-to-features/feature-spec.md`
+- `docs/02-features/12-incremental-prd-to-features/tech-design.md`
+- `docs/02-features/12-incremental-prd-to-features/dev-tasks.md`
+- `docs/02-features/12-incremental-prd-to-features/test-plan.md`
+
+**What Changed:**
+
+- Rewrote F-12 docs to match current incremental policy:
+  - add missing features only,
+  - never delete existing folders,
+  - skip `Status: Done` feature folders,
+  - update existing non-done folders in place without destructive overwrite.
+- Replaced placeholder related-doc links with concrete repository paths.
+- Added explicit task/test coverage for idempotency, duplicate prevention, and no-delete guarantees.
+
+**Why:**
+
+- The original F-12 docs were too generic and did not reflect the current process contract, which made implementation attempts ambiguous.
+
+**How:**
+
+- Audited current PRD/workflow/skill rules and rewrote the feature docs in place.
+
+**Trade-offs / Notes:**
+
+- This is a documentation rebaseline only; feature execution status remains unchanged.
+
+### 2026-02-08 - Template sync for ticket execution protocol (plan policy check)
+
+**Feature/Bug:** Template sync (no feature id)
+
+**Changed Files:**
+
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Restored the deterministic plan policy check bullet in the template's Plan step.
+
+**Why:**
+
+- Keep the template aligned with the living execution protocol's Plan requirements.
+
+**How:**
+
+- Added the missing bullet to match `docs/04-process/ticket-execution-protocol.md`.
+
 ### 2026-02-08 - Rebaseline backlog feature docs for F-13 to F-16
 
 **Feature/Bug:** Documentation alignment (F-13/F-14/F-15/F-16)
@@ -4390,3 +4443,41 @@ Track when debt is paid down:
 **Testing:**
 
 - Not run (not requested).
+
+### 2026-02-08 - Plan-policy gate and cross-feature role-scope hardening
+
+**Feature/Bug:** prevent patcher from acting on role-scoped/global-log instructions that slip through planner output
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `prompts/plan-reviewer-gate.md`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added deterministic plan-policy validation before patching:
+  - Blocks plans that reference role-scoped files (`dev-tasks.md`, planner/reporter/validation logs).
+  - Blocks plans that reference `docs/03-logs/*`.
+  - Blocks plans that include forbidden commands (`make feature`, `pc-feature`, `tools/pc-feature`).
+- Extended patcher scope guard to reject role-scoped files across any feature, not only the current feature folder.
+- Added explicit startup visibility line for feature routing: requested feature id and resolved feature slug.
+- Added regression tests for plan-policy violations and cross-feature role-scope enforcement.
+
+**Why:**
+
+- A run failed with `patcher edited role-scoped files: docs/02-features/12.../dev-tasks.md` because planner/reviewer allowed forbidden plan instructions.
+- Guardrails must fail earlier (plan gate), not only at patcher commit time.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal (string policy checks during plan gate)
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`

@@ -27,6 +27,12 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-08 - Feature 12 docs rebaseline validation
+
+- `tools/offload-proxy/pp rg -n "link to feature-spec.md|link to dev-tasks.md|link to test-plan.md|link to docs/00-context/system-map.md|\\[link to" docs/02-features/12-incremental-prd-to-features` (PASS: no placeholder links found)
+- `tools/offload-proxy/pp rg -n "Last Updated:\\*\\*\\s*2026-02-05" docs/02-features/12-incremental-prd-to-features` (PASS: no stale 2026-02-05 metadata remains)
+- `tools/offload-proxy/pp rg -n "add missing features only|never delete existing|Status: Done|incremental: add missing" docs/04-process/human-orchestration-workflow.md docs/01-product/prd.md docs/00-context/expected-features.md` (PASS: policy references match refreshed F-12 wording)
+
 ### 2026-02-08 - Feature docs 13-16 rebaseline validation
 
 - `tools/offload-proxy/pp rg -n "link to feature-spec.md|link to dev-tasks.md|link to test-plan.md|link to docs/00-context/system-map.md" docs/02-features/13-role-prompts-plan-reviewer docs/02-features/14-learning-loop-improvement-proposals docs/02-features/15-offload-audit-and-log-compaction docs/02-features/16-feature-gating-and-skill-mining` (PASS: no placeholder links found)
@@ -911,3 +917,24 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - anti-hardcode reviewer blocking remains enforced for high-risk/triggered work items while avoiding unconditional churn on low-risk doc-only work.
 - Not run:
   - `make feature F=11` (explicitly skipped in this validation pass per workflow testing rule to avoid invoking `make feature` from the agent side).
+
+## 2026-02-08 - Plan-policy gate hardening validation
+
+- Command: `python3 -m py_compile tools/pc-feature`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`56` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+- Result: PASS (`7` tests)
+- Verified:
+  - plan-policy violations are detected pre-patcher (forbidden role-scoped/global-log paths and forbidden commands).
+  - policy violations route through planner revision flow instead of invoking patcher directly.
+  - patcher role-scope guard now blocks cross-feature role-scoped docs as well.
+  - startup output exposes requested feature id and resolved feature slug for run-context visibility.
+- Not run:
+  - `make feature F=11` (per explicit workflow testing rule to not run `make feature` from agent side).
+
+## 2026-02-08 - Template-sync validation
+
+- Command: `tools/offload-proxy/pp tools/pc-template-sync`
+- Result: PASS

@@ -41,6 +41,12 @@ ROLE_LOG_FILES = {
     "reporter": "reporter-log.md",
     "tester": "validation-log.md",
 }
+ROLE_SCOPED_FILENAMES = {
+    "dev-tasks.md",
+    "planner-log.md",
+    "reporter-log.md",
+    "validation-log.md",
+}
 GLOBAL_LOG_FILES = (
     "bug-log.md",
     "decision-log.md",
@@ -1234,7 +1240,9 @@ def enforce_role_scope(
                 "pc-feature: global logs are read-only until gates pass: "
                 + ", ".join(sorted(illegal_globals))
             )
-        illegal = [path for path in paths if path in forbidden]
+        illegal = [
+            path for path in paths if role_scoped_path_forbidden_for_patcher(path)
+        ]
         if illegal:
             die(
                 "pc-feature: patcher edited role-scoped files: "
@@ -1263,9 +1271,9 @@ def commit_worktree_changes(
     if not paths:
         return
     if role == "patcher":
-        role_paths = set(worktree_role_paths(feature_dir).values())
-        role_paths.add(os.path.join(feature_dir, "dev-tasks.md"))
-        illegal = [path for path in paths if path in role_paths]
+        illegal = [
+            path for path in paths if role_scoped_path_forbidden_for_patcher(path)
+        ]
         if illegal:
             die(
                 "pc-feature: patcher edited role-scoped files: "
@@ -1442,6 +1450,60 @@ def summarize_feedback(feedback: str, *, max_chars: int = 420) -> str:
     if len(compact) <= max_chars:
         return compact
     return compact[: max_chars - 3].rstrip() + "..."
+
+
+def role_scoped_path_forbidden_for_patcher(path: str) -> bool:
+    normalized = normalize_repo_rel(path)
+    if normalized.startswith("docs/03-logs/"):
+        return True
+    if not normalized.startswith("docs/02-features/"):
+        return False
+    name = os.path.basename(normalized)
+    return name in ROLE_SCOPED_FILENAMES
+
+
+def plan_policy_violations(plan_text: str) -> List[str]:
+    violations: List[str] = []
+    lowered = plan_text.lower()
+    path_patterns = (
+        r"docs/02-features/[^\s`]+/dev-tasks\.md",
+        r"docs/02-features/[^\s`]+/planner-log\.md",
+        r"docs/02-features/[^\s`]+/reporter-log\.md",
+        r"docs/02-features/[^\s`]+/validation-log\.md",
+        r"docs/03-logs/[^\s`]+",
+    )
+    for pattern in path_patterns:
+        for match in re.findall(pattern, plan_text, flags=re.IGNORECASE):
+            entry = f"forbidden path in plan: {match}"
+            if entry not in violations:
+                violations.append(entry)
+    command_patterns = (
+        (r"\bmake\s+feature\b", "forbidden command in plan: make feature"),
+        (r"\btools/pc-feature\b", "forbidden command in plan: tools/pc-feature"),
+        (r"\bpc-feature\b", "forbidden command in plan: pc-feature"),
+    )
+    for pattern, message in command_patterns:
+        if re.search(pattern, lowered, re.IGNORECASE):
+            violations.append(message)
+    return violations
+
+
+def plan_policy_block_feedback(issues: List[str]) -> str:
+    lines = [
+        "Decision: Block",
+        "Reasons:",
+        "- Plan violates orchestrator scope policy.",
+        "Required changes:",
+    ]
+    for issue in issues:
+        lines.append(f"- {issue}")
+    lines.extend(
+        [
+            "Optional suggestions:",
+            "- Keep plan files limited to implementation targets; role/global logs are automation-owned.",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def parse_plan_reviewer_decision(text: str) -> str:
@@ -1928,6 +1990,9 @@ def main() -> None:
         label=f"feature directory for id {feature_id}",
     )
     feature_slug = os.path.basename(feature_dir)
+    print(
+        f"pc-feature: requested feature id={feature_id}; resolved feature={feature_slug}"
+    )
     patcher_path = build_worktree_path(root, feature_slug, "patcher")
     patcher_branch = build_worktree_branch(feature_slug, "patcher")
     if os.path.exists(patcher_path) and os.path.exists(
@@ -2032,6 +2097,12 @@ def main() -> None:
     runner_root = Path(patcher_path)
     pc_runner.log_message(
         runner_metadata, "feature", "start pc-feature", root=runner_root
+    )
+    pc_runner.log_message(
+        runner_metadata,
+        "feature",
+        f"feature-id requested={feature_id} resolved={feature_slug}",
+        root=runner_root,
     )
 
     if manual:
@@ -2410,6 +2481,10 @@ def main() -> None:
             ).strip()
             ensure_plan_reviewer_read_only(planner_path)
         reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
+        policy_issues = plan_policy_violations(current_plan)
+        if reviewer_decision == "APPROVE" and policy_issues:
+            reviewer_decision = "BLOCK"
+            reviewer_feedback = plan_policy_block_feedback(policy_issues)
         if reviewer_decision == "BLOCK":
             last_failure_context = (
                 "plan reviewer blocked plan; planner revision required."
