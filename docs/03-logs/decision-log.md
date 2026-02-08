@@ -1730,3 +1730,18 @@ When a decision is reversed or replaced, document it here:
   - In-progress feature reruns resume without manual prompts in the common case.
   - Startup failures become deterministic and actionable for stale/unsafe states.
   - Parallel active feature attempts are blocked to preserve single-feature execution guarantees.
+
+### DEC-030 - Adopt WIP-first startup resume for active feature worktrees
+
+- **Date:** 2026-02-08
+- **Status:** Accepted
+- **Context:** Single-user, single-feature workflow requires preserving existing work-in-progress in the feature worktree. Strict startup cleanliness and startup checkout cleanup caused avoidable friction and perceived data-loss risk.
+- **Decision:**
+  - Treat any existing dirty state in the active feature worktree as valid WIP at startup.
+  - Replace startup dirty-path blocking/cleanup with a startup checkpoint commit over all dirty non-ignored paths in the feature worktree.
+  - Preserve startup state in `RESUME_MODE=auto`/`prompt`; keep destructive recreation only in `RESUME_MODE=fresh`.
+  - Downgrade root pre-start dirty-path gate from hard fail to warning.
+- **Consequences:**
+  - `make feature` reliably continues in-progress work without startup resets/checkouts.
+  - Startup behavior aligns with single-user operational model and reduces interruption cost.
+  - End-of-flow scoped commit guards remain in place for final collection safety.

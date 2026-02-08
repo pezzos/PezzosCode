@@ -4627,3 +4627,38 @@ Track when debt is paid down:
 
 - `python3 -m py_compile tools/pc-feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+
+### 2026-02-08 - WIP-first startup resume implementation
+
+**Feature/Bug:** preserve active feature worktree WIP at startup and remove destructive startup cleanup paths
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added generalized startup checkpointing (`checkpoint_resume_state`) that stages and commits all dirty non-ignored paths in the active feature worktree.
+- Removed startup dependency on runtime-only dirty classification for safety gating and removed startup cleanup checkout flows.
+- Replaced startup hard-fail precondition for dirty `main` paths with a warning (`ensure_root_start_scope`).
+- Updated resume tests to validate that dirty runtime/non-runtime files are checkpointed and execution continues.
+- Updated live/template protocol docs to document WIP-preserving startup behavior and fresh-mode-only destructive reset policy.
+
+**Why:**
+
+- Existing startup strictness conflicted with the single-user one-feature-at-a-time model where dirty feature worktree state represents intentional in-progress work.
+
+**Impact:**
+
+- **Breaking changes:** Yes (startup no longer blocks on non-runtime dirty feature-worktree paths)
+- **Performance:** Minimal (single status/add/commit checkpoint path at startup when dirty)
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`

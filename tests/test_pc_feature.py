@@ -1055,7 +1055,7 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.main()
             self.assertEqual(selected.get("work_item_id"), newest)
 
-    def test_main_resume_checkpoints_dirty_dev_tasks_for_in_progress_item(self):
+    def test_main_startup_checkpoints_dirty_dev_tasks_for_in_progress_item(self):
         class StopMain(RuntimeError):
             pass
 
@@ -1067,7 +1067,7 @@ class TestPcFeature(unittest.TestCase):
             content = self._build_entry_content(work_item_id)
             feature_dir = self._write_feature_workspace(root, content)
             dev_tasks_repo_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
-            checkpoint_mock = mock.Mock(return_value=True)
+            checkpoint_mock = mock.Mock(return_value=[dev_tasks_repo_path])
 
             def stop_after_precheck(content: str, work_item_id: str) -> str:
                 raise StopMain()
@@ -1078,21 +1078,17 @@ class TestPcFeature(unittest.TestCase):
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
-                        "classify_resume_dirty_paths",
-                        return_value=([dev_tasks_repo_path], []),
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
                         "get_status_paths",
-                        return_value=[dev_tasks_repo_path],
+                        side_effect=[
+                            [dev_tasks_repo_path],
+                            [],
+                        ],
                     )
                 )
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
-                        "checkpoint_resume_dev_tasks",
+                        "checkpoint_resume_state",
                         checkpoint_mock,
                     )
                 )
@@ -1107,10 +1103,15 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.main()
 
             checkpoint_mock.assert_called_once_with(
-                str(patcher_path), work_item_id, dev_tasks_repo_path
+                str(patcher_path),
+                work_item_id,
+                feature_slug="01-workflow-hardening",
             )
 
-    def test_main_dirty_dev_tasks_without_resume_item_requires_fresh_mode(self):
+    def test_main_startup_checkpoints_dirty_dev_tasks_without_resume_item(self):
+        class StopMain(RuntimeError):
+            pass
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             patcher_path = root / "patcher"
@@ -1119,7 +1120,10 @@ class TestPcFeature(unittest.TestCase):
             content = self._build_entry_content(work_item_id, outcome="pass")
             feature_dir = self._write_feature_workspace(root, content)
             dev_tasks_repo_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
-            stderr_capture = io.StringIO()
+            checkpoint_mock = mock.Mock(return_value=[dev_tasks_repo_path])
+
+            def stop_after_precheck(content: str, work_item_id: str) -> str:
+                raise StopMain()
 
             with contextlib.ExitStack() as stack:
                 for patcher in self._patch_main_base(root, feature_dir, patcher_path):
@@ -1127,24 +1131,34 @@ class TestPcFeature(unittest.TestCase):
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
-                        "classify_resume_dirty_paths",
-                        return_value=([dev_tasks_repo_path], []),
+                        "get_status_paths",
+                        side_effect=[
+                            [dev_tasks_repo_path],
+                            [],
+                        ],
                     )
                 )
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
-                        "get_status_paths",
-                        return_value=[dev_tasks_repo_path],
+                        "checkpoint_resume_state",
+                        checkpoint_mock,
                     )
                 )
-                with self.assertRaises(SystemExit):
-                    with contextlib.redirect_stderr(stderr_capture):
-                        self.pc_feature.main()
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_allowed_tests_section",
+                        side_effect=stop_after_precheck,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
 
-            self.assertIn(
-                "set RESUME_MODE=fresh to restart cleanly",
-                stderr_capture.getvalue(),
+            checkpoint_mock.assert_called_once_with(
+                str(patcher_path),
+                None,
+                feature_slug="01-workflow-hardening",
             )
 
     def test_main_dirty_existing_worktree_auto_resume_preserves_state(self):
@@ -1227,7 +1241,10 @@ class TestPcFeature(unittest.TestCase):
                 )
             )
 
-    def test_main_existing_worktree_non_runtime_dirty_exits_without_cleanup(self):
+    def test_main_existing_worktree_non_runtime_dirty_is_checkpointed(self):
+        class StopMain(RuntimeError):
+            pass
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             patcher_path = root / "patcher"
@@ -1240,16 +1257,20 @@ class TestPcFeature(unittest.TestCase):
             prepare_worktree_mock = mock.Mock(
                 return_value=(str(patcher_path), "patcher-branch")
             )
+            checkpoint_mock = mock.Mock(return_value=["README.md"])
 
-            stderr_capture = io.StringIO()
             with contextlib.ExitStack() as stack:
                 for patcher in self._patch_main_base(root, feature_dir, patcher_path):
                     stack.enter_context(patcher)
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
-                        "classify_resume_dirty_paths",
-                        return_value=([], ["README.md"]),
+                        "get_status_paths",
+                        side_effect=[
+                            ["README.md"],
+                            ["README.md"],
+                            [],
+                        ],
                     )
                 )
                 stack.enter_context(
@@ -1266,16 +1287,30 @@ class TestPcFeature(unittest.TestCase):
                         remove_worktree_mock,
                     )
                 )
-                with self.assertRaises(SystemExit):
-                    with contextlib.redirect_stderr(stderr_capture):
-                        self.pc_feature.main()
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "checkpoint_resume_state",
+                        checkpoint_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_allowed_tests_section",
+                        side_effect=StopMain,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
 
-            self.assertIn(
-                "non-runtime dirty paths",
-                stderr_capture.getvalue(),
-            )
             remove_worktree_mock.assert_not_called()
             prepare_worktree_mock.assert_called_once()
+            checkpoint_mock.assert_called_once_with(
+                str(patcher_path),
+                work_item_id,
+                feature_slug="01-workflow-hardening",
+            )
 
     def test_allowed_tests_run_in_worktree_cwd(self):
         class StopMain(RuntimeError):
@@ -2085,13 +2120,6 @@ class TestPcFeature(unittest.TestCase):
                     mock.patch.object(
                         self.pc_feature,
                         "get_staged_paths",
-                        return_value=[scoped_path],
-                    )
-                )
-                stack.enter_context(
-                    mock.patch.object(
-                        self.pc_feature,
-                        "get_status_paths",
                         return_value=[scoped_path],
                     )
                 )

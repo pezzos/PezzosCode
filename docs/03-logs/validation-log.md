@@ -985,3 +985,17 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - runs fail fast when dirty `dev-tasks.md` exists without an in-progress work item (`RESUME_MODE=fresh` remediation).
 - Not run:
   - `make feature F=11` / `make feature F=12` (explicitly skipped per workflow testing rule to avoid agent-side `make feature` execution).
+
+## 2026-02-08 - WIP-first startup resume validation
+
+- Command: `python3 -m py_compile tools/pc-feature`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`67` tests, offload id `f881e040b6009cc7e7f6f3b87492c3fd43034906a077903f968afa1ba9929dd8`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+- Result: PASS (`7` tests)
+- Verified:
+  - startup dirty paths in an active feature worktree are checkpointed and execution continues.
+  - startup no longer fails solely because dirty paths are outside runtime-doc subsets.
+  - startup does not require explicit `RESUME_MODE=fresh` for dirty `dev-tasks.md` when continuing work.
+  - protocol docs and template docs match WIP-preserving resume behavior.

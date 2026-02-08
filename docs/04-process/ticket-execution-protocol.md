@@ -38,12 +38,12 @@
 2. **Resuming a Work Item (Automatic)**
    - If an execution log entry already exists, `make feature` resumes automatically.
    - Startup resume policy is controlled by `RESUME_MODE`:
-     - `auto` (default): resume in-progress work automatically when safe.
+     - `auto` (default): resume in-progress work and preserve existing feature-worktree WIP.
      - `prompt`: ask before continuing/recreating an existing feature worktree.
      - `fresh`: recreate the feature patcher worktree and start from a clean baseline.
    - Only one feature can be actively in progress at a time; runs fail fast if another feature patcher worktree is ahead/dirty.
-   - Non-runtime dirty files in an existing feature worktree block auto-resume with explicit paths.
-   - Runtime-only dirty state (`dev-tasks.md`/role logs/runtime logs) is auto-repaired or checkpointed before execution continues.
+   - Existing dirty state in the active feature worktree is treated as work-in-progress and checkpointed at startup.
+   - Startup must not discard dirty files in the active feature worktree unless `RESUME_MODE=fresh` is explicitly requested.
    - If an existing feature worktree is behind `main`, auto-resume fails (policy: `main` must stay unchanged while a feature is running).
    - Preflight is skipped if the **Preflight Report** section is already filled.
    - TDD generation is skipped if the **TDD Plan** section is already filled.

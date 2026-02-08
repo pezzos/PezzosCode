@@ -1833,20 +1833,17 @@ def classify_resume_dirty_paths(
     return runtime_dirty, unexpected_dirty
 
 
-def checkpoint_resume_dev_tasks(
-    worktree_path: str, work_item_id: str, dev_tasks_path: str
-) -> bool:
+def checkpoint_resume_state(
+    worktree_path: str,
+    work_item_id: Optional[str],
+    *,
+    feature_slug: str,
+) -> List[str]:
     dirty = sorted(filter_ignored_paths(get_status_paths(worktree_path)))
-    if dev_tasks_path not in dirty:
-        return False
-    unexpected = [path for path in dirty if path != dev_tasks_path]
-    if unexpected:
-        die(
-            "pc-feature: cannot checkpoint resume state; unexpected dirty paths: "
-            + ", ".join(unexpected)
-        )
+    if not dirty:
+        return []
     add_result = subprocess.run(
-        ["git", "add", "--", dev_tasks_path],
+        ["git", "add", "--"] + dirty,
         check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -1855,10 +1852,13 @@ def checkpoint_resume_dev_tasks(
     )
     if add_result.returncode != 0:
         die(
-            "pc-feature: failed to stage resume checkpoint for dev-tasks.md\n"
+            "pc-feature: failed to stage startup checkpoint changes\n"
             + (add_result.stderr or add_result.stdout)
         )
-    commit_message = f"orchestrator: resume checkpoint for {work_item_id}"
+    if work_item_id:
+        commit_message = f"orchestrator: startup checkpoint for {work_item_id}"
+    else:
+        commit_message = f"orchestrator: startup checkpoint for feature {feature_slug}"
     commit_result = subprocess.run(
         ["git", "commit", "--no-verify", "-m", commit_message],
         check=False,
@@ -1868,15 +1868,29 @@ def checkpoint_resume_dev_tasks(
         cwd=worktree_path,
     )
     if commit_result.returncode == 0:
-        return True
+        return dirty
     detail = (commit_result.stdout or "") + (commit_result.stderr or "")
     if "nothing to commit" in detail.lower():
-        return False
+        return []
     die(
-        "pc-feature: failed to checkpoint resume dev-tasks.md\n"
+        "pc-feature: failed to checkpoint startup resume state\n"
         + (detail or "(no git output)")
     )
-    return False
+    return []
+
+
+def checkpoint_resume_dev_tasks(
+    worktree_path: str, work_item_id: str, dev_tasks_path: str
+) -> bool:
+    dirty = sorted(filter_ignored_paths(get_status_paths(worktree_path)))
+    if dev_tasks_path not in dirty:
+        return False
+    checkpointed = checkpoint_resume_state(
+        worktree_path,
+        work_item_id,
+        feature_slug="resume",
+    )
+    return dev_tasks_path in checkpointed
 
 
 def active_other_feature_worktrees(
@@ -2130,9 +2144,9 @@ def ensure_root_start_scope(root: str, allowed_paths: List[str]) -> None:
     allowed = set(filter_ignored_paths(allowed_paths))
     unexpected = sorted(path for path in current_paths if path not in allowed)
     if unexpected:
-        die(
-            "pc-feature: unrelated dirty paths detected before execution; "
-            "clean/stash these first: " + ", ".join(unexpected)
+        print(
+            "pc-feature: warning: unrelated dirty paths detected before execution "
+            "(preserved): " + ", ".join(unexpected)
         )
 
 
@@ -2296,46 +2310,32 @@ def main() -> None:
         for role, role_path in role_paths.items()
     }
     resume_work_item_id = select_resume_work_item_id(content)
-    runtime_dirty, unexpected_dirty = classify_resume_dirty_paths(
-        get_status_paths(patcher_path),
-        feature_dir,
-        dev_tasks_repo_path,
+    dirty_before_checkpoint = sorted(
+        filter_ignored_paths(get_status_paths(patcher_path))
     )
-    if unexpected_dirty:
-        die(
-            "pc-feature: existing patcher worktree has non-runtime dirty paths; "
-            "cannot auto-resume safely: " + ", ".join(unexpected_dirty)
-        )
-    if runtime_dirty:
+    if dirty_before_checkpoint:
         print(
-            "pc-feature: resume runtime dirty paths detected: "
-            + ", ".join(runtime_dirty)
+            "pc-feature: startup dirty paths detected in patcher worktree: "
+            + ", ".join(dirty_before_checkpoint)
         )
-    cleanup_dirty_role_logs(patcher_path, feature_dir)
-    cleanup_dirty_global_logs(patcher_path)
-    dirty_after_cleanup = sorted(filter_ignored_paths(get_status_paths(patcher_path)))
-    unexpected_after_cleanup = sorted(
-        path for path in dirty_after_cleanup if path != dev_tasks_repo_path
-    )
-    if unexpected_after_cleanup:
-        die(
-            "pc-feature: preflight cleanup left unexpected dirty paths: "
-            + ", ".join(unexpected_after_cleanup)
+        checkpointed_paths = checkpoint_resume_state(
+            patcher_path,
+            resume_work_item_id,
+            feature_slug=feature_slug,
         )
-    if dev_tasks_repo_path in dirty_after_cleanup:
-        if not resume_work_item_id:
-            die(
-                "pc-feature: dev-tasks.md is dirty but no in-progress work item exists; "
-                "set RESUME_MODE=fresh to restart cleanly."
-            )
-        if checkpoint_resume_dev_tasks(
-            patcher_path, resume_work_item_id, dev_tasks_repo_path
-        ):
+        if checkpointed_paths:
             print(
-                "pc-feature: checkpointed resume state from dev-tasks.md "
-                f"for {resume_work_item_id}"
+                "pc-feature: startup checkpoint commit created for paths: "
+                + ", ".join(checkpointed_paths)
             )
-    ensure_clean_worktree(root, patcher_path, patcher_branch, "preflight")
+    dirty_after_checkpoint = sorted(
+        filter_ignored_paths(get_status_paths(patcher_path))
+    )
+    if dirty_after_checkpoint:
+        die(
+            "pc-feature: startup checkpoint left dirty paths in patcher worktree: "
+            + ", ".join(dirty_after_checkpoint)
+        )
     content = read_file(dev_tasks_path)
     work_item_id = select_resume_work_item_id(content)
     if not work_item_id:
