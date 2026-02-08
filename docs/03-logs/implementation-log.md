@@ -27,6 +27,44 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-08 - Precommit autofix scope hardening and deterministic fallback
+
+**Feature/Bug:** Process/Tooling - precommit autofix guardrails
+
+**Changed Files:**
+
+- `.pre-commit-config.yaml`
+- `tools/templates/root/.pre-commit-config.yaml`
+- `tools/pc-autofix`
+- `tools/pc-precommit`
+- `tools/pc-template-sync`
+- `tools/markdown-lint`
+- `tests/test_pc_autofix.py`
+- `docs/04-process/git-workflow.md`
+- `tools/templates/docs/04-process/git-workflow.md`
+- `docs/04-process/ci-autofix-prompt.md`
+- `tools/templates/docs/04-process/ci-autofix-prompt.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Hardened precommit autofix scope by passing staged allowlists into `pc-autofix` and blocking out-of-scope edits after Codex runs.
+- Updated `pc-precommit` to run hooks on staged files (`pre-commit run --files ...`), restage only modified staged paths, and print re-staged files.
+- Moved template sync hook behavior to deterministic check-only in pre-commit path (no Codex execution).
+- Updated markdown lint hook behavior to process passed markdown filenames in pre-commit for faster runs.
+- Added targeted regression tests for `pc-autofix` prompt/scope behavior.
+- Synced living/template process docs with deterministic-first autofix + scoped Codex fallback policy.
+
+**Why:**
+
+- Prevent precommit Codex runs from editing unrelated files (especially `docs/03-logs/*` and feature logs) and reduce pre-commit latency/scope creep.
+
+**How:**
+
+- Replaced broad Codex precommit prompting with explicit allowlist + forbidden-path constraints and post-run git-status scope verification.
+- Reworked hook wiring to favor deterministic format/lint passes before any AI fallback and to keep all edits within staged scope.
+
 ### 2026-02-08 - Sync resume policy block into ticket execution protocol template
 
 **Feature/Bug:** Template sync (no feature id)

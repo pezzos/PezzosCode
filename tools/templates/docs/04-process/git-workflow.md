@@ -67,10 +67,12 @@ tools/pc-commit --allow docs/04-process --dry-run
 
 ## Precommit Hooks (Autofix)
 
-- Precommit runs a unified autofix script (shared with CI) against staged files.
+- Precommit runs checks on the staged file list only.
+- Deterministic fixers (ruff/black/shfmt/prettier/taplo/gofmt/rustfmt) run first; Codex runs only as a fallback when unresolved issues remain.
 - If autofix modifies files, re-stage with `git add -u` and print the list of modified/re-staged files.
-- Codex in precommit runs with vanilla config only (no profiles, no Serena MCP, no overrides).
-- Precommit fixes are scoped to staged files; no decision/implementation log updates are required.
+- Codex in precommit runs with vanilla config (no Serena MCP injection and no role profiles).
+- Codex fallback is hard-scoped to the staged file list and fails if out-of-scope paths are touched.
+- Precommit-only fixes must not update `docs/03-logs/*` or feature execution logs.
 
 ---
 

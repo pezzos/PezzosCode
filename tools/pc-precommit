@@ -84,6 +84,23 @@ if [[ ${#staged_paths[@]} -eq 0 ]]; then
   exit 1
 fi
 
+initial_added_paths=()
+while IFS= read -r -d '' path; do
+  initial_added_paths+=("$path")
+done < <(git diff --cached --name-only --diff-filter=A -z)
+
+contains_path() {
+  local needle="$1"
+  shift
+  local item
+  for item in "$@"; do
+    if [[ "$item" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 needs_stash=false
 stash_ref_before=""
 stash_ref_after=""
@@ -105,7 +122,7 @@ trap cleanup EXIT
 run_precommit() {
   : >"$output_file"
   set +e
-  pre-commit run --hook-stage pre-commit >"$output_file" 2>&1
+  pre-commit run --hook-stage pre-commit --files "${staged_paths[@]}" >"$output_file" 2>&1
   local status=$?
   set -e
   cat "$output_file"
@@ -113,7 +130,30 @@ run_precommit() {
 }
 
 restage_staged() {
-  git add -A -- "${staged_paths[@]}"
+  modified_paths=()
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    modified_paths+=("$line")
+  done < <(git diff --name-only -- "${staged_paths[@]}")
+
+  if [[ ${#modified_paths[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  git add -u -- "${modified_paths[@]}"
+
+  added_modified=()
+  for path in "${modified_paths[@]}"; do
+    if contains_path "$path" "${initial_added_paths[@]}"; then
+      added_modified+=("$path")
+    fi
+  done
+  if [[ ${#added_modified[@]} -gt 0 ]]; then
+    git add -- "${added_modified[@]}"
+  fi
+
+  echo "pre-commit: re-staged modified files:" >&2
+  printf ' - %s\n' "${modified_paths[@]}" >&2
 }
 
 lint_attempts=0
@@ -136,6 +176,11 @@ if [[ "$status" -ne 0 ]]; then
     --mode pre-commit
     --issues-file "$output_file"
   )
+  for path in "${staged_paths[@]}"; do
+    autofix_cmd+=(
+      --allowed-path "$path"
+    )
+  done
   if [[ -n "$work_item_id" ]]; then
     autofix_cmd+=(
       --work-item-id "$work_item_id"

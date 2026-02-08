@@ -48,7 +48,9 @@ def lint_file(path: str) -> list[str]:
 
 
 def main() -> int:
-    files = list_markdown_files()
+    files = sorted({path for path in sys.argv[1:] if path.endswith(".md")})
+    if not files:
+        files = list_markdown_files()
     if not files:
         print("No markdown files found.")
         return 0

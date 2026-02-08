@@ -27,6 +27,12 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-08 - Precommit autofix scope hardening validation
+
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_autofix.py"` (PASS)
+- `tools/offload-proxy/pp pre-commit run --files .pre-commit-config.yaml docs/04-process/ci-autofix-prompt.md docs/04-process/git-workflow.md docs/04-process/ticket-execution-protocol.md tools/markdown-lint tools/pc-autofix tools/pc-precommit tools/pc-template-sync tools/templates/docs/04-process/ci-autofix-prompt.md tools/templates/docs/04-process/git-workflow.md tools/templates/docs/04-process/ticket-execution-protocol.md tools/templates/root/.pre-commit-config.yaml tests/test_pc_autofix.py` (PASS)
+- `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS; offload id `0c7809944d4bb96d70fef46c4c81277199007a4dd63bb83a13c437a237b419ca`)
+
 ### 2026-02-08 - Feature 12 docs rebaseline validation
 
 - `tools/offload-proxy/pp rg -n "link to feature-spec.md|link to dev-tasks.md|link to test-plan.md|link to docs/00-context/system-map.md|\\[link to" docs/02-features/12-incremental-prd-to-features` (PASS: no placeholder links found)
