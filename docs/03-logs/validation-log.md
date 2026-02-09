@@ -1039,3 +1039,15 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - policy checks use contract `Files to change` section and still catch forbidden paths outside that section via fallback scan.
   - reviewer-block loop stops deterministically on reviewer cap, planner revision cap, or stagnation guard.
   - iteration logs expose per-loop counters for reviewer blocks, planner revisions, and execution attempts.
+
+## 2026-02-09 - Reporter global-log JSON recovery validation
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`78` tests, offload id `2cbaa4db1d7a72f88c194ac728a304bdaa5e801327d99c96cb0de68ac7b0da69`)
+- Verified:
+  - reporter global-log parse failures trigger exactly one JSON-repair attempt.
+  - unrecoverable reporter payloads no longer abort `pc-feature`; deterministic orchestrator global-log lines are used.
+  - reporter-provided valid repaired payload values are preferred over deterministic defaults.
+  - deterministic payload content changes with `requires_global_logs`.

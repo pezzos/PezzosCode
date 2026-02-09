@@ -1780,3 +1780,18 @@ When a decision is reversed or replaced, document it here:
   - Repeated BLOCK cycles terminate deterministically with actionable terminal reasons.
   - Planner/reviewer handoffs become easier to debug from logs.
   - Contract drift risk is reduced through prompt + protocol alignment.
+
+### DEC-033 - Reporter global-log is a JSON signal; orchestrator owns global log writes
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** `pc-feature` could fail after successful gates when reporter returned clarification text instead of JSON for global-log summaries. Reporter role scope requires reporting, while orchestrator owns final updates to `docs/03-logs/*`.
+- **Decision:**
+  - Keep reporter global-log step as read-only signal generation (JSON only, no file edits).
+  - Add one strict JSON-repair retry when reporter global-log payload parsing fails.
+  - If payload remains invalid, continue with deterministic orchestrator-generated global-log lines derived from `work_item_id` and `requires_global_logs`.
+  - Preserve orchestrator as the only writer for global log files.
+- **Consequences:**
+  - `make feature` no longer hard-fails at the final reporter global-log parse step.
+  - Global reporting remains present by default via deterministic fallback lines.
+  - Role-scope boundaries remain explicit: reporter reports, orchestrator writes.

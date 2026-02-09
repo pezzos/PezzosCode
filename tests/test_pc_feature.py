@@ -2089,6 +2089,248 @@ class TestPcFeature(unittest.TestCase):
             ]
             self.assertEqual(commit_prompts, [])
 
+    def test_main_repairs_reporter_global_json_before_appending_logs(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-11"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            prompt_counts = {"global": 0, "repair": 0}
+            append_calls = []
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "Review changes for scope and completeness" in prompt:
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: ok"
+                if "Provide short, single-line summaries for global logs" in prompt:
+                    prompt_counts["global"] += 1
+                    return "Need a feature id and log scope before I can proceed."
+                if "Convert the raw output below into strict JSON." in prompt:
+                    prompt_counts["repair"] += 1
+                    return (
+                        '{"implementation_log":"impl from repair",'
+                        '"validation_log":"val from repair","decision_log":"none"}'
+                    )
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "generating a concise, scoped commit message" in prompt:
+                    raise StopMain()
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        return_value=0,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_allowed_final_stage_paths",
+                        return_value=[
+                            "docs/02-features/01-workflow-hardening/dev-tasks.md"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "append_log_line",
+                        side_effect=lambda path, line: append_calls.append(
+                            (path, line)
+                        ),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(prompt_counts["global"], 1)
+            self.assertEqual(prompt_counts["repair"], 1)
+            self.assertIn(
+                ("docs/03-logs/implementation-log.md", "impl from repair"),
+                append_calls,
+            )
+            self.assertIn(
+                ("docs/03-logs/validation-log.md", "val from repair"),
+                append_calls,
+            )
+            self.assertNotIn(
+                ("docs/03-logs/decision-log.md", "none"),
+                append_calls,
+            )
+
+    def test_main_uses_deterministic_global_logs_when_json_unrecoverable(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-12"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            prompt_counts = {"global": 0, "repair": 0}
+            append_calls = []
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "Review changes for scope and completeness" in prompt:
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: ok"
+                if "Provide short, single-line summaries for global logs" in prompt:
+                    prompt_counts["global"] += 1
+                    return "Need a feature id and log scope before I can proceed."
+                if "Convert the raw output below into strict JSON." in prompt:
+                    prompt_counts["repair"] += 1
+                    return "still not valid json"
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "generating a concise, scoped commit message" in prompt:
+                    raise StopMain()
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        return_value=0,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_allowed_final_stage_paths",
+                        return_value=[
+                            "docs/02-features/01-workflow-hardening/dev-tasks.md"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "append_log_line",
+                        side_effect=lambda path, line: append_calls.append(
+                            (path, line)
+                        ),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            fallback = self.pc_feature.deterministic_global_log_payload(
+                work_item_id, False
+            )
+            self.assertEqual(prompt_counts["global"], 1)
+            self.assertEqual(prompt_counts["repair"], 1)
+            self.assertIn(
+                (
+                    "docs/03-logs/implementation-log.md",
+                    fallback["implementation_log"],
+                ),
+                append_calls,
+            )
+            self.assertIn(
+                (
+                    "docs/03-logs/validation-log.md",
+                    fallback["validation_log"],
+                ),
+                append_calls,
+            )
+            self.assertFalse(
+                any(path == "docs/03-logs/decision-log.md" for path, _ in append_calls)
+            )
+
+    def test_deterministic_global_log_payload_uses_requires_global_logs_flag(self):
+        false_payload = self.pc_feature.deterministic_global_log_payload(
+            "WI-20260206-99", False
+        )
+        true_payload = self.pc_feature.deterministic_global_log_payload(
+            "WI-20260206-99", True
+        )
+
+        self.assertEqual(false_payload["decision_log"], "none")
+        self.assertNotEqual(
+            false_payload["implementation_log"], true_payload["implementation_log"]
+        )
+        self.assertNotEqual(
+            false_payload["validation_log"], true_payload["validation_log"]
+        )
+        self.assertIn("Process docs changed", true_payload["decision_log"])
+
     def test_ci_gate_runs_make_ci_once_when_first_attempt_passes(self):
         class StopMain(RuntimeError):
             pass

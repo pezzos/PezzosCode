@@ -633,3 +633,12 @@ Bugs we've decided not to fix, and why:
 - [Validation Log](validation-log.md) - Production issues after shipping
 - [Test Plans](../02-features/*/test-plan.md) - Testing strategies
 - [Insights](insights.md) - Learnings from bugs
+
+## 2026-02-09 - Reporter global-log JSON parse failure at final gate
+
+- **ID:** BUG-20260209-01
+- **Status:** Fixed
+- **Source:** Internal testing (`make feature`)
+- **Summary:** `pc-feature` aborted after successful gates when reporter global-log output was non-JSON and parse failed.
+- **Fix:** Added one JSON-repair retry and deterministic orchestrator fallback log payload generation.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id `2cbaa4db1d7a72f88c194ac728a304bdaa5e801327d99c96cb0de68ac7b0da69`).

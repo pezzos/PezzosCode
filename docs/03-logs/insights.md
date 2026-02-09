@@ -559,3 +559,8 @@ Based on everything we've learned, these are the principles that guide our work:
 - [Validation Log](validation-log.md) - Real-world outcomes
 - [Implementation Log](implementation-log.md) - Technical changes
 - [Bug Log](bug-log.md) - Bugs that taught us lessons
+
+## 2026-02-09 - Global-log contract resilience
+
+- JSON-only LLM contracts in orchestrators should include a deterministic fallback path so final gates cannot fail on formatting drift.
+- Role-scope prompts should avoid write/commit language when the step is signal-only; conflicting instructions increase ambiguity and failure rates.

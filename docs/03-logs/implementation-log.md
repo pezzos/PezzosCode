@@ -4652,6 +4652,44 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
 
+### 2026-02-09 - Reporter global-log JSON repair + deterministic orchestrator fallback
+
+**Feature/Bug:** prevent end-of-run failure when reporter returns non-JSON text for global log summaries
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `prompts/reporter-global-log.md`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Updated the reporter global-log prompt to be explicitly read-only (no file edits, no clarification questions) and JSON-only output.
+- Added JSON object parsing helper for reporter global-log payloads.
+- Added a one-time JSON-repair prompt path when the initial reporter payload is not parseable.
+- Replaced hard failure on parse errors with deterministic orchestrator-owned global log defaults derived from `work_item_id` and `requires_global_logs`.
+- Ensured orchestrator remains the only writer for `docs/03-logs/*` while still using reporter-provided lines when valid.
+- Added unit coverage for:
+  - invalid initial payload repaired successfully,
+  - invalid payload unrecoverable after one repair retry, deterministic fallback applied,
+  - deterministic payload switching when `requires_global_logs` is true.
+
+**Why:**
+
+- `make feature` reached final gates but could fail at the very end if reporter emitted clarification text instead of JSON.
+- Reporter role scope requires reporting, while orchestrator owns global log writes, so this step must be resilient and non-interactive.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal (at most one extra reporter call for JSON repair)
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+
 ### 2026-02-09 - Plan contract normalization and reviewer-loop fail-safe controls
 
 **Feature/Bug:** prevent repeated planner/reviewer BLOCK loops caused by stale forbidden paths and unclear loop caps

@@ -2302,6 +2302,74 @@ def extract_json_payload(raw: str) -> str:
     return raw[start : end + 1]
 
 
+def parse_json_object_payload(raw: str) -> Optional[Dict[str, Any]]:
+    payload = extract_json_payload(raw)
+    try:
+        parsed = json.loads(payload)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+def build_reporter_global_log_repair_prompt(work_item_id: str, raw_output: str) -> str:
+    return (
+        "You are the Reporter agent. Convert the raw output below into strict JSON. "
+        "Do not ask clarification questions and do not edit files. "
+        "Return ONLY a JSON object with keys: implementation_log, validation_log, decision_log. "
+        "Use 'none' for missing values.\n"
+        f"Work Item ID: {work_item_id}\n"
+        f"Raw output:\n{raw_output}\n"
+    )
+
+
+def deterministic_global_log_payload(
+    work_item_id: str, requires_global_logs: bool
+) -> Dict[str, str]:
+    if requires_global_logs:
+        return {
+            "implementation_log": (
+                f"{work_item_id}: Process docs changed; orchestrator appended "
+                "the deferred implementation summary after gates passed."
+            ),
+            "validation_log": (
+                f"{work_item_id}: Process docs changed; orchestrator appended "
+                "the deferred validation summary after gates passed."
+            ),
+            "decision_log": (
+                f"{work_item_id}: Process docs changed; orchestrator retained "
+                "ownership of deferred docs/03-logs updates."
+            ),
+        }
+    return {
+        "implementation_log": (
+            f"{work_item_id}: Work item completed; orchestrator recorded the "
+            "global implementation summary."
+        ),
+        "validation_log": (
+            f"{work_item_id}: Work item validation completed; orchestrator "
+            "recorded the global validation summary."
+        ),
+        "decision_log": "none",
+    }
+
+
+def merge_reporter_global_log_payload(
+    reporter_payload: Optional[Dict[str, Any]],
+    fallback_payload: Dict[str, str],
+) -> Dict[str, str]:
+    merged = dict(fallback_payload)
+    if not reporter_payload:
+        return merged
+    for key in ("implementation_log", "validation_log", "decision_log"):
+        value = str(reporter_payload.get(key, "")).strip()
+        if not value or value.lower() == "none":
+            continue
+        merged[key] = value
+    return merged
+
+
 def entry_outcome(content: str, work_item_id: str) -> str:
     entry_lines = content.splitlines()
     start, end = find_entry_block(entry_lines, work_item_id)
@@ -3713,21 +3781,27 @@ def main() -> None:
         runner_metadata=runner_metadata,
         root=str(runner_root),
     ).strip()
-    reporter_global_json = extract_json_payload(reporter_global_raw)
-    try:
-        reporter_global = json.loads(reporter_global_json)
-    except json.JSONDecodeError:
-        die(
-            f"pc-feature: failed to parse reporter global log JSON\n{reporter_global_raw}"
+    reporter_global = parse_json_object_payload(reporter_global_raw)
+    if reporter_global is None:
+        reporter_global_repair_prompt = build_reporter_global_log_repair_prompt(
+            work_item_id, reporter_global_raw
         )
-    implementation_line = str(reporter_global.get("implementation_log", "")).strip()
-    validation_line = str(reporter_global.get("validation_log", "")).strip()
-    decision_line = str(reporter_global.get("decision_log", "")).strip()
-    if requires_global_logs:
-        if not implementation_line:
-            implementation_line = f"{work_item_id}: Process docs updated; placeholder implementation log entry."
-        if not validation_line:
-            validation_line = f"{work_item_id}: Process docs updated; placeholder validation log entry."
+        reporter_global_repaired_raw = codex_exec(
+            reporter_global_repair_prompt,
+            cwd=reporter_path,
+            profile="Reporter",
+            runner_metadata=runner_metadata,
+            root=str(runner_root),
+        ).strip()
+        reporter_global = parse_json_object_payload(reporter_global_repaired_raw)
+
+    global_log_payload = merge_reporter_global_log_payload(
+        reporter_global,
+        deterministic_global_log_payload(work_item_id, requires_global_logs),
+    )
+    implementation_line = str(global_log_payload.get("implementation_log", "")).strip()
+    validation_line = str(global_log_payload.get("validation_log", "")).strip()
+    decision_line = str(global_log_payload.get("decision_log", "")).strip()
     if implementation_line:
         append_log_line(
             os.path.join("docs", "03-logs", "implementation-log.md"),
