@@ -97,7 +97,7 @@
 Plan Contract v1
 Approach:
 
-1. Audit prompt inventory and template parity, then map required prompt paths used by runtime loader to existing files.
+1. Audit prompt inventory and template parity, then map required prompt paths used by the runtime loader to existing files.
    Files to change:
 
 - `prompts/`
@@ -116,21 +116,21 @@ Approach:
 2. Align prompt contracts and loader logic with current workflow, ensuring file-based loading and explicit failure guidance.
    Files to change:
 
-- `tools/pc-feature/`
 - `prompts/`
 - `tools/templates/prompts/`
+- `src/`
   Risks:
 - Over-tightening reviewer wording could deadlock high-risk flows.
 - Loader changes could break existing task-specific prompt selection.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: Two fixtures for each prompt-loading path (base role and task-specific variant).
 - Deterministic seed strategy: Fixed seeds for any generated prompt IDs or ordering.
-- Invariant checks: Assert loader always uses `load_prompt_template()`/fallback, never embedded prompt bodies.
+- Invariant checks: Assert loader always uses file-based prompt loading with fallback, never embedded prompt bodies.
 - Contract boundary coverage: Ensure missing prompt file throws actionable, user-facing remediation.
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-3. Add/refresh plan-reviewer gate tests for approve, block/retry, and conflict paths.
+3. Add or refresh plan-reviewer gate tests for approve, block/retry, and conflict paths.
    Files to change:
 
 - `tests/test_pc_feature.py`
@@ -144,7 +144,7 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-4. Sync process docs with prompt/gate semantics and finalize.
+4. Sync process docs with prompt and gate semantics and finalize.
    Files to change:
 
 - `docs/04-process/ticket-execution-protocol.md`
@@ -197,6 +197,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: patcher no-op; reason=blocked by invalid allowed tests.
 - Attempt 1: reporter no-op; reason=blocked by invalid allowed tests.
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=2/3).
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=2/3).
 
 #### Commit
 
