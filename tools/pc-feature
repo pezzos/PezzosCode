@@ -1696,9 +1696,162 @@ def missing_plan_contract_sections(plan_text: str) -> List[str]:
     return [section for section in PLAN_CONTRACT_SECTIONS if not sections.get(section)]
 
 
-def plan_policy_violations(plan_text: str) -> List[str]:
+def normalize_plan_line(line: str) -> str:
+    stripped = line.strip()
+    if not stripped:
+        return ""
+    if stripped.startswith(("-", "*")):
+        stripped = stripped[1:].strip()
+    if re.match(r"^\d+\.\s+", stripped):
+        stripped = re.sub(r"^\d+\.\s+", "", stripped).strip()
+    return stripped
+
+
+def is_negated_command_reference(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(do not|don't|must not|never|without|forbid|forbidden)\b.{0,32}\b(make\s+feature|pc-feature|tools/pc-feature)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
+def plan_command_violations(plan_text: str, sections: Dict[str, str]) -> List[str]:
     violations: List[str] = []
+    has_contract = any(value.strip() for value in sections.values())
+    scan_lines: List[str] = []
+    if has_contract:
+        for section_name, section_body in sections.items():
+            if section_name == PLAN_CONTRACT_FILES_SECTION:
+                continue
+            scan_lines.extend(section_body.splitlines())
+    else:
+        scan_lines = plan_text.splitlines()
+
+    for raw_line in scan_lines:
+        normalized = normalize_plan_line(raw_line)
+        if not normalized:
+            continue
+        lowered = normalized.lower()
+        if is_negated_command_reference(lowered):
+            continue
+        explicit_context = bool(
+            re.search(
+                r"\b(run|execute|executed|invok(?:e|es|ed|ing)|command|shell|cli)\b",
+                lowered,
+            )
+        )
+
+        if re.search(r"^make\s+feature(?:\s|$)", lowered):
+            if "forbidden command in plan: make feature" not in violations:
+                violations.append("forbidden command in plan: make feature")
+            continue
+
+        if re.search(r"^(?:\./)?tools/pc-feature\b", lowered):
+            has_args = bool(re.search(r"^(?:\./)?tools/pc-feature\b\s+\S+", lowered))
+            if has_args or explicit_context:
+                if "forbidden command in plan: tools/pc-feature" not in violations:
+                    violations.append("forbidden command in plan: tools/pc-feature")
+                if "forbidden command in plan: pc-feature" not in violations:
+                    violations.append("forbidden command in plan: pc-feature")
+            continue
+
+        if re.search(r"^pc-feature\b", lowered):
+            has_args = bool(re.search(r"^pc-feature\b\s+\S+", lowered))
+            if has_args or explicit_context:
+                if "forbidden command in plan: pc-feature" not in violations:
+                    violations.append("forbidden command in plan: pc-feature")
+            continue
+
+        if explicit_context and re.search(r"\bmake\s+feature\b", lowered):
+            if "forbidden command in plan: make feature" not in violations:
+                violations.append("forbidden command in plan: make feature")
+        if explicit_context and re.search(r"\b(?:\./)?tools/pc-feature\b", lowered):
+            if "forbidden command in plan: tools/pc-feature" not in violations:
+                violations.append("forbidden command in plan: tools/pc-feature")
+            if "forbidden command in plan: pc-feature" not in violations:
+                violations.append("forbidden command in plan: pc-feature")
+        elif explicit_context and re.search(r"\bpc-feature\b", lowered):
+            if "forbidden command in plan: pc-feature" not in violations:
+                violations.append("forbidden command in plan: pc-feature")
+
+    return violations
+
+
+def extract_plan_test_commands(plan_text: str) -> List[str]:
+    sections = extract_plan_contract_sections(plan_text)
+    tests_section = sections.get("Tests (anti-hardcode coverage required)", "")
+    commands: List[str] = []
+    seen = set()
+    for line in tests_section.splitlines():
+        candidates = re.findall(r"`([^`]+)`", line)
+        normalized_line = normalize_plan_line(line)
+        if normalized_line:
+            candidates.append(normalized_line)
+        for candidate in candidates:
+            normalized = normalize_allowed_test(candidate)
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                commands.append(normalized)
+    return commands
+
+
+def missing_global_log_handoff_issue(plan_text: str) -> Optional[str]:
+    if not plan_uses_contract_sections(plan_text):
+        return None
+    sections = extract_plan_contract_sections(plan_text)
+    files_scope_text = sections.get(PLAN_CONTRACT_FILES_SECTION, "")
     lowered = plan_text.lower()
+    requires_handoff = bool(
+        re.search(r"docs/03-logs/", files_scope_text, re.IGNORECASE)
+        or re.search(r"docs/04-process/", files_scope_text, re.IGNORECASE)
+        or "docs/03-logs" in lowered
+    )
+    if not requires_handoff:
+        return None
+    mentions_docs_logs = "docs/03-logs" in lowered
+    mentions_owner = "reporter" in lowered or "orchestrator" in lowered
+    patcher_guard = any(
+        marker in lowered
+        for marker in (
+            "patcher will not edit",
+            "patcher does not edit",
+            "patcher won't edit",
+            "not by patcher",
+            "not patcher",
+        )
+    )
+    if mentions_docs_logs and mentions_owner and patcher_guard:
+        return None
+    return (
+        "plan must explicitly assign docs/03-logs updates to reporter/orchestrator "
+        "and state patcher will not edit those files"
+    )
+
+
+def plan_test_command_alignment_issues(
+    plan_text: str, allowed_tests: Optional[List[str]] = None
+) -> List[str]:
+    if not allowed_tests:
+        return []
+    plan_commands = extract_plan_test_commands(plan_text)
+    if not plan_commands:
+        return []
+    allowed = set(allowed_tests)
+    disallowed = [cmd for cmd in plan_commands if cmd not in allowed]
+    if not disallowed:
+        return []
+    return [
+        "plan test commands must be listed in Allowed Tests: "
+        + ", ".join(f"`{cmd}`" for cmd in disallowed)
+    ]
+
+
+def plan_policy_violations(
+    plan_text: str, *, allowed_tests: Optional[List[str]] = None
+) -> List[str]:
+    violations: List[str] = []
     sections = extract_plan_contract_sections(plan_text)
     files_scope_text = sections.get(PLAN_CONTRACT_FILES_SECTION, "").strip()
     path_scan_targets: List[str] = [plan_text]
@@ -1718,14 +1871,15 @@ def plan_policy_violations(plan_text: str) -> List[str]:
                 entry = f"forbidden path in plan: {match}"
                 if entry not in violations:
                     violations.append(entry)
-    command_patterns = (
-        (r"\bmake\s+feature\b", "forbidden command in plan: make feature"),
-        (r"\btools/pc-feature\b", "forbidden command in plan: tools/pc-feature"),
-        (r"\bpc-feature\b", "forbidden command in plan: pc-feature"),
-    )
-    for pattern, message in command_patterns:
-        if re.search(pattern, lowered, re.IGNORECASE):
-            violations.append(message)
+    for issue in plan_command_violations(plan_text, sections):
+        if issue not in violations:
+            violations.append(issue)
+    global_log_issue = missing_global_log_handoff_issue(plan_text)
+    if global_log_issue and global_log_issue not in violations:
+        violations.append(global_log_issue)
+    for issue in plan_test_command_alignment_issues(plan_text, allowed_tests):
+        if issue not in violations:
+            violations.append(issue)
     return violations
 
 
@@ -2979,7 +3133,12 @@ def main() -> None:
                 + "; ".join(sorted(set(quality_issues)))
             )
 
-        unresolved_policy_issues = plan_policy_violations(revised_plan)
+        allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
+        allowed_tests_for_policy = parse_allowed_tests(allowed_section)
+        unresolved_policy_issues = plan_policy_violations(
+            revised_plan,
+            allowed_tests=allowed_tests_for_policy,
+        )
         if unresolved_policy_issues:
             stagnation_signature = "|".join(sorted(set(unresolved_policy_issues)))
             if stagnation_signature == last_stagnation_signature:
@@ -3304,7 +3463,10 @@ def main() -> None:
             anti_hardcode_issues = anti_hardcode_coverage_issues(
                 current_plan, tdd_section
             )
-        policy_issues = plan_policy_violations(current_plan)
+        policy_issues = plan_policy_violations(
+            current_plan,
+            allowed_tests=allowed_tests,
+        )
         deterministic_reviewer_issues = policy_issues + anti_hardcode_issues
         reviewer_dirty_delta: List[str] = []
         if deterministic_reviewer_issues:
@@ -3432,7 +3594,10 @@ def main() -> None:
 
         content = read_file(dev_tasks_path)
         current_plan = get_entry_section(content, work_item_id, "Plan")
-        prepatch_policy_issues = plan_policy_violations(current_plan)
+        prepatch_policy_issues = plan_policy_violations(
+            current_plan,
+            allowed_tests=allowed_tests,
+        )
         if prepatch_policy_issues:
             prepatch_feedback = plan_policy_block_feedback(prepatch_policy_issues)
             revise_plan_from_feedback(

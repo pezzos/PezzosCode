@@ -1136,3 +1136,16 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - F-15 docs now include validation-log compaction coverage.
   - Compact-output usefulness contract and non-destructive derived output location are documented.
   - Global logs include decision + implementation records for the reformulation.
+
+## 2026-02-09 - Plan-review policy hardening validation
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_reviewer_approve_allows_patch`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_docs_logs tests.test_orchestrator_workflow_docs`
+- Result: PASS (`121` tests, offload id `64e03633531244689c5eea77631a0ce414b4ead9d15361afc0776fec41567559`)
+- Verified:
+  - `plan_policy_violations` no longer treats `tools/pc-feature` file-path entries as forbidden command usage.
+  - Forbidden commands are still blocked when used in command context.
+  - Plans touching process/global-log docs now require explicit reporter/orchestrator ownership wording for `docs/03-logs/*` updates.
+  - Concrete plan test commands must match Allowed Tests commands.
+  - Prompt/template parity remains intact for updated planner/reviewer prompts.

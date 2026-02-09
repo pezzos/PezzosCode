@@ -5068,3 +5068,50 @@ Track when debt is paid down:
 **Testing:**
 
 - Documentation checks recorded in `docs/03-logs/validation-log.md` (doc-only update).
+
+### 2026-02-09 - Plan-review block reduction hardening (command context + plan/test alignment)
+
+**Feature/Bug:** Plan-reviewer reliability improvements
+
+**Changed Files:**
+
+- `AGENTS.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `prompts/plan-reviewer-gate.md`
+- `tools/templates/prompts/plan-reviewer-gate.md`
+- `prompts/planner-create.md`
+- `tools/templates/prompts/planner-create.md`
+- `prompts/planner-update-allowed-tests.md`
+- `tools/templates/prompts/planner-update-allowed-tests.md`
+- `prompts/planner-update-from-feedback.md`
+- `tools/templates/prompts/planner-update-from-feedback.md`
+- `prompts/planner-update_from_feedback.md`
+- `tools/templates/prompts/planner-update_from_feedback.md`
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Clarified policy that `make feature` is orchestration/bootstrap only and must not be planned as a patch/test command.
+- Updated reviewer gate wording to block forbidden commands only in command context (not file-path references in `Files to change`).
+- Added deterministic plan-policy checks in `pc-feature` for:
+  - command-context detection of forbidden commands,
+  - explicit global-log handoff wording for plans that touch process/global-log docs,
+  - plan test command alignment with Allowed Tests.
+- Kept prompt/template parity for planner and reviewer prompt files.
+- Added regression tests for command-context parsing and plan/Allowed Tests alignment behavior.
+
+**Why:**
+
+- Reduce avoidable Plan Reviewer `BLOCK` loops caused by false positives (`tools/pc-feature` as file path) and repeated plan-policy drift around tests/global-log ownership.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_docs_logs tests.test_orchestrator_workflow_docs`

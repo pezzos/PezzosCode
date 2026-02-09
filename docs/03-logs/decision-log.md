@@ -1842,3 +1842,19 @@ When a decision is reversed or replaced, document it here:
   - Test/implementation scope is clearer for future execution.
 
 - WI-20260209-01: Process docs changed; orchestrator retained ownership of deferred docs/03-logs updates.
+
+### DEC-037 - Treat forbidden plan commands by command context and add deterministic plan/test policy checks
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** Plan-review logs showed repeated `BLOCK` decisions from three recurring causes: false positives when `tools/pc-feature` appeared as a file path, missing explicit ownership for `docs/03-logs/*` updates, and plan Tests commands drifting from Allowed Tests.
+- **Decision:**
+  - Evaluate forbidden plan commands in command context and avoid treating file-path entries in `Files to change` as executable commands.
+  - Keep deterministic blocking for role/global log paths.
+  - Require explicit global-log handoff wording only when plans touch process/global-log docs.
+  - Require concrete plan test commands to be listed in Allowed Tests.
+  - Align AGENTS/process docs and planner/reviewer prompts with this policy.
+- **Consequences:**
+  - Reduced false-positive blocks while preserving policy safety.
+  - Earlier deterministic remediation for real plan-policy gaps.
+  - More stable planner/reviewer loop behavior with clearer required changes.

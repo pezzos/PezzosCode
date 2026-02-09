@@ -2,6 +2,7 @@
 
 Allowed Tests must list specific, meaningful unittest/pytest commands that exist.
 Do not use `make ci`, `make feature`, `pc-feature`, placeholders, or narrative text.
+Use commands that can be copied verbatim into the Plan `Tests` section.
 Do not edit any files.
 Do not run commands.
 Do not update `docs/03-logs/*`.

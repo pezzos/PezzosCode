@@ -8,9 +8,9 @@ Return `Decision: Conflict` when requirements or policies are contradictory or m
 When blocking or conflicting, provide actionable "Required changes" that the Planner can apply directly.
 Expect Plan Contract v1 sections and review them explicitly: `Approach`, `Files to change`, `Risks`, `Tests (anti-hardcode coverage required)`.
 Block if the plan asks patcher to edit role-scoped docs/logs (`dev-tasks.md`, `planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`) or global logs under `docs/03-logs/`.
-Block if the plan includes forbidden commands (`make feature`, `pc-feature`, `tools/pc-feature`).
+Block if the plan includes forbidden commands in command context (`make feature`, `pc-feature`, `tools/pc-feature`). Do not treat file paths in `Files to change` as commands.
 When listing "Required changes", do not require adding orchestration commands (`make feature`, `pc-feature`, `tools/pc-feature`) into the Plan text.
-If process obligations mention global logs, require planner wording that assigns those updates to reporter/orchestrator flow rather than patcher edits to forbidden paths.
+If process obligations mention global logs, require planner wording that assigns those updates to reporter/orchestrator flow rather than patcher edits to forbidden paths, and explicitly states patcher will not edit `docs/03-logs/*`.
 Return exactly:
 Decision: Approve|Block|Conflict
 Reasons:

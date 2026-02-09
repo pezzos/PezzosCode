@@ -437,6 +437,144 @@ class TestPcFeature(unittest.TestCase):
         violations = self.pc_feature.plan_policy_violations(plan)
         self.assertTrue(any("dev-tasks.md" in item for item in violations))
 
+    def test_plan_policy_violations_does_not_treat_files_path_as_command(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior and note that docs/03-logs updates are handled by reporter/orchestrator; patcher will not edit those files.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertFalse(
+            any(
+                "forbidden command in plan: tools/pc-feature" in item
+                for item in violations
+            )
+        )
+        self.assertFalse(
+            any("forbidden command in plan: pc-feature" in item for item in violations)
+        )
+
+    def test_plan_policy_violations_detects_tools_pc_feature_command_context(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Run tools/pc-feature F=12 and note docs/03-logs updates are owned by reporter/orchestrator; patcher will not edit those files.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertTrue(
+            any(
+                "forbidden command in plan: tools/pc-feature" in item
+                for item in violations
+            )
+        )
+        self.assertTrue(
+            any("forbidden command in plan: pc-feature" in item for item in violations)
+        )
+
+    def test_plan_policy_violations_requires_global_log_handoff(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "- docs/04-process/ticket-execution-protocol.md\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(plan)
+        self.assertTrue(
+            any(
+                "assign docs/03-logs updates to reporter/orchestrator" in item
+                for item in violations
+            )
+        )
+
+    def test_plan_policy_violations_requires_plan_tests_to_match_allowed_tests(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior and note docs/03-logs updates are handled by reporter/orchestrator; patcher will not edit those files.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_learning_loop_proposals.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertTrue(
+            any(
+                "plan test commands must be listed in Allowed Tests" in item
+                for item in violations
+            )
+        )
+
+    def test_plan_policy_violations_allows_matching_plan_test_commands(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior and note docs/03-logs updates are handled by reporter/orchestrator; patcher will not edit those files.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertFalse(
+            any(
+                "plan test commands must be listed in Allowed Tests" in item
+                for item in violations
+            )
+        )
+
     def test_revised_plan_quality_issues_require_contract_when_previous_uses_contract(
         self,
     ):
