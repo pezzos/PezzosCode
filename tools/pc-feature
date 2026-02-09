@@ -162,14 +162,22 @@ def load_prompt_template(role: str, task: Optional[str] = None) -> str:
         checked.append(str(path))
         if path.exists():
             return path.read_text(encoding="utf-8")
+    prompt_dir = str(PROMPTS_DIR)
+    template_dir = str(ROOT / "tools" / "templates" / "prompts")
     if task:
         die(
             "pc-feature: missing prompt template "
-            f"for role={role} task={task}; checked: {', '.join(checked)}"
+            f"for role={role} task={task}; checked: {', '.join(checked)}; "
+            "remediation: add the prompt file(s) under "
+            f"{prompt_dir} (copy from {template_dir}); "
+            "pc-feature loads prompts from files only"
         )
     die(
         "pc-feature: missing prompt template "
-        f"for role={role}; checked: {', '.join(checked)}"
+        f"for role={role}; checked: {', '.join(checked)}; "
+        "remediation: add the prompt file under "
+        f"{prompt_dir} (copy from {template_dir}); "
+        "pc-feature loads prompts from files only"
     )
     return ""
 
@@ -1683,7 +1691,7 @@ def plan_policy_block_feedback(issues: List[str]) -> str:
 
 
 def parse_plan_reviewer_decision(text: str) -> str:
-    match = re.search(r"Decision:\s*(Approve|Block)\b", text, re.IGNORECASE)
+    match = re.search(r"Decision:\s*(Approve|Block|Conflict)\b", text, re.IGNORECASE)
     if not match:
         return "BLOCK"
     return match.group(1).upper()
@@ -3297,6 +3305,28 @@ def main() -> None:
             work_item_id,
             feature_dir,
         )
+
+        if reviewer_decision == "CONFLICT":
+            content = read_file(dev_tasks_path)
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            content = update_entry_field(
+                content,
+                work_item_id,
+                "Notes",
+                "Plan reviewer conflict; resolve conflicting instructions and update Plan/Allowed Tests before retrying.",
+            )
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                "Plan reviewer conflict; resolve conflicting requirements and retry after updating the Plan.",
+            )
+            write_file(dev_tasks_path, content)
+            die(
+                "pc-feature: plan reviewer conflict; resolve conflicting plan guidance "
+                "and update the Plan/Allowed Tests before retrying"
+            )
 
         if reviewer_decision == "BLOCK":
             reviewer_blocks += 1

@@ -875,6 +875,14 @@ class TestPcFeature(unittest.TestCase):
             "BLOCK",
         )
         self.assertEqual(
+            self.pc_feature.parse_plan_reviewer_decision("Decision: Conflict"),
+            "CONFLICT",
+        )
+        self.assertEqual(
+            self.pc_feature.parse_plan_reviewer_decision("Decision: conflict"),
+            "CONFLICT",
+        )
+        self.assertEqual(
             self.pc_feature.parse_plan_reviewer_decision("unexpected output"),
             "BLOCK",
         )
@@ -1038,8 +1046,49 @@ class TestPcFeature(unittest.TestCase):
                         self.pc_feature.load_prompt_template("planner", "create")
             finally:
                 self.pc_feature.PROMPTS_DIR = original_prompts_dir
-        self.assertIn("missing prompt template", stderr_capture.getvalue())
-        self.assertIn("role=planner task=create", stderr_capture.getvalue())
+        message = stderr_capture.getvalue()
+        self.assertIn("missing prompt template", message)
+        self.assertIn("role=planner task=create", message)
+        self.assertIn("prompts", message)
+        self.assertIn("templates", message)
+        self.assertIn("loads prompts from files only", message)
+
+    def test_load_prompt_template_role_only_success(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            prompts_dir = Path(tmp_dir)
+            (prompts_dir / "planner.md").write_text(
+                "base {work_item_id}\n", encoding="utf-8"
+            )
+            original_prompts_dir = self.pc_feature.PROMPTS_DIR
+            self.pc_feature.PROMPTS_DIR = prompts_dir
+            try:
+                rendered = self.pc_feature.load_prompt_template("planner")
+                self.assertEqual(rendered, "base {work_item_id}\n")
+            finally:
+                self.pc_feature.PROMPTS_DIR = original_prompts_dir
+
+    def test_load_prompt_template_missing_role_only_has_clear_error(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            original_prompts_dir = self.pc_feature.PROMPTS_DIR
+            self.pc_feature.PROMPTS_DIR = Path(tmp_dir)
+            stderr_capture = io.StringIO()
+            try:
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.load_prompt_template("planner")
+            finally:
+                self.pc_feature.PROMPTS_DIR = original_prompts_dir
+        message = stderr_capture.getvalue()
+        self.assertIn("missing prompt template", message)
+        self.assertIn("role=planner", message)
+        self.assertIn("remediation", message)
+
+    def test_prompt_templates_match_prompt_inventory(self):
+        prompts_dir = ROOT / "prompts"
+        templates_dir = ROOT / "tools" / "templates" / "prompts"
+        prompt_files = sorted(path.name for path in prompts_dir.glob("*.md"))
+        template_files = sorted(path.name for path in templates_dir.glob("*.md"))
+        self.assertEqual(prompt_files, template_files)
 
     def test_stage_scoped_final_paths_blocks_unrelated_dirty_paths(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2744,6 +2793,150 @@ class TestPcFeature(unittest.TestCase):
 
             self.assertEqual(reviewer_calls["count"], 1)
             self.assertEqual(planner_update_calls["count"], 0)
+
+    def test_plan_reviewer_conflict_halts_before_patch(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-12"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    return False
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return (
+                        "Decision: Conflict\n"
+                        "Reasons:\n- conflicting requirements\n"
+                        "Required changes:\n- reconcile scope"
+                    )
+                if "You are the Patcher agent." in prompt:
+                    raise AssertionError("patcher should not run on conflict")
+                return "ok"
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn("plan reviewer conflict", stderr_capture.getvalue())
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("Plan reviewer conflict", dev_tasks)
+
+    def test_plan_reviewer_conflict_case_insensitive(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-13"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    return False
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: conflict\nReasons:\n- unclear"
+                return "ok"
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn("plan reviewer conflict", stderr_capture.getvalue())
 
     def test_plan_policy_block_routes_back_to_planner_before_patcher(self):
         class StopMain(RuntimeError):
