@@ -2844,6 +2844,142 @@ def main() -> None:
     stagnation_count = 0
     execution_attempt = 0
     last_failure_context = "No failure context recorded."
+
+    def revise_plan_from_feedback(
+        *,
+        attempt: int,
+        current_plan: str,
+        tdd_section: str,
+        feedback: str,
+        iteration_reason: str,
+        planner_log_step: str,
+        failure_context: str,
+    ) -> None:
+        nonlocal planner_revision_attempts
+        nonlocal stagnation_count
+        nonlocal last_stagnation_signature
+        nonlocal last_failure_context
+
+        last_failure_context = failure_context
+        if planner_revision_attempts >= MAX_PLANNER_REVISIONS:
+            content = read_file(dev_tasks_path)
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                "Planner revision limit reached while handling reviewer blocks; "
+                f"planner_revision={planner_revision_attempts}/{MAX_PLANNER_REVISIONS}; "
+                f"reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}.",
+            )
+            content = update_entry_field(
+                content,
+                work_item_id,
+                "Notes",
+                "Planner revision limit reached during plan-reviewer loop.",
+            )
+            write_file(dev_tasks_path, content)
+            die(
+                "pc-feature: max planner revision attempts reached in plan-reviewer loop"
+            )
+
+        planner_revision_attempts += 1
+        planner_update_prompt = render_prompt_template(
+            load_prompt_template("planner", "update-from-feedback"),
+            {
+                "work_item_id": work_item_id,
+                "current_plan": current_plan,
+                "reviewer_feedback": feedback,
+            },
+        )
+        revised_plan_raw = codex_exec(
+            planner_update_prompt,
+            cwd=planner_path,
+            profile="Planner",
+            runner_metadata=runner_metadata,
+            root=str(runner_root),
+        ).strip()
+        if not revised_plan_raw:
+            die("pc-feature: planner returned empty plan after feedback block")
+
+        revised_plan = merge_revised_plan(current_plan, revised_plan_raw)
+        quality_issues = revised_plan_quality_issues(
+            revised_plan,
+            previous_plan=current_plan,
+        )
+        content = read_file(dev_tasks_path)
+        if should_enforce_anti_hardcode(content, work_item_id):
+            quality_issues.extend(
+                anti_hardcode_coverage_issues(revised_plan, tdd_section)
+            )
+        if quality_issues:
+            die(
+                "pc-feature: revised plan failed quality checks: "
+                + "; ".join(sorted(set(quality_issues)))
+            )
+
+        unresolved_policy_issues = plan_policy_violations(revised_plan)
+        if unresolved_policy_issues:
+            stagnation_signature = "|".join(sorted(set(unresolved_policy_issues)))
+            if stagnation_signature == last_stagnation_signature:
+                stagnation_count += 1
+            else:
+                last_stagnation_signature = stagnation_signature
+                stagnation_count = 1
+            if stagnation_count >= MAX_STAGNANT_REVIEWER_BLOCKS:
+                content = read_file(dev_tasks_path)
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Planner/reviewer loop stagnation detected; "
+                    f"repeat_count={stagnation_count}/{MAX_STAGNANT_REVIEWER_BLOCKS}; "
+                    f"issues={stagnation_signature}",
+                )
+                content = update_entry_field(
+                    content,
+                    work_item_id,
+                    "Notes",
+                    "Planner/reviewer stagnation detected; manual intervention required.",
+                )
+                write_file(dev_tasks_path, content)
+                die(
+                    "pc-feature: planner/reviewer loop is stagnant; repeated unresolved policy issues"
+                )
+        else:
+            stagnation_count = 0
+            last_stagnation_signature = ""
+
+        content = read_file(dev_tasks_path)
+        content = replace_entry_section(content, work_item_id, "Plan", revised_plan)
+        content = append_iteration_log_note(
+            content,
+            work_item_id,
+            f"Attempt {attempt}: {iteration_reason}; planner updated plan "
+            f"(reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}, "
+            f"planner_revision={planner_revision_attempts}/{MAX_PLANNER_REVISIONS}, "
+            f"execution_attempt={attempt}/{MAX_LOOPS}).",
+        )
+        write_file(dev_tasks_path, content)
+        ensure_role_log(os.path.join(planner_path, role_paths["planner"]), "planner")
+        append_role_log(
+            os.path.join(planner_path, role_paths["planner"]),
+            work_item_id,
+            f"{planner_log_step}\n\n{summarize_feedback(feedback)}",
+            role="planner",
+        )
+        commit_role_step(
+            root,
+            planner_path,
+            patcher_branch,
+            "planner",
+            work_item_id,
+            feature_dir,
+        )
+
     while execution_attempt < MAX_LOOPS:
         current_main_head = git_ref_sha(root, "refs/heads/main")
         if current_main_head != locked_main_head:
@@ -3163,9 +3299,6 @@ def main() -> None:
         )
 
         if reviewer_decision == "BLOCK":
-            last_failure_context = (
-                "plan reviewer blocked plan; planner revision required."
-            )
             reviewer_blocks += 1
             if reviewer_blocks >= MAX_REVIEWER_BLOCKS:
                 content = read_file(dev_tasks_path)
@@ -3191,120 +3324,16 @@ def main() -> None:
                     "pc-feature: max plan-reviewer block attempts reached; "
                     "check planner/reviewer feedback for unresolved policy constraints"
                 )
-            if planner_revision_attempts >= MAX_PLANNER_REVISIONS:
-                content = read_file(dev_tasks_path)
-                content = update_entry_field(
-                    content, work_item_id, "Outcome", "needs replan"
-                )
-                content = append_iteration_log_note(
-                    content,
-                    work_item_id,
-                    "Planner revision limit reached while handling reviewer blocks; "
-                    f"planner_revision={planner_revision_attempts}/{MAX_PLANNER_REVISIONS}; "
-                    f"reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}.",
-                )
-                content = update_entry_field(
-                    content,
-                    work_item_id,
-                    "Notes",
-                    "Planner revision limit reached during plan-reviewer loop.",
-                )
-                write_file(dev_tasks_path, content)
-                die(
-                    "pc-feature: max planner revision attempts reached in plan-reviewer loop"
-                )
-            planner_revision_attempts += 1
-            planner_update_prompt = render_prompt_template(
-                load_prompt_template("planner", "update-from-feedback"),
-                {
-                    "work_item_id": work_item_id,
-                    "current_plan": current_plan,
-                    "reviewer_feedback": reviewer_feedback,
-                },
-            )
-            revised_plan_raw = codex_exec(
-                planner_update_prompt,
-                cwd=planner_path,
-                profile="Planner",
-                runner_metadata=runner_metadata,
-                root=str(runner_root),
-            ).strip()
-            if not revised_plan_raw:
-                die("pc-feature: planner returned empty plan after reviewer block")
-            revised_plan = merge_revised_plan(current_plan, revised_plan_raw)
-            quality_issues = revised_plan_quality_issues(
-                revised_plan,
-                previous_plan=current_plan,
-            )
-            if should_enforce_anti_hardcode(content, work_item_id):
-                quality_issues.extend(
-                    anti_hardcode_coverage_issues(revised_plan, tdd_section)
-                )
-            if quality_issues:
-                die(
-                    "pc-feature: revised plan failed quality checks: "
-                    + "; ".join(sorted(set(quality_issues)))
-                )
-            unresolved_policy_issues = plan_policy_violations(revised_plan)
-            if unresolved_policy_issues:
-                stagnation_signature = "|".join(sorted(set(unresolved_policy_issues)))
-                if stagnation_signature == last_stagnation_signature:
-                    stagnation_count += 1
-                else:
-                    last_stagnation_signature = stagnation_signature
-                    stagnation_count = 1
-                if stagnation_count >= MAX_STAGNANT_REVIEWER_BLOCKS:
-                    content = read_file(dev_tasks_path)
-                    content = update_entry_field(
-                        content, work_item_id, "Outcome", "needs replan"
-                    )
-                    content = append_iteration_log_note(
-                        content,
-                        work_item_id,
-                        "Planner/reviewer loop stagnation detected; "
-                        f"repeat_count={stagnation_count}/{MAX_STAGNANT_REVIEWER_BLOCKS}; "
-                        f"issues={stagnation_signature}",
-                    )
-                    content = update_entry_field(
-                        content,
-                        work_item_id,
-                        "Notes",
-                        "Planner/reviewer stagnation detected; manual intervention required.",
-                    )
-                    write_file(dev_tasks_path, content)
-                    die(
-                        "pc-feature: planner/reviewer loop is stagnant; repeated unresolved policy issues"
-                    )
-            else:
-                stagnation_count = 0
-                last_stagnation_signature = ""
-            content = read_file(dev_tasks_path)
-            content = replace_entry_section(content, work_item_id, "Plan", revised_plan)
-            content = append_iteration_log_note(
-                content,
-                work_item_id,
-                f"Attempt {attempt}: Plan Reviewer BLOCK; planner updated plan "
-                f"(reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}, "
-                f"planner_revision={planner_revision_attempts}/{MAX_PLANNER_REVISIONS}, "
-                f"execution_attempt={attempt}/{MAX_LOOPS}).",
-            )
-            write_file(dev_tasks_path, content)
-            ensure_role_log(
-                os.path.join(planner_path, role_paths["planner"]), "planner"
-            )
-            append_role_log(
-                os.path.join(planner_path, role_paths["planner"]),
-                work_item_id,
-                f"Step Planner revise after Plan Reviewer BLOCK at attempt {attempt}.\n\n{summarize_feedback(reviewer_feedback)}",
-                role="planner",
-            )
-            commit_role_step(
-                root,
-                planner_path,
-                patcher_branch,
-                "planner",
-                work_item_id,
-                feature_dir,
+            revise_plan_from_feedback(
+                attempt=attempt,
+                current_plan=current_plan,
+                tdd_section=tdd_section,
+                feedback=reviewer_feedback,
+                iteration_reason="Plan Reviewer BLOCK",
+                planner_log_step=(
+                    f"Step Planner revise after Plan Reviewer BLOCK at attempt {attempt}."
+                ),
+                failure_context="plan reviewer blocked plan; planner revision required.",
             )
             continue
 
@@ -3320,12 +3349,31 @@ def main() -> None:
             )
 
         content = read_file(dev_tasks_path)
+        current_plan = get_entry_section(content, work_item_id, "Plan")
+        prepatch_policy_issues = plan_policy_violations(current_plan)
+        if prepatch_policy_issues:
+            prepatch_feedback = plan_policy_block_feedback(prepatch_policy_issues)
+            revise_plan_from_feedback(
+                attempt=attempt,
+                current_plan=current_plan,
+                tdd_section=tdd_section,
+                feedback=prepatch_feedback,
+                iteration_reason="pre-patch policy recheck BLOCK",
+                planner_log_step=(
+                    f"Step Planner revise after pre-patch policy recheck BLOCK at attempt {attempt}."
+                ),
+                failure_context=(
+                    "pre-patch policy recheck blocked plan; planner revision required."
+                ),
+            )
+            continue
+
         if not entry_section_complete(content, work_item_id, "Patch"):
             patch_prompt = render_prompt_template(
                 load_prompt_template("patcher", "apply"),
                 {
                     "work_item_id": work_item_id,
-                    "plan": get_entry_section(content, work_item_id, "Plan"),
+                    "plan": current_plan,
                 },
             )
             codex_exec(
@@ -3336,6 +3384,49 @@ def main() -> None:
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
+            patcher_dirty_paths = filter_ignored_paths(get_status_paths(patcher_path))
+            illegal_patcher_paths = sorted(
+                {
+                    path
+                    for path in patcher_dirty_paths
+                    if role_scoped_path_forbidden_for_patcher(path)
+                }
+            )
+            if illegal_patcher_paths:
+                restore_dirty_paths(patcher_path, patcher_dirty_paths)
+                residual_dirty = filter_ignored_paths(get_status_paths(patcher_path))
+                if residual_dirty:
+                    die(
+                        "pc-feature: patcher cleanup after scope violation failed: "
+                        + ", ".join(sorted(residual_dirty))
+                    )
+                illegal_paths = ", ".join(illegal_patcher_paths)
+                patcher_scope_feedback = (
+                    "Decision: Block\n"
+                    "Reasons:\n"
+                    "- Patcher touched role-scoped/global-log files, which violates orchestrator scope policy.\n"
+                    "Required changes:\n"
+                    f"- Remove forbidden paths from the plan and patch instructions: {illegal_paths}\n"
+                    "- Keep patcher changes limited to implementation files only; planner owns dev-tasks and role logs.\n"
+                    "Optional suggestions:\n"
+                    "- Replace broad file patterns with exact non-role-scoped paths.\n"
+                )
+                revise_plan_from_feedback(
+                    attempt=attempt,
+                    current_plan=current_plan,
+                    tdd_section=tdd_section,
+                    feedback=patcher_scope_feedback,
+                    iteration_reason=f"patcher scope violation ({illegal_paths})",
+                    planner_log_step=(
+                        "Step Planner revise after patcher role-scope violation "
+                        f"at attempt {attempt}."
+                    ),
+                    failure_context=(
+                        "patcher touched role-scoped/global-log files; "
+                        f"planner revision required ({illegal_paths})."
+                    ),
+                )
+                continue
             commit_role_step(
                 root,
                 patcher_path,

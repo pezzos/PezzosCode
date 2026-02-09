@@ -4652,6 +4652,42 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
 
+### 2026-02-09 - Pre-patch policy recheck + patcher scope-violation reroute
+
+**Feature/Bug:** prevent late patcher hard-stop by rerouting forbidden scope edits back to planner remediation
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added `revise_plan_from_feedback(...)` helper to centralize planner revision handling after policy/feedback blocks.
+- Added a second deterministic `plan_policy_violations(...)` check immediately before patcher execution.
+- When patcher touches role-scoped/global-log files, the run now:
+  - restores patcher dirty paths,
+  - generates explicit remediation feedback,
+  - routes back to planner for plan revision,
+  - continues loop instead of terminating immediately on the patcher guard.
+- Added regression coverage for resume/retry flow ensuring a pre-patch forbidden-plan detection reroutes to planner and does not invoke patcher.
+
+**Why:**
+
+- A feature-13 run hit `patcher edited role-scoped files` late after plan drift. We need deterministic defense at pre-patch time and a recoverable planner reroute path.
+
+**Impact:**
+
+- **Breaking changes:** No API break; stricter orchestration guardrails before patch step.
+- **Performance:** Minimal (one extra policy scan before patching).
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_prepatch_policy_recheck_routes_back_to_planner_before_patcher`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id: `f286e4ef1d6de49fe6b76805ea23fd8710d0f2a61084c4b5691e8b7c34401028`)
+
 ### 2026-02-09 - Reporter global-log JSON repair + deterministic orchestrator fallback
 
 **Feature/Bug:** prevent end-of-run failure when reporter returns non-JSON text for global log summaries

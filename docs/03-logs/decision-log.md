@@ -1795,3 +1795,18 @@ When a decision is reversed or replaced, document it here:
   - `make feature` no longer hard-fails at the final reporter global-log parse step.
   - Global reporting remains present by default via deterministic fallback lines.
   - Role-scope boundaries remain explicit: reporter reports, orchestrator writes.
+
+### DEC-034 - Add pre-patch policy recheck and planner reroute for patcher scope violations
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** Feature 13 resume/retry flow still allowed a late terminal abort (`patcher edited role-scoped files`) when plan drift reintroduced forbidden paths after earlier review steps.
+- **Decision:**
+  - Re-run deterministic `plan_policy_violations(...)` immediately before patcher execution.
+  - If pre-patch policy check fails, do not invoke patcher; route to planner revision with explicit remediation.
+  - If patcher still produces role-scoped/global-log edits, restore patcher dirt and route back to planner revision instead of immediate terminal abort.
+  - Keep existing terminal role-scope guards as final safety nets.
+- **Consequences:**
+  - Resume/retry loops fail earlier and more deterministically on policy drift.
+  - Planner receives actionable remediation context instead of a hard-stop path.
+  - Patcher scope enforcement remains strict while becoming recoverable within loop limits.

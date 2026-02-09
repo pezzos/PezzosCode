@@ -1051,3 +1051,16 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - unrecoverable reporter payloads no longer abort `pc-feature`; deterministic orchestrator global-log lines are used.
   - reporter-provided valid repaired payload values are preferred over deterministic defaults.
   - deterministic payload content changes with `requires_global_logs`.
+
+## 2026-02-09 - Pre-patch policy recheck and patcher reroute validation
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_prepatch_policy_recheck_routes_back_to_planner_before_patcher`
+- Result: PASS (`1` test)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (offload id `f286e4ef1d6de49fe6b76805ea23fd8710d0f2a61084c4b5691e8b7c34401028`)
+- Verified:
+  - pre-patch deterministic policy recheck blocks forbidden plan content immediately before patcher.
+  - planner revision is triggered with explicit remediation when the pre-patch check fails.
+  - patcher is not invoked in the guarded resume/retry regression path.

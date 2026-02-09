@@ -642,3 +642,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** `pc-feature` aborted after successful gates when reporter global-log output was non-JSON and parse failed.
 - **Fix:** Added one JSON-repair retry and deterministic orchestrator fallback log payload generation.
 - **Validation:** `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id `2cbaa4db1d7a72f88c194ac728a304bdaa5e801327d99c96cb0de68ac7b0da69`).
+
+## 2026-02-09 - Late patcher role-scope abort after plan drift
+
+- **ID:** BUG-20260209-02
+- **Status:** Fixed
+- **Source:** Internal feature run (`make feature F=13`)
+- **Summary:** A resumed/retried run reached patcher and aborted on `patcher edited role-scoped files` instead of rerouting to planner with remediation.
+- **Fix:** Added pre-patch deterministic policy recheck and planner reroute flow for patcher role-scope/global-log violations.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id `f286e4ef1d6de49fe6b76805ea23fd8710d0f2a61084c4b5691e8b7c34401028`).
