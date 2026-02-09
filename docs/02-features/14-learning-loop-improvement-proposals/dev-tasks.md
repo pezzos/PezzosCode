@@ -119,13 +119,6 @@ Approach:
   Risks:
 - Tests may not cover missing-context boundaries introduced by hook integration.
 
-4. Record decisions and validation outcomes in `docs/03-logs/*.md` via reporter/orchestrator flow; patcher will not edit role-scoped logs or `docs/03-logs/`.
-   Files to change:
-
-- None (reporter/orchestrator-owned)
-  Risks:
-- Missing log updates could block completion if not coordinated.
-
 Tests (anti-hardcode coverage required):
 
 - Fixture coverage: At least 2 fixtures per critical path (fail/stall with full context; fail/stall with missing context) plus success-path fixture; ensure dedup path has at least 2 variants.
@@ -176,6 +169,7 @@ Work Item ID: WI-20260209-01
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=6/12, planner_revision=6/12, execution_attempt=2/3).
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=7/12, planner_revision=7/12, execution_attempt=2/3).
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=8/12, planner_revision=8/12, execution_attempt=2/3).
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=9/12, planner_revision=9/12, execution_attempt=2/3).
 
 #### Commit
 

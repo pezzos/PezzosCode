@@ -142,3 +142,9 @@ Decision: Block Reasons: - Plan violates orchestrator scope policy. Required cha
 Step Planner revise after Plan Reviewer BLOCK at attempt 2.
 
 Decision: Block Reasons: - Plan does not address the repo requirement to update `docs/03-logs/*.md`, and the Plan Reviewer rules prohibit patcher edits to those logs. The plan must explicitly assign log updates to reporter/orchestrator flow to satisfy both constraints. Required changes: - Add a plan note that `docs/03-logs/*.md` updates will be handled by the reporter/orchestrator (not the patcher), and that the p...
+
+### WI-20260209-01 - 2026-02-09
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 2.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/03-logs/\*.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
