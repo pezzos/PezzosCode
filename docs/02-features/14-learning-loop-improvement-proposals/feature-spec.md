@@ -49,12 +49,13 @@ Formalize the post-run learning loop so every failed or stalled work item can ge
 - **Requirement 1:** Detect failure/stall outcomes from work item execution context (`WI`, `agent`, `step`, failure summary).
 - **Requirement 2:** Generate proposal entries in `docs/possible-improvements.md` using the existing template fields.
 - **Requirement 3:** Keep proposals human-gated (status starts as `Proposed`; no auto-apply of patches).
-- **Requirement 4:** Deduplicate repeated failures by signature (same WI/step/failure summary) to avoid noisy duplicates.
+- **Requirement 4:** Deduplicate repeated failures by signature (work item + step + normalized failure summary; agent not part of signature) to avoid noisy duplicates.
+- **Requirement 5:** Missing execution context uses placeholders (e.g., `Unknown`, `TBD`) and appends a missing-context note in the failure summary.
 
 #### Edge Cases
 
 - **Edge Case 1:** Missing execution context (for example, failure happened before WI metadata was populated).
-- **Edge Case 2:** Multiple agents report the same root issue in one run.
+- **Edge Case 2:** Multiple agents report the same root issue in one run (single proposal, agent list combined).
 - **Edge Case 3:** Successful run should not generate proposals.
 
 ### Product Surfaces
@@ -70,7 +71,8 @@ Formalize the post-run learning loop so every failed or stalled work item can ge
 
 - Failed/stalled `make feature` runs can produce a proposal entry with required fields (`Date`, `Work Item`, `Agent`, `Step`, `Failure Summary`, `Proposed Improvement`, `Status`).
 - Proposals are recorded as `Proposed` and are never auto-applied.
-- Duplicate proposals for the same failure signature are merged or skipped with explicit rationale.
+- Duplicate proposals for the same failure signature (normalized summary) are merged or skipped with explicit rationale.
+- Missing context still produces a proposal with placeholders and a missing-context note.
 - Process docs and feature docs use consistent wording for post-run improvement proposals.
 
 ## Scope

@@ -9,7 +9,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from lib.pc_runner import build_metadata
+from lib.pc_runner import (
+    build_metadata,
+    build_proposal_from_outcome,
+    merge_or_append_proposal,
+    render_proposal_entry,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 PC_FEATURE_PATH = ROOT / "tools" / "pc-feature"
@@ -4035,6 +4040,113 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("revised plan from failure feedback", dev_tasks)
             self.assertIn("patcher feedback pending", dev_tasks)
+
+
+class ProposalGenerationTests(unittest.TestCase):
+    def _template(self) -> str:
+        return (ROOT / "docs" / "possible-improvements.md").read_text(encoding="utf-8")
+
+    def _entries_section(self, content: str) -> str:
+        marker = "## Entries"
+        if marker not in content:
+            return ""
+        return content.split(marker, 1)[1]
+
+    def test_fail_outcome_generates_proposal_with_template_fields(self):
+        outcome = {
+            "outcome": "FAIL",
+            "work_item_id": "WI-20260209-01",
+            "agent_name": "Patcher",
+            "step": "Patch",
+            "failure_summary": "Unit tests failed on pc_runner",
+            "proposed_improvement": "Harden proposal dedup for missing context",
+            "proposed_patch_location": "lib/pc_runner.py",
+            "risks": "May alter proposal merge behavior",
+            "decision_log_ref": "DEC-20260209-01",
+        }
+        proposal = build_proposal_from_outcome(outcome, date="2026-02-09")
+        self.assertIsNotNone(proposal)
+        self.assertEqual(proposal.status, "Proposed")
+        rendered = render_proposal_entry(proposal)
+        required_fields = [
+            "**Date:**",
+            "**Work Item:**",
+            "**Agent:**",
+            "**Step:**",
+            "**Failure Summary:**",
+            "**Proposed Improvement:**",
+            "**Proposed Patch Location:**",
+            "**Risks / Trade-offs:**",
+            "**Status:**",
+            "**Decision Log Ref:**",
+        ]
+        for field in required_fields:
+            with self.subTest(field=field):
+                self.assertIn(field, rendered)
+
+    def test_stall_outcome_missing_context_fills_placeholders(self):
+        outcome = {"outcome": "STALL"}
+        proposal = build_proposal_from_outcome(outcome, date="2026-02-09")
+        self.assertIsNotNone(proposal)
+        self.assertEqual(proposal.work_item_id, "Unknown")
+        self.assertEqual(proposal.agent, "Unknown")
+        self.assertEqual(proposal.step, "Unknown")
+        self.assertIn("Missing context:", proposal.failure_summary)
+
+    def test_pass_outcome_returns_none(self):
+        self.assertIsNone(build_proposal_from_outcome({"outcome": "PASS"}))
+
+    def test_multi_agent_payload_combines_agents(self):
+        outcome = {
+            "outcome": "FAIL",
+            "work_item_id": "WI-20260209-01",
+            "agent_names": ["Reporter", "Tester", "Reporter"],
+            "step": "Review",
+            "failure_summary": "Missing reviewer feedback",
+        }
+        proposal = build_proposal_from_outcome(outcome, date="2026-02-09")
+        self.assertEqual(proposal.agent, "Reporter, Tester")
+
+    def test_dedup_skips_duplicate_signature(self):
+        outcome = {
+            "outcome": "FAIL",
+            "work_item_id": "WI-20260209-01",
+            "agent_name": "Tester",
+            "step": "Test",
+            "failure_summary": "Integration tests failed",
+        }
+        proposal = build_proposal_from_outcome(outcome, date="2026-02-09")
+        template = self._template()
+        updated, action = merge_or_append_proposal(template, proposal)
+        self.assertEqual(action, "appended")
+        updated_again, action_again = merge_or_append_proposal(updated, proposal)
+        self.assertEqual(action_again, "skipped")
+        self.assertEqual(self._entries_section(updated_again).count("### Proposal:"), 1)
+
+    def test_dedup_merges_placeholder_fields(self):
+        seed_outcome = {
+            "outcome": "FAIL",
+            "work_item_id": "WI-20260209-01",
+            "step": "Test",
+            "failure_summary": "Timeout contacting service",
+        }
+        template = self._template()
+        initial = build_proposal_from_outcome(seed_outcome, date="2026-02-09")
+        updated, action = merge_or_append_proposal(template, initial)
+        self.assertEqual(action, "appended")
+
+        enriched_outcome = {
+            **seed_outcome,
+            "agent_name": "Tester",
+            "proposed_improvement": "Add retry with backoff",
+            "proposed_patch_location": "lib/pc_runner.py",
+        }
+        enriched = build_proposal_from_outcome(enriched_outcome, date="2026-02-09")
+        merged, action = merge_or_append_proposal(updated, enriched)
+        self.assertEqual(action, "merged")
+        self.assertIn("**Agent:** Tester", merged)
+        self.assertIn("**Proposed Improvement:** Add retry with backoff", merged)
+        self.assertEqual(self._entries_section(merged).count("### Proposal:"), 1)
 
 
 if __name__ == "__main__":

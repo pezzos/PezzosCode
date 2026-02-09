@@ -26,6 +26,7 @@
 - Validate proposal creation on failed/stalled workflow outcomes.
 - Validate duplicate-suppression behavior for repeated failure signatures.
 - Validate no proposal creation on successful outcomes.
+- Validate missing-context fallback and multi-agent aggregation in proposal payloads.
 
 ## Planned Test Commands
 
@@ -39,6 +40,7 @@
 - Re-running the same fail/stall case does not create duplicate entries.
 - A pass case creates no new proposal entry.
 - Entry status defaults to `Proposed`; no automatic patch application occurs.
+- Missing-context cases fill placeholders and append a missing-context note in failure summary.
 
 ## Approval
 

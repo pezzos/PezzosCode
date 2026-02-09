@@ -29,8 +29,9 @@ Implement deterministic proposal generation after failed/stalled workflow runs, 
 
 - Consume workflow outcome + step context (`WI`, `agent`, `step`, failure summary).
 - Render proposals using the existing markdown entry template in `docs/possible-improvements.md`.
-- Enforce proposal deduplication by normalized failure signature.
+- Enforce proposal deduplication by normalized failure signature (work item + step + lowercased/whitespace-collapsed failure summary).
 - Keep proposal generation as a post-run side effect only when run outcome is fail/stall.
+- Populate missing context with placeholders and a missing-context note; merge multiple agents into a single entry.
 
 ## Architecture
 
@@ -47,9 +48,10 @@ make feature -> tools/pc-feature -> execution outcome (pass/fail/stall)
 Proposal signature fields:
 
 - `work_item_id`
-- `agent_name`
 - `step`
 - `normalized_failure_summary`
+
+Agent data is stored in the entry but not included in the signature.
 
 Stored output is markdown entries (no new database).
 
@@ -70,8 +72,8 @@ Stored output is markdown entries (no new database).
 ## Documentation Needs
 
 - [x] Process/doc updates
-- [x] Implementation log entry
-- [x] Validation log entry (if tests executed)
+- [ ] Implementation log entry (Reporter/Orchestrator to record)
+- [ ] Validation log entry (if tests executed; Reporter/Orchestrator to record)
 - [ ] API documentation
 - [ ] User guide updates
 
