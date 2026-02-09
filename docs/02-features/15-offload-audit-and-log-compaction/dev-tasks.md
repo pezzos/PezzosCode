@@ -94,11 +94,11 @@
 Plan Contract v1
 Approach:
 
-1. Fix the compaction output path to write to `docs/03-logs/compacted/` for decision/implementation/validation outputs and centralize the path in a single resolver/config to prevent drift.
+1. Update compaction output routing to use a single resolver/config for the derived compaction output location, and ensure decision/implementation/validation outputs are written to that derived location (without hardcoded paths).
    Files to change:
 
 - `tools/pc-feature` (path resolver or compaction wiring)
-- Any compaction script/config that currently targets `docs/02-features/WI-20260209-01/compacted`
+- Any compaction script/config that currently embeds a fixed output path
   Risks:
 - Compacted outputs may miss required fields or evidence references if path logic changes.
 - Misrouting could overwrite canonical logs if derivation boundaries are unclear.
@@ -110,7 +110,7 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Remove or migrate misplaced compacted artifacts under `docs/02-features/WI-20260209-01/compacted` after re-running compaction to the derived location.
+2. Remove or migrate any misplaced compacted artifacts under the feature work item folder after re-running compaction to the derived location.
    Files to change:
 
 - `docs/02-features/WI-20260209-01/compacted` (remove or migrate)
@@ -177,7 +177,8 @@ Work Item ID: WI-20260209-01
 - Attempt 2: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows outputs were written to the wrong location, so the plan must be updated to target the required derived path.; patcher feedback pending.
 - Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=3/3).
 - Attempt 3: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows compacted outputs are written to the wrong location, so the plan must be updated to correct the output path and cleanup/migration behavior.; patcher feedback pending.
-- Loop exhausted at MAX*LOOPS; last failure context: tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m unittest discover -s tests -p 'test*_.py'`Notes: Results:`python -m unittest discover -s tests -p 'test\__.py'`-> 0 Discovery: no explicit discovery summary found in command output. Work Item ID: WI-20260209-01; reporter_feedback=Outcome: FAIL Docs/logs updated:`docs/02-features/15-offload-audit-and-log-compaction/reporter-log.md`File/Path:`docs/03-logs/compacted/`Check: Compacted outputs must be written to the derived location defined in the feature spec and dev tasks. Evidence:`docs/03-logs/compacted/`is missing; compacted outputs are present under`docs/02-features/WI-20260209-01/compacted`. Feature spec and dev tasks require `doc...
+- Loop exhausted at MAX*LOOPS; last failure context: tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m unittest discover -s tests -p 'test*\_.py'`Notes: Results:`python -m unittest discover -s tests -p 'test\_\_.py'`-> 0 Discovery: no explicit discovery summary found in command output. Work Item ID: WI-20260209-01; reporter_feedback=Outcome: FAIL Docs/logs updated:`docs/02-features/15-offload-audit-and-log-compaction/reporter-log.md`File/Path:`docs/03-logs/compacted/`Check: Compacted outputs must be written to the derived location defined in the feature spec and dev tasks. Evidence:`docs/03-logs/compacted/`is missing; compacted outputs are present under`docs/02-features/WI-20260209-01/compacted`. Feature spec and dev tasks require `doc...
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
 
 #### Commit
 

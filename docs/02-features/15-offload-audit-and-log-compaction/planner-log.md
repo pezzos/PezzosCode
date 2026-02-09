@@ -227,3 +227,9 @@ Approach:
 Handoff note: Required updates to `docs/03-logs/*` are owned by reporter/orchestrator; patcher will not edit those files.
 
 Work Item ID: WI-20260209-01
+
+### WI-20260209-01 - 2026-02-09
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/03-logs/compacted/ Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
