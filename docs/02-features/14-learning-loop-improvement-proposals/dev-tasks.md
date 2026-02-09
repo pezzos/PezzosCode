@@ -99,7 +99,6 @@ Approach:
 1. Integrate proposal generation on fail/stall outcomes by adding a post-run hook that builds a proposal from the outcome payload and calls the updater.
    Files to change:
 
-- tools/pc-feature
 - lib/pc_runner.py
   Risks:
 - Hook may run in unintended contexts and create duplicate proposals if outcome filtering is wrong.
@@ -167,6 +166,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=3/12, planner_revision=3/12, execution_attempt=1/3).
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=4/12, planner_revision=4/12, execution_attempt=1/3).
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter found missing integration hook and incorrect multi-agent merge behavior, so implementation steps and tests must be updated.; patcher feedback pending.
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=5/12, planner_revision=5/12, execution_attempt=2/3).
 
 #### Commit
 
