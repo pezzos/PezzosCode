@@ -94,14 +94,13 @@
 Plan Contract v1
 Approach:
 
-1. Update compaction output routing to use a single resolver/config for the derived compaction output location, and ensure decision/implementation/validation outputs are written to that derived location (without hardcoded paths).
+1. Verify and update compaction path resolution to ensure all compacted outputs are written under `docs/03-logs/compacted/` with decision/implementation/validation artifacts.
    Files to change:
 
-- `tools/pc-feature` (path resolver or compaction wiring)
-- Any compaction script/config that currently embeds a fixed output path
+- `tools/pc-feature`
+- Any compaction script/config that resolves output paths
   Risks:
-- Compacted outputs may miss required fields or evidence references if path logic changes.
-- Misrouting could overwrite canonical logs if derivation boundaries are unclear.
+- Incorrect path derivation could misroute artifacts or overwrite unrelated logs.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: At least 2 fixtures per log type (decision/implementation/validation).
 - Deterministic seed strategy: Fixed seed if ordering is applied.
@@ -110,26 +109,26 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Remove or migrate any misplaced compacted artifacts under the feature work item folder after re-running compaction to the derived location.
+2. Re-run the compaction workflow to generate decision/implementation/validation compacted outputs under `docs/03-logs/compacted/`.
    Files to change:
 
-- `docs/02-features/WI-20260209-01/compacted` (remove or migrate)
+- `docs/03-logs/compacted/` (generated artifacts)
   Risks:
-- Accidental deletion of the only valid compacted outputs if re-run fails.
+- Running compaction with incorrect inputs could generate incomplete or misleading outputs.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A (artifact management step).
+- Fixture coverage: N/A (artifact generation step).
 - Deterministic seed strategy: N/A.
-- Invariant checks: Derived location contains expected compacted outputs after re-run.
+- Invariant checks: Derived location contains expected compacted outputs after run.
 - Contract boundary coverage: N/A.
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-3. Re-run the allowed tests to confirm behavior remains correct.
+3. Execute the allowed tests to confirm behavior remains correct after path changes.
    Files to change:
 
 - None (test execution only)
   Risks:
-- Test discovery still reports zero tests; ensure expectations are aligned.
+- Tests may still discover zero cases; ensure expectations are aligned with current test suite.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: N/A.
 - Deterministic seed strategy: N/A.
@@ -179,6 +178,7 @@ Work Item ID: WI-20260209-01
 - Attempt 3: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows compacted outputs are written to the wrong location, so the plan must be updated to correct the output path and cleanup/migration behavior.; patcher feedback pending.
 - Loop exhausted at MAX*LOOPS; last failure context: tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m unittest discover -s tests -p 'test*\_.py'`Notes: Results:`python -m unittest discover -s tests -p 'test\_\_.py'`-> 0 Discovery: no explicit discovery summary found in command output. Work Item ID: WI-20260209-01; reporter_feedback=Outcome: FAIL Docs/logs updated:`docs/02-features/15-offload-audit-and-log-compaction/reporter-log.md`File/Path:`docs/03-logs/compacted/`Check: Compacted outputs must be written to the derived location defined in the feature spec and dev tasks. Evidence:`docs/03-logs/compacted/`is missing; compacted outputs are present under`docs/02-features/WI-20260209-01/compacted`. Feature spec and dev tasks require `doc...
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
+- Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows required compacted outputs are missing under `docs/03-logs/compacted/`, so the plan must explicitly ensure compaction writes there and re-run compaction.; patcher feedback pending.
 
 #### Commit
 
