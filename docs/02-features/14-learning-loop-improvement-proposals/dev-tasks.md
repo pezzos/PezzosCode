@@ -112,12 +112,19 @@ Approach:
 - Agent aggregation could over-merge if signatures are too broad.
 - Backward compatibility with existing proposal entries could be broken.
 
-3. Extend tests to cover new hook invocation, multi-agent aggregation for same signature, and no-op on success.
+3. Extend tests to cover new hook invocation, multi-agent aggregation for same signature, and no-op on success, then run tests and summarize results.
    Files to change:
 
 - tests/test_pc_feature.py
   Risks:
 - Tests may not cover missing-context boundaries introduced by hook integration.
+
+4. Record decisions and validation outcomes in `docs/03-logs/*.md` via reporter/orchestrator flow; patcher will not edit role-scoped logs or `docs/03-logs/`.
+   Files to change:
+
+- None (reporter/orchestrator-owned)
+  Risks:
+- Missing log updates could block completion if not coordinated.
 
 Tests (anti-hardcode coverage required):
 
@@ -168,6 +175,7 @@ Work Item ID: WI-20260209-01
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=5/12, planner_revision=5/12, execution_attempt=2/3).
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=6/12, planner_revision=6/12, execution_attempt=2/3).
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=7/12, planner_revision=7/12, execution_attempt=2/3).
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=8/12, planner_revision=8/12, execution_attempt=2/3).
 
 #### Commit
 
