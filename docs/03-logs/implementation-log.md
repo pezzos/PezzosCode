@@ -5034,3 +5034,37 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp pytest tests/test_pc_feature.py`
 - `tools/offload-proxy/pp pytest tests/test_docs_logs.py tests/test_orchestrator_workflow_docs.py tests_extra/test_bootstrap_into_extra.py`
+
+### 2026-02-09 - Reformulate Feature 15 for useful compact logs
+
+**Feature/Bug:** F-15 offload audit + log compaction scope refinement
+
+**Changed Files:**
+
+- `docs/02-features/15-offload-audit-and-log-compaction/feature-spec.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/tech-design.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/test-plan.md`
+- `docs/03-logs/decision-log.md`
+
+**What Changed:**
+
+- Kept F-15 core framing as offload audit + compaction, but tightened it around continuous-improvement usefulness.
+- Expanded compaction scope from decision/implementation only to decision/implementation/validation logs.
+- Added a compact-output usefulness contract (source/date/work-item/outcome/evidence fields).
+- Added non-destructive derived-output location guidance (`docs/03-logs/compacted/`).
+- Synced tasks/tests so future execution validates fidelity and contract completeness.
+
+**Why:**
+
+- Original F-15 wording was directionally correct but underspecified for learning-loop outcomes and evidence quality.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- Documentation checks recorded in `docs/03-logs/validation-log.md` (doc-only update).

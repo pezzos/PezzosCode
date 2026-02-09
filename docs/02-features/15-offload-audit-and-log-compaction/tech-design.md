@@ -1,4 +1,4 @@
-# Technical Design: Offload audit + log compaction
+# Technical Design: Offload audit + useful log compaction
 
 > **Architecture & implementation approach**
 
@@ -10,11 +10,11 @@
 
 **Status:** Draft
 
-**Last Updated:** 2026-02-08
+**Last Updated:** 2026-02-09
 
 ### Summary
 
-Extend the current offload wrapper workflow with metadata indexing and retention commands, then add skill-driven compaction for high-volume logs.
+Extend the current offload wrapper workflow with metadata indexing and retention commands, then add skill-driven compaction for high-volume logs with an explicit usefulness contract for continuous workflow improvement.
 
 ### Product Surfaces
 
@@ -29,8 +29,10 @@ Extend the current offload wrapper workflow with metadata indexing and retention
 
 - Persist offload metadata in an append-friendly index format.
 - Provide list/get/purge command interfaces with predictable filtering.
-- Keep compaction output reproducible and linked to source sections.
+- Keep compaction output reproducible, useful, and linked to source sections.
 - Ensure compaction does not mutate canonical source logs.
+- Require compact artifacts to include source/date/work-item/evidence references.
+- Persist compact artifacts in a non-destructive derived location.
 
 ## Architecture
 
@@ -41,7 +43,9 @@ command -> tools/offload-proxy/pp -> .offload/<id>.txt
                                  -> offload index (metadata)
                                  -> list/get/purge utilities
 
-logs -> compaction skill -> compact artifact (derived summary)
+logs (decision/implementation/validation)
+  -> compaction skill
+  -> docs/03-logs/compacted/<source>-compact.md (derived summary, no source mutation)
 ```
 
 ### Data Model
@@ -56,10 +60,13 @@ Proposed offload index record (jsonl or equivalent line-based format):
 - `size_bytes`
 - `path`
 
-Compaction output includes:
+Compaction output contract includes:
 
 - source file path
 - source section/date reference
+- work item id/reference (if available)
+- concise outcome/rationale summary
+- evidence references (offload ids and/or `logs/<WI>/<step>.log` paths)
 - concise summary text
 
 ## Implementation Plan
@@ -67,14 +74,16 @@ Compaction output includes:
 1. Define index schema and storage location (`.offload/index.*`).
 2. Hook index writes into offload path in `tools/offload-proxy/pp` flow.
 3. Implement list/get/purge utilities with retention policy options.
-4. Create compaction skills for decision/implementation logs.
-5. Add validation for index integrity and compaction fidelity.
+4. Define compact artifact location and naming under `docs/03-logs/compacted/`.
+5. Create compaction skills for decision/implementation/validation logs.
+6. Add validation for index integrity, compaction fidelity, and contract completeness.
 
 ## Validation Strategy
 
 - Unit tests for index record creation and schema validation.
 - Command tests for list/get/purge behavior and retention handling.
 - Golden-style checks confirming compaction keeps critical references.
+- Contract checks confirming compact outputs always contain source/date/outcome/evidence fields.
 
 ## Documentation Needs
 
@@ -93,7 +102,8 @@ Compaction output includes:
 
 ## Change Log
 
-| Date       | Version | Changes                                                    | Author       |
-| ---------- | ------- | ---------------------------------------------------------- | ------------ |
-| 2026-02-08 | 0.2     | Rebased design to explicit index/retention/compaction flow | Codex        |
-| 2026-02-05 | 0.1     | Initial design                                             | Primary user |
+| Date       | Version | Changes                                                                  | Author       |
+| ---------- | ------- | ------------------------------------------------------------------------ | ------------ |
+| 2026-02-09 | 0.3     | Reformulated around useful compaction contract + validation-log coverage | Codex        |
+| 2026-02-08 | 0.2     | Rebased design to explicit index/retention/compaction flow               | Codex        |
+| 2026-02-05 | 0.1     | Initial design                                                           | Primary user |

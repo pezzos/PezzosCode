@@ -1123,3 +1123,16 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - Feature 14 runtime behavior remains green on `main`.
   - Feature/docs orchestration validations remain green after completion-state updates.
+
+## 2026-02-09 - Feature 15 reformulation doc validation
+
+- Command: `tools/offload-proxy/pp rg -n "validation-log|compacted|usefulness contract|work item reference|evidence reference" docs/02-features/15-offload-audit-and-log-compaction`
+- Result: PASS (expected reformulation terms present; offload id `4cfb8609722a1e45a7fe3beba245f4617199210cda8639ad28bf938c601d8992`)
+- Command: `tools/offload-proxy/pp rg -n "Last Updated:\\*\\*\\s*2026-02-09" docs/02-features/15-offload-audit-and-log-compaction/feature-spec.md docs/02-features/15-offload-audit-and-log-compaction/tech-design.md docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md docs/02-features/15-offload-audit-and-log-compaction/test-plan.md`
+- Result: PASS (all four feature docs updated; offload id `8b9f7b63127fd5e2830d799f0acac36a91b9b9404a7f7fb763ff9f2ecf822a43`)
+- Command: `tools/offload-proxy/pp rg -n "DEC-036|Reformulate Feature 15" docs/03-logs/decision-log.md docs/03-logs/implementation-log.md`
+- Result: PASS (decision/implementation trace entries present; offload id `483793c93ad03512116b746e36e47ef70b1abc44c12f6549139a0f2f3caa5a39`)
+- Verified:
+  - F-15 docs now include validation-log compaction coverage.
+  - Compact-output usefulness contract and non-destructive derived output location are documented.
+  - Global logs include decision + implementation records for the reformulation.

@@ -1,4 +1,4 @@
-# Development Tasks: Offload audit + log compaction
+# Development Tasks: Offload audit + useful log compaction
 
 > **LLM-executable tasks**
 
@@ -10,7 +10,7 @@
 
 **Status:** Not Started
 
-**Last Updated:** 2026-02-08
+**Last Updated:** 2026-02-09
 
 ## Task Breakdown
 
@@ -24,13 +24,14 @@
   - Include retention policy options (for example by age/count).
   - Output: predictable artifact retrieval and cleanup workflow.
 
-- [ ] **Task 3 - Implement log compaction skills**
-  - Add skills for compacting decision and implementation logs.
-  - Preserve source references and chronology in compact outputs.
-  - Output: reusable compaction workflows with no source-log deletion.
+- [ ] **Task 3 - Implement useful log compaction skills**
+  - Add skills for compacting decision, implementation, and validation logs.
+  - Enforce compact-output contract fields: source path, section/date reference, work item reference (if available), concise outcome/rationale, evidence reference(s).
+  - Write derived compact artifacts to `docs/03-logs/compacted/` without modifying canonical logs.
+  - Output: reusable compaction workflows with no source-log deletion and high learning value.
 
 - [ ] **Task 4 - Add tests and docs/log sync**
-  - Add tests for index integrity, list/get/purge behavior, and compaction fidelity.
+  - Add tests for index integrity, list/get/purge behavior, compaction fidelity, and contract completeness.
   - Update process docs and `docs/03-logs` entries with implementation/validation evidence.
   - Output: verified behavior and traceable documentation updates.
 
@@ -53,8 +54,9 @@
 
 ## Change Log
 
-| Date       | Changes                                                                  | Author       |
-| ---------- | ------------------------------------------------------------------------ | ------------ |
-| 2026-02-09 | Aligned workflow baseline to remove change-budget fields/section wording | Codex        |
-| 2026-02-08 | Rebased tasks to explicit offload index lifecycle                        | Codex        |
-| 2026-02-05 | Initial task breakdown                                                   | Primary user |
+| Date       | Changes                                                                                                    | Author       |
+| ---------- | ---------------------------------------------------------------------------------------------------------- | ------------ |
+| 2026-02-09 | Reformulated compaction scope for decision/implementation/validation + usefulness contract/output location | Codex        |
+| 2026-02-09 | Aligned workflow baseline to remove change-budget fields/section wording                                   | Codex        |
+| 2026-02-08 | Rebased tasks to explicit offload index lifecycle                                                          | Codex        |
+| 2026-02-05 | Initial task breakdown                                                                                     | Primary user |

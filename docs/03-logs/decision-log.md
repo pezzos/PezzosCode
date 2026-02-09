@@ -1826,4 +1826,19 @@ When a decision is reversed or replaced, document it here:
   - Existing historical/in-progress entries remain readable and updatable without manual migration.
   - Scope governance remains via explicit risks, review loops, and deterministic policy checks instead of soft budget numbers.
 
+### DEC-036 - Reframe F-15 around useful compact logs for continuous improvement
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** Feature 15 wording captured offload audit and compaction mechanics but did not explicitly cover validation-log compaction, compact-output usefulness requirements, or a deterministic derived-output location.
+- **Decision:**
+  - Keep Feature 15 focused on offload audit + log compaction.
+  - Expand compaction scope to `decision-log`, `implementation-log`, and `validation-log`.
+  - Require a compact-output usefulness contract (source/date/work-item/outcome/evidence references).
+  - Keep compaction non-destructive by writing derived artifacts under `docs/03-logs/compacted/` and preserving canonical logs.
+- **Consequences:**
+  - Feature 15 now aligns directly with the continuous workflow-improvement objective.
+  - Compaction outputs become auditable and actionable instead of only shorter text.
+  - Test/implementation scope is clearer for future execution.
+
 - WI-20260209-01: Process docs changed; orchestrator retained ownership of deferred docs/03-logs updates.
