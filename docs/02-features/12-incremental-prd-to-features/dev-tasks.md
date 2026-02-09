@@ -73,7 +73,7 @@
 
 #### Allowed Tests
 
-- (list exact commands; do not include `make feature` or `pc-feature`)
+- `python -m unittest discover -s tests -p 'test_*.py'`
 
 #### Files to Change + Change Budget
 
@@ -142,6 +142,10 @@ Work Item ID: WI-20260209-01
 - Attempt 1: plan-reviewer no-op; reason=blocked by invalid allowed tests.
 - Attempt 1: patcher no-op; reason=blocked by invalid allowed tests.
 - Attempt 1: reporter no-op; reason=blocked by invalid allowed tests.
+- Attempt 2: allowed-tests validation failed; routed back to planner. Issues: no allowed tests listed.
+- Attempt 2: plan-reviewer no-op; reason=blocked by invalid allowed tests.
+- Attempt 2: patcher no-op; reason=blocked by invalid allowed tests.
+- Attempt 2: reporter no-op; reason=blocked by invalid allowed tests.
 
 #### Commit
 
