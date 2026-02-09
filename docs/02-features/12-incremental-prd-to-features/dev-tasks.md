@@ -122,7 +122,7 @@ Work Item ID: WI-20260209-01
 
 #### Gates
 
-- make ci:
+- make ci: PASS
 
 #### Autofix Attempts
 
