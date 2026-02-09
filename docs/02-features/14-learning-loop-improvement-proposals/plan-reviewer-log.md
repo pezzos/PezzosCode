@@ -47,3 +47,16 @@ Reasons:
 - Update the plan’s Tests section to use only the allowed commands (`pytest tests/test_pc_feature.py` and/or `pytest tests/test_docs_logs.py tests/test_orchestrator_workflow_docs.py tests_extra/test_bootstrap_into_extra.py`) or explicitly state that test execution will be deferred per policy if those tests are not applicable.
   Optional suggestions:
 - None.
+
+### WI-20260209-01 - 2026-02-09
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- The plan’s Tests section requires `pytest tests/test_learning_loop_proposals.py`, which is not in the Allowed Tests list for this work item.
+  Required changes:
+- Update the Tests section to only include the allowed commands, or move new tests into a file covered by the allowed commands and update the plan accordingly.
+  Optional suggestions:
+- If you intend to add a new test file, align its execution with the allowed commands by integrating it into `pytest tests/test_pc_feature.py` coverage.
