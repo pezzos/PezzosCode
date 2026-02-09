@@ -330,6 +330,14 @@ def _merge_agents(existing: str, incoming: str) -> str:
     return ", ".join(merged)
 
 
+def _merge_status(existing: str, incoming: str) -> str:
+    if _is_placeholder(existing) and not _is_placeholder(incoming):
+        return incoming
+    if existing:
+        return existing
+    return incoming
+
+
 def _merge_proposal(existing: ProposalEntry, incoming: ProposalEntry) -> ProposalEntry:
     return ProposalEntry(
         date=existing.date if not _is_placeholder(existing.date) else incoming.date,
@@ -350,7 +358,7 @@ def _merge_proposal(existing: ProposalEntry, incoming: ProposalEntry) -> Proposa
             else incoming.proposed_patch_location
         ),
         risks=existing.risks if not _is_placeholder(existing.risks) else incoming.risks,
-        status=existing.status or incoming.status,
+        status=_merge_status(existing.status, incoming.status),
         decision_log_ref=(
             existing.decision_log_ref
             if not _is_placeholder(existing.decision_log_ref)
@@ -455,3 +463,34 @@ def update_possible_improvements(
     if updated != content:
         path.write_text(updated, encoding="utf-8")
     return updated, action
+
+
+def record_outcome_proposal(
+    outcome_payload: Mapping[str, object],
+    *,
+    root: Path,
+    runner_metadata: Optional[RunMetadata] = None,
+    date: Optional[str] = None,
+) -> Optional[str]:
+    proposal = build_proposal_from_outcome(outcome_payload, date=date)
+    if not proposal:
+        return None
+    path = root / "docs" / "possible-improvements.md"
+    if not path.exists():
+        if runner_metadata:
+            log_message(
+                runner_metadata,
+                "feature",
+                f"proposal skip missing {path}",
+                root=root,
+            )
+        return None
+    _, action = update_possible_improvements(path, proposal)
+    if runner_metadata:
+        log_message(
+            runner_metadata,
+            "feature",
+            f"proposal {action} signature={proposal_signature(proposal.work_item_id, proposal.step, proposal.failure_summary)}",
+            root=root,
+        )
+    return action

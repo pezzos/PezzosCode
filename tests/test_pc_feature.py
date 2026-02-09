@@ -13,6 +13,7 @@ from lib.pc_runner import (
     build_metadata,
     build_proposal_from_outcome,
     merge_or_append_proposal,
+    record_outcome_proposal,
     render_proposal_entry,
 )
 
@@ -4188,6 +4189,38 @@ class ProposalGenerationTests(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn("### Proposal:", updated)
+
+    def test_record_outcome_proposal_appends_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            docs_dir = root / "docs"
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            registry = docs_dir / "possible-improvements.md"
+            registry.write_text(self._template(), encoding="utf-8")
+            payload = {
+                "outcome": "FAIL",
+                "work_item_id": "WI-20260209-01",
+                "agent_name": "Reporter",
+                "step": "Report",
+                "failure_summary": "Missing log updates",
+            }
+            action = record_outcome_proposal(payload, root=root)
+            self.assertEqual(action, "appended")
+            updated = registry.read_text(encoding="utf-8")
+            self.assertIn("### Proposal:", updated)
+
+    def test_record_outcome_proposal_noop_on_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            docs_dir = root / "docs"
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            registry = docs_dir / "possible-improvements.md"
+            registry.write_text(self._template(), encoding="utf-8")
+            before = registry.read_text(encoding="utf-8")
+            action = record_outcome_proposal({"outcome": "PASS"}, root=root)
+            after = registry.read_text(encoding="utf-8")
+            self.assertIsNone(action)
+            self.assertEqual(before, after)
 
 
 if __name__ == "__main__":
