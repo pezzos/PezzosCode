@@ -94,7 +94,7 @@ Approach:
 
 - scripts or modules implementing `prd-to-features` (exact path TBD after inspection)
 - tests covering feature generation (exact path TBD after inspection)
-- feature docs as needed for spec alignment (excluding role-scoped logs and `docs/03-logs/*`)
+- feature docs as needed for spec alignment (excluding role-scoped logs)
   Risks:
 - Incorrect status parsing could reprocess done features.
 - Update-in-place logic could accidentally overwrite completed sections.
@@ -148,6 +148,7 @@ Work Item ID: WI-20260209-01
 - Attempt 2: reporter no-op; reason=blocked by invalid allowed tests.
 - Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=3/3).
 - Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=3/3).
+- Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=3/12, planner_revision=3/12, execution_attempt=3/3).
 
 #### Commit
 
