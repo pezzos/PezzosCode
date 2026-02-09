@@ -4123,6 +4123,25 @@ class ProposalGenerationTests(unittest.TestCase):
         self.assertEqual(action_again, "skipped")
         self.assertEqual(self._entries_section(updated_again).count("### Proposal:"), 1)
 
+    def test_dedup_merges_distinct_agents(self):
+        seed_outcome = {
+            "outcome": "FAIL",
+            "work_item_id": "WI-20260209-01",
+            "agent_name": "Tester",
+            "step": "Test",
+            "failure_summary": "Integration tests failed",
+        }
+        template = self._template()
+        initial = build_proposal_from_outcome(seed_outcome, date="2026-02-09")
+        updated, action = merge_or_append_proposal(template, initial)
+        self.assertEqual(action, "appended")
+
+        follow_outcome = {**seed_outcome, "agent_name": "Reporter"}
+        follow = build_proposal_from_outcome(follow_outcome, date="2026-02-09")
+        merged, action = merge_or_append_proposal(updated, follow)
+        self.assertEqual(action, "merged")
+        self.assertIn("**Agent:** Tester, Reporter", merged)
+
     def test_dedup_merges_placeholder_fields(self):
         seed_outcome = {
             "outcome": "FAIL",
@@ -4147,6 +4166,28 @@ class ProposalGenerationTests(unittest.TestCase):
         self.assertIn("**Agent:** Tester", merged)
         self.assertIn("**Proposed Improvement:** Add retry with backoff", merged)
         self.assertEqual(self._entries_section(merged).count("### Proposal:"), 1)
+
+    def test_record_failure_proposal_appends_entry(self):
+        pc_feature = load_pc_feature()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            docs_dir = root / "docs"
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            (docs_dir / "possible-improvements.md").write_text(
+                self._template(), encoding="utf-8"
+            )
+            payload = {
+                "outcome": "FAIL",
+                "work_item_id": "WI-20260209-01",
+                "agent_name": "Tester",
+                "step": "Test",
+                "failure_summary": "Unit tests failed",
+            }
+            pc_feature.record_failure_proposal(payload, root=root)
+            updated = (docs_dir / "possible-improvements.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("### Proposal:", updated)
 
 
 if __name__ == "__main__":

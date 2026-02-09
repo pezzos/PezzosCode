@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Mapping, Optional, Sequence, Tuple
+from typing import Iterable, List, Mapping, Optional, Sequence, Tuple
 
 WORK_ITEM_RE = re.compile(r"^WI-\d{8}-\d{2}$")
 PROPOSAL_SECTION_HEADER = "## Entries"
@@ -310,11 +310,31 @@ def _merge_failure_summary(existing: str, incoming: str) -> str:
     return existing
 
 
+def _merge_agents(existing: str, incoming: str) -> str:
+    if _is_placeholder(existing) and not _is_placeholder(incoming):
+        return incoming
+    if _is_placeholder(incoming):
+        return existing
+    existing_names = [
+        part.strip() for part in (existing or "").split(",") if part.strip()
+    ]
+    incoming_names = [
+        part.strip() for part in (incoming or "").split(",") if part.strip()
+    ]
+    merged: List[str] = []
+    for name in existing_names + incoming_names:
+        if name not in merged:
+            merged.append(name)
+    if not merged:
+        return existing if existing else incoming
+    return ", ".join(merged)
+
+
 def _merge_proposal(existing: ProposalEntry, incoming: ProposalEntry) -> ProposalEntry:
     return ProposalEntry(
         date=existing.date if not _is_placeholder(existing.date) else incoming.date,
         work_item_id=existing.work_item_id,
-        agent=existing.agent if not _is_placeholder(existing.agent) else incoming.agent,
+        agent=_merge_agents(existing.agent, incoming.agent),
         step=existing.step if not _is_placeholder(existing.step) else incoming.step,
         failure_summary=_merge_failure_summary(
             existing.failure_summary, incoming.failure_summary
