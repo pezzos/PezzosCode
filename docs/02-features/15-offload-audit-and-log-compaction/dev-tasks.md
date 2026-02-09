@@ -94,11 +94,10 @@
 Plan Contract v1
 Approach:
 
-1. Emit compacted decision/implementation/validation outputs to the required derived location while preserving canonical logs.
+1. Update the compaction path wiring so compacted outputs are written to the correct derived location while preserving canonical logs.
    Files to change:
 
-- `docs/03-logs/compacted/` (new compacted outputs)
-- Any existing compaction script or config responsible for output paths
+- Any existing compaction script or config responsible for output paths (exclude role/global logs and docs/03-logs)
   Risks:
 - Compacted outputs may omit required fields or evidence references.
 - Risk of overwriting or diverging from canonical logs if paths are miswired.
@@ -161,6 +160,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure shows missing compacted outputs and traceability log updates, so the plan must add explicit steps to generate compacted logs and ensure traceability updates.; patcher feedback pending.
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=2/3).
 - Attempt 2: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows outputs were written to the wrong location, so the plan must be updated to target the required derived path.; patcher feedback pending.
+- Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=3/3).
 
 #### Commit
 
