@@ -94,22 +94,37 @@
 Plan Contract v1
 Approach:
 
-1. Update the compaction path wiring so compacted outputs are written to the correct derived location while preserving canonical logs.
+1. Fix the compaction output path to write to `docs/03-logs/compacted/` for decision/implementation/validation outputs and centralize the path in a single resolver/config to prevent drift.
    Files to change:
 
-- Any existing compaction script or config responsible for output paths (exclude role/global logs and docs/03-logs)
+- `tools/pc-feature` (path resolver or compaction wiring)
+- Any compaction script/config that currently targets `docs/02-features/WI-20260209-01/compacted`
   Risks:
-- Compacted outputs may omit required fields or evidence references.
-- Risk of overwriting or diverging from canonical logs if paths are miswired.
+- Compacted outputs may miss required fields or evidence references if path logic changes.
+- Misrouting could overwrite canonical logs if derivation boundaries are unclear.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: Use at least 2 fixtures per log type (decision/implementation/validation).
-- Deterministic seed strategy: Fixed seed if any ordering is applied in compaction.
-- Invariant checks: Compact output includes source path, date/section, WI ref (if available), outcome/rationale, evidence refs.
-- Contract boundary coverage: Handle stale/missing sections with explicit markers.
+- Fixture coverage: At least 2 fixtures per log type (decision/implementation/validation).
+- Deterministic seed strategy: Fixed seed if ordering is applied.
+- Invariant checks: Output includes source path, date/section, WI ref (if available), outcome/rationale, evidence refs.
+- Contract boundary coverage: Missing/stale sections are marked explicitly.
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Re-run the allowed tests to confirm behavior remains correct.
+2. Remove or migrate misplaced compacted artifacts under `docs/02-features/WI-20260209-01/compacted` after re-running compaction to the derived location.
+   Files to change:
+
+- `docs/02-features/WI-20260209-01/compacted` (remove or migrate)
+  Risks:
+- Accidental deletion of the only valid compacted outputs if re-run fails.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A (artifact management step).
+- Deterministic seed strategy: N/A.
+- Invariant checks: Derived location contains expected compacted outputs after re-run.
+- Contract boundary coverage: N/A.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+3. Re-run the allowed tests to confirm behavior remains correct.
    Files to change:
 
 - None (test execution only)
@@ -161,6 +176,7 @@ Work Item ID: WI-20260209-01
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=2/3).
 - Attempt 2: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows outputs were written to the wrong location, so the plan must be updated to target the required derived path.; patcher feedback pending.
 - Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=3/3).
+- Attempt 3: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows compacted outputs are written to the wrong location, so the plan must be updated to correct the output path and cleanup/migration behavior.; patcher feedback pending.
 
 #### Commit
 
