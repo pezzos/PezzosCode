@@ -86,3 +86,20 @@ Reasons:
 - forbidden command in plan: pc-feature
   Optional suggestions:
 - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260209-02 - 2026-02-09
+
+Step Plan Reviewer CONFLICT at attempt 3.
+
+Decision: Conflict
+Reasons:
+
+- The repo’s `AGENTS.md` requires running `make feature F=<feature-id>` for any work item implementation, but this reviewer gate explicitly forbids plans that include `make feature`. The plan cannot be made compliant with both requirements as written.
+
+Required changes:
+
+- Obtain a clear directive on which rule supersedes: either waive the `make feature` requirement for this work item or relax the plan-reviewer prohibition. Update the plan accordingly once that decision is made.
+
+Optional suggestions:
+
+- If `make feature` is waived, explicitly note the approved substitute in the plan (e.g., “Skip `make feature` per PO approval for WI-20260209-02”) so execution is auditable.
