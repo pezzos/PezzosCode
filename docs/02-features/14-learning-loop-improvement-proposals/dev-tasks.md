@@ -45,7 +45,7 @@
 - Patcher:
 - Tester:
 - Reporter:
-- Outcome:
+- Outcome: needs replan
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
@@ -96,38 +96,35 @@
 Plan Contract v1
 Approach:
 
-1. Clarify proposal trigger/dedup rules and missing-context fallback in feature specs and test plan, and flag required global log updates for Reporter/Orchestrator (not Patcher) to record decision/implementation/validation entries.
+1. Integrate proposal generation on fail/stall outcomes by adding a post-run hook that builds a proposal from the outcome payload and calls the updater.
    Files to change:
 
-- docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md
-- docs/02-features/14-learning-loop-improvement-proposals/tech-design.md
-- docs/02-features/14-learning-loop-improvement-proposals/test-plan.md
-- docs/possible-improvements.md
+- tools/pc-feature
+- lib/pc_runner.py
   Risks:
-- Spec misalignment could drive incorrect implementation or tests.
-- Log updates might be missed without explicit handoff to Reporter/Orchestrator.
+- Hook may run in unintended contexts and create duplicate proposals if outcome filtering is wrong.
+- Missing or partial outcome fields could cause malformed proposal entries.
 
-2. Implement post-run proposal generation and dedup in the runner library and update any shared proposal template/example.
+2. Fix proposal merge to aggregate distinct agent names per signature while preserving `Proposed` status and existing fields.
    Files to change:
 
 - lib/pc_runner.py
-- docs/possible-improvements.md
   Risks:
-- Dedup signature normalization may under-merge or over-merge proposals.
-- Missing execution context could produce malformed proposals or crash.
+- Agent aggregation could over-merge if signatures are too broad.
+- Backward compatibility with existing proposal entries could be broken.
 
-3. Add unit/integration-style tests for failure/stall creation, dedup skip/merge, and success-path no-op, placing new cases into the allowed test file.
+3. Extend tests to cover new hook invocation and multi-agent aggregation semantics for same signature and no-op on success.
    Files to change:
 
 - tests/test_pc_feature.py
   Risks:
-- Tests might miss missing-context boundaries and regressions.
+- Tests may not cover missing-context boundaries introduced by hook integration.
 
 Tests (anti-hardcode coverage required):
 
 - Fixture coverage: At least 2 fixtures per critical path (fail/stall with full context; fail/stall with missing context) plus success-path fixture; ensure dedup path has at least 2 variants.
 - Deterministic seed strategy: Use fixed seed for any randomized normalization or ID generation in tests (e.g., `random.seed(0)` or deterministic time/ID stubs).
-- Invariant checks: Verify status remains `Proposed`, no proposals on success, and dedup never creates duplicate entries for same signature.
+- Invariant checks: Verify status remains `Proposed`, no proposals on success, and dedup never creates duplicate entries for same signature while aggregating agents.
 - Contract boundary coverage: Validate inputs from post-run outcome payloads into the proposal writer (missing fields, multiple agents) and ensure writer outputs valid template fields.
 - Allowed test commands:
   - `pytest tests/test_pc_feature.py`
@@ -169,6 +166,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=1/3).
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=3/12, planner_revision=3/12, execution_attempt=1/3).
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=4/12, planner_revision=4/12, execution_attempt=1/3).
+- Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter found missing integration hook and incorrect multi-agent merge behavior, so implementation steps and tests must be updated.; patcher feedback pending.
 
 #### Commit
 
