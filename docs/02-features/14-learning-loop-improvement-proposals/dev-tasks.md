@@ -96,23 +96,15 @@
 Plan Contract v1
 Approach:
 
-1. Note: Any `docs/03-logs/` updates will be handled by reporter/orchestrator flow; patcher will not edit those paths.
+1. Add post-run proposal generation for fail/stall outcomes by wiring a hook that builds a proposal from outcome payloads and invokes the proposal updater.
    Files to change:
 
-- None.
-  Risks:
-- Missing this handoff could cause process violations if patcher edits global logs.
-
-2. Integrate proposal generation on fail/stall outcomes by adding a post-run hook that builds a proposal from the outcome payload and calls the updater.
-   Files to change:
-
-- tools/pc-feature
 - lib/pc_runner.py
   Risks:
 - Hook may run in unintended contexts and create duplicate proposals if outcome filtering is wrong.
 - Missing or partial outcome fields could cause malformed proposal entries.
 
-3. Fix proposal merge to aggregate distinct agent names per signature while preserving `Proposed` status and existing fields.
+2. Fix proposal merge to aggregate distinct agent names per signature while preserving `Proposed` status and existing fields.
    Files to change:
 
 - lib/pc_runner.py
@@ -120,7 +112,7 @@ Approach:
 - Agent aggregation could over-merge if signatures are too broad.
 - Backward compatibility with existing proposal entries could be broken.
 
-4. Extend tests to cover new hook invocation and multi-agent aggregation semantics for same signature and no-op on success.
+3. Extend tests to cover new hook invocation, multi-agent aggregation for same signature, and no-op on success.
    Files to change:
 
 - tests/test_pc_feature.py
@@ -135,7 +127,6 @@ Tests (anti-hardcode coverage required):
 - Contract boundary coverage: Validate inputs from post-run outcome payloads into the proposal writer (missing fields, multiple agents) and ensure writer outputs valid template fields.
 - Allowed test commands:
   - `pytest tests/test_pc_feature.py`
-  - `pytest tests/test_docs_logs.py tests/test_orchestrator_workflow_docs.py tests_extra/test_bootstrap_into_extra.py`
 
 Work Item ID: WI-20260209-01
 
@@ -176,6 +167,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter found missing integration hook and incorrect multi-agent merge behavior, so implementation steps and tests must be updated.; patcher feedback pending.
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=5/12, planner_revision=5/12, execution_attempt=2/3).
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=6/12, planner_revision=6/12, execution_attempt=2/3).
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=7/12, planner_revision=7/12, execution_attempt=2/3).
 
 #### Commit
 
