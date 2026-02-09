@@ -119,7 +119,6 @@ Approach:
 
 - `prompts/`
 - `tools/templates/prompts/`
-- `tools/pc-feature.py`
   Risks:
 - Over-tightening reviewer wording could deadlock high-risk flows.
 - Loader changes could break task-specific prompt selection.
@@ -202,6 +201,7 @@ Work Item ID: WI-20260209-02
 - Attempt 2: patcher no-op; reason=blocked by invalid allowed tests.
 - Attempt 2: reporter no-op; reason=blocked by invalid allowed tests.
 - Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=3/3).
+- Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=3/3).
 
 #### Commit
 
