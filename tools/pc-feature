@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROMPTS_DIR = ROOT / "prompts"
 sys.path.insert(0, str(ROOT))
 
-from lib import pc_runner  # noqa: E402
+from lib import log_compaction, pc_runner  # noqa: E402
 
 EXEC_LOG_HEADER = "## Execution Log"
 ENTRY_HEADER_PREFIX = "### "
@@ -86,12 +86,8 @@ GLOBAL_LOG_FILES = (
     "insights.md",
     "validation-log.md",
 )
-COMPACTED_LOGS_DIR = os.path.join("docs", "03-logs", "compacted")
-COMPACTED_LOG_OUTPUT_NAMES = {
-    "decision": "decision-log-compact.json",
-    "implementation": "implementation-log-compact.json",
-    "validation": "validation-log-compact.json",
-}
+COMPACTED_LOGS_DIR = log_compaction.COMPACTED_LOGS_DIR
+COMPACTED_LOG_OUTPUT_NAMES = log_compaction.COMPACTED_LOG_OUTPUT_NAMES
 POSSIBLE_IMPROVEMENTS_PATH = os.path.join("docs", "possible-improvements.md")
 PROCESS_DOC_FILES = (
     "docs/04-process/ticket-execution-protocol.md",
