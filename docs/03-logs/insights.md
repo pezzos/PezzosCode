@@ -564,8 +564,3 @@ Based on everything we've learned, these are the principles that guide our work:
 
 - JSON-only LLM contracts in orchestrators should include a deterministic fallback path so final gates cannot fail on formatting drift.
 - Role-scope prompts should avoid write/commit language when the step is signal-only; conflicting instructions increase ambiguity and failure rates.
-
-## 2026-02-09 - Ephemeral path handling at commit boundaries
-
-- Runtime/ephemeral allowlists should be treated as optional at restage time; missing paths are normal and must not be fatal.
-- Caller-side filtering and callee-side hardening together prevent recurrence when multiple tools pass `--allow` paths.

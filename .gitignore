@@ -7,3 +7,4 @@
 .codex_subagent/skills/.system
 __pycache__/
 *.pyc
+.codex_precommit/

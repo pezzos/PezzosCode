@@ -25,7 +25,8 @@
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
    - Enforce role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
    - Plan Reviewer validates the plan (no code edits) before patching.
-   - Use `prompts/<role>.md` for role-specific instructions.
+   - Use `prompts/<role>.md` and task variants like `prompts/<role>-<task>.md` (ex: `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`) for role-specific instructions.
+   - If a prompt file is missing, copy it from `tools/templates/prompts/` and rerun the step (prompt loading is file-based only).
    - The PO loop now routes offload violations through docs/03-logs/decision-log.md so the enforced workflow is recorded before progressing.
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
@@ -51,7 +52,8 @@
    - Follow the execution protocol in `docs/04-process/ticket-execution-protocol.md`.
    - Enforce role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
    - Plan Reviewer validates the plan (no code edits) before patching.
-   - Use `prompts/<role>.md` for role-specific instructions.
+   - Use `prompts/<role>.md` and task variants like `prompts/<role>-<task>.md` (ex: `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`) for role-specific instructions.
+   - If a prompt file is missing, copy it from `tools/templates/prompts/` and rerun the step (prompt loading is file-based only).
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
    - After the run completes or stops, propose improvements (patch not auto-applied) and record in `docs/possible-improvements.md`.

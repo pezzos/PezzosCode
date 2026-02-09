@@ -70,7 +70,9 @@
      - `Files to change`
      - `Risks`
      - `Tests (anti-hardcode coverage required)`
-   - Plan Reviewer is a first-class step with its own prompt, log (`plan-reviewer-log.md`), and commit.
+   - Plan Reviewer is a first-class step with its own prompt (`prompts/plan-reviewer-gate.md`), log (`plan-reviewer-log.md`), and commit.
+   - Task-specific prompts live at `prompts/<role>-<task>.md` (examples: `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`).
+   - Plan Reviewer decisions are `APPROVE`, `BLOCK`, or `CONFLICT`. A `CONFLICT` stops execution with explicit remediation before any patching.
    - Before patching, enforce deterministic plan policy checks and block if the plan includes role-scoped/global log files or forbidden commands (`make feature`, `pc-feature`).
    - Plan-reviewer read-only enforcement uses pre/post worktree dirty snapshots and blocks only reviewer-introduced deltas.
    - Every step decision (`APPROVE` / `BLOCK` / `PASS` / `FAIL`) must be written to the step's role log and committed before the next step starts.
@@ -83,6 +85,8 @@
      - The Tester runs only those commands.
      - `make ci`, `make feature`, and `pc-feature` are forbidden as tests.
      - If Allowed Tests remain missing/invalid after planner remediation, fail with explicit remediation guidance (no placeholder smoke commands).
+   - If a required prompt file is missing, copy it from `tools/templates/prompts/` and rerun the step (prompt loading is file-based only).
+   - Keep `prompts/` and `tools/templates/prompts/` in parity to avoid runtime prompt-loading failures.
    - Report: summarize what changed, commands run, and outcomes.
 
 7. **Feedback Loop (Planner ↔ Plan Reviewer ↔ Patcher ↔ Tester ↔ Reporter)**

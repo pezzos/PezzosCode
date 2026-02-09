@@ -8,9 +8,9 @@
 
 **Feature:** Role prompts + Plan Reviewer
 
-**Status:** Completed
+**Status:** Draft
 
-**Last Updated:** 2026-02-09
+**Last Updated:** 2026-02-08
 
 ### Summary
 

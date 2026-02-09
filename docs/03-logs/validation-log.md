@@ -27,13 +27,6 @@ This helps with:
 
 ## Recent Validations
 
-### 2026-02-09 - Final-commit missing path regression validation
-
-- `python3 -m py_compile tools/pc-feature` (PASS)
-- `bash -n tools/pc-commit` (PASS)
-- `python3 -m unittest tests.test_pc_feature` (PASS; `89` tests)
-- Note: `tools/offload-proxy/pp` could not be used in this worktree because `.offload/` is not writable in this environment (`operation not permitted`), so commands were run directly.
-
 ### 2026-02-08 - Precommit autofix scope hardening validation
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_autofix.py"` (PASS)
@@ -1071,3 +1064,19 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - pre-patch deterministic policy recheck blocks forbidden plan content immediately before patcher.
   - planner revision is triggered with explicit remediation when the pre-patch check fails.
   - patcher is not invoked in the guarded resume/retry regression path.
+
+- WI-20260209-01: Validation completed; results recorded in feature validation log by tester.
+
+## 2026-02-09 - Template/living parity re-sync validation
+
+- Command: `diff -u docs/04-process/ticket-execution-protocol.md tools/templates/docs/04-process/ticket-execution-protocol.md`
+- Result: PASS (no diff)
+- Command: `diff -u docs/04-process/human-orchestration-workflow.md tools/templates/docs/04-process/human-orchestration-workflow.md`
+- Result: PASS (no diff)
+- Command: `diff -u docs/04-process/dev-workflow.md tools/templates/docs/04-process/dev-workflow.md`
+- Result: PASS (no diff)
+- Command: `tools/pc-template-sync`
+- Result: PASS
+- Verified:
+  - the three previously failing process template/living pairs are now identical.
+  - template-sync no longer reports manual-resolution out-of-sync errors for these paths.

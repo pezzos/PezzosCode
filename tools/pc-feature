@@ -1051,29 +1051,14 @@ def filter_ignored_paths(paths: List[str]) -> List[str]:
     return filtered
 
 
-def path_exists_or_tracked(root: str, path: str) -> bool:
-    if os.path.exists(os.path.join(root, path)):
-        return True
-    result = subprocess.run(
-        ["git", "ls-files", "--error-unmatch", "--", path],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        cwd=root,
-    )
-    return result.returncode == 0
-
-
-def final_commit_allow_paths(root: str) -> List[str]:
+def final_commit_allow_paths() -> List[str]:
     # Runtime artifacts should not block pc-commit guard rails.
     prefixes = [prefix.rstrip("/") for prefix in IGNORED_PATH_PREFIXES if prefix]
-    candidates = sorted(set(prefixes + list(IGNORED_PATH_FILES)))
-    return [path for path in candidates if path_exists_or_tracked(root, path)]
+    return sorted(set(prefixes + list(IGNORED_PATH_FILES)))
 
 
 def unstage_ephemeral_paths(root: str) -> None:
-    allow_paths = final_commit_allow_paths(root)
+    allow_paths = final_commit_allow_paths()
     if not allow_paths:
         return
     subprocess.run(
@@ -4000,7 +3985,7 @@ def main() -> None:
         commit_cmd = ["tools/pc-commit", "--yes", "--message", commit_message]
         for path in staged_paths:
             commit_cmd.extend(["--allow", path])
-        for path in final_commit_allow_paths(root):
+        for path in final_commit_allow_paths():
             commit_cmd.extend(["--allow", path])
         commit_result = subprocess.run(
             commit_cmd,
