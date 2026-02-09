@@ -45,7 +45,7 @@
 - Patcher:
 - Tester:
 - Reporter:
-- Outcome:
+- Outcome: needs replan
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
@@ -76,7 +76,8 @@
 
 #### Allowed Tests
 
-- (list exact commands; do not include `make feature` or `pc-feature`)
+- `python -m unittest discover -s tests -p 'test_*.py'`
+- `pytest tests/test_pc_feature.py`
 
 #### Files to Change + Change Budget
 
@@ -192,7 +193,10 @@ Work Item ID: WI-20260209-01
 
 #### Iteration Log
 
--
+- Attempt 1: allowed-tests validation failed; routed back to planner. Issues: no allowed tests listed.
+- Attempt 1: plan-reviewer no-op; reason=blocked by invalid allowed tests.
+- Attempt 1: patcher no-op; reason=blocked by invalid allowed tests.
+- Attempt 1: reporter no-op; reason=blocked by invalid allowed tests.
 
 #### Commit
 
