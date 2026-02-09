@@ -1,5 +1,10 @@
+import os
 import random
 import unittest
+from pathlib import Path
+from unittest import mock
+
+from lib import log_compaction
 
 
 random.seed(1337)
@@ -52,6 +57,37 @@ class TestLogCompactionContract(unittest.TestCase):
         ]
         for entry in fixtures:
             validate_compact_entry(entry)
+
+
+class TestLogCompactionPaths(unittest.TestCase):
+    def test_compacted_log_output_paths_respect_root_override(self):
+        root = Path("/tmp/pc-root")
+        outputs = log_compaction.compacted_log_output_paths(root=root)
+        expected_dir = os.path.join("/tmp/pc-root", "docs", "03-logs", "compacted")
+        self.assertEqual(
+            outputs["decision"],
+            os.path.join(expected_dir, "decision-log-compact.json"),
+        )
+        self.assertEqual(
+            outputs["implementation"],
+            os.path.join(expected_dir, "implementation-log-compact.json"),
+        )
+        self.assertEqual(
+            outputs["validation"],
+            os.path.join(expected_dir, "validation-log-compact.json"),
+        )
+
+    def test_compacted_log_output_paths_respect_env_override(self):
+        root = Path("/tmp/pc-root")
+        with mock.patch.dict(
+            os.environ, {"PC_COMPACTED_LOGS_DIR": "alt/compacted"}, clear=False
+        ):
+            outputs = log_compaction.compacted_log_output_paths(root=root)
+        expected_dir = os.path.join("/tmp/pc-root", "alt", "compacted")
+        self.assertEqual(
+            outputs["decision"],
+            os.path.join(expected_dir, "decision-log-compact.json"),
+        )
 
     def test_implementation_log_contract_fixtures(self):
         fixtures = [

@@ -86,7 +86,7 @@ GLOBAL_LOG_FILES = (
     "insights.md",
     "validation-log.md",
 )
-COMPACTED_LOGS_DIR = log_compaction.COMPACTED_LOGS_DIR
+COMPACTED_LOGS_DIR = log_compaction.compacted_logs_dir()
 COMPACTED_LOG_OUTPUT_NAMES = log_compaction.COMPACTED_LOG_OUTPUT_NAMES
 POSSIBLE_IMPROVEMENTS_PATH = os.path.join("docs", "possible-improvements.md")
 PROCESS_DOC_FILES = (
@@ -1932,6 +1932,13 @@ def compacted_logs_dir() -> str:
     return COMPACTED_LOGS_DIR
 
 
+def compacted_logs_dir_abs() -> str:
+    base = compacted_logs_dir()
+    if os.path.isabs(base):
+        return os.path.abspath(base)
+    return os.path.abspath(os.path.join(ROOT, base))
+
+
 def compacted_log_output_paths() -> Dict[str, str]:
     return {
         key: os.path.join(compacted_logs_dir(), name)
@@ -1942,7 +1949,13 @@ def compacted_log_output_paths() -> Dict[str, str]:
 def is_compacted_logs_path(path: str) -> bool:
     normalized = normalize_repo_rel(path).lower().rstrip("/")
     compacted_root = normalize_repo_rel(compacted_logs_dir()).lower().rstrip("/")
-    return normalized == compacted_root or normalized.startswith(compacted_root + "/")
+    if normalized == compacted_root or normalized.startswith(compacted_root + "/"):
+        return True
+    abs_candidate = os.path.abspath(path).lower().rstrip(os.sep)
+    compacted_abs = compacted_logs_dir_abs().lower().rstrip(os.sep)
+    return abs_candidate == compacted_abs or abs_candidate.startswith(
+        compacted_abs + os.sep
+    )
 
 
 def role_scoped_path_forbidden_for_patcher(path: str) -> bool:
