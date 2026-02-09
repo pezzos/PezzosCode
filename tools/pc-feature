@@ -86,6 +86,7 @@ GLOBAL_LOG_FILES = (
     "insights.md",
     "validation-log.md",
 )
+COMPACTED_LOGS_DIR = os.path.join("docs", "03-logs", "compacted")
 POSSIBLE_IMPROVEMENTS_PATH = os.path.join("docs", "possible-improvements.md")
 PROCESS_DOC_FILES = (
     "docs/04-process/ticket-execution-protocol.md",
@@ -1926,11 +1927,14 @@ def record_failure_proposal(
     )
 
 
+def compacted_logs_dir() -> str:
+    return COMPACTED_LOGS_DIR
+
+
 def is_compacted_logs_path(path: str) -> bool:
     normalized = normalize_repo_rel(path).lower().rstrip("/")
-    return normalized == "docs/03-logs/compacted" or normalized.startswith(
-        "docs/03-logs/compacted/"
-    )
+    compacted_root = normalize_repo_rel(compacted_logs_dir()).lower().rstrip("/")
+    return normalized == compacted_root or normalized.startswith(compacted_root + "/")
 
 
 def role_scoped_path_forbidden_for_patcher(path: str) -> bool:
