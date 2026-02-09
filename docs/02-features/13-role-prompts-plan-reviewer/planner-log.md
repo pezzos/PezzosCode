@@ -88,3 +88,10 @@ Decision: Block Reasons: - Plan violates orchestrator scope policy. Required cha
 Step Planner revise after Plan Reviewer BLOCK at attempt 2.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden command in plan: tools/pc-feature - forbidden command in plan: pc-feature Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260209-01 - 2026-02-09
+
+Decision: PLAN_STILL_VALID
+Rationale: Reporter failure is a straightforward fix within the existing prompt/template alignment steps.
+Revised Plan:
+(none)
