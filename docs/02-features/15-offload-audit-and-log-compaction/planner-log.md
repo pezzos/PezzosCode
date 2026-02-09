@@ -60,3 +60,58 @@ Work Item ID: WI-20260209-01
 ### WI-20260209-01 - 2026-02-09
 
 Updated Allowed Tests to satisfy existence and scope checks.
+
+### WI-20260209-01 - 2026-02-09
+
+Decision: REVISE_PLAN
+Rationale: Reporter failure shows missing compacted outputs and traceability log updates, so the plan must add explicit steps to generate compacted logs and ensure traceability updates.
+
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Generate required compacted outputs for decision, implementation, and validation logs and place them under `docs/03-logs/compacted/`.
+   Files to change:
+
+- `docs/03-logs/compacted/` (new compacted outputs)
+  Risks:
+- Compacted outputs may omit required fields or evidence references.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Use at least 2 fixtures per log type (decision/implementation/validation).
+- Deterministic seed strategy: Fixed seed if any ordering is applied in compaction.
+- Invariant checks: Compact output includes source path, date/section, WI ref (if available), outcome/rationale, evidence refs.
+- Contract boundary coverage: Handle stale/missing sections with explicit markers.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+2. Append required traceability entries to the global logs in `docs/03-logs/*` to record the compacted outputs and validation evidence.
+   Files to change:
+
+- `docs/03-logs/*`
+  Risks:
+- Missing required traceability fields could block DoD completion.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A (log updates).
+- Deterministic seed strategy: N/A.
+- Invariant checks: Each entry references the WI id and compacted output location.
+- Contract boundary coverage: N/A.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+3. Verify existing tests still pass without changes to production logic.
+   Files to change:
+
+- None (test execution only)
+  Risks:
+- Test discovery still reports zero tests; ensure expectations are aligned.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A.
+- Deterministic seed strategy: N/A.
+- Invariant checks: N/A.
+- Contract boundary coverage: N/A.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+Handoff note: Required updates to `docs/03-logs/*` are owned by reporter/orchestrator; patcher will not edit those files.
+
+Work Item ID: WI-20260209-01
