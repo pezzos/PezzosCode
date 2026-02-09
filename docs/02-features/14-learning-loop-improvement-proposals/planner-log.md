@@ -48,3 +48,9 @@ Updated Allowed Tests to satisfy existence and scope checks.
 Step Planner revise after Plan Reviewer BLOCK at attempt 1.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden command in plan: tools/pc-feature - forbidden command in plan: pc-feature Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260209-01 - 2026-02-09
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Tests section specifies `python -m unittest discover -s tests -p "test_*.py"` which is not in the Allowed Tests list (only `pytest ...`). This makes the plan non-compliant with the current test gate. Required changes: - Update the Tests section to use only the allowed pytest commands, or explicitly note that tests will be skipped pending updated allowed commands. Optional suggestions: -...

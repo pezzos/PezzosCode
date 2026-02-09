@@ -96,7 +96,7 @@
 Plan Contract v1
 Approach:
 
-1. Clarify proposal trigger/dedup rules and missing-context fallback in feature specs and test plan.
+1. Clarify proposal trigger/dedup rules and missing-context fallback in feature specs and test plan, and flag required global log updates for Reporter/Orchestrator (not Patcher) to record decision/implementation/validation entries.
    Files to change:
 
 - docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md
@@ -105,12 +105,13 @@ Approach:
 - docs/possible-improvements.md
   Risks:
 - Spec misalignment could drive incorrect implementation or tests.
+- Log updates might be missed without explicit handoff to Reporter/Orchestrator.
 
 2. Implement post-run proposal generation and dedup in the runner library and update any shared proposal template/example.
    Files to change:
 
 - lib/pc_runner.py
-- docs/possible-improvements.md (if template/example updates are needed)
+- docs/possible-improvements.md
   Risks:
 - Dedup signature normalization may under-merge or over-merge proposals.
 - Missing execution context could produce malformed proposals or crash.
@@ -129,7 +130,8 @@ Tests (anti-hardcode coverage required):
 - Invariant checks: Verify status remains `Proposed`, no proposals on success, and dedup never creates duplicate entries for same signature.
 - Contract boundary coverage: Validate inputs from post-run outcome payloads into the proposal writer (missing fields, multiple agents) and ensure writer outputs valid template fields.
 - Allowed test commands:
-  - `python -m unittest discover -s tests -p "test_*.py"`
+  - `pytest -q`
+  - `pytest tests/test_learning_loop_proposals.py -q`
 
 Work Item ID: WI-20260209-01
 
@@ -164,6 +166,7 @@ Work Item ID: WI-20260209-01
 #### Iteration Log
 
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=1/3).
 
 #### Commit
 
