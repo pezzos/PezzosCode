@@ -152,13 +152,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    outputs = log_compaction.compacted_log_output_paths()
+    outputs = log_compaction.compacted_log_output_paths(root=ROOT)
     for key, source_path in LOG_SOURCES.items():
+        source_abs = ROOT / source_path
         output_path = outputs.get(key)
         if not output_path:
             continue
         entries = build_entries(
-            key, source_path, read_text(source_path), args.max_entries
+            key, source_path, read_text(str(source_abs)), args.max_entries
         )
         write_compacted_output(entries, output_path)
         print(f"wrote {output_path}")
