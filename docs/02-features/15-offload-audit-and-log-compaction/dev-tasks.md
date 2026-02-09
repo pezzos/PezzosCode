@@ -94,10 +94,10 @@
 Plan Contract v1
 Approach:
 
-1. Generate required compacted outputs for decision, implementation, and validation logs and place them under `docs/03-logs/compacted/`.
+1. Generate compacted outputs for decision, implementation, and validation artifacts in a new non-log location suitable for downstream packaging.
    Files to change:
 
-- `docs/03-logs/compacted/` (new compacted outputs)
+- `docs/02-features/WI-20260209-01/compacted/` (new compacted outputs)
   Risks:
 - Compacted outputs may omit required fields or evidence references.
   Tests (anti-hardcode coverage required):
@@ -108,21 +108,7 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Append required traceability entries to the global logs in `docs/03-logs/*` to record the compacted outputs and validation evidence.
-   Files to change:
-
-- `docs/03-logs/*`
-  Risks:
-- Missing required traceability fields could block DoD completion.
-  Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A (log updates).
-- Deterministic seed strategy: N/A.
-- Invariant checks: Each entry references the WI id and compacted output location.
-- Contract boundary coverage: N/A.
-- Allowed test commands:
-  - `python -m unittest discover -s tests -p "test_*.py"`
-
-3. Verify existing tests still pass without changes to production logic.
+2. Verify existing tests still pass without changes to production logic.
    Files to change:
 
 - None (test execution only)
@@ -171,6 +157,7 @@ Work Item ID: WI-20260209-01
 #### Iteration Log
 
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure shows missing compacted outputs and traceability log updates, so the plan must add explicit steps to generate compacted logs and ensure traceability updates.; patcher feedback pending.
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=2/3).
 
 #### Commit
 
