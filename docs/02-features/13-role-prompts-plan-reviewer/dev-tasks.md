@@ -45,7 +45,7 @@
 - Patcher:
 - Tester:
 - Reporter:
-- Outcome: needs replan
+- Outcome: pass
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
@@ -176,7 +176,7 @@ Work Item ID: WI-20260209-01
 
 #### Gates
 
-- make ci:
+- make ci: PASS
 
 #### Autofix Attempts
 
@@ -202,30 +202,14 @@ Work Item ID: WI-20260209-01
 
 #### Commit
 
-- Commit message:
+- Commit message: feat(prompts): add plan reviewer gate templates
 
 #### Final Report
 
--
+What changed (files): (see git diff)
+Tests written (names) + results: (see feature validation-log.md)
+Docs/logs updated checklist: (see Docs Updated)
+make ci results: PASS
+Commands run (use pp for noisy output): prepatch smoke python -m unittest discover -s tests -p 'test_*.py': ok; prepatch smoke python -m unittest discover -s tests -p 'test_*.py': ok; tools/offload-proxy/pp make ci: ok
+Commit message: feat(prompts): add plan reviewer gate templates
 
-- No runs yet.
-
-## Allowed Tests (Planner must populate before Tester runs)
-
-- `python -m unittest discover -s tests -p "test_*.py"`
-
-## Related Documents
-
-- Feature Spec: `docs/02-features/13-role-prompts-plan-reviewer/feature-spec.md`
-- Tech Design: `docs/02-features/13-role-prompts-plan-reviewer/tech-design.md`
-- Test Plan: `docs/02-features/13-role-prompts-plan-reviewer/test-plan.md`
-- Planner Log: `docs/02-features/13-role-prompts-plan-reviewer/planner-log.md`
-- Reporter Log: `docs/02-features/13-role-prompts-plan-reviewer/reporter-log.md`
-- Validation Log: `docs/02-features/13-role-prompts-plan-reviewer/validation-log.md`
-
-## Change Log
-
-| Date       | Changes                                           | Author       |
-| ---------- | ------------------------------------------------- | ------------ |
-| 2026-02-08 | Rebased tasks to current prompt/gate architecture | Codex        |
-| 2026-02-05 | Initial task breakdown                            | Primary user |
