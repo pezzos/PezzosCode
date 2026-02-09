@@ -121,3 +121,46 @@ Work Item ID: WI-20260209-01
 Step Planner revise after Plan Reviewer BLOCK at attempt 2.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/03-logs/compacted/ - forbidden path in plan: docs/03-logs/\* Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260209-01 - 2026-02-09
+
+Decision: REVISE_PLAN
+Rationale: Reporter feedback shows outputs were written to the wrong location, so the plan must be updated to target the required derived path.
+
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Emit compacted decision/implementation/validation outputs to the required derived location while preserving canonical logs.
+   Files to change:
+
+- `docs/03-logs/compacted/` (new compacted outputs)
+- Any existing compaction script or config responsible for output paths
+  Risks:
+- Compacted outputs may omit required fields or evidence references.
+- Risk of overwriting or diverging from canonical logs if paths are miswired.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Use at least 2 fixtures per log type (decision/implementation/validation).
+- Deterministic seed strategy: Fixed seed if any ordering is applied in compaction.
+- Invariant checks: Compact output includes source path, date/section, WI ref (if available), outcome/rationale, evidence refs.
+- Contract boundary coverage: Handle stale/missing sections with explicit markers.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+2. Re-run the allowed tests to confirm behavior remains correct.
+   Files to change:
+
+- None (test execution only)
+  Risks:
+- Test discovery still reports zero tests; ensure expectations are aligned.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A.
+- Deterministic seed strategy: N/A.
+- Invariant checks: N/A.
+- Contract boundary coverage: N/A.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+Handoff note: Required updates to `docs/03-logs/*` are owned by reporter/orchestrator; patcher will not edit those files.
+
+Work Item ID: WI-20260209-01

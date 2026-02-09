@@ -94,12 +94,14 @@
 Plan Contract v1
 Approach:
 
-1. Generate compacted outputs for decision, implementation, and validation artifacts in a new non-log location suitable for downstream packaging.
+1. Emit compacted decision/implementation/validation outputs to the required derived location while preserving canonical logs.
    Files to change:
 
-- `docs/02-features/WI-20260209-01/compacted/` (new compacted outputs)
+- `docs/03-logs/compacted/` (new compacted outputs)
+- Any existing compaction script or config responsible for output paths
   Risks:
 - Compacted outputs may omit required fields or evidence references.
+- Risk of overwriting or diverging from canonical logs if paths are miswired.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: Use at least 2 fixtures per log type (decision/implementation/validation).
 - Deterministic seed strategy: Fixed seed if any ordering is applied in compaction.
@@ -108,7 +110,7 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Verify existing tests still pass without changes to production logic.
+2. Re-run the allowed tests to confirm behavior remains correct.
    Files to change:
 
 - None (test execution only)
@@ -158,6 +160,7 @@ Work Item ID: WI-20260209-01
 
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure shows missing compacted outputs and traceability log updates, so the plan must add explicit steps to generate compacted logs and ensure traceability updates.; patcher feedback pending.
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=2/3).
+- Attempt 2: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows outputs were written to the wrong location, so the plan must be updated to target the required derived path.; patcher feedback pending.
 
 #### Commit
 
