@@ -76,7 +76,14 @@ Revised Plan:
 Plan Contract v1
 Approach:
 
-1. Integrate proposal generation on fail/stall outcomes by adding a post-run hook that builds a proposal from the outcome payload and calls the updater.
+1. Note: Any `docs/03-logs/` updates will be handled by reporter/orchestrator flow; patcher will not edit those paths.
+   Files to change:
+
+- None.
+  Risks:
+- Missing this handoff could cause process violations if patcher edits global logs.
+
+2. Integrate proposal generation on fail/stall outcomes by adding a post-run hook that builds a proposal from the outcome payload and calls the updater.
    Files to change:
 
 - tools/pc-feature
@@ -85,7 +92,7 @@ Approach:
 - Hook may run in unintended contexts and create duplicate proposals if outcome filtering is wrong.
 - Missing or partial outcome fields could cause malformed proposal entries.
 
-2. Fix proposal merge to aggregate distinct agent names per signature while preserving `Proposed` status and existing fields.
+3. Fix proposal merge to aggregate distinct agent names per signature while preserving `Proposed` status and existing fields.
    Files to change:
 
 - lib/pc_runner.py
@@ -93,7 +100,7 @@ Approach:
 - Agent aggregation could over-merge if signatures are too broad.
 - Backward compatibility with existing proposal entries could be broken.
 
-3. Extend tests to cover new hook invocation and multi-agent aggregation semantics for same signature and no-op on success.
+4. Extend tests to cover new hook invocation and multi-agent aggregation semantics for same signature and no-op on success.
    Files to change:
 
 - tests/test_pc_feature.py
@@ -117,3 +124,9 @@ Work Item ID: WI-20260209-01
 Step Planner revise after Plan Reviewer BLOCK at attempt 2.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden command in plan: tools/pc-feature - forbidden command in plan: pc-feature Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260209-01 - 2026-02-09
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 2.
+
+Decision: Block Reasons: - Plan does not address required updates to `docs/03-logs/` and must explicitly assign those updates to reporter/orchestrator (not patcher) per process and gate rules. Required changes: - Add a Plan Contract v1 note that any `docs/03-logs/` updates will be handled by reporter/orchestrator flow, and patcher will not edit those paths. Optional suggestions: - None.
