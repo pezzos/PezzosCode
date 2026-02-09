@@ -5000,3 +5000,37 @@ Track when debt is paid down:
 
 - `cmp -s prompts/plan-reviewer-gate.md tools/templates/prompts/plan-reviewer-gate.md`
 - `tools/offload-proxy/pp python tests/test_pc_feature.py`
+
+- WI-20260209-01: Completed feature and prepared global summary for orchestrator.
+
+### 2026-02-09 - Finalize Feature 14 completion state on main
+
+**Feature/Bug:** F-14 learning loop improvement proposals
+
+**Changed Files:**
+
+- `docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md`
+- `docs/02-features/14-learning-loop-improvement-proposals/tech-design.md`
+- `docs/02-features/14-learning-loop-improvement-proposals/test-plan.md`
+- `docs/02-features/14-learning-loop-improvement-proposals/dev-tasks.md`
+
+**What Changed:**
+
+- Marked Feature 14 specification, design, test plan, and dev-tasks status fields as `Completed`.
+- Marked all four dev tasks complete and filled execution summary fields for WI-20260209-01.
+- Prepared the feature work for integration on `main` so next-feature planning can start from a completed F-14 baseline.
+
+**Why:**
+
+- Close the feature lifecycle explicitly in docs and avoid carrying stale `Draft`/`Not Started` states into the next feature.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp pytest tests/test_pc_feature.py`
+- `tools/offload-proxy/pp pytest tests/test_docs_logs.py tests/test_orchestrator_workflow_docs.py tests_extra/test_bootstrap_into_extra.py`

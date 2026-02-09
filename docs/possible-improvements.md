@@ -8,6 +8,10 @@
 
 ## Entry Template
 
+Use `---` to separate entries; status stays `Proposed` until a human decision.
+
+### Proposal: WI-... - <Step>
+
 **Date:** YYYY-MM-DD
 **Work Item:** WI-...
 **Agent:** ...

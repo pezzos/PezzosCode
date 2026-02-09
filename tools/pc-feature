@@ -1596,6 +1596,65 @@ def summarize_feedback(feedback: str, *, max_chars: int = 420) -> str:
     return compact[: max_chars - 3].rstrip() + "..."
 
 
+def build_failure_outcome_payload(
+    *,
+    work_item_id: str,
+    tester_outcome: str,
+    reporter_outcome: str,
+    tester_feedback: str,
+    reporter_feedback: str,
+) -> Dict[str, Any]:
+    agents: List[str] = []
+    step = "Test"
+    if tester_outcome != "PASS":
+        agents.append("Tester")
+    if reporter_outcome not in {"PASS", "SKIPPED"}:
+        agents.append("Reporter")
+        if tester_outcome == "PASS":
+            step = "Report"
+    failure_summary = (
+        f"tester={tester_outcome}; reporter={reporter_outcome}; "
+        f"tester_feedback={summarize_feedback(tester_feedback)}; "
+        f"reporter_feedback={summarize_feedback(reporter_feedback)}"
+    )
+    return {
+        "outcome": "FAIL",
+        "work_item_id": work_item_id,
+        "agent_names": agents,
+        "step": step,
+        "failure_summary": failure_summary,
+    }
+
+
+def record_failure_proposal(
+    outcome_payload: Dict[str, Any],
+    *,
+    root: Path,
+    runner_metadata: Optional["pc_runner.RunMetadata"] = None,
+) -> None:
+    proposal = pc_runner.build_proposal_from_outcome(outcome_payload)
+    if not proposal:
+        return
+    path = root / "docs" / "possible-improvements.md"
+    if not path.exists():
+        if runner_metadata:
+            pc_runner.log_message(
+                runner_metadata,
+                "feature",
+                f"proposal skip missing {path}",
+                root=root,
+            )
+        return
+    _, action = pc_runner.update_possible_improvements(path, proposal)
+    if runner_metadata:
+        pc_runner.log_message(
+            runner_metadata,
+            "feature",
+            f"proposal {action} signature={pc_runner.proposal_signature(proposal.work_item_id, proposal.step, proposal.failure_summary)}",
+            root=root,
+        )
+
+
 def role_scoped_path_forbidden_for_patcher(path: str) -> bool:
     normalized = normalize_repo_rel(path)
     if normalized.startswith("docs/03-logs/"):
@@ -3654,6 +3713,16 @@ def main() -> None:
             )
 
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
+            outcome_payload = build_failure_outcome_payload(
+                work_item_id=work_item_id,
+                tester_outcome=tester_outcome,
+                reporter_outcome=reporter_outcome,
+                tester_feedback=tester_feedback,
+                reporter_feedback=reporter_feedback,
+            )
+            record_failure_proposal(
+                outcome_payload, root=runner_root, runner_metadata=runner_metadata
+            )
             last_failure_context = (
                 f"tester={tester_outcome}; reporter={reporter_outcome}; "
                 f"tester_feedback={summarize_feedback(tester_feedback)}; "
@@ -3779,6 +3848,20 @@ def main() -> None:
 
         break
     else:
+        stall_summary = "Loop exhausted at MAX_LOOPS."
+        if last_failure_context:
+            stall_summary = f"{stall_summary} {last_failure_context}"
+        record_failure_proposal(
+            {
+                "outcome": "STALL",
+                "work_item_id": work_item_id,
+                "agent_name": "pc-feature",
+                "step": "Orchestration",
+                "failure_summary": stall_summary,
+            },
+            root=runner_root,
+            runner_metadata=runner_metadata,
+        )
         content = read_file(dev_tasks_path)
         content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
         content = append_iteration_log_note(

@@ -6,9 +6,28 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, List, Mapping, Optional, Sequence, Tuple
 
 WORK_ITEM_RE = re.compile(r"^WI-\d{8}-\d{2}$")
+PROPOSAL_SECTION_HEADER = "## Entries"
+PROPOSAL_ENTRY_SEPARATOR = "---"
+PROPOSAL_STATUS_PROPOSED = "Proposed"
+PROPOSAL_PLACEHOLDER_UNKNOWN = "Unknown"
+PROPOSAL_PLACEHOLDER_TBD = "TBD"
+
+
+@dataclass(frozen=True)
+class ProposalEntry:
+    date: str
+    work_item_id: str
+    agent: str
+    step: str
+    failure_summary: str
+    proposed_improvement: str
+    proposed_patch_location: str
+    risks: str
+    status: str
+    decision_log_ref: str
 
 
 @dataclass(frozen=True)
@@ -89,3 +108,389 @@ def log_message(
     except OSError as exc:
         raise RuntimeError(f"pc_runner: failed to write log {path}: {exc}") from exc
     return path
+
+
+OUTCOME_FAIL = {"FAIL", "FAILED", "ERROR"}
+OUTCOME_STALL = {"STALL", "STALLED", "NEEDS REPLAN", "NEEDS_REPLAN"}
+
+
+def _coerce_str(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        return ", ".join([str(item).strip() for item in value if str(item).strip()])
+    return str(value).strip()
+
+
+def _coerce_agents(value: object) -> str:
+    if isinstance(value, (list, tuple, set)):
+        cleaned = sorted({str(item).strip() for item in value if str(item).strip()})
+        return ", ".join(cleaned)
+    return _coerce_str(value)
+
+
+def _normalize_outcome(value: object) -> str:
+    if value is None:
+        return ""
+    cleaned = re.sub(r"[\s_-]+", " ", str(value)).strip().upper()
+    return cleaned
+
+
+def _missing_context_note(fields: Iterable[str]) -> str:
+    missing = ", ".join(fields)
+    return f"Missing context: {missing}" if missing else ""
+
+
+def normalize_failure_summary(summary: str) -> str:
+    cleaned = re.sub(r"\(missing context:.*?\)", "", summary or "", flags=re.IGNORECASE)
+    compact = re.sub(r"\s+", " ", cleaned.strip().lower())
+    return compact
+
+
+def proposal_signature(
+    work_item_id: str, step: str, failure_summary: str
+) -> Tuple[str, str, str]:
+    return (
+        (work_item_id or "").strip().lower(),
+        (step or "").strip().lower(),
+        normalize_failure_summary(failure_summary),
+    )
+
+
+def _is_placeholder(value: str) -> bool:
+    lowered = (value or "").strip().lower()
+    if lowered.startswith("tbd"):
+        return True
+    if lowered.startswith("unknown"):
+        return True
+    return lowered in {
+        "",
+        "none noted",
+        "none noted.",
+        "n/a",
+        "dec-tbd",
+        "no failure summary provided.",
+    }
+
+
+def build_proposal_from_outcome(
+    outcome: Mapping[str, object], *, date: Optional[str] = None
+) -> Optional[ProposalEntry]:
+    outcome_value = _normalize_outcome(
+        outcome.get("outcome")
+        or outcome.get("status")
+        or outcome.get("result")
+        or outcome.get("state")
+    )
+    if outcome_value not in OUTCOME_FAIL and outcome_value not in OUTCOME_STALL:
+        return None
+
+    missing_context = []
+    work_item_id = _coerce_str(outcome.get("work_item_id") or outcome.get("work_item"))
+    if not work_item_id:
+        work_item_id = PROPOSAL_PLACEHOLDER_UNKNOWN
+        missing_context.append("Work Item")
+
+    agent = _coerce_agents(
+        outcome.get("agent_names")
+        or outcome.get("agents")
+        or outcome.get("agent_name")
+        or outcome.get("agent")
+    )
+    if not agent:
+        agent = PROPOSAL_PLACEHOLDER_UNKNOWN
+        missing_context.append("Agent")
+
+    step = _coerce_str(
+        outcome.get("step") or outcome.get("phase") or outcome.get("stage")
+    )
+    if not step:
+        step = PROPOSAL_PLACEHOLDER_UNKNOWN
+        missing_context.append("Step")
+
+    failure_summary = _coerce_str(
+        outcome.get("failure_summary")
+        or outcome.get("summary")
+        or outcome.get("error")
+        or outcome.get("failure")
+    )
+    if not failure_summary:
+        failure_summary = "No failure summary provided."
+        missing_context.append("Failure Summary")
+
+    missing_note = _missing_context_note(missing_context)
+    if missing_note:
+        failure_summary = f"{failure_summary} ({missing_note})"
+
+    proposed_improvement = _coerce_str(
+        outcome.get("proposed_improvement")
+        or outcome.get("proposal")
+        or outcome.get("improvement")
+    )
+    if not proposed_improvement:
+        proposed_improvement = "TBD - investigate failure and propose remediation."
+
+    proposed_patch_location = _coerce_str(
+        outcome.get("proposed_patch_location")
+        or outcome.get("patch_location")
+        or outcome.get("patch")
+        or outcome.get("files")
+        or outcome.get("paths")
+    )
+    if not proposed_patch_location:
+        proposed_patch_location = PROPOSAL_PLACEHOLDER_TBD
+
+    risks = _coerce_str(
+        outcome.get("risks")
+        or outcome.get("tradeoffs")
+        or outcome.get("risks_tradeoffs")
+    )
+    if not risks:
+        risks = "None noted."
+
+    decision_log_ref = _coerce_str(
+        outcome.get("decision_log_ref") or outcome.get("decision_ref")
+    )
+    if not decision_log_ref:
+        decision_log_ref = "DEC-TBD"
+
+    date_value = date or datetime.utcnow().strftime("%Y-%m-%d")
+
+    return ProposalEntry(
+        date=date_value,
+        work_item_id=work_item_id,
+        agent=agent,
+        step=step,
+        failure_summary=failure_summary,
+        proposed_improvement=proposed_improvement,
+        proposed_patch_location=proposed_patch_location,
+        risks=risks,
+        status=PROPOSAL_STATUS_PROPOSED,
+        decision_log_ref=decision_log_ref,
+    )
+
+
+def render_proposal_entry_block(proposal: ProposalEntry) -> str:
+    lines = [
+        f"### Proposal: {proposal.work_item_id} - {proposal.step}",
+        f"**Date:** {proposal.date}",
+        f"**Work Item:** {proposal.work_item_id}",
+        f"**Agent:** {proposal.agent}",
+        f"**Step:** {proposal.step}",
+        f"**Failure Summary:** {proposal.failure_summary}",
+        f"**Proposed Improvement:** {proposal.proposed_improvement}",
+        f"**Proposed Patch Location:** {proposal.proposed_patch_location}",
+        f"**Risks / Trade-offs:** {proposal.risks}",
+        f"**Status:** {proposal.status}",
+        f"**Decision Log Ref:** {proposal.decision_log_ref}",
+    ]
+    return "\n".join(lines).rstrip()
+
+
+def render_proposal_entry(proposal: ProposalEntry) -> str:
+    return (
+        render_proposal_entry_block(proposal) + "\n" + PROPOSAL_ENTRY_SEPARATOR + "\n"
+    )
+
+
+def _parse_entry_fields(lines: Sequence[str]) -> Mapping[str, str]:
+    fields = {}
+    for line in lines:
+        match = re.match(r"^\*\*(.+?):\*\*\s*(.*)$", line.strip())
+        if match:
+            fields[match.group(1).strip()] = match.group(2).strip()
+    return fields
+
+
+def _merge_failure_summary(existing: str, incoming: str) -> str:
+    if _is_placeholder(existing) and not _is_placeholder(incoming):
+        return incoming
+    if "missing context:" in existing.lower() and not _is_placeholder(incoming):
+        return incoming
+    return existing
+
+
+def _merge_agents(existing: str, incoming: str) -> str:
+    if _is_placeholder(existing) and not _is_placeholder(incoming):
+        return incoming
+    if _is_placeholder(incoming):
+        return existing
+    existing_names = [
+        part.strip() for part in (existing or "").split(",") if part.strip()
+    ]
+    incoming_names = [
+        part.strip() for part in (incoming or "").split(",") if part.strip()
+    ]
+    merged: List[str] = []
+    for name in existing_names + incoming_names:
+        if name not in merged:
+            merged.append(name)
+    if not merged:
+        return existing if existing else incoming
+    return ", ".join(merged)
+
+
+def _merge_status(existing: str, incoming: str) -> str:
+    if _is_placeholder(existing) and not _is_placeholder(incoming):
+        return incoming
+    if existing:
+        return existing
+    return incoming
+
+
+def _merge_proposal(existing: ProposalEntry, incoming: ProposalEntry) -> ProposalEntry:
+    return ProposalEntry(
+        date=existing.date if not _is_placeholder(existing.date) else incoming.date,
+        work_item_id=existing.work_item_id,
+        agent=_merge_agents(existing.agent, incoming.agent),
+        step=existing.step if not _is_placeholder(existing.step) else incoming.step,
+        failure_summary=_merge_failure_summary(
+            existing.failure_summary, incoming.failure_summary
+        ),
+        proposed_improvement=(
+            existing.proposed_improvement
+            if not _is_placeholder(existing.proposed_improvement)
+            else incoming.proposed_improvement
+        ),
+        proposed_patch_location=(
+            existing.proposed_patch_location
+            if not _is_placeholder(existing.proposed_patch_location)
+            else incoming.proposed_patch_location
+        ),
+        risks=existing.risks if not _is_placeholder(existing.risks) else incoming.risks,
+        status=_merge_status(existing.status, incoming.status),
+        decision_log_ref=(
+            existing.decision_log_ref
+            if not _is_placeholder(existing.decision_log_ref)
+            else incoming.decision_log_ref
+        ),
+    )
+
+
+def merge_or_append_proposal(content: str, proposal: ProposalEntry) -> Tuple[str, str]:
+    lines = content.splitlines()
+    entries_index = None
+    for idx, line in enumerate(lines):
+        if line.strip() == PROPOSAL_SECTION_HEADER:
+            entries_index = idx + 1
+            break
+    if entries_index is None:
+        raise ValueError("pc_runner: missing entries section in proposal registry")
+
+    prefix_lines = lines[:entries_index]
+    tail_lines = lines[entries_index:]
+    before_entries: list[str] = []
+    suffix_lines: list[str] = []
+    blocks: list[list[str]] = []
+    current: list[str] = []
+
+    for line in tail_lines:
+        if line.strip() == PROPOSAL_ENTRY_SEPARATOR:
+            if current:
+                blocks.append(current)
+                current = []
+            continue
+        if not current:
+            if line.strip().startswith("<!--"):
+                suffix_lines.append(line)
+                continue
+            if not line.strip():
+                before_entries.append(line)
+                continue
+        current.append(line)
+    if current:
+        blocks.append(current)
+
+    incoming_sig = proposal_signature(
+        proposal.work_item_id, proposal.step, proposal.failure_summary
+    )
+    updated_blocks: list[str] = []
+    action = "appended"
+    matched = False
+
+    for block in blocks:
+        fields = _parse_entry_fields(block)
+        existing = ProposalEntry(
+            date=fields.get("Date", PROPOSAL_PLACEHOLDER_UNKNOWN),
+            work_item_id=fields.get("Work Item", PROPOSAL_PLACEHOLDER_UNKNOWN),
+            agent=fields.get("Agent", PROPOSAL_PLACEHOLDER_UNKNOWN),
+            step=fields.get("Step", PROPOSAL_PLACEHOLDER_UNKNOWN),
+            failure_summary=fields.get("Failure Summary", ""),
+            proposed_improvement=fields.get(
+                "Proposed Improvement", PROPOSAL_PLACEHOLDER_TBD
+            ),
+            proposed_patch_location=fields.get(
+                "Proposed Patch Location", PROPOSAL_PLACEHOLDER_TBD
+            ),
+            risks=fields.get("Risks / Trade-offs", "None noted."),
+            status=fields.get("Status", PROPOSAL_STATUS_PROPOSED),
+            decision_log_ref=fields.get("Decision Log Ref", "DEC-TBD"),
+        )
+        existing_sig = proposal_signature(
+            existing.work_item_id, existing.step, existing.failure_summary
+        )
+        if existing_sig == incoming_sig and not matched:
+            matched = True
+            merged = _merge_proposal(existing, proposal)
+            if merged != existing:
+                updated_blocks.append(render_proposal_entry_block(merged))
+                action = "merged"
+            else:
+                updated_blocks.append("\n".join(block).rstrip())
+                action = "skipped"
+            continue
+        updated_blocks.append("\n".join(block).rstrip())
+
+    if not matched:
+        updated_blocks.insert(0, render_proposal_entry_block(proposal))
+
+    rebuilt_lines = prefix_lines + before_entries
+    for block_text in updated_blocks:
+        if block_text:
+            rebuilt_lines.extend(block_text.splitlines())
+            rebuilt_lines.append(PROPOSAL_ENTRY_SEPARATOR)
+            rebuilt_lines.append("")
+
+    rebuilt_lines.extend(suffix_lines)
+    return "\n".join(rebuilt_lines).rstrip() + "\n", action
+
+
+def update_possible_improvements(
+    path: Path, proposal: ProposalEntry
+) -> Tuple[str, str]:
+    content = path.read_text(encoding="utf-8")
+    updated, action = merge_or_append_proposal(content, proposal)
+    if updated != content:
+        path.write_text(updated, encoding="utf-8")
+    return updated, action
+
+
+def record_outcome_proposal(
+    outcome_payload: Mapping[str, object],
+    *,
+    root: Path,
+    runner_metadata: Optional[RunMetadata] = None,
+    date: Optional[str] = None,
+) -> Optional[str]:
+    proposal = build_proposal_from_outcome(outcome_payload, date=date)
+    if not proposal:
+        return None
+    path = root / "docs" / "possible-improvements.md"
+    if not path.exists():
+        if runner_metadata:
+            log_message(
+                runner_metadata,
+                "feature",
+                f"proposal skip missing {path}",
+                root=root,
+            )
+        return None
+    _, action = update_possible_improvements(path, proposal)
+    if runner_metadata:
+        log_message(
+            runner_metadata,
+            "feature",
+            f"proposal {action} signature={proposal_signature(proposal.work_item_id, proposal.step, proposal.failure_summary)}",
+            root=root,
+        )
+    return action
