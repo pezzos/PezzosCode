@@ -1811,4 +1811,19 @@ When a decision is reversed or replaced, document it here:
   - Planner receives actionable remediation context instead of a hard-stop path.
   - Patcher scope enforcement remains strict while becoming recoverable within loop limits.
 
+### DEC-035 - Remove change-budget workflow control and keep legacy entry compatibility
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** The change-budget fields (`max_files`, `max_new_modules`) were no longer acting as a real control in `pc-feature` because planning loops could still revise scope and proceed. Keeping budget wording in runtime contracts created misleading governance.
+- **Decision:**
+  - Remove change-budget logic from runtime risk classification and generated execution-entry content.
+  - Keep deterministic HIGH-risk triggers for security-sensitive paths/flags and cross-cutting refactors.
+  - Keep compatibility for existing execution logs by supporting both section titles: `Files to Change` and legacy `Files to Change + Change Budget`.
+  - Align process/template/worklog docs and feature 14-16 changelogs with the new baseline wording.
+- **Consequences:**
+  - New work items no longer display or evaluate change-budget fields.
+  - Existing historical/in-progress entries remain readable and updatable without manual migration.
+  - Scope governance remains via explicit risks, review loops, and deterministic policy checks instead of soft budget numbers.
+
 - WI-20260209-01: Process docs changed; orchestrator retained ownership of deferred docs/03-logs updates.

@@ -22,7 +22,7 @@
    - Manual mode (no autonomous TDD/implementation): `make feature MANUAL=1 F=<feature-id>`.
    - Example (one command): `make feature F=01`.
    - Open the work item source: `docs/02-features/<feature>/dev-tasks.md`.
-   - Confirm scope, success criteria, and change budget.
+   - Confirm scope and success criteria.
    - Complexity flag: `complexity: "simple" | "complex"` recorded in the execution log entry.
    - Complex work items run an orchestrated flow with explicit tester/reporter feedback steps.
    - Work Item IDs increment per feature; the sequence continues across dates.
@@ -157,7 +157,7 @@ HIGH RISK if any of the following apply:
 - Changes modify secret-blocking or fail-close behavior.
 - Changes affect restore apply semantics or permissions.
 - Secret scanning dependencies/policies are added or modified.
-- Change budget exceeded (>10 files OR >2 new modules OR cross-cutting refactor impacting 3+ modules).
+- Cross-cutting refactor impacting 3+ modules.
 
 Otherwise, LOW RISK.
 
@@ -172,7 +172,6 @@ Risk level: LOW | HIGH (triggers: ...)
 Scope summary (in/out):
 Non-goals reminder:
 Files to change:
-Change budget:
 TDD plan: tests to write first
 Work Item DoD (explicit):
 Doc updates planned:

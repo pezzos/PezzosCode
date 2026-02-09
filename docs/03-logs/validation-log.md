@@ -1080,3 +1080,23 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - the three previously failing process template/living pairs are now identical.
   - template-sync no longer reports manual-resolution out-of-sync errors for these paths.
+
+## 2026-02-09 - Change-budget removal validation
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`89` tests, offload id `c05c8c0f038b048e1d4aa35393c60f5d1339da531a0ad639224214ce3623a637`)
+- Command: `tools/offload-proxy/pp rg -n "Change budget|max_files|max_new_modules|Files to Change \+ Change Budget|change budget exceeded" tools/pc-feature tests/test_pc_feature.py docs/04-process/ticket-execution-protocol.md tools/templates/docs/04-process/ticket-execution-protocol.md docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md docs/03-logs/tickets/worklog-template.md tools/templates/docs/03-logs/tickets/worklog-template.md docs/02-features/14-learning-loop-improvement-proposals/dev-tasks.md docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md docs/02-features/16-feature-gating-and-skill-mining/dev-tasks.md`
+- Result: PASS (only expected legacy compatibility hits in `tools/pc-feature` and `tests/test_pc_feature.py`; offload id `521de619b3fabb7d4372f745d4ff8fed786e09074f71f19ed582754c5fb768d2`)
+- Command: `diff -u docs/04-process/ticket-execution-protocol.md tools/templates/docs/04-process/ticket-execution-protocol.md`
+- Result: PASS (no diff)
+- Command: `diff -u docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- Result: PASS (no diff)
+- Command: `diff -u docs/03-logs/tickets/worklog-template.md tools/templates/docs/03-logs/tickets/worklog-template.md`
+- Result: PASS (no diff)
+- Verified:
+  - runtime budget fields are removed from newly generated execution entries.
+  - HIGH-risk classification no longer depends on `max_files`/`max_new_modules`.
+  - legacy entries using `Files to Change + Change Budget` continue to parse/update.
+  - feature 14-16 dev-task changelogs explicitly track the baseline alignment.

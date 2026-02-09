@@ -204,7 +204,6 @@ class TestPcFeature(unittest.TestCase):
         block = self.pc_feature.build_preflight_block(
             {},
             "WI-20260204-01",
-            {"max_files": 1, "max_new_modules": 0},
             "LOW",
             [],
         )
@@ -215,7 +214,6 @@ class TestPcFeature(unittest.TestCase):
         block = self.pc_feature.build_preflight_block(
             {},
             "WI-20260204-01",
-            {"max_files": 1, "max_new_modules": 0},
             "LOW",
             [],
             summary,
@@ -224,9 +222,7 @@ class TestPcFeature(unittest.TestCase):
 
     def test_classify_risk_flags_restore_touch(self):
         data = {"touches_restore": True, "files_to_change": []}
-        risk, triggers = self.pc_feature.classify_risk(
-            data, {"max_files": 5, "max_new_modules": 0}
-        )
+        risk, triggers = self.pc_feature.classify_risk(data)
         self.assertEqual(risk, "HIGH")
         self.assertIn("affects restore apply semantics or permissions", triggers)
 
@@ -241,10 +237,7 @@ class TestPcFeature(unittest.TestCase):
         for file_path, expected_trigger in path_cases:
             with self.subTest(file_path=file_path):
                 data = {"files_to_change": [file_path]}
-                risk, triggers = self.pc_feature.classify_risk(
-                    data,
-                    {"max_files": 50, "max_new_modules": 50},
-                )
+                risk, triggers = self.pc_feature.classify_risk(data)
                 self.assertEqual(risk, "HIGH")
                 self.assertIn(expected_trigger, triggers)
 
@@ -252,7 +245,6 @@ class TestPcFeature(unittest.TestCase):
         data = {"files_to_change": ["docs/notes.md"]}
         risk, triggers = self.pc_feature.classify_risk(
             data,
-            {"max_files": 50, "max_new_modules": 50},
             actual_changed_paths=["metadata/schema.json", "src/app.py"],
         )
         self.assertEqual(risk, "HIGH")
@@ -262,7 +254,6 @@ class TestPcFeature(unittest.TestCase):
         data = {"files_to_change": ["restore/plan.md", "restore/apply.py"]}
         risk, triggers = self.pc_feature.classify_risk(
             data,
-            {"max_files": 50, "max_new_modules": 50},
             actual_changed_paths=["restore/cleanup.py", "detectors/rules.py"],
         )
         self.assertEqual(risk, "HIGH")
@@ -340,6 +331,26 @@ class TestPcFeature(unittest.TestCase):
             "- `python -m unittest tests.test_pc_feature`\n"
             "- `pytest tests/test_pc_feature.py -q`",
         )
+
+    def test_replace_entry_section_accepts_legacy_files_section_alias(self):
+        work_item_id = "WI-20260204-02"
+        content = "## Execution Log\n\n" + self.pc_feature.build_execution_entry(
+            work_item_id
+        )
+        content = content.replace(
+            "#### Files to Change", "#### Files to Change + Change Budget"
+        )
+        updated = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Files to Change",
+            "- Files: tools/pc-feature",
+        )
+        self.assertIn("#### Files to Change + Change Budget", updated)
+        section = self.pc_feature.get_entry_section(
+            updated, work_item_id, "Files to Change"
+        )
+        self.assertEqual(section, "- Files: tools/pc-feature")
 
     def test_restore_dirty_paths_resets_tracked_and_removes_untracked(self):
         run_calls = []
@@ -561,7 +572,6 @@ class TestPcFeature(unittest.TestCase):
             "- Scope out: code\n"
             "- Non-goals reminder: none\n"
             "- Files to change: docs/04-process/ticket-execution-protocol.md\n"
-            "- Change budget: max_files=6, max_new_modules=1\n"
             "- TDD plan: (none)\n"
             "- Systematic review: done",
         )
@@ -580,7 +590,6 @@ class TestPcFeature(unittest.TestCase):
             "- Scope out: docs\n"
             "- Non-goals reminder: none\n"
             "- Files to change: restore/apply.py\n"
-            "- Change budget: max_files=6, max_new_modules=1\n"
             "- TDD plan: (none)\n"
             "- Systematic review: done",
         )
@@ -657,7 +666,6 @@ class TestPcFeature(unittest.TestCase):
                     "- Scope out: y\n"
                     "- Non-goals reminder: z\n"
                     "- Files to change: restore/apply.py\n"
-                    "- Change budget: max_files=6, max_new_modules=1\n"
                     "- TDD plan: test\n"
                     "- Systematic review: done"
                 ),
@@ -2991,7 +2999,6 @@ class TestPcFeature(unittest.TestCase):
             preflight_block = self.pc_feature.build_preflight_block(
                 {"files_to_change": []},
                 work_item_id,
-                self.pc_feature.DEFAULT_CHANGE_BUDGET,
                 "HIGH",
                 ["touches secret blocking or fail-close behavior"],
             )
@@ -3101,7 +3108,6 @@ class TestPcFeature(unittest.TestCase):
             preflight_block = self.pc_feature.build_preflight_block(
                 {"files_to_change": []},
                 work_item_id,
-                self.pc_feature.DEFAULT_CHANGE_BUDGET,
                 "HIGH",
                 ["touches secret blocking or fail-close behavior"],
             )
@@ -3195,7 +3201,6 @@ class TestPcFeature(unittest.TestCase):
             preflight_block = self.pc_feature.build_preflight_block(
                 {"files_to_change": []},
                 work_item_id,
-                self.pc_feature.DEFAULT_CHANGE_BUDGET,
                 "HIGH",
                 ["touches secret blocking or fail-close behavior"],
             )

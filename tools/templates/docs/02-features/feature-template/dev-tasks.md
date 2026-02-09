@@ -58,7 +58,6 @@ Work Item IDs increment per feature; the sequence continues across dates.
 - Scope out:
 - Non-goals reminder:
 - Files to change:
-- Change budget:
 - TDD plan:
 - Systematic review:
 
@@ -70,10 +69,9 @@ Work Item IDs increment per feature; the sequence continues across dates.
 
 - (list exact commands; do not include `make feature` or `pc-feature`)
 
-#### Files to Change + Change Budget
+#### Files to Change
 
 - Files:
-- Change budget:
 
 #### Docs Updated
 

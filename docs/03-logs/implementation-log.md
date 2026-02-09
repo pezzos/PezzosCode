@@ -4923,3 +4923,50 @@ Track when debt is paid down:
 - `diff -u docs/04-process/human-orchestration-workflow.md tools/templates/docs/04-process/human-orchestration-workflow.md`
 - `diff -u docs/04-process/dev-workflow.md tools/templates/docs/04-process/dev-workflow.md`
 - `tools/pc-template-sync`
+
+### 2026-02-09 - Remove change-budget wiring from execution workflow
+
+**Feature/Bug:** workflow contract cleanup
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `docs/03-logs/tickets/worklog-template.md`
+- `tools/templates/docs/03-logs/tickets/worklog-template.md`
+- `docs/02-features/14-learning-loop-improvement-proposals/dev-tasks.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
+- `docs/02-features/16-feature-gating-and-skill-mining/dev-tasks.md`
+
+**What Changed:**
+
+- Removed `DEFAULT_CHANGE_BUDGET` usage from `pc-feature` preflight rendering and risk classification.
+- Removed budget lines from generated execution entries and renamed runtime section to `Files to Change`.
+- Added section-alias compatibility so legacy entries using `Files to Change + Change Budget` continue to work.
+- Updated tests for new signatures/output and added regression coverage for legacy section compatibility.
+- Updated live/template process docs and worklog templates to remove change-budget wording.
+- Added changelog alignment entries in feature 14-16 `dev-tasks.md`.
+
+**Why:**
+
+- Budget fields were not acting as an enforceable control and introduced misleading workflow noise.
+- The workflow remains governed by explicit scope/risk/policy checks without budget-specific fields.
+
+**Impact:**
+
+- **Breaking changes:** No (legacy execution-log section compatibility preserved)
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- `tools/offload-proxy/pp rg -n "Change budget|max_files|max_new_modules|Files to Change \+ Change Budget|change budget exceeded" tools/pc-feature tests/test_pc_feature.py docs/04-process/ticket-execution-protocol.md tools/templates/docs/04-process/ticket-execution-protocol.md docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md docs/03-logs/tickets/worklog-template.md tools/templates/docs/03-logs/tickets/worklog-template.md docs/02-features/14-learning-loop-improvement-proposals/dev-tasks.md docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md docs/02-features/16-feature-gating-and-skill-mining/dev-tasks.md`
+- `diff -u docs/04-process/ticket-execution-protocol.md tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `diff -u docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `diff -u docs/03-logs/tickets/worklog-template.md tools/templates/docs/03-logs/tickets/worklog-template.md`

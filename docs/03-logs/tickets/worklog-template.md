@@ -9,10 +9,9 @@
 
 - Tests to write first:
 
-## Files to Change + Change Budget
+## Files to Change
 
 - Files:
-- Change budget: max_files: [ ], max_new_modules: [ ]
 
 ## Docs Updated
 

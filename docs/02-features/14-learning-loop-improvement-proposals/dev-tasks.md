@@ -53,7 +53,8 @@
 
 ## Change Log
 
-| Date       | Changes                                            | Author       |
-| ---------- | -------------------------------------------------- | ------------ |
-| 2026-02-08 | Rebased tasks to explicit fail/stall learning loop | Codex        |
-| 2026-02-05 | Initial task breakdown                             | Primary user |
+| Date       | Changes                                                                  | Author       |
+| ---------- | ------------------------------------------------------------------------ | ------------ |
+| 2026-02-09 | Aligned workflow baseline to remove change-budget fields/section wording | Codex        |
+| 2026-02-08 | Rebased tasks to explicit fail/stall learning loop                       | Codex        |
+| 2026-02-05 | Initial task breakdown                                                   | Primary user |
