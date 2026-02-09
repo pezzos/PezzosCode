@@ -70,3 +70,16 @@ Reasons:
 - Consider naming likely target files in `Files to change` for faster execution, once discovered (e.g., compaction script/config paths), but not required for approval.
 
 Work Item ID: WI-20260209-01
+
+### WI-20260209-01 - 2026-02-09
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/03-logs/compacted/
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
