@@ -294,3 +294,59 @@ Work Item ID: WI-20260209-01
 Step Planner revise after Plan Reviewer BLOCK at attempt 2.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/03-logs/compacted/ Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260209-01 - 2026-02-09
+
+Decision: REVISE_PLAN
+Rationale: Reporter failure indicates outputs are not generated in `docs/03-logs/compacted/`, so plan must explicitly fix path resolution and generate artifacts there.
+
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Update compaction path resolution to target `docs/03-logs/compacted/` and ensure generated decision/implementation/validation artifacts include required metadata without hardcoding role or global log paths.
+   Files to change:
+
+- `tools/pc-feature`
+- Compaction workflow script/config that resolves compacted output path
+  Risks:
+- Incorrect path derivation could misroute artifacts or overwrite unrelated logs.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: At least 2 fixtures per log type (decision/implementation/validation).
+- Deterministic seed strategy: Fixed seed if ordering is applied.
+- Invariant checks: Output includes source path, date/section, WI ref (if available), outcome/rationale, evidence refs.
+- Contract boundary coverage: Missing/stale sections are marked explicitly.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+2. Generate compacted outputs under `docs/03-logs/compacted/` using the updated path resolution.
+   Files to change:
+
+- None (command execution only)
+  Risks:
+- Running compaction with incorrect inputs could generate incomplete or misleading outputs.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A (artifact generation step).
+- Deterministic seed strategy: N/A.
+- Invariant checks: Derived location contains expected compacted outputs after run.
+- Contract boundary coverage: N/A.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+3. Run the allowed tests to confirm behavior remains correct after path changes.
+   Files to change:
+
+- None (test execution only)
+  Risks:
+- Tests may still discover zero cases; verify expectations align with current test suite.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A.
+- Deterministic seed strategy: N/A.
+- Invariant checks: N/A.
+- Contract boundary coverage: N/A.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+Note: Required updates to `docs/03-logs/*` are owned by reporter/orchestrator; patcher will not edit those files.
+
+Work Item ID: WI-20260209-01

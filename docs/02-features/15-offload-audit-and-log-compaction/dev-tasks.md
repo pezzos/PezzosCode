@@ -94,11 +94,11 @@
 Plan Contract v1
 Approach:
 
-1. Verify and update compaction path resolution so outputs target the configured compaction destination (without hardcoding role/global log paths) and ensure decision/implementation/validation artifacts include required metadata.
+1. Update compaction path resolution to target `docs/03-logs/compacted/` and ensure generated decision/implementation/validation artifacts include required metadata without hardcoding role or global log paths.
    Files to change:
 
 - `tools/pc-feature`
-- Any compaction script/config that resolves output paths
+- Compaction workflow script/config that resolves compacted output path
   Risks:
 - Incorrect path derivation could misroute artifacts or overwrite unrelated logs.
   Tests (anti-hardcode coverage required):
@@ -109,7 +109,7 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Re-run the compaction workflow to generate updated outputs using the new path resolution.
+2. Generate compacted outputs under `docs/03-logs/compacted/` using the updated path resolution.
    Files to change:
 
 - None (command execution only)
@@ -123,12 +123,12 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-3. Execute the allowed tests to confirm behavior remains correct after path changes.
+3. Run the allowed tests to confirm behavior remains correct after path changes.
    Files to change:
 
 - None (test execution only)
   Risks:
-- Tests may still discover zero cases; ensure expectations are aligned with current test suite.
+- Tests may still discover zero cases; verify expectations align with current test suite.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: N/A.
 - Deterministic seed strategy: N/A.
@@ -137,7 +137,7 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-Handoff note: Required updates to `docs/03-logs/*` are owned by reporter/orchestrator; patcher will not edit those files.
+Note: Required updates to `docs/03-logs/*` are owned by reporter/orchestrator; patcher will not edit those files.
 
 Work Item ID: WI-20260209-01
 
@@ -180,6 +180,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows required compacted outputs are missing under `docs/03-logs/compacted/`, so the plan must explicitly ensure compaction writes there and re-run compaction.; patcher feedback pending.
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=2/3).
+- Attempt 2: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure indicates outputs are not generated in `docs/03-logs/compacted/`, so plan must explicitly fix path resolution and generate artifacts there.; patcher feedback pending.
 
 #### Commit
 
