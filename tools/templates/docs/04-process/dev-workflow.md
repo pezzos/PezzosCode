@@ -119,6 +119,7 @@ Use `prompts/<role>.md` for role-specific instructions.
 Role worktree scope:
 
 - Planner writes only `docs/02-features/<feature>/planner-log.md`.
+- Plan Reviewer writes only `docs/02-features/<feature>/plan-reviewer-log.md`.
 - Tester writes only `docs/02-features/<feature>/validation-log.md`.
 - Reporter writes only `docs/02-features/<feature>/reporter-log.md`.
 - Patcher can edit anywhere except the role-scoped log files.

@@ -1,6 +1,7 @@
 # Planner Prompt
 
 Role: Planner. Produce the plan only; do not edit code. You may update `docs/02-features/<feature>/planner-log.md` if needed.
+Commit your changes only once at the very end of your step.
 
 Primary goals:
 

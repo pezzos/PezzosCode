@@ -49,12 +49,14 @@ IGNORED_PATH_FILES = {
 }
 ROLE_LOG_FILES = {
     "planner": "planner-log.md",
+    "plan-reviewer": "plan-reviewer-log.md",
     "reporter": "reporter-log.md",
     "tester": "validation-log.md",
 }
 ROLE_SCOPED_FILENAMES = {
     "dev-tasks.md",
     "planner-log.md",
+    "plan-reviewer-log.md",
     "reporter-log.md",
     "validation-log.md",
 }
@@ -1390,6 +1392,34 @@ def commit_worktree_changes(
         die(f"pc-feature: failed to commit changes for {role}\n{detail}")
 
 
+def commit_role_step(
+    root: str,
+    worktree_path: str,
+    branch: str,
+    role: str,
+    work_item_id: str,
+    feature_dir: str,
+    *,
+    allow_empty: bool = False,
+) -> bool:
+    paths = filter_ignored_paths(get_status_paths(worktree_path))
+    if not paths:
+        return False
+    format_role_changes(role, worktree_path, feature_dir)
+    if role == "patcher":
+        reset_role_logs_to_head(worktree_path, feature_dir)
+        reset_global_logs_to_head(worktree_path)
+    elif role in {"tester", "reporter", "plan-reviewer"}:
+        reset_global_logs_to_head(worktree_path)
+    enforce_role_scope(worktree_path, role, feature_dir)
+    paths = filter_ignored_paths(get_status_paths(worktree_path))
+    if not paths and not allow_empty:
+        return False
+    commit_worktree_changes(worktree_path, role, work_item_id, feature_dir)
+    ensure_clean_worktree(root, worktree_path, branch, role)
+    return True
+
+
 def branch_ahead_count(root: str, base_ref: str, branch: str) -> int:
     result = subprocess.run(
         ["git", "rev-list", "--count", f"{base_ref}..{branch}"],
@@ -1514,8 +1544,8 @@ def missing_failure_context_fields(text: str) -> List[str]:
     required = ("File/Path", "Check", "Evidence", "Expected fix")
     missing: List[str] = []
     for field in required:
-        pattern = rf"^{re.escape(field)}\s*:"
-        if not re.search(pattern, text, re.IGNORECASE | re.MULTILINE):
+        pattern = rf"\b{re.escape(field)}\s*:"
+        if not re.search(pattern, text, re.IGNORECASE):
             missing.append(field)
     return missing
 
@@ -1556,6 +1586,7 @@ def plan_policy_violations(plan_text: str) -> List[str]:
     path_patterns = (
         r"docs/02-features/[^\s`]+/dev-tasks\.md",
         r"docs/02-features/[^\s`]+/planner-log\.md",
+        r"docs/02-features/[^\s`]+/plan-reviewer-log\.md",
         r"docs/02-features/[^\s`]+/reporter-log\.md",
         r"docs/02-features/[^\s`]+/validation-log\.md",
         r"docs/03-logs/[^\s`]+",
@@ -1627,6 +1658,86 @@ def parse_feedback_rationale(text: str) -> str:
     if not match:
         return ""
     return match.group(1).strip()
+
+
+def revised_plan_quality_issues(
+    revised_plan: str,
+    *,
+    previous_plan: str = "",
+) -> List[str]:
+    issues: List[str] = []
+    lowered = revised_plan.lower()
+    cross_ref_patterns = (
+        r"\boriginal plan\b",
+        r"\bcurrent plan\b",
+        r"\bfrom the current plan\b",
+        r"\bfrom the original plan\b",
+        r"\bproceed with original\b",
+    )
+    if any(re.search(pattern, lowered) for pattern in cross_ref_patterns):
+        issues.append(
+            "revised plan must be self-contained and must not reference the original/current plan"
+        )
+    required_sections = (
+        "Approach:",
+        "Files to change",
+        "Risks:",
+        "Tests (anti-hardcode coverage required):",
+    )
+    previous_has_required_sections = all(
+        re.search(
+            rf"^\s*{re.escape(section)}",
+            previous_plan,
+            re.IGNORECASE | re.MULTILINE,
+        )
+        for section in required_sections
+    )
+    revised_looks_structured = any(
+        re.search(
+            rf"^\s*{re.escape(section)}",
+            revised_plan,
+            re.IGNORECASE | re.MULTILINE,
+        )
+        for section in required_sections
+    )
+    if previous_has_required_sections or revised_looks_structured:
+        missing_sections = [
+            section
+            for section in required_sections
+            if not re.search(
+                rf"^\s*{re.escape(section)}",
+                revised_plan,
+                re.IGNORECASE | re.MULTILINE,
+            )
+        ]
+        if missing_sections:
+            issues.append(
+                "revised plan missing required sections: " + ", ".join(missing_sections)
+            )
+    if len([line for line in revised_plan.splitlines() if line.strip()]) < 1:
+        issues.append("revised plan is empty")
+    return issues
+
+
+def merge_revised_plan(current_plan: str, revised_plan: str) -> str:
+    revised_stripped = revised_plan.strip()
+    if not revised_stripped:
+        return current_plan
+    has_structured_sections = bool(
+        re.search(
+            r"^\s*(Approach:|Files to change|Risks:|Tests \(anti-hardcode coverage required\):)",
+            revised_stripped,
+            re.IGNORECASE | re.MULTILINE,
+        )
+    )
+    if has_structured_sections:
+        return revised_stripped
+    merged = (
+        current_plan.rstrip()
+        + "\n\nRevisions from latest feedback:\n\n"
+        + revised_stripped
+    )
+    return merged.strip()
 
 
 def anti_hardcode_coverage_issues(plan: str, tdd_plan: str) -> List[str]:
@@ -1820,6 +1931,73 @@ def run_command_with_step_log(
     return exit_code
 
 
+def run_command_with_step_log_capture(
+    cmd: List[str],
+    metadata: "pc_runner.RunMetadata",
+    *,
+    step: str,
+    root: Path,
+    label: str,
+    cwd: Optional[str] = None,
+) -> Tuple[int, str]:
+    if cmd:
+        executable = cmd[0]
+        if os.path.sep in executable:
+            executable_path = Path(executable)
+            if not executable_path.is_absolute():
+                base_dir = Path(cwd) if cwd else Path.cwd()
+                executable_path = base_dir / executable
+            if not executable_path.exists():
+                exit_code = run_command_with_step_log(
+                    cmd,
+                    metadata,
+                    step=step,
+                    root=root,
+                    label=label,
+                    cwd=cwd,
+                )
+                return exit_code, ""
+        elif shutil.which(executable) is None:
+            exit_code = run_command_with_step_log(
+                cmd,
+                metadata,
+                step=step,
+                root=root,
+                label=label,
+                cwd=cwd,
+            )
+            return exit_code, ""
+
+    command_text = " ".join(shlex.quote(part) for part in cmd)
+    pc_runner.log_message(metadata, step, f"start {label}: {command_text}", root=root)
+    result = subprocess.run(
+        cmd,
+        check=False,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    pc_runner.log_message(
+        metadata, step, f"complete {label}: exit={result.returncode}", root=root
+    )
+    return result.returncode, f"{result.stdout}{result.stderr}"
+
+
+def extract_test_discovery_summary(output: str) -> Optional[str]:
+    for pattern in (
+        r"Ran\s+\d+\s+tests?",
+        r"collected\s+\d+\s+items?",
+    ):
+        match = re.search(pattern, output, re.IGNORECASE)
+        if match:
+            return match.group(0)
+    return None
+
+
 def prompt_yes_no(message: str) -> bool:
     reply = input(f"{message} ").strip().lower()
     return reply in {"y", "yes"}
@@ -1981,7 +2159,7 @@ def approve_high_risk_interactive(risk_level: str, triggers: List[str]) -> bool:
 
 
 def build_execution_entry(work_item_id: str) -> str:
-    return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Allowed Tests\n\n- (list exact commands; do not include `make feature` or `pc-feature`)\n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
+    return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Plan Reviewer: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- Change budget: max_files={DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules={DEFAULT_CHANGE_BUDGET['max_new_modules']}\n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Allowed Tests\n\n- (list exact commands; do not include `make feature` or `pc-feature`)\n\n#### Files to Change + Change Budget\n\n- Files: \n- Change budget: max_files: {DEFAULT_CHANGE_BUDGET['max_files']}, max_new_modules: {DEFAULT_CHANGE_BUDGET['max_new_modules']}\n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
 
 
 def entry_section_complete(content: str, work_item_id: str, section: str) -> bool:
@@ -2337,6 +2515,7 @@ def main() -> None:
         root, feature_slug, "patcher", "main"
     )
     planner_path = patcher_path
+    reviewer_path = patcher_path
     tester_path = patcher_path
     reporter_path = patcher_path
     dev_tasks_path = worktree_runtime_path(
@@ -2596,8 +2775,18 @@ def main() -> None:
                 "stop and restart the feature from a clean baseline."
             )
         attempt = execution_attempt + 1
-        planner_noop_pending = False
+        planner_changed = False
         content = read_file(dev_tasks_path)
+        if not extract_field(content, "Planner"):
+            content = update_entry_field(content, work_item_id, "Planner", "Codex")
+            write_file(dev_tasks_path, content)
+            planner_changed = True
+        if not extract_field(content, "Plan Reviewer"):
+            content = update_entry_field(
+                content, work_item_id, "Plan Reviewer", "Codex"
+            )
+            write_file(dev_tasks_path, content)
+            planner_changed = True
         if not entry_section_complete(content, work_item_id, "Plan"):
             plan_prompt = render_prompt_template(
                 load_prompt_template("planner", "create"),
@@ -2616,7 +2805,6 @@ def main() -> None:
                 root=str(runner_root),
             ).strip()
             content = read_file(dev_tasks_path)
-            content = update_entry_field(content, work_item_id, "Planner", "Codex")
             content = replace_entry_section(content, work_item_id, "Plan", plan_text)
             write_file(dev_tasks_path, content)
             ensure_role_log(
@@ -2628,12 +2816,7 @@ def main() -> None:
                 plan_text,
                 role="planner",
             )
-            format_role_changes("planner", planner_path, feature_dir)
-            enforce_role_scope(planner_path, "planner", feature_dir)
-            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
-            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
-        else:
-            planner_noop_pending = True
+            planner_changed = True
 
         content = read_file(dev_tasks_path)
         planner_updates = False
@@ -2700,9 +2883,36 @@ def main() -> None:
                     )
                     write_file(dev_tasks_path, content)
                     planner_updates = True
+                    planner_changed = True
                     content = read_file(dev_tasks_path)
                     continue
             break
+
+        if planner_updates:
+            ensure_role_log(
+                os.path.join(planner_path, role_paths["planner"]), "planner"
+            )
+            note = (
+                planner_note
+                or "Updated Allowed Tests to satisfy existence and scope checks."
+            )
+            append_role_log(
+                os.path.join(planner_path, role_paths["planner"]),
+                work_item_id,
+                note,
+                role="planner",
+            )
+            planner_changed = True
+        if planner_changed:
+            commit_role_step(
+                root,
+                planner_path,
+                patcher_branch,
+                "planner",
+                work_item_id,
+                feature_dir,
+            )
+
         if not allowed_tests or forbidden or missing:
             issues: List[str] = []
             if not allowed_tests:
@@ -2734,11 +2944,14 @@ def main() -> None:
                 tester_feedback,
                 role="tester",
             )
-            format_role_changes("tester", tester_path, feature_dir)
-            reset_global_logs_to_head(tester_path)
-            enforce_role_scope(tester_path, "tester", feature_dir)
-            commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
-            ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
+            commit_role_step(
+                root,
+                tester_path,
+                patcher_branch,
+                "tester",
+                work_item_id,
+                feature_dir,
+            )
             execution_attempt += 1
             last_failure_context = (
                 "allowed tests validation failed: "
@@ -2778,40 +2991,18 @@ def main() -> None:
             )
             write_file(dev_tasks_path, content)
             continue
-        if planner_updates:
-            if not extract_field(content, "Planner"):
-                content = update_entry_field(content, work_item_id, "Planner", "Codex")
-                write_file(dev_tasks_path, content)
-            ensure_role_log(
-                os.path.join(planner_path, role_paths["planner"]), "planner"
-            )
-            note = (
-                planner_note
-                or "Updated Allowed Tests to satisfy existence and scope checks."
-            )
-            append_role_log(
-                os.path.join(planner_path, role_paths["planner"]),
-                work_item_id,
-                note,
-                role="planner",
-            )
-            format_role_changes("planner", planner_path, feature_dir)
-            enforce_role_scope(planner_path, "planner", feature_dir)
-            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
-            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
 
         content = read_file(dev_tasks_path)
         current_plan = get_entry_section(content, work_item_id, "Plan")
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
         tdd_section = get_entry_section(content, work_item_id, "TDD Plan")
-        pre_reviewer_snapshot = collect_dirty_snapshot(planner_path)
+        pre_reviewer_snapshot = collect_dirty_snapshot(reviewer_path)
         auto_reviewer_hygiene = parse_bool_env(AUTO_REVIEWER_HYGIENE_ENV)
         if auto_reviewer_hygiene is None:
             auto_reviewer_hygiene = True
         if auto_reviewer_hygiene and pre_reviewer_snapshot:
             allowed_preexisting = {
-                os.path.join(feature_dir, "dev-tasks.md"),
-                role_paths["planner"],
+                role_paths["plan-reviewer"],
             }
             unexpected_preexisting = sorted(
                 path
@@ -2819,104 +3010,77 @@ def main() -> None:
                 if path not in allowed_preexisting
             )
             if unexpected_preexisting:
-                content = update_entry_field(
-                    content, work_item_id, "Outcome", "needs replan"
-                )
-                content = append_iteration_log_note(
-                    content,
-                    work_item_id,
-                    "Pre-review hygiene failed; unexpected dirty paths: "
-                    + ", ".join(unexpected_preexisting),
-                )
-                write_file(dev_tasks_path, content)
                 die(
                     "pc-feature: pre-review hygiene found unexpected dirty paths: "
                     + ", ".join(unexpected_preexisting)
                 )
-            format_role_changes("planner", planner_path, feature_dir)
-            enforce_role_scope(planner_path, "planner", feature_dir)
-            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
-            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
-            pre_reviewer_snapshot = collect_dirty_snapshot(planner_path)
+
         anti_hardcode_issues: List[str] = []
         if should_enforce_anti_hardcode(content, work_item_id):
             anti_hardcode_issues = anti_hardcode_coverage_issues(
                 current_plan, tdd_section
             )
-        plan_reviewer_prompt = render_prompt_template(
-            load_prompt_template("plan-reviewer", "gate"),
-            {
-                "work_item_id": work_item_id,
-                "current_plan": current_plan,
-                "allowed_tests": allowed_section,
-            },
-        )
-        if anti_hardcode_issues:
-            reviewer_feedback = anti_hardcode_block_feedback(anti_hardcode_issues)
-            preexisting_dirty: List[str] = sorted(pre_reviewer_snapshot.keys())
-            reviewer_dirty_delta: List[str] = []
+        policy_issues = plan_policy_violations(current_plan)
+        deterministic_reviewer_issues = policy_issues + anti_hardcode_issues
+        reviewer_dirty_delta: List[str] = []
+        if deterministic_reviewer_issues:
+            reviewer_feedback = plan_policy_block_feedback(
+                deterministic_reviewer_issues
+            )
+            reviewer_decision = "BLOCK"
         else:
+            plan_reviewer_prompt = render_prompt_template(
+                load_prompt_template("plan-reviewer", "gate"),
+                {
+                    "work_item_id": work_item_id,
+                    "current_plan": current_plan,
+                    "allowed_tests": allowed_section,
+                },
+            )
             reviewer_feedback = codex_exec(
                 plan_reviewer_prompt,
-                cwd=planner_path,
+                cwd=reviewer_path,
                 profile="Planner",
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
-            preexisting_dirty, reviewer_dirty_delta = ensure_plan_reviewer_read_only(
-                planner_path, baseline_snapshot=pre_reviewer_snapshot
+            _, reviewer_dirty_delta = ensure_plan_reviewer_read_only(
+                reviewer_path, baseline_snapshot=pre_reviewer_snapshot
             )
+            reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
         if reviewer_dirty_delta:
-            content = read_file(dev_tasks_path)
-            if planner_noop_pending:
-                content = append_noop_step_note(
-                    content,
-                    work_item_id,
-                    attempt=attempt,
-                    step="planner",
-                    reason="plan already present",
-                )
-                planner_noop_pending = False
-            content = update_entry_field(
-                content, work_item_id, "Outcome", "needs replan"
-            )
             delta_text = ", ".join(reviewer_dirty_delta)
-            preexisting_text = (
-                ", ".join(preexisting_dirty) if preexisting_dirty else "(none)"
-            )
-            content = append_iteration_log_note(
-                content,
-                work_item_id,
-                f"Attempt {attempt}: plan-reviewer dirty delta detected; delta=[{delta_text}]; preexisting=[{preexisting_text}].",
-            )
-            write_file(dev_tasks_path, content)
             die(
                 "pc-feature: plan reviewer modified files in writable worktree: "
                 + delta_text
-                + "; pre-existing dirty files before reviewer: "
-                + preexisting_text
             )
-        if planner_noop_pending:
-            content = append_noop_step_note(
-                content,
-                work_item_id,
-                attempt=attempt,
-                step="planner",
-                reason="plan already present",
-            )
-            planner_noop_pending = False
-            write_file(dev_tasks_path, content)
-        reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
-        policy_issues = plan_policy_violations(current_plan)
-        if reviewer_decision == "APPROVE" and policy_issues:
-            reviewer_decision = "BLOCK"
-            reviewer_feedback = plan_policy_block_feedback(policy_issues)
+
+        ensure_role_log(
+            os.path.join(reviewer_path, role_paths["plan-reviewer"]),
+            "plan-reviewer",
+        )
+        append_role_log(
+            os.path.join(reviewer_path, role_paths["plan-reviewer"]),
+            work_item_id,
+            f"Step Plan Reviewer {reviewer_decision} at attempt {attempt}.\n\n{reviewer_feedback}",
+            role="plan-reviewer",
+        )
+        commit_role_step(
+            root,
+            reviewer_path,
+            patcher_branch,
+            "plan-reviewer",
+            work_item_id,
+            feature_dir,
+        )
+
         if reviewer_decision == "BLOCK":
             last_failure_context = (
                 "plan reviewer blocked plan; planner revision required."
             )
             reviewer_blocks += 1
             if reviewer_blocks > MAX_REVIEWER_BLOCKS:
+                content = read_file(dev_tasks_path)
                 content = update_entry_field(
                     content, work_item_id, "Outcome", "needs replan"
                 )
@@ -2937,15 +3101,6 @@ def main() -> None:
                     "pc-feature: max plan-reviewer block attempts reached; "
                     "check planner/reviewer feedback for unresolved policy constraints"
                 )
-            ensure_role_log(
-                os.path.join(planner_path, role_paths["planner"]), "planner"
-            )
-            append_role_log(
-                os.path.join(planner_path, role_paths["planner"]),
-                work_item_id,
-                f"Plan Reviewer feedback (BLOCK):\n{reviewer_feedback}",
-                role="planner",
-            )
             planner_update_prompt = render_prompt_template(
                 load_prompt_template("planner", "update-from-feedback"),
                 {
@@ -2954,15 +3109,29 @@ def main() -> None:
                     "reviewer_feedback": reviewer_feedback,
                 },
             )
-            revised_plan = codex_exec(
+            revised_plan_raw = codex_exec(
                 planner_update_prompt,
                 cwd=planner_path,
                 profile="Planner",
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
-            if not revised_plan:
+            if not revised_plan_raw:
                 die("pc-feature: planner returned empty plan after reviewer block")
+            revised_plan = merge_revised_plan(current_plan, revised_plan_raw)
+            quality_issues = revised_plan_quality_issues(
+                revised_plan,
+                previous_plan=current_plan,
+            )
+            if should_enforce_anti_hardcode(content, work_item_id):
+                quality_issues.extend(
+                    anti_hardcode_coverage_issues(revised_plan, tdd_section)
+                )
+            if quality_issues:
+                die(
+                    "pc-feature: revised plan failed quality checks: "
+                    + "; ".join(sorted(set(quality_issues)))
+                )
             content = read_file(dev_tasks_path)
             content = replace_entry_section(content, work_item_id, "Plan", revised_plan)
             content = append_iteration_log_note(
@@ -2971,18 +3140,24 @@ def main() -> None:
                 f"Attempt {attempt}: Plan Reviewer BLOCK; planner updated plan (block count: {reviewer_blocks}).",
             )
             write_file(dev_tasks_path, content)
-            format_role_changes("planner", planner_path, feature_dir)
-            enforce_role_scope(planner_path, "planner", feature_dir)
-            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
-            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+            ensure_role_log(
+                os.path.join(planner_path, role_paths["planner"]), "planner"
+            )
+            append_role_log(
+                os.path.join(planner_path, role_paths["planner"]),
+                work_item_id,
+                f"Step Planner revise after Plan Reviewer BLOCK at attempt {attempt}.\n\n{summarize_feedback(reviewer_feedback)}",
+                role="planner",
+            )
+            commit_role_step(
+                root,
+                planner_path,
+                patcher_branch,
+                "planner",
+                work_item_id,
+                feature_dir,
+            )
             continue
-        content = read_file(dev_tasks_path)
-        content = append_iteration_log_note(
-            content,
-            work_item_id,
-            f"Attempt {attempt}: Plan Reviewer APPROVE; proceeding to patch.",
-        )
-        write_file(dev_tasks_path, content)
 
         execution_attempt += 1
         smoke_command = allowed_tests[0] if allowed_tests else ""
@@ -3010,15 +3185,17 @@ def main() -> None:
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
-            format_role_changes("patcher", patcher_path, feature_dir)
-            reset_role_logs_to_head(patcher_path, feature_dir)
-            reset_global_logs_to_head(patcher_path)
-            enforce_role_scope(patcher_path, "patcher", feature_dir)
-            commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
+            commit_role_step(
+                root,
+                patcher_path,
+                patcher_branch,
+                "patcher",
+                work_item_id,
+                feature_dir,
+            )
             requires_global_logs = requires_global_logs or process_docs_changed(
                 commit_paths(patcher_path)
             )
-            ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
         else:
             content = append_noop_step_note(
                 content,
@@ -3060,18 +3237,22 @@ def main() -> None:
                 tester_feedback,
                 role="tester",
             )
-            format_role_changes("tester", tester_path, feature_dir)
-            reset_global_logs_to_head(tester_path)
-            enforce_role_scope(tester_path, "tester", feature_dir)
-            commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
-            ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
+            commit_role_step(
+                root,
+                tester_path,
+                patcher_branch,
+                "tester",
+                work_item_id,
+                feature_dir,
+            )
             die("pc-feature: missing or forbidden allowed tests; update Allowed Tests")
 
         test_results: List[str] = []
+        discovery_summaries: List[str] = []
         failed = False
         for cmd in allowed_tests:
             cmd_list = ["tools/offload-proxy/pp"] + shlex.split(cmd)
-            exit_code = run_command_with_step_log(
+            exit_code, command_output = run_command_with_step_log_capture(
                 cmd_list,
                 runner_metadata,
                 step="tests",
@@ -3079,13 +3260,21 @@ def main() -> None:
                 label=cmd,
                 cwd=tester_path,
             )
-            test_results.append(f"{cmd} -> {exit_code}")
+            test_results.append(f"`{cmd}` -> {exit_code}")
+            summary = extract_test_discovery_summary(command_output)
+            if summary:
+                discovery_summaries.append(f"`{cmd}` => {summary}")
             if exit_code != 0:
                 failed = True
         tester_outcome = "FAIL" if failed else "PASS"
-        tests_run = "; ".join(allowed_tests)
+        tests_run = "; ".join(f"`{cmd}`" for cmd in allowed_tests)
         failure_evidence = "; ".join(
             item for item in test_results if not item.strip().endswith("-> 0")
+        )
+        discovery_line = (
+            f"\nDiscovery: {'; '.join(discovery_summaries)}"
+            if discovery_summaries
+            else "\nDiscovery: no explicit discovery summary found in command output."
         )
         if tester_outcome == "FAIL":
             tester_notes = (
@@ -3094,9 +3283,10 @@ def main() -> None:
                 "Check: Allowed Tests commands must all exit 0.\n"
                 f"Evidence: {failure_evidence or 'non-zero exit detected'}\n"
                 "Expected fix: adjust plan/patch until all allowed tests pass."
+                f"{discovery_line}"
             )
         else:
-            tester_notes = f"Results: {'; '.join(test_results)}"
+            tester_notes = f"Results: {'; '.join(test_results)}{discovery_line}"
         tester_feedback = (
             f"Outcome: {tester_outcome}\n"
             f"Tests run: {tests_run}\n"
@@ -3110,11 +3300,14 @@ def main() -> None:
             tester_feedback,
             role="tester",
         )
-        format_role_changes("tester", tester_path, feature_dir)
-        reset_global_logs_to_head(tester_path)
-        enforce_role_scope(tester_path, "tester", feature_dir)
-        commit_worktree_changes(tester_path, "tester", work_item_id, feature_dir)
-        ensure_clean_worktree(root, tester_path, patcher_branch, "tester")
+        commit_role_step(
+            root,
+            tester_path,
+            patcher_branch,
+            "tester",
+            work_item_id,
+            feature_dir,
+        )
 
         if tester_outcome != "PASS":
             reporter_feedback = (
@@ -3132,10 +3325,13 @@ def main() -> None:
                 reporter_feedback,
                 role="reporter",
             )
-            format_role_changes("reporter", reporter_path, feature_dir)
-            enforce_role_scope(reporter_path, "reporter", feature_dir)
-            commit_worktree_changes(
-                reporter_path, "reporter", work_item_id, feature_dir
+            commit_role_step(
+                root,
+                reporter_path,
+                patcher_branch,
+                "reporter",
+                work_item_id,
+                feature_dir,
             )
             content = read_file(dev_tasks_path)
             content = append_noop_step_note(
@@ -3183,10 +3379,13 @@ def main() -> None:
                 reporter_feedback,
                 role="reporter",
             )
-            format_role_changes("reporter", reporter_path, feature_dir)
-            enforce_role_scope(reporter_path, "reporter", feature_dir)
-            commit_worktree_changes(
-                reporter_path, "reporter", work_item_id, feature_dir
+            commit_role_step(
+                root,
+                reporter_path,
+                patcher_branch,
+                "reporter",
+                work_item_id,
+                feature_dir,
             )
 
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
@@ -3224,15 +3423,44 @@ def main() -> None:
             planner_rationale = parse_feedback_rationale(planner_feedback)
             updated_plan = current_plan
             if planner_decision == "REVISE_PLAN":
-                revised_plan = parse_feedback_revised_plan(planner_feedback)
-                if not revised_plan:
+                revised_plan_raw = parse_feedback_revised_plan(planner_feedback)
+                if not revised_plan_raw:
                     die(
                         "pc-feature: planner marked REVISE_PLAN but returned no Revised Plan section"
+                    )
+                revised_plan = merge_revised_plan(current_plan, revised_plan_raw)
+                quality_issues = revised_plan_quality_issues(
+                    revised_plan,
+                    previous_plan=current_plan,
+                )
+                if should_enforce_anti_hardcode(content, work_item_id):
+                    quality_issues.extend(
+                        anti_hardcode_coverage_issues(
+                            revised_plan,
+                            get_entry_section(content, work_item_id, "TDD Plan"),
+                        )
+                    )
+                if quality_issues:
+                    die(
+                        "pc-feature: revised plan failed quality checks: "
+                        + "; ".join(sorted(set(quality_issues)))
                     )
                 content = replace_entry_section(
                     content, work_item_id, "Plan", revised_plan
                 )
                 updated_plan = revised_plan
+            rationale = planner_rationale if planner_rationale else "(not provided)"
+            content = update_entry_field(
+                content, work_item_id, "Outcome", "needs replan"
+            )
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                f"Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}; "
+                f"planner decision={planner_decision}; rationale={rationale}; "
+                "patcher feedback pending.",
+            )
+            write_file(dev_tasks_path, content)
             ensure_role_log(
                 os.path.join(planner_path, role_paths["planner"]), "planner"
             )
@@ -3242,10 +3470,14 @@ def main() -> None:
                 planner_feedback,
                 role="planner",
             )
-            format_role_changes("planner", planner_path, feature_dir)
-            enforce_role_scope(planner_path, "planner", feature_dir)
-            commit_worktree_changes(planner_path, "planner", work_item_id, feature_dir)
-            ensure_clean_worktree(root, planner_path, patcher_branch, "planner")
+            commit_role_step(
+                root,
+                planner_path,
+                patcher_branch,
+                "planner",
+                work_item_id,
+                feature_dir,
+            )
 
             patcher_feedback_prompt = render_prompt_template(
                 load_prompt_template("patcher", "update_from_feedback"),
@@ -3267,28 +3499,17 @@ def main() -> None:
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
-            format_role_changes("patcher", patcher_path, feature_dir)
-            reset_role_logs_to_head(patcher_path, feature_dir)
-            reset_global_logs_to_head(patcher_path)
-            enforce_role_scope(patcher_path, "patcher", feature_dir)
-            commit_worktree_changes(patcher_path, "patcher", work_item_id, feature_dir)
+            commit_role_step(
+                root,
+                patcher_path,
+                patcher_branch,
+                "patcher",
+                work_item_id,
+                feature_dir,
+            )
             requires_global_logs = requires_global_logs or process_docs_changed(
                 commit_paths(patcher_path)
             )
-            ensure_clean_worktree(root, patcher_path, patcher_branch, "patcher")
-
-            rationale = planner_rationale if planner_rationale else "(not provided)"
-            content = update_entry_field(
-                content, work_item_id, "Outcome", "needs replan"
-            )
-            content = append_iteration_log_note(
-                content,
-                work_item_id,
-                f"Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}; "
-                f"planner decision={planner_decision}; rationale={rationale}; "
-                "patcher feedback task executed.",
-            )
-            write_file(dev_tasks_path, content)
             continue
 
         break

@@ -23,7 +23,7 @@
 5. **Execute Work Item**
    - Use `docs/02-features/<feature>/dev-tasks.md` as the source of truth.
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
-   - Enforce role-scoped logs (`planner-log.md`, `reporter-log.md`, `validation-log.md`).
+   - Enforce role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
    - Plan Reviewer validates the plan (no code edits) before patching.
    - Use `prompts/<role>.md` for role-specific instructions.
    - The PO loop now routes offload violations through docs/03-logs/decision-log.md so the enforced workflow is recorded before progressing.
@@ -49,7 +49,7 @@
 5. **Execute Work Item**
    - Use `docs/02-features/<feature>/dev-tasks.md` as the source of truth.
    - Follow the execution protocol in `docs/04-process/ticket-execution-protocol.md`.
-   - Enforce role-scoped logs (`planner-log.md`, `reporter-log.md`, `validation-log.md`).
+   - Enforce role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
    - Plan Reviewer validates the plan (no code edits) before patching.
    - Use `prompts/<role>.md` for role-specific instructions.
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.

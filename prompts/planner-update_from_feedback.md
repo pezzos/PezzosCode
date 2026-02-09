@@ -8,6 +8,10 @@ Rationale: <one concise sentence>
 Revised Plan:
 <only include when Decision is REVISE_PLAN; otherwise write (none)>
 
+Commit your changes only once at the very end of your step.
+When Decision is REVISE_PLAN, the revised plan must be fully self-contained with concrete numbered steps.
+Do not reference the current/original plan; restate all required steps explicitly.
+
 Work Item ID: {work_item_id}
 
 Current Plan:

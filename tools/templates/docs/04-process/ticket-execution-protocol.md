@@ -27,7 +27,7 @@
    - Complex work items run an orchestrated flow with explicit tester/reporter feedback steps.
    - Work Item IDs increment per feature; the sequence continues across dates.
 
-- Role scope is enforced (planner/tester/reporter log files only; patcher excluded from those files).
+- Role scope is enforced (planner/plan-reviewer/tester/reporter log files only; patcher excluded from those files).
 - Planner/Tester/Reporter run in the patcher worktree so they review shared content; separate worktrees are not created for those roles.
 - Runtime artifacts (`dev-tasks.md`, planner/tester/reporter logs, and `logs/<WI>/...`) are worktree-local during execution and are collected into `main` only after successful completion.
 - Use a single worktree per feature and auto-collect into `main` as a single squashed commit (no `feature-worktrees.json`).
@@ -65,9 +65,10 @@
 
 6. **Plan → Patch → Test → Report**
    - Plan: approach, files, risks, tests, and work-item-specific DoD.
-   - Plan is reviewed by Plan Reviewer (no code edits) before patching.
+   - Plan Reviewer is a first-class step with its own prompt, log (`plan-reviewer-log.md`), and commit.
    - Before patching, enforce deterministic plan policy checks and block if the plan includes role-scoped/global log files or forbidden commands (`make feature`, `pc-feature`).
    - Plan-reviewer read-only enforcement uses pre/post worktree dirty snapshots and blocks only reviewer-introduced deltas.
+   - Every step decision (`APPROVE` / `BLOCK` / `PASS` / `FAIL`) must be written to the step's role log and committed before the next step starts.
    - Plan must include anti-hardcode coverage (fixtures per critical path, seed strategy, invariant checks, contract boundaries).
    - Block the work item if the Plan/TDD Plan does not state fixture count (>=2 per critical path), seed strategy, and invariant checks.
    - Patch: make the smallest diff that satisfies the work item (TDD where applicable).
@@ -79,8 +80,9 @@
      - If Allowed Tests remain missing/invalid after planner remediation, fail with explicit remediation guidance (no placeholder smoke commands).
    - Report: summarize what changed, commands run, and outcomes.
 
-7. **Feedback Loop (Planner ↔ Patcher ↔ Tester ↔ Reporter)**
+7. **Feedback Loop (Planner ↔ Plan Reviewer ↔ Patcher ↔ Tester ↔ Reporter)**
    - dev-tasks execution log is planner-owned; only the Planner edits it.
+   - Plan Reviewer records decisions in `plan-reviewer-log.md`.
    - Tester records failures in the feature `validation-log.md`.
    - Reporter records issues and scope gaps in the feature `reporter-log.md`.
    - Planner updates the plan and logs the loop in the execution log entry.
@@ -121,6 +123,7 @@
 11. **Commit**
 
 - 1 work item = 1 commit.
+- Within the orchestrated loop, each role step writes at most one commit at the end of that step.
 - Follow commit rules in `docs/04-process/git-workflow.md`.
 - Use `tools/pc-commit` to enforce convention and checks.
 - Before commit, ensure the planner-owned dev-tasks execution log is complete and role logs contain tester/reporter output.

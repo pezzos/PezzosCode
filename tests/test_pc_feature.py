@@ -2537,7 +2537,7 @@ class TestPcFeature(unittest.TestCase):
                 with self.assertRaises(StopMain):
                     self.pc_feature.main()
 
-            self.assertEqual(reviewer_calls["count"], 1)
+            self.assertEqual(reviewer_calls["count"], 0)
             self.assertEqual(planner_update_calls["count"], 1)
             self.assertEqual(patcher_calls["count"], 0)
 
@@ -2635,7 +2635,7 @@ class TestPcFeature(unittest.TestCase):
             dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
                 encoding="utf-8"
             )
-            self.assertIn("planner no-op; reason=plan already present", dev_tasks)
+            self.assertIn("- Plan Reviewer: Codex", dev_tasks)
 
     def test_plan_reviewer_blocks_do_not_consume_execution_attempt_budget(self):
         class StopMain(RuntimeError):
@@ -2925,7 +2925,7 @@ class TestPcFeature(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn("revised plan from failure feedback", dev_tasks)
-            self.assertIn("patcher feedback task executed", dev_tasks)
+            self.assertIn("patcher feedback pending", dev_tasks)
 
 
 if __name__ == "__main__":

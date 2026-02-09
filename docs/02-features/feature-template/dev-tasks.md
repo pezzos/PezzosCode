@@ -488,6 +488,7 @@ When executing tasks, ensure the LLM has access to:
 - Tech Design: [link to tech-design.md]
 - Test Plan: [link to test-plan.md]
 - Planner Log: [link to planner-log.md]
+- Plan Reviewer Log: [link to plan-reviewer-log.md]
 - Reporter Log: [link to reporter-log.md]
 - Validation Log: [link to validation-log.md]
 

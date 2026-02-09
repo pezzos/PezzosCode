@@ -1745,3 +1745,19 @@ When a decision is reversed or replaced, document it here:
   - `make feature` reliably continues in-progress work without startup resets/checkouts.
   - Startup behavior aligns with single-user operational model and reduces interruption cost.
   - End-of-flow scoped commit guards remain in place for final collection safety.
+
+### DEC-031 - Promote Plan Reviewer to a first-class orchestrator step
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** Feature 12 failures showed ambiguous planner/reviewer state transitions, non-deterministic reviewer loops, and incomplete step-level traceability across planner review decisions.
+- **Decision:**
+  - Treat Plan Reviewer as a dedicated role step with its own role-scoped log artifact (`plan-reviewer-log.md`).
+  - Require step-boundary commit checkpoints for role transitions, including explicit commit traceability for review decisions.
+  - Run deterministic plan-policy checks before LLM reviewer gating to prevent repetitive LLM-only block loops.
+  - Require planner revisions to be self-contained and merge-safe when feedback loops return partial/delta plans.
+  - Standardize tester/reporter feedback contracts so planner/patcher retries receive consistent remediation context.
+- **Consequences:**
+  - Planner/Plan Reviewer/Patcher transitions are auditable and less prone to dirty-state attribution errors.
+  - Invalid plans are blocked earlier with deterministic reasons before patcher execution.
+  - Feedback-loop convergence is more reliable due to stronger plan/validation/report contracts.

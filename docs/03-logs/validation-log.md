@@ -1005,3 +1005,21 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - startup no longer fails solely because dirty paths are outside runtime-doc subsets.
   - startup does not require explicit `RESUME_MODE=fresh` for dirty `dev-tasks.md` when continuing work.
   - protocol docs and template docs match WIP-preserving resume behavior.
+
+## 2026-02-09 - Plan Reviewer first-class step hardening validation
+
+- Command: `python3 -m py_compile tools/pc-feature`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`70` tests, offload id `094029524d9cfaff8b7878b8f526d17db57095455be487f58b5e6f50929d761e`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+- Result: PASS (`7` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_orchestrator_workflow_docs tests.test_update_reapply_templates_docs tests.test_orchestrator_role_gates tests.test_output_offload_enforcement_docs`
+- Result: PASS (`25` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_*.py'`
+- Result: PASS (`134` tests, offload id `1c1dd26a9f0b8c4142a742a8816bdd79384b3489081c38ba2c2141e1272f0cab`)
+- Verified:
+  - Plan Reviewer is treated as a dedicated step with role-scoped artifact handling.
+  - deterministic plan policy checks execute before LLM reviewer calls.
+  - reporter scope/prompt and tester failure-context contract updates are covered by passing tests.
+  - live docs and templates remain aligned after protocol/workflow updates.

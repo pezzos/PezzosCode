@@ -4474,7 +4474,67 @@ Track when debt is paid down:
 
 - `python3 -m py_compile tools/pc-feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
-- `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+
+### 2026-02-09 - Plan Reviewer first-class step + orchestration hardening
+
+**Feature/Bug:** enforce step-level commit boundaries, dedicated Plan Reviewer role artifacts, deterministic review gating, and safer feedback-loop plan handling
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/planner-create.md`
+- `prompts/planner-update-from-feedback.md`
+- `prompts/planner-update_from_feedback.md`
+- `prompts/plan-reviewer-gate.md`
+- `prompts/plan-reviewer.md`
+- `prompts/patcher.md`
+- `prompts/patcher-apply.md`
+- `prompts/patcher-update_from_feedback.md`
+- `prompts/tester.md`
+- `prompts/reporter-review.md`
+- `prompts/planner.md`
+- `prompts/reporter.md`
+- `prompts/reporter-global-log.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/dev-workflow.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `docs/02-features/feature-template/plan-reviewer-log.md`
+- `tools/templates/docs/02-features/feature-template/plan-reviewer-log.md`
+
+**What Changed:**
+
+- Added `plan-reviewer` as a role-scoped artifact in orchestration (`plan-reviewer-log.md` now protected from patcher edits).
+- Introduced role-step commit helper to keep role steps commit-bounded and prevent cross-role dirty carryover.
+- Moved plan review to a dedicated reviewer step with committed `APPROVE/BLOCK` decisions.
+- Applied deterministic plan policy/anti-hardcode checks before LLM reviewer invocation.
+- Added revised-plan quality checks and structured merge fallback to avoid lossy overwrite patterns.
+- Updated tester feedback serialization to format commands safely and include explicit discovery-summary tracking field.
+- Updated reporter prompt contract and scope guidance (`refs/heads/main..HEAD` as primary review scope).
+- Updated protocol/workflow docs and templates to document first-class Plan Reviewer step and role-scope boundaries.
+
+**Why:**
+
+- Prior runs showed planner/reviewer/patcher state coupling causing scope-guard failures and ambiguous audit history.
+
+**Impact:**
+
+- **Breaking changes:** No API break, but orchestration behavior changed (new role log and stricter step transitions).
+- **Performance:** Minimal; same loop shape with tighter deterministic branching.
+- **Dependencies:** None.
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id: `094029524d9cfaff8b7878b8f526d17db57095455be487f58b5e6f50929d761e`)
+- `tools/offload-proxy/pp python3 -m unittest tests.test_orchestrator_workflow_docs tests.test_update_reapply_templates_docs tests.test_docs_logs`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_orchestrator_role_gates tests.test_output_offload_enforcement_docs`
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_*.py'` (offload id: `1c1dd26a9f0b8c4142a742a8816bdd79384b3489081c38ba2c2141e1272f0cab`)
 
 ### 2026-02-08 - Template-sync mismatch fix
 

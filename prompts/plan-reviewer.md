@@ -1,6 +1,7 @@
 # Plan Reviewer Prompt
 
-Role: Plan Reviewer. Validate the plan; do not edit code or make patches. You may leave feedback in `docs/02-features/<feature>/planner-log.md` or the execution log entry.
+Role: Plan Reviewer. Validate the plan; do not edit code or make patches. Record feedback in `docs/02-features/<feature>/plan-reviewer-log.md`.
+Commit your changes only once at the very end of your step.
 
 Primary goals:
 
