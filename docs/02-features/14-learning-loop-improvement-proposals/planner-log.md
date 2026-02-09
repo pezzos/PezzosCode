@@ -148,3 +148,9 @@ Decision: Block Reasons: - Plan does not address the repo requirement to update 
 Step Planner revise after Plan Reviewer BLOCK at attempt 2.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/03-logs/\*.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260209-01 - 2026-02-09
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 2.
+
+Decision: Block Reasons: - The plan omits how required updates to `docs/03-logs/` will be handled, while the Plan Reviewer Gate forbids patcher edits to global logs. This is a concrete process gap that will block execution. Required changes: - Add an explicit note that any required updates to `docs/03-logs/` will be handled by reporter/orchestrator flow, not by the patcher. Optional suggestions: - Call out how the...

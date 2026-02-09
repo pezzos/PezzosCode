@@ -99,7 +99,7 @@ Approach:
 1. Add post-run proposal generation for fail/stall outcomes by wiring a hook that builds a proposal from outcome payloads and invokes the proposal updater.
    Files to change:
 
-- lib/pc_runner.py
+- `lib/pc_runner.py`
   Risks:
 - Hook may run in unintended contexts and create duplicate proposals if outcome filtering is wrong.
 - Missing or partial outcome fields could cause malformed proposal entries.
@@ -107,7 +107,7 @@ Approach:
 2. Fix proposal merge to aggregate distinct agent names per signature while preserving `Proposed` status and existing fields.
    Files to change:
 
-- lib/pc_runner.py
+- `lib/pc_runner.py`
   Risks:
 - Agent aggregation could over-merge if signatures are too broad.
 - Backward compatibility with existing proposal entries could be broken.
@@ -115,9 +115,16 @@ Approach:
 3. Extend tests to cover new hook invocation, multi-agent aggregation for same signature, and no-op on success, then run tests and summarize results.
    Files to change:
 
-- tests/test_pc_feature.py
+- `tests/test_pc_feature.py`
   Risks:
 - Tests may not cover missing-context boundaries introduced by hook integration.
+
+4. Ensure required updates to `docs/03-logs/` are handled by reporter/orchestrator flow per process constraints (patcher will not edit global logs).
+   Files to change:
+
+- None
+  Risks:
+- Missing log updates could block Definition of Done if not handled by the reporter/orchestrator.
 
 Tests (anti-hardcode coverage required):
 
@@ -170,6 +177,7 @@ Work Item ID: WI-20260209-01
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=7/12, planner_revision=7/12, execution_attempt=2/3).
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=8/12, planner_revision=8/12, execution_attempt=2/3).
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=9/12, planner_revision=9/12, execution_attempt=2/3).
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=10/12, planner_revision=10/12, execution_attempt=2/3).
 
 #### Commit
 
