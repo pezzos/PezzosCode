@@ -143,6 +143,17 @@ contains_path() {
   return 1
 }
 
+is_stageable_allow_path() {
+  local candidate="$1"
+  if [[ -e "$candidate" || -L "$candidate" ]]; then
+    return 0
+  fi
+  if git ls-files --error-unmatch -- "$candidate" >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
 auto_restage_linted() {
   staged_paths=()
   unstaged_paths=()
@@ -211,7 +222,22 @@ else
       exit "$status"
     fi
   fi
-  git add -- "${allow_paths[@]}"
+  stageable_allow_paths=()
+  skipped_allow_paths=()
+  for path in "${allow_paths[@]}"; do
+    if is_stageable_allow_path "$path"; then
+      stageable_allow_paths+=("$path")
+    else
+      skipped_allow_paths+=("$path")
+    fi
+  done
+  if [[ ${#skipped_allow_paths[@]} -gt 0 ]]; then
+    echo "Skipping missing --allow paths:"
+    printf ' - %s\n' "${skipped_allow_paths[@]}"
+  fi
+  if [[ ${#stageable_allow_paths[@]} -gt 0 ]]; then
+    git add -- "${stageable_allow_paths[@]}"
+  fi
   disallowed=()
   if command -v mapfile >/dev/null 2>&1; then
     mapfile -t disallowed < <(collect_disallowed_paths)

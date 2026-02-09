@@ -1807,6 +1807,19 @@ When a decision is reversed or replaced, document it here:
   - If patcher still produces role-scoped/global-log edits, restore patcher dirt and route back to planner revision instead of immediate terminal abort.
   - Keep existing terminal role-scope guards as final safety nets.
 - **Consequences:**
-  - Resume/retry loops fail earlier and more deterministically on policy drift.
-  - Planner receives actionable remediation context instead of a hard-stop path.
-  - Patcher scope enforcement remains strict while becoming recoverable within loop limits.
+- Resume/retry loops fail earlier and more deterministically on policy drift.
+- Planner receives actionable remediation context instead of a hard-stop path.
+- Patcher scope enforcement remains strict while becoming recoverable within loop limits.
+
+### DEC-035 - Treat ephemeral allow-paths as optional at final commit
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** `make feature F=13` failed at final commit with `fatal: pathspec '.tmp' did not match any files` because ephemeral allow-paths were forwarded and restaged unconditionally.
+- **Decision:**
+  - In `pc-feature`, only forward ephemeral allow-paths that currently exist or are tracked.
+  - In `pc-commit`, skip missing `--allow` paths before `git add`.
+  - Keep allow-path guard rails active for existing runtime paths.
+- **Consequences:**
+  - Final commit orchestration is resilient when optional runtime dirs (for example `.tmp`) are absent.
+  - The same class of pathspec failure is prevented for current and future callers of `pc-commit`.

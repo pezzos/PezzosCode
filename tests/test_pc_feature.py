@@ -1967,6 +1967,24 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn("devtasks-write", events)
             self.assertLess(events.index("prepare"), events.index("devtasks-write"))
 
+    def test_final_commit_allow_paths_skips_missing_entries(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "logs").mkdir(parents=True, exist_ok=True)
+            codex_dir = root / ".codex_subagent"
+            codex_dir.mkdir(parents=True, exist_ok=True)
+            (codex_dir / "config.toml").write_text(
+                "profile = 'test'\n", encoding="utf-8"
+            )
+
+            allow_paths = self.pc_feature.final_commit_allow_paths(str(root))
+
+            self.assertIn("logs", allow_paths)
+            self.assertIn(".codex_subagent", allow_paths)
+            self.assertIn(".codex_subagent/config.toml", allow_paths)
+            self.assertNotIn(".tmp", allow_paths)
+            self.assertNotIn(".offload", allow_paths)
+
     def test_main_avoids_git_add_all_for_final_staging(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -1999,6 +2017,10 @@ class TestPcFeature(unittest.TestCase):
 
             def fake_subprocess_run(cmd, **kwargs):
                 git_commands.append(list(cmd))
+                if cmd[:3] == ["git", "ls-files", "--error-unmatch"]:
+                    return SimpleNamespace(
+                        returncode=1, stdout="", stderr="not tracked"
+                    )
                 return SimpleNamespace(returncode=0, stdout="", stderr="")
 
             with contextlib.ExitStack() as stack:
@@ -2079,7 +2101,7 @@ class TestPcFeature(unittest.TestCase):
                 for idx, token in enumerate(pc_commit_cmds[0][:-1])
                 if token == "--allow"
             ]
-            self.assertIn("logs", allow_values)
+            self.assertNotIn(".tmp", allow_values)
 
     def test_main_skips_commit_generation_if_commit_section_already_filled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

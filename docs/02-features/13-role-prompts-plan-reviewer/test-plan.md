@@ -8,9 +8,9 @@
 
 **Feature:** Role prompts + Plan Reviewer
 
-**Status:** Draft
+**Status:** Completed
 
-**Last Updated:** 2026-02-08
+**Last Updated:** 2026-02-09
 
 ### Product Surfaces
 

@@ -27,6 +27,43 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-09 - Prevent missing ephemeral pathspec failures at final commit
+
+**Feature/Bug:** `make feature` final commit failed with `fatal: pathspec '.tmp' did not match any files`
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/pc-commit`
+- `tests/test_pc_feature.py`
+- `docs/02-features/13-role-prompts-plan-reviewer/feature-spec.md`
+- `docs/02-features/13-role-prompts-plan-reviewer/tech-design.md`
+- `docs/02-features/13-role-prompts-plan-reviewer/test-plan.md`
+- `docs/02-features/13-role-prompts-plan-reviewer/dev-tasks.md`
+
+**What Changed:**
+
+- Updated `tools/pc-feature` to include ephemeral `--allow` paths only when they currently exist in the repo root or are tracked by git.
+- Updated `tools/pc-commit` to skip missing `--allow` paths before restaging, preventing `git add -- <missing-path>` failures.
+- Added regression coverage in `tests/test_pc_feature.py` to ensure missing entries like `.tmp` are excluded from the final `pc-commit` allowlist path contract.
+- Marked Feature 13 docs status as `Completed`.
+
+**Why:**
+
+- Final commit orchestration should tolerate absent runtime directories (`.tmp`, `.offload`, etc.) and never fail due to a missing optional path.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Negligible (small additional existence/tracked checks)
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature`
+- `bash -n tools/pc-commit`
+- `python3 -m unittest tests.test_pc_feature`
+
 ### 2026-02-08 - Precommit autofix scope hardening and deterministic fallback
 
 **Feature/Bug:** Process/Tooling - precommit autofix guardrails

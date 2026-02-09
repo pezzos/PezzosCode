@@ -27,6 +27,13 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-09 - Final-commit missing path regression validation
+
+- `python3 -m py_compile tools/pc-feature` (PASS)
+- `bash -n tools/pc-commit` (PASS)
+- `python3 -m unittest tests.test_pc_feature` (PASS; `89` tests)
+- Note: `tools/offload-proxy/pp` could not be used in this worktree because `.offload/` is not writable in this environment (`operation not permitted`), so commands were run directly.
+
 ### 2026-02-08 - Precommit autofix scope hardening validation
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_autofix.py"` (PASS)
