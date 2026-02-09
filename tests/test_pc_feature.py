@@ -407,21 +407,17 @@ class TestPcFeature(unittest.TestCase):
         self.assertIn(("/tmp/worktree/new-dir", True), removed_dirs)
 
     def test_plan_policy_violations_detects_forbidden_paths_and_commands(self):
+        compacted_path = self.pc_feature.compacted_log_output_paths()["decision"]
         plan = (
             "- Edit docs/02-features/12-incremental-prd-to-features/dev-tasks.md\n"
             "- Update docs/03-logs/implementation-log.md\n"
-            "- Write docs/03-logs/compacted/decision-log-compact.json\n"
+            f"- Write {compacted_path}\n"
             "- Run make feature F=12\n"
         )
         violations = self.pc_feature.plan_policy_violations(plan)
         self.assertTrue(any("dev-tasks.md" in item for item in violations))
         self.assertTrue(any("docs/03-logs" in item for item in violations))
-        self.assertFalse(
-            any(
-                "docs/03-logs/compacted/decision-log-compact.json" in item
-                for item in violations
-            )
-        )
+        self.assertFalse(any(compacted_path in item for item in violations))
         self.assertTrue(any("make feature" in item for item in violations))
 
     def test_plan_policy_violations_scans_full_plan_beyond_files_section(self):
@@ -692,6 +688,7 @@ class TestPcFeature(unittest.TestCase):
         self.assertEqual(merged, revised)
 
     def test_role_scoped_path_forbidden_for_patcher_detects_cross_feature_docs(self):
+        compacted_path = self.pc_feature.compacted_log_output_paths()["decision"]
         self.assertTrue(
             self.pc_feature.role_scoped_path_forbidden_for_patcher(
                 "docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
@@ -703,9 +700,7 @@ class TestPcFeature(unittest.TestCase):
             )
         )
         self.assertFalse(
-            self.pc_feature.role_scoped_path_forbidden_for_patcher(
-                "docs/03-logs/compacted/decision-log-compact.json"
-            )
+            self.pc_feature.role_scoped_path_forbidden_for_patcher(compacted_path)
         )
         self.assertFalse(
             self.pc_feature.role_scoped_path_forbidden_for_patcher(
