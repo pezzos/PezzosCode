@@ -72,3 +72,17 @@ Reasons:
   Optional suggestions:
 - Consider explicitly calling out any new or existing helper functions in `lib/pc_runner.py` that will be touched to keep diffs minimal and focused.
 - In the tests section, you could note whether dedup signatures are string-based or structured to guide fixture design.
+
+### WI-20260209-01 - 2026-02-09
+
+Step Plan Reviewer BLOCK at attempt 2.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden command in plan: tools/pc-feature
+- forbidden command in plan: pc-feature
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
