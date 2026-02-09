@@ -1100,3 +1100,14 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - HIGH-risk classification no longer depends on `max_files`/`max_new_modules`.
   - legacy entries using `Files to Change + Change Budget` continue to parse/update.
   - feature 14-16 dev-task changelogs explicitly track the baseline alignment.
+
+## 2026-02-09 - Plan reviewer gate prompt contradiction fix validation
+
+- Command: `cmp -s prompts/plan-reviewer-gate.md tools/templates/prompts/plan-reviewer-gate.md`
+- Result: PASS (prompt and template copies are identical)
+- Command: `tools/offload-proxy/pp python tests/test_pc_feature.py`
+- Result: PASS (offload id `85bc0741ad99b28ed03d77761a779bc4503943480064db02421da6aca1132321`)
+- Verified:
+  - plan-reviewer gate prompt keeps the same output contract (`Decision: Approve|Block|Conflict` and required sections).
+  - prompt now explicitly avoids asking for forbidden orchestration-command remediation inside Plan text.
+  - prompt now resolves global-log ownership guidance toward reporter/orchestrator flow, avoiding forbidden patcher path instructions.

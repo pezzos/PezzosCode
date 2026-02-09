@@ -4970,3 +4970,33 @@ Track when debt is paid down:
 - `diff -u docs/04-process/ticket-execution-protocol.md tools/templates/docs/04-process/ticket-execution-protocol.md`
 - `diff -u docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md`
 - `diff -u docs/03-logs/tickets/worklog-template.md tools/templates/docs/03-logs/tickets/worklog-template.md`
+
+### 2026-02-09 - Clarify Plan Reviewer gate remediation ownership
+
+**Feature/Bug:** plan-reviewer gate prompt contradiction hardening
+
+**Changed Files:**
+
+- `prompts/plan-reviewer-gate.md`
+- `tools/templates/prompts/plan-reviewer-gate.md`
+
+**What Changed:**
+
+- Added explicit prompt guidance that "Required changes" must not ask planners to add orchestration commands (`make feature`, `pc-feature`, `tools/pc-feature`) inside Plan text.
+- Added explicit guidance for global-log obligations: reviewer should request planner ownership wording (reporter/orchestrator flow) instead of patcher edits to forbidden paths.
+- Preserved existing block rules, response schema, and plan-contract review requirements.
+
+**Why:**
+
+- Prevent reviewer guidance from re-introducing commands/paths that deterministic policy checks already forbid, which can cause avoidable block/conflict churn.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- `cmp -s prompts/plan-reviewer-gate.md tools/templates/prompts/plan-reviewer-gate.md`
+- `tools/offload-proxy/pp python tests/test_pc_feature.py`
