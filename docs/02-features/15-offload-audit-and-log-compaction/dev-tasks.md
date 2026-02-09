@@ -94,10 +94,11 @@
 Plan Contract v1
 Approach:
 
-1. Update compaction path resolution to derive the compacted output directory from configuration (or a default) without hardcoding any log paths or role/global log locations, and ensure generated artifacts include required metadata.
+1. Update compaction path resolution and workflow so the compacted output directory is derived from configuration (defaulting to the required compacted outputs location) and ensure metadata requirements are enforced in generated artifacts.
    Files to change:
 
-- `tools/pc-feature`
+- `tools/log-compaction`
+- `lib/log_compaction.py`
 - Compaction workflow script/config that resolves compacted output path
   Risks:
 - Incorrect path derivation could misroute artifacts or overwrite unrelated outputs.
@@ -109,14 +110,14 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Validate compaction output location and metadata using the updated path resolution (without referencing automation-owned log directories directly).
+2. Run the compaction workflow to generate compacted outputs at the derived location and verify the expected decision/implementation/validation artifacts are created.
    Files to change:
 
 - None (command execution only)
   Risks:
 - Validation may miss edge cases if fixture coverage is insufficient.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A (validation step).
+- Fixture coverage: N/A (workflow run).
 - Deterministic seed strategy: N/A.
 - Invariant checks: Derived location contains expected compacted outputs after run.
 - Contract boundary coverage: N/A.
@@ -182,6 +183,7 @@ Work Item ID: WI-20260209-01
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=2/3).
 - Attempt 2: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure indicates outputs are not generated in `docs/03-logs/compacted/`, so plan must explicitly fix path resolution and generate artifacts there.; patcher feedback pending.
 - Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=3/12, planner_revision=3/12, execution_attempt=3/3).
+- Attempt 3: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows compacted outputs are not being generated under the required location, so the plan must add explicit generation and verification of those artifacts.; patcher feedback pending.
 
 #### Commit
 
