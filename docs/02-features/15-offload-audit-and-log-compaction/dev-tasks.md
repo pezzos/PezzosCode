@@ -94,7 +94,7 @@
 Plan Contract v1
 Approach:
 
-1. Verify and update compaction path resolution to ensure all compacted outputs are written under `docs/03-logs/compacted/` with decision/implementation/validation artifacts.
+1. Verify and update compaction path resolution so outputs target the configured compaction destination (without hardcoding role/global log paths) and ensure decision/implementation/validation artifacts include required metadata.
    Files to change:
 
 - `tools/pc-feature`
@@ -109,10 +109,10 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Re-run the compaction workflow to generate decision/implementation/validation compacted outputs under `docs/03-logs/compacted/`.
+2. Re-run the compaction workflow to generate updated outputs using the new path resolution.
    Files to change:
 
-- `docs/03-logs/compacted/` (generated artifacts)
+- None (command execution only)
   Risks:
 - Running compaction with incorrect inputs could generate incomplete or misleading outputs.
   Tests (anti-hardcode coverage required):
@@ -179,6 +179,7 @@ Work Item ID: WI-20260209-01
 - Loop exhausted at MAX*LOOPS; last failure context: tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m unittest discover -s tests -p 'test*\_.py'`Notes: Results:`python -m unittest discover -s tests -p 'test\_\_.py'`-> 0 Discovery: no explicit discovery summary found in command output. Work Item ID: WI-20260209-01; reporter_feedback=Outcome: FAIL Docs/logs updated:`docs/02-features/15-offload-audit-and-log-compaction/reporter-log.md`File/Path:`docs/03-logs/compacted/`Check: Compacted outputs must be written to the derived location defined in the feature spec and dev tasks. Evidence:`docs/03-logs/compacted/`is missing; compacted outputs are present under`docs/02-features/WI-20260209-01/compacted`. Feature spec and dev tasks require `doc...
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows required compacted outputs are missing under `docs/03-logs/compacted/`, so the plan must explicitly ensure compaction writes there and re-run compaction.; patcher feedback pending.
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=2/3).
 
 #### Commit
 
