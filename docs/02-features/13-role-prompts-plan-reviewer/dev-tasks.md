@@ -98,7 +98,7 @@
 Plan Contract v1
 Approach:
 
-1. Audit prompt inventory and template parity against `tools/pc-feature` prompt-loading paths to identify required prompt files and gaps.
+1. Audit prompt inventory and template parity against documented prompt-loading behavior to identify required prompt files and gaps.
    Files to change:
 
 - `prompts/`
@@ -119,7 +119,7 @@ Approach:
 
 - `prompts/`
 - `tools/templates/prompts/`
-- `tools/pc-feature`
+- `tools/pc-feature.py`
   Risks:
 - Over-tightening reviewer wording could deadlock high-risk flows.
 - Loader changes could break task-specific prompt selection.
@@ -201,6 +201,7 @@ Work Item ID: WI-20260209-02
 - Attempt 2: plan-reviewer no-op; reason=blocked by invalid allowed tests.
 - Attempt 2: patcher no-op; reason=blocked by invalid allowed tests.
 - Attempt 2: reporter no-op; reason=blocked by invalid allowed tests.
+- Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=3/3).
 
 #### Commit
 
