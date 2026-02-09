@@ -116,10 +116,10 @@ Approach:
 - Dedup signature normalization may under-merge or over-merge proposals.
 - Missing execution context could produce malformed proposals or crash.
 
-3. Add unit/integration-style tests for failure/stall creation, dedup skip/merge, and success-path no-op.
+3. Add unit/integration-style tests for failure/stall creation, dedup skip/merge, and success-path no-op, placing new cases into the allowed test file.
    Files to change:
 
-- tests/test_learning_loop_proposals.py
+- tests/test_pc_feature.py
   Risks:
 - Tests might miss missing-context boundaries and regressions.
 
@@ -168,6 +168,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=1/3).
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=3/12, planner_revision=3/12, execution_attempt=1/3).
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=4/12, planner_revision=4/12, execution_attempt=1/3).
 
 #### Commit
 
