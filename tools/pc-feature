@@ -1848,15 +1848,20 @@ def plan_test_command_alignment_issues(
     ]
 
 
+def docs_logs_wildcard_reference(path_text: str) -> bool:
+    normalized = path_text.lower().replace("\\", "")
+    return normalized == "docs/03-logs/*"
+
+
 def plan_policy_violations(
     plan_text: str, *, allowed_tests: Optional[List[str]] = None
 ) -> List[str]:
     violations: List[str] = []
     sections = extract_plan_contract_sections(plan_text)
     files_scope_text = sections.get(PLAN_CONTRACT_FILES_SECTION, "").strip()
-    path_scan_targets: List[str] = [plan_text]
+    path_scan_targets: List[Tuple[str, str]] = [("full", plan_text)]
     if files_scope_text:
-        path_scan_targets.insert(0, files_scope_text)
+        path_scan_targets.insert(0, ("files", files_scope_text))
     path_patterns = (
         r"docs/02-features/[^\s`]+/dev-tasks\.md",
         r"docs/02-features/[^\s`]+/planner-log\.md",
@@ -1865,9 +1870,15 @@ def plan_policy_violations(
         r"docs/02-features/[^\s`]+/validation-log\.md",
         r"docs/03-logs/[^\s`]+",
     )
-    for path_scan_text in path_scan_targets:
+    for scan_scope, path_scan_text in path_scan_targets:
         for pattern in path_patterns:
             for match in re.findall(pattern, path_scan_text, flags=re.IGNORECASE):
+                if (
+                    scan_scope == "full"
+                    and pattern == r"docs/03-logs/[^\s`]+"
+                    and docs_logs_wildcard_reference(match)
+                ):
+                    continue
                 entry = f"forbidden path in plan: {match}"
                 if entry not in violations:
                     violations.append(entry)

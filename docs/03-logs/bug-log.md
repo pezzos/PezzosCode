@@ -651,3 +651,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** A resumed/retried run reached patcher and aborted on `patcher edited role-scoped files` instead of rerouting to planner with remediation.
 - **Fix:** Added pre-patch deterministic policy recheck and planner reroute flow for patcher role-scope/global-log violations.
 - **Validation:** `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id `f286e4ef1d6de49fe6b76805ea23fd8710d0f2a61084c4b5691e8b7c34401028`).
+
+## 2026-02-09 - Planner/reviewer stagnation from wildcard handoff token
+
+- **ID:** BUG-20260209-03
+- **Status:** Fixed
+- **Source:** Internal feature run (`make feature F=15`)
+- **Summary:** Planner prompts required a handoff sentence containing `docs/03-logs/*`, but deterministic policy checks treated the same token as a forbidden path and repeatedly blocked plan revisions until stagnation abort.
+- **Fix:** Updated planner/reviewer prompt wording to avoid mandatory wildcard-token output and added a narrow policy exception that ignores only literal wildcard handoff tokens in full-plan fallback scans (while still blocking `Files to change` wildcard/global-log edits).
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id `4c8d6b83107f50e31329a63db83ec36e7ee535f336b652a2144265a29890f85d`) and direct policy replay on `WI-20260209-01` plan (`violations_count=0`).

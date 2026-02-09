@@ -5115,3 +5115,43 @@ Track when debt is paid down:
 **Testing:**
 
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_docs_logs tests.test_orchestrator_workflow_docs`
+
+### 2026-02-09 - Unblock planner/reviewer stagnation on `docs/03-logs/*` handoff note
+
+**Feature/Bug:** plan-reviewer stagnation false-positive in feature execution loop
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/planner-create.md`
+- `prompts/planner-update-from-feedback.md`
+- `prompts/planner-update_from_feedback.md`
+- `prompts/plan-reviewer-gate.md`
+- `tools/templates/prompts/planner-create.md`
+- `tools/templates/prompts/planner-update-from-feedback.md`
+- `tools/templates/prompts/planner-update_from_feedback.md`
+- `tools/templates/prompts/plan-reviewer-gate.md`
+
+**What Changed:**
+
+- Updated planner/reviewer prompt wording to reference `docs/03-logs` ownership without requiring the literal wildcard token `docs/03-logs/*` in plan output.
+- Added a narrow policy exception in `plan_policy_violations` so full-plan fallback scanning ignores only the literal wildcard handoff token (`docs/03-logs/*`, including escaped form), while still blocking concrete `docs/03-logs/...` paths.
+- Kept strict enforcement in `Files to change` scope: wildcard entries there remain forbidden.
+- Added regression tests for both allowed-handoff and forbidden-filescope wildcard cases.
+
+**Why:**
+
+- The previous prompt contract instructed planner output that included `docs/03-logs/*`, while policy checks treated that same token as forbidden, creating a self-contradictory loop that triggered stagnation aborts.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_policy_violations_allows_docs_logs_wildcard_handoff_note tests.test_pc_feature.TestPcFeature.test_plan_policy_violations_blocks_docs_logs_wildcard_in_files_section`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id `4c8d6b83107f50e31329a63db83ec36e7ee535f336b652a2144265a29890f85d`)

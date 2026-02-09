@@ -521,6 +521,61 @@ class TestPcFeature(unittest.TestCase):
             )
         )
 
+    def test_plan_policy_violations_allows_docs_logs_wildcard_handoff_note(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior and note required docs/03-logs/* updates are handled by reporter/orchestrator; patcher will not edit those files.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertFalse(
+            any("forbidden path in plan: docs/03-logs/*" in item for item in violations)
+        )
+        self.assertFalse(
+            any(
+                "forbidden path in plan: docs/03-logs/\\*" in item
+                for item in violations
+            )
+        )
+
+    def test_plan_policy_violations_blocks_docs_logs_wildcard_in_files_section(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "- docs/03-logs/*\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertTrue(
+            any("forbidden path in plan: docs/03-logs/*" in item for item in violations)
+        )
+
     def test_plan_policy_violations_requires_plan_tests_to_match_allowed_tests(self):
         plan = (
             "Plan Contract v1\n"

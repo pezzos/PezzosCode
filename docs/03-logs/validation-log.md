@@ -1149,3 +1149,18 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Plans touching process/global-log docs now require explicit reporter/orchestrator ownership wording for `docs/03-logs/*` updates.
   - Concrete plan test commands must match Allowed Tests commands.
   - Prompt/template parity remains intact for updated planner/reviewer prompts.
+
+## 2026-02-09 - Stagnation false-positive fix validation (`docs/03-logs/*` handoff token)
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_policy_violations_allows_docs_logs_wildcard_handoff_note tests.test_pc_feature.TestPcFeature.test_plan_policy_violations_blocks_docs_logs_wildcard_in_files_section`
+- Result: PASS (`2` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (`106` tests, offload id `4c8d6b83107f50e31329a63db83ec36e7ee535f336b652a2144265a29890f85d`)
+- Command: `python3 - <<'PY' ... plan_policy_violations(plan_from_feature_15_failed_run) ... PY`
+- Result: PASS (`work_item_id=WI-20260209-01`, `violations_count=0`)
+- Verified:
+  - The previously failing feature-15 plan with handoff text containing `docs/03-logs/*` no longer triggers deterministic policy violations.
+  - Concrete/global-log file paths remain blocked when listed in `Files to change`.
+  - Prompt/template copies stay in sync after wording updates.

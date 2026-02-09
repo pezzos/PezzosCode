@@ -5,8 +5,8 @@ Use the Plan Contract v1 format exactly so downstream checks are deterministic.
 Also fill the Allowed Tests section with exact commands;
 do not include `make feature` or `pc-feature`.
 Commit your changes only once at the very end of your step.
-Never include role-scoped logs (`dev-tasks.md`, `planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`) or `docs/03-logs/*` in the planned patcher file edits.
-Include an explicit handoff note in the plan stating that any required `docs/03-logs/*` updates are owned by reporter/orchestrator and that patcher will not edit those files.
+Never include role-scoped logs (`dev-tasks.md`, `planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`) or paths under `docs/03-logs` in the planned patcher file edits.
+Include an explicit handoff note in the plan stating that any required `docs/03-logs` updates are owned by reporter/orchestrator and that patcher will not edit those files.
 Any concrete test command written in the plan must be an exact command from the Allowed Tests section (verbatim, command-for-command).
 The plan must explicitly include anti-hardcode coverage:
 

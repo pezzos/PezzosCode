@@ -5,8 +5,8 @@ Return ONLY the revised Plan section body.
 Commit your changes only once at the very end of your step.
 The revised plan must be fully self-contained and must follow Plan Contract v1 exactly.
 Do not refer to the "current plan" or "original plan"; restate all required steps explicitly.
-Never include role-scoped logs (`dev-tasks.md`, `planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`) or `docs/03-logs/*` in `Files to change`.
-Include an explicit note that required `docs/03-logs/*` updates are owned by reporter/orchestrator and patcher will not edit those files.
+Never include role-scoped logs (`dev-tasks.md`, `planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`) or paths under `docs/03-logs` in `Files to change`.
+Include an explicit note that required `docs/03-logs` updates are owned by reporter/orchestrator and patcher will not edit those files.
 Any concrete test command written in the revised plan must be an exact command from the Allowed Tests section.
 
 Required format:
