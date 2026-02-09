@@ -126,3 +126,16 @@ Reasons:
 - Add a plan note that `docs/03-logs/*.md` updates will be handled by the reporter/orchestrator (not the patcher), and that the patcher will not edit role-scoped logs or `docs/03-logs/`.
   Optional suggestions:
 - Consider adding a brief validation note that tests will be run after changes and results summarized, to align with Plan → Patch → Test → Report flow.
+
+### WI-20260209-01 - 2026-02-09
+
+Step Plan Reviewer BLOCK at attempt 2.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/03-logs/\*.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
