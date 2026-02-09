@@ -36,6 +36,171 @@
 
 ## Execution Log
 
+### WI-20260209-02 - Work item execution
+
+- Date: 2026-02-09
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome:
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes: Main head locked: e37428dd1b91b6ebb45d07c0538c91adac7d325f
+
+#### Preflight Report
+
+- Work Item: WI-20260209-02
+- PRD ref: docs/01-product/prd.md
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: Prompt contracts and prompt-file parity; Plan Reviewer gate wording/guardrails; Process-doc alignment for role prompts; Tests covering prompt loading and gate flow.
+- Scope out: Reordering workflow gates; New agent roles beyond current Planner/Plan Reviewer/Patcher/Tester/Reporter model; UI or API surfaces.
+- Non-goals reminder: Do not add new roles or change workflow order; no UI/API work.
+- Files to change: tools/pc-feature, tests/test_pc_feature.py, prompts/, tools/templates/prompts/, docs/04-process/, docs/03-logs/
+- Change budget: max_files=6, max_new_modules=1
+- TDD plan: prompt loading succeeds for base + task variants, missing prompt file fails with actionable error, plan-reviewer approve path, plan-reviewer block/retry path, plan-reviewer policy conflict path
+- Systematic review:
+
+#### TDD Plan
+
+- Tests to write first:
+  - prompt loading succeeds for base + task variants
+  - missing prompt file fails with actionable error
+  - plan-reviewer approve path
+  - plan-reviewer block/retry path
+  - plan-reviewer policy conflict path
+
+#### Allowed Tests
+
+- (list exact commands; do not include `make feature` or `pc-feature`)
+
+#### Files to Change + Change Budget
+
+- Files: tools/pc-feature, tests/test_pc_feature.py, prompts/, tools/templates/prompts/, docs/04-process/, docs/03-logs/
+- Change budget: max_files: 6, max_new_modules: 1
+
+#### Docs Updated
+
+- docs/04-process/ticket-execution-protocol.md
+- docs/04-process/dev-workflow.md
+- docs/04-process/human-orchestration-workflow.md
+- docs/03-logs/implementation-log.md
+- docs/03-logs/validation-log.md
+
+#### Plan
+
+Plan Contract v1
+Approach:
+
+1. Audit prompt inventory and template parity against `tools/pc-feature` prompt-loading paths to identify required prompt files and gaps.
+   Files to change:
+
+- `prompts/`
+- `tools/templates/prompts/`
+  Risks:
+- Missing prompt variants could break runtime prompt loading.
+- Prompt/template drift can reintroduce inconsistent role behavior.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: At least 2 fixtures per critical path (prompt-load success, missing prompt fail, reviewer approve, reviewer block/retry, reviewer conflict) with distinct prompt sets.
+- Deterministic seed strategy: Fixed seed for any randomized fixture inputs or ordering.
+- Invariant checks: Assert root/template prompt parity and stable error messaging for missing prompts.
+- Contract boundary coverage: Validate file-based prompt loading boundaries and explicit remediation text for missing task-specific prompts.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+2. Align prompt contracts and loader behavior with current workflow, keeping file-based loading and explicit failure guidance.
+   Files to change:
+
+- `prompts/`
+- `tools/templates/prompts/`
+- `tools/pc-feature`
+  Risks:
+- Over-tightening reviewer wording could deadlock high-risk flows.
+- Loader changes could break task-specific prompt selection.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Two fixtures for base-role and task-specific prompt paths.
+- Deterministic seed strategy: Fixed seeds for prompt ID/order generation.
+- Invariant checks: Assert loader never embeds prompt bodies; always uses file-based loading with fallback.
+- Contract boundary coverage: Missing prompt file yields actionable remediation text.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+3. Add or refresh plan-reviewer gate tests for approve, block/retry, and policy-conflict paths.
+   Files to change:
+
+- `tests/test_pc_feature.py`
+  Risks:
+- Tests could encode outdated gate policy and force incorrect behavior.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Two fixtures per gate outcome with distinct risk states.
+- Deterministic seed strategy: Fixed seeds for gate decision inputs.
+- Invariant checks: Gate outcome matches risk policy inputs and allowed-tests constraints.
+- Contract boundary coverage: Explicit failure guidance and next-step instructions on conflict.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+4. Sync process docs with prompt and gate semantics.
+   Files to change:
+
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/dev-workflow.md`
+- `docs/04-process/human-orchestration-workflow.md`
+  Risks:
+- Process docs could diverge from live behavior, causing execution drift.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A (docs change).
+- Deterministic seed strategy: N/A.
+- Invariant checks: Docs reference canonical prompt paths and reviewer gate semantics.
+- Contract boundary coverage: Docs specify missing-prompt remediation and allowed-tests behavior.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+Work Item ID: WI-20260209-02
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+-
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 ### WI-20260209-01 - Work item execution
 
 - Date: 2026-02-09
@@ -210,6 +375,5 @@ What changed (files): (see git diff)
 Tests written (names) + results: (see feature validation-log.md)
 Docs/logs updated checklist: (see Docs Updated)
 make ci results: PASS
-Commands run (use pp for noisy output): prepatch smoke python -m unittest discover -s tests -p 'test_*.py': ok; prepatch smoke python -m unittest discover -s tests -p 'test_*.py': ok; tools/offload-proxy/pp make ci: ok
+Commands run (use pp for noisy output): prepatch smoke python -m unittest discover -s tests -p 'test*\*.py': ok; prepatch smoke python -m unittest discover -s tests -p 'test*\*.py': ok; tools/offload-proxy/pp make ci: ok
 Commit message: feat(prompts): add plan reviewer gate templates
-
