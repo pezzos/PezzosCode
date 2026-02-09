@@ -36,6 +36,138 @@
 
 ## Execution Log
 
+### WI-20260209-01 - Work item execution
+
+- Date: 2026-02-09
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome:
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes: Main head locked: e62ec2a98e85280dcd2ee0d89bfb4a22c31b68e9
+
+#### Preflight Report
+
+- Work Item: WI-20260209-01
+- PRD ref: docs/01-product/prd.md#FR-011
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: ['Fail/stall detection for work item runs with WI/agent/step/failure summary context', 'Proposal generation into docs/possible-improvements.md using existing template fields', 'Human-gated status defaults (Proposed only)', 'Signature-based deduplication/skip or merge with rationale', 'Process/feature doc wording alignment for post-run proposals']
+- Scope out: ['Automatic patch application', 'Remote ticketing integrations', 'Proposal sources outside workflow runs']
+- Non-goals reminder: No auto-apply of fixes; no external integrations; only workflow run outcomes (fail/stall) generate proposals.
+- Files to change: tools/pc-feature, docs/possible-improvements.md, tests/test_learning_loop_proposals.py, docs/04-process/dev-workflow.md, docs/04-process/human-orchestration-workflow.md, docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md, docs/02-features/14-learning-loop-improvement-proposals/tech-design.md, docs/02-features/14-learning-loop-improvement-proposals/test-plan.md, docs/03-logs/implementation-log.md, docs/03-logs/validation-log.md
+- TDD plan: tests/test_learning_loop_proposals.py::test_proposal_created_on_fail, tests/test_learning_loop_proposals.py::test_dedup_skips_duplicate, tests/test_learning_loop_proposals.py::test_no_proposal_on_success
+- Systematic review:
+
+#### TDD Plan
+
+- Tests to write first:
+  - tests/test_learning_loop_proposals.py::test_proposal_created_on_fail
+  - tests/test_learning_loop_proposals.py::test_dedup_skips_duplicate
+  - tests/test_learning_loop_proposals.py::test_no_proposal_on_success
+
+#### Allowed Tests
+
+- `pytest tests/test_pc_feature.py`
+- `pytest tests/test_docs_logs.py tests/test_orchestrator_workflow_docs.py tests_extra/test_bootstrap_into_extra.py`
+
+#### Files to Change
+
+- Files: tools/pc-feature, docs/possible-improvements.md, tests/test_learning_loop_proposals.py, docs/04-process/dev-workflow.md, docs/04-process/human-orchestration-workflow.md, docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md, docs/02-features/14-learning-loop-improvement-proposals/tech-design.md, docs/02-features/14-learning-loop-improvement-proposals/test-plan.md, docs/03-logs/implementation-log.md, docs/03-logs/validation-log.md
+
+#### Docs Updated
+
+- docs/04-process/dev-workflow.md
+- docs/04-process/human-orchestration-workflow.md
+- docs/possible-improvements.md
+- docs/03-logs/implementation-log.md
+- docs/03-logs/validation-log.md
+- docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md
+- docs/02-features/14-learning-loop-improvement-proposals/tech-design.md
+- docs/02-features/14-learning-loop-improvement-proposals/test-plan.md
+
+#### Plan
+
+Plan Contract v1
+Approach:
+
+1. Confirm proposal trigger/dedup rules and missing-context fallback in spec/test plan wording, keeping process docs aligned.
+2. Implement post-run proposal generation + dedup in `tools/pc-feature` and update proposal registry template/example if needed.
+3. Add unit/integration-style tests for fail/stall creation, dedup skip/merge, and success-path no-op.
+
+Files to change:
+
+- tools/pc-feature
+- docs/possible-improvements.md
+- tests/test_learning_loop_proposals.py
+- docs/04-process/dev-workflow.md
+- docs/04-process/human-orchestration-workflow.md
+- docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md
+- docs/02-features/14-learning-loop-improvement-proposals/tech-design.md
+- docs/02-features/14-learning-loop-improvement-proposals/test-plan.md
+
+Risks:
+
+- Incorrect dedup signature normalization causing either missed merges or over-merging.
+- Missing execution context leading to malformed proposals or crashes.
+
+Tests (anti-hardcode coverage required):
+
+- Fixture coverage: At least 2 fixtures per critical path (fail/stall with full context; fail/stall with missing context) plus success-path fixture; ensure dedup path has ≥2 variants.
+- Deterministic seed strategy: Use fixed seed for any randomized normalization or ID generation in tests (e.g., `random.seed(0)` or deterministic time/ID stubs).
+- Invariant checks: Verify status remains `Proposed`, no proposals on success, and dedup never creates duplicate entries for same signature.
+- Contract boundary coverage: Validate inputs from `tools/pc-feature` outcome payloads into proposal writer (missing fields, multiple agents) and ensure writer outputs valid template fields.
+
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+Work Item ID: WI-20260209-01
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+-
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 - No runs yet.
 
 ## Allowed Tests (Planner must populate before Tester runs)
