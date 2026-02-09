@@ -23,6 +23,8 @@ SECTION_PREFIX = "#### "
 DEFAULT_CHANGE_BUDGET = {"max_files": 6, "max_new_modules": 1}
 MAX_LOOPS = 3
 MAX_REVIEWER_BLOCKS = 12
+MAX_PLANNER_REVISIONS = 12
+MAX_STAGNANT_REVIEWER_BLOCKS = 3
 MAX_CI_ATTEMPTS = 2
 MAX_ESCALATION_ROUNDS = 2
 HIGH_RISK_APPROVAL_NOTE = "High-risk gate approved interactively."
@@ -59,6 +61,24 @@ ROLE_SCOPED_FILENAMES = {
     "plan-reviewer-log.md",
     "reporter-log.md",
     "validation-log.md",
+}
+PLAN_CONTRACT_FILES_SECTION = "Files to change"
+PLAN_CONTRACT_SECTIONS = (
+    "Approach",
+    PLAN_CONTRACT_FILES_SECTION,
+    "Risks",
+    "Tests (anti-hardcode coverage required)",
+)
+PLAN_CONTRACT_SECTION_PATTERNS = {
+    "Approach": re.compile(r"^\s*(?:\*\*)?Approach(?:\*\*)?\s*:?\s*$", re.IGNORECASE),
+    PLAN_CONTRACT_FILES_SECTION: re.compile(
+        r"^\s*(?:\*\*)?Files\s+to\s+change(?:\*\*)?\s*:?\s*$", re.IGNORECASE
+    ),
+    "Risks": re.compile(r"^\s*(?:\*\*)?Risks(?:\*\*)?\s*:?\s*$", re.IGNORECASE),
+    "Tests (anti-hardcode coverage required)": re.compile(
+        r"^\s*(?:\*\*)?Tests\s*\(anti-hardcode coverage required\)(?:\*\*)?\s*:?\s*$",
+        re.IGNORECASE,
+    ),
 }
 GLOBAL_LOG_FILES = (
     "bug-log.md",
@@ -1580,9 +1600,45 @@ def role_scoped_path_forbidden_for_patcher(path: str) -> bool:
     return name in ROLE_SCOPED_FILENAMES
 
 
+def match_plan_contract_section(line: str) -> Optional[str]:
+    for section, pattern in PLAN_CONTRACT_SECTION_PATTERNS.items():
+        if pattern.match(line):
+            return section
+    return None
+
+
+def extract_plan_contract_sections(plan_text: str) -> Dict[str, str]:
+    buckets: Dict[str, List[str]] = {section: [] for section in PLAN_CONTRACT_SECTIONS}
+    active_section: Optional[str] = None
+    for line in plan_text.splitlines():
+        matched_section = match_plan_contract_section(line.strip())
+        if matched_section:
+            active_section = matched_section
+            continue
+        if active_section:
+            buckets[active_section].append(line)
+    return {section: "\n".join(lines).strip() for section, lines in buckets.items()}
+
+
+def plan_uses_contract_sections(plan_text: str) -> bool:
+    return any(
+        match_plan_contract_section(line.strip()) for line in plan_text.splitlines()
+    )
+
+
+def missing_plan_contract_sections(plan_text: str) -> List[str]:
+    sections = extract_plan_contract_sections(plan_text)
+    return [section for section in PLAN_CONTRACT_SECTIONS if not sections.get(section)]
+
+
 def plan_policy_violations(plan_text: str) -> List[str]:
     violations: List[str] = []
     lowered = plan_text.lower()
+    sections = extract_plan_contract_sections(plan_text)
+    files_scope_text = sections.get(PLAN_CONTRACT_FILES_SECTION, "").strip()
+    path_scan_targets: List[str] = [plan_text]
+    if files_scope_text:
+        path_scan_targets.insert(0, files_scope_text)
     path_patterns = (
         r"docs/02-features/[^\s`]+/dev-tasks\.md",
         r"docs/02-features/[^\s`]+/planner-log\.md",
@@ -1591,11 +1647,12 @@ def plan_policy_violations(plan_text: str) -> List[str]:
         r"docs/02-features/[^\s`]+/validation-log\.md",
         r"docs/03-logs/[^\s`]+",
     )
-    for pattern in path_patterns:
-        for match in re.findall(pattern, plan_text, flags=re.IGNORECASE):
-            entry = f"forbidden path in plan: {match}"
-            if entry not in violations:
-                violations.append(entry)
+    for path_scan_text in path_scan_targets:
+        for pattern in path_patterns:
+            for match in re.findall(pattern, path_scan_text, flags=re.IGNORECASE):
+                entry = f"forbidden path in plan: {match}"
+                if entry not in violations:
+                    violations.append(entry)
     command_patterns = (
         (r"\bmake\s+feature\b", "forbidden command in plan: make feature"),
         (r"\btools/pc-feature\b", "forbidden command in plan: tools/pc-feature"),
@@ -1678,38 +1735,10 @@ def revised_plan_quality_issues(
         issues.append(
             "revised plan must be self-contained and must not reference the original/current plan"
         )
-    required_sections = (
-        "Approach:",
-        "Files to change",
-        "Risks:",
-        "Tests (anti-hardcode coverage required):",
-    )
-    previous_has_required_sections = all(
-        re.search(
-            rf"^\s*{re.escape(section)}",
-            previous_plan,
-            re.IGNORECASE | re.MULTILINE,
-        )
-        for section in required_sections
-    )
-    revised_looks_structured = any(
-        re.search(
-            rf"^\s*{re.escape(section)}",
-            revised_plan,
-            re.IGNORECASE | re.MULTILINE,
-        )
-        for section in required_sections
-    )
-    if previous_has_required_sections or revised_looks_structured:
-        missing_sections = [
-            section
-            for section in required_sections
-            if not re.search(
-                rf"^\s*{re.escape(section)}",
-                revised_plan,
-                re.IGNORECASE | re.MULTILINE,
-            )
-        ]
+    previous_uses_contract = plan_uses_contract_sections(previous_plan)
+    revised_uses_contract = plan_uses_contract_sections(revised_plan)
+    if previous_uses_contract or revised_uses_contract:
+        missing_sections = missing_plan_contract_sections(revised_plan)
         if missing_sections:
             issues.append(
                 "revised plan missing required sections: " + ", ".join(missing_sections)
@@ -1723,21 +1752,9 @@ def merge_revised_plan(current_plan: str, revised_plan: str) -> str:
     revised_stripped = revised_plan.strip()
     if not revised_stripped:
         return current_plan
-    has_structured_sections = bool(
-        re.search(
-            r"^\s*(Approach:|Files to change|Risks:|Tests \(anti-hardcode coverage required\):)",
-            revised_stripped,
-            re.IGNORECASE | re.MULTILINE,
-        )
-    )
-    if has_structured_sections:
-        return revised_stripped
-    merged = (
-        current_plan.rstrip()
-        + "\n\nRevisions from latest feedback:\n\n"
-        + revised_stripped
-    )
-    return merged.strip()
+    # Revised plans always replace previous content to prevent stale policy
+    # violations from remaining in the active plan after feedback loops.
+    return revised_stripped
 
 
 def anti_hardcode_coverage_issues(plan: str, tdd_plan: str) -> List[str]:
@@ -2754,6 +2771,9 @@ def main() -> None:
 
     requires_global_logs = False
     reviewer_blocks = 0
+    planner_revision_attempts = 0
+    last_stagnation_signature = ""
+    stagnation_count = 0
     execution_attempt = 0
     last_failure_context = "No failure context recorded."
     while execution_attempt < MAX_LOOPS:
@@ -3079,7 +3099,7 @@ def main() -> None:
                 "plan reviewer blocked plan; planner revision required."
             )
             reviewer_blocks += 1
-            if reviewer_blocks > MAX_REVIEWER_BLOCKS:
+            if reviewer_blocks >= MAX_REVIEWER_BLOCKS:
                 content = read_file(dev_tasks_path)
                 content = update_entry_field(
                     content, work_item_id, "Outcome", "needs replan"
@@ -3088,7 +3108,9 @@ def main() -> None:
                     content,
                     work_item_id,
                     "Plan reviewer block limit reached; "
-                    f"block_count={reviewer_blocks}; feedback={summarize_feedback(reviewer_feedback)}",
+                    f"reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}; "
+                    f"execution_attempt={attempt}/{MAX_LOOPS}; "
+                    f"feedback={summarize_feedback(reviewer_feedback)}",
                 )
                 content = update_entry_field(
                     content,
@@ -3101,6 +3123,29 @@ def main() -> None:
                     "pc-feature: max plan-reviewer block attempts reached; "
                     "check planner/reviewer feedback for unresolved policy constraints"
                 )
+            if planner_revision_attempts >= MAX_PLANNER_REVISIONS:
+                content = read_file(dev_tasks_path)
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Planner revision limit reached while handling reviewer blocks; "
+                    f"planner_revision={planner_revision_attempts}/{MAX_PLANNER_REVISIONS}; "
+                    f"reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}.",
+                )
+                content = update_entry_field(
+                    content,
+                    work_item_id,
+                    "Notes",
+                    "Planner revision limit reached during plan-reviewer loop.",
+                )
+                write_file(dev_tasks_path, content)
+                die(
+                    "pc-feature: max planner revision attempts reached in plan-reviewer loop"
+                )
+            planner_revision_attempts += 1
             planner_update_prompt = render_prompt_template(
                 load_prompt_template("planner", "update-from-feedback"),
                 {
@@ -3132,12 +3177,48 @@ def main() -> None:
                     "pc-feature: revised plan failed quality checks: "
                     + "; ".join(sorted(set(quality_issues)))
                 )
+            unresolved_policy_issues = plan_policy_violations(revised_plan)
+            if unresolved_policy_issues:
+                stagnation_signature = "|".join(sorted(set(unresolved_policy_issues)))
+                if stagnation_signature == last_stagnation_signature:
+                    stagnation_count += 1
+                else:
+                    last_stagnation_signature = stagnation_signature
+                    stagnation_count = 1
+                if stagnation_count >= MAX_STAGNANT_REVIEWER_BLOCKS:
+                    content = read_file(dev_tasks_path)
+                    content = update_entry_field(
+                        content, work_item_id, "Outcome", "needs replan"
+                    )
+                    content = append_iteration_log_note(
+                        content,
+                        work_item_id,
+                        "Planner/reviewer loop stagnation detected; "
+                        f"repeat_count={stagnation_count}/{MAX_STAGNANT_REVIEWER_BLOCKS}; "
+                        f"issues={stagnation_signature}",
+                    )
+                    content = update_entry_field(
+                        content,
+                        work_item_id,
+                        "Notes",
+                        "Planner/reviewer stagnation detected; manual intervention required.",
+                    )
+                    write_file(dev_tasks_path, content)
+                    die(
+                        "pc-feature: planner/reviewer loop is stagnant; repeated unresolved policy issues"
+                    )
+            else:
+                stagnation_count = 0
+                last_stagnation_signature = ""
             content = read_file(dev_tasks_path)
             content = replace_entry_section(content, work_item_id, "Plan", revised_plan)
             content = append_iteration_log_note(
                 content,
                 work_item_id,
-                f"Attempt {attempt}: Plan Reviewer BLOCK; planner updated plan (block count: {reviewer_blocks}).",
+                f"Attempt {attempt}: Plan Reviewer BLOCK; planner updated plan "
+                f"(reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}, "
+                f"planner_revision={planner_revision_attempts}/{MAX_PLANNER_REVISIONS}, "
+                f"execution_attempt={attempt}/{MAX_LOOPS}).",
             )
             write_file(dev_tasks_path, content)
             ensure_role_log(
@@ -3159,6 +3240,8 @@ def main() -> None:
             )
             continue
 
+        stagnation_count = 0
+        last_stagnation_signature = ""
         execution_attempt += 1
         smoke_command = allowed_tests[0] if allowed_tests else ""
         if smoke_command:

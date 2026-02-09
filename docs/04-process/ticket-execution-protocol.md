@@ -65,6 +65,11 @@
 
 6. **Plan → Patch → Test → Report**
    - Plan: approach, files, risks, tests, and work-item-specific DoD.
+   - Planner output must follow **Plan Contract v1** with fixed sections:
+     - `Approach`
+     - `Files to change`
+     - `Risks`
+     - `Tests (anti-hardcode coverage required)`
    - Plan Reviewer is a first-class step with its own prompt, log (`plan-reviewer-log.md`), and commit.
    - Before patching, enforce deterministic plan policy checks and block if the plan includes role-scoped/global log files or forbidden commands (`make feature`, `pc-feature`).
    - Plan-reviewer read-only enforcement uses pre/post worktree dirty snapshots and blocks only reviewer-introduced deltas.
@@ -93,6 +98,10 @@
      - Reporter `FAIL` loops back to Planner.
      - Reporter `PASS` is the only success path to final gates/commit.
    - Retry loop is capped by `MAX_LOOPS` to prevent infinite execution.
+   - Planner-reviewer sub-loop is capped independently:
+     - `MAX_REVIEWER_BLOCKS` (reviewer blocks per work item)
+     - `MAX_PLANNER_REVISIONS` (planner revisions in reviewer-block loop)
+   - If the same unresolved reviewer-policy issue repeats, stop early via stagnation guard instead of consuming all caps.
    - If a step has nothing to do during a retry, record a no-op entry in the iteration log and continue.
    - Repeat until feedback is resolved.
 

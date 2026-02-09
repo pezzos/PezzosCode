@@ -1023,3 +1023,19 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - deterministic plan policy checks execute before LLM reviewer calls.
   - reporter scope/prompt and tester failure-context contract updates are covered by passing tests.
   - live docs and templates remain aligned after protocol/workflow updates.
+
+## 2026-02-09 - Plan contract + reviewer loop guard validation
+
+- Command: `python3 -m py_compile tools/pc-feature`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (offload id `2a67be91170b2e85c02d3fd7e1d1de399de5c50b6161407d4188cba9922d2029`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_orchestrator_workflow_docs tests.test_update_reapply_templates_docs tests.test_docs_logs tests.test_orchestrator_role_gates tests.test_output_offload_enforcement_docs`
+- Result: PASS (`32` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_*.py'`
+- Result: PASS (offload id `2d6b4c2d7c605aeaf3d7cacef72346b98c9dd56fc3c348509052ee9a3141fe00`)
+- Verified:
+  - reviewer-block revised plans now replace prior plan content (no stale append carryover).
+  - policy checks use contract `Files to change` section and still catch forbidden paths outside that section via fallback scan.
+  - reviewer-block loop stops deterministically on reviewer cap, planner revision cap, or stagnation guard.
+  - iteration logs expose per-loop counters for reviewer blocks, planner revisions, and execution attempts.

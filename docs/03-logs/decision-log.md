@@ -1761,3 +1761,22 @@ When a decision is reversed or replaced, document it here:
   - Planner/Plan Reviewer/Patcher transitions are auditable and less prone to dirty-state attribution errors.
   - Invalid plans are blocked earlier with deterministic reasons before patcher execution.
   - Feedback-loop convergence is more reliable due to stronger plan/validation/report contracts.
+
+### DEC-032 - Enforce Plan Contract v1 and bounded reviewer/planner retry controls
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** Feature 12 showed repeated reviewer BLOCK cycles where stale forbidden paths persisted in plan text due append-style revised-plan merging, while loop counters were ambiguous (`attempt` remained constant) and planner revision retries lacked an explicit dedicated cap.
+- **Decision:**
+  - Standardize planner output to **Plan Contract v1** sections (`Approach`, `Files to change`, `Risks`, `Tests (anti-hardcode coverage required)`) and align reviewer prompts to the same contract.
+  - Treat revised plans as full replacements (no append merge fallback) to avoid stale policy violations lingering in active plan state.
+  - Keep policy checks section-aware (`Files to change` primary scope) with full-plan fallback scanning as a safety net.
+  - Add independent retry controls for reviewer/planner loop:
+    - reviewer cap (`MAX_REVIEWER_BLOCKS`, exact-trigger semantics),
+    - planner revision cap (`MAX_PLANNER_REVISIONS`),
+    - stagnation guard (`MAX_STAGNANT_REVIEWER_BLOCKS`) for repeated unresolved policy signatures.
+  - Emit explicit loop counters in iteration log notes for diagnosability.
+- **Consequences:**
+  - Repeated BLOCK cycles terminate deterministically with actionable terminal reasons.
+  - Planner/reviewer handoffs become easier to debug from logs.
+  - Contract drift risk is reduced through prompt + protocol alignment.

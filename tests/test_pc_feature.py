@@ -400,6 +400,52 @@ class TestPcFeature(unittest.TestCase):
         self.assertTrue(any("docs/03-logs" in item for item in violations))
         self.assertTrue(any("make feature" in item for item in violations))
 
+    def test_plan_policy_violations_scans_full_plan_beyond_files_section(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior.\n"
+            "Files to change:\n"
+            "- tools/prd-to-features\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "Notes:\n"
+            "- Also update docs/02-features/12-incremental-prd-to-features/dev-tasks.md\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(plan)
+        self.assertTrue(any("dev-tasks.md" in item for item in violations))
+
+    def test_revised_plan_quality_issues_require_contract_when_previous_uses_contract(
+        self,
+    ):
+        previous_plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. A\n"
+            "Files to change:\n"
+            "- tools/prd-to-features\n"
+            "Risks:\n"
+            "- B\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- C\n"
+        )
+        revised_plan = "1. quick patch only"
+        issues = self.pc_feature.revised_plan_quality_issues(
+            revised_plan, previous_plan=previous_plan
+        )
+        self.assertTrue(any("missing required sections" in item for item in issues))
+
+    def test_merge_revised_plan_replaces_previous_plan(self):
+        current = "old plan content\nwith stale path docs/02-features/12/dev-tasks.md"
+        revised = "Plan Contract v1\nApproach:\n1. clean"
+        merged = self.pc_feature.merge_revised_plan(current, revised)
+        self.assertEqual(merged, revised)
+
     def test_role_scoped_path_forbidden_for_patcher_detects_cross_feature_docs(self):
         self.assertTrue(
             self.pc_feature.role_scoped_path_forbidden_for_patcher(
@@ -2718,7 +2764,7 @@ class TestPcFeature(unittest.TestCase):
             dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
                 encoding="utf-8"
             )
-            self.assertIn("block count: 4", dev_tasks)
+            self.assertIn("reviewer_block=4/12", dev_tasks)
 
     def test_excessive_plan_reviewer_blocks_fail_with_specific_message(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2796,6 +2842,169 @@ class TestPcFeature(unittest.TestCase):
 
             self.assertIn(
                 "max plan-reviewer block attempts reached",
+                stderr_capture.getvalue(),
+            )
+
+    def test_planner_revision_limit_reaches_terminal_failure(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-43"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    return False
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Block\nReasons:\n- unresolved policy"
+                if "Update the Plan section based on Plan Reviewer feedback" in prompt:
+                    return "1. Edit docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+                return "ok"
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "MAX_REVIEWER_BLOCKS", 10)
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "MAX_PLANNER_REVISIONS", 2)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "max planner revision attempts reached",
+                stderr_capture.getvalue(),
+            )
+
+    def test_reviewer_stagnation_guard_stops_repeated_unresolved_policy(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-44"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                if section == "Patch":
+                    return False
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Block\nReasons:\n- unresolved policy"
+                if "Update the Plan section based on Plan Reviewer feedback" in prompt:
+                    return "1. Edit docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+                return "ok"
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "MAX_REVIEWER_BLOCKS", 10)
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "MAX_PLANNER_REVISIONS", 10)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "MAX_STAGNANT_REVIEWER_BLOCKS",
+                        2,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "planner/reviewer loop is stagnant",
                 stderr_capture.getvalue(),
             )
 

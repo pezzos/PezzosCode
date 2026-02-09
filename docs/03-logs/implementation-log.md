@@ -4652,6 +4652,60 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
 
+### 2026-02-09 - Plan contract normalization and reviewer-loop fail-safe controls
+
+**Feature/Bug:** prevent repeated planner/reviewer BLOCK loops caused by stale forbidden paths and unclear loop caps
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/planner-create.md`
+- `prompts/planner-update-from-feedback.md`
+- `prompts/planner-update_from_feedback.md`
+- `prompts/plan-reviewer-gate.md`
+- `prompts/plan-reviewer.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added a Plan Contract parser in `pc-feature` for deterministic section extraction (`Approach`, `Files to change`, `Risks`, `Tests (anti-hardcode coverage required)`).
+- Updated plan policy checks to evaluate `Files to change` as primary scope while still scanning full plan text as a safety fallback.
+- Changed revised-plan merge behavior to strict replacement (no append fallback) so stale forbidden content cannot persist across retries.
+- Tightened revised-plan quality checks to require contract sections when the prior plan already follows contract structure.
+- Added independent planner-loop guards:
+  - `MAX_PLANNER_REVISIONS`
+  - exact reviewer cap trigger (`>= MAX_REVIEWER_BLOCKS`)
+  - stagnation detector for repeated unresolved policy issues (`MAX_STAGNANT_REVIEWER_BLOCKS`)
+- Improved iteration-log observability with explicit counters (`reviewer_block`, `planner_revision`, `execution_attempt`).
+- Updated planner/reviewer prompts to require and review Plan Contract v1 consistently.
+- Synced protocol docs/template to document contract shape and independent reviewer/planner loop caps.
+- Added regression tests for:
+  - full-plan fallback path-policy detection,
+  - contract-required revised plans,
+  - strict replacement merge behavior,
+  - planner revision cap handling,
+  - stagnation guard failure path.
+
+**Why:**
+
+- Feature 12 showed repeated reviewer BLOCK messages with unchanged policy violations because revised plan content was appended instead of replacing stale plan text.
+- Planner/reviewer retries needed independent hard stops and clearer counters to avoid ambiguous “attempt 2 forever” behavior.
+
+**Impact:**
+
+- **Breaking changes:** No API break; stricter runtime planning contract/loop enforcement in orchestrator behavior.
+- **Performance:** Minimal (extra section parsing and signature checks during reviewer-block path).
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id: `2a67be91170b2e85c02d3fd7e1d1de399de5c50b6161407d4188cba9922d2029`)
+- `tools/offload-proxy/pp python3 -m unittest tests.test_orchestrator_workflow_docs tests.test_update_reapply_templates_docs tests.test_docs_logs tests.test_orchestrator_role_gates tests.test_output_offload_enforcement_docs`
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_*.py'` (offload id: `2d6b4c2d7c605aeaf3d7cacef72346b98c9dd56fc3c348509052ee9a3141fe00`)
+
 ### 2026-02-08 - Reviewer delta-guard and no-op ordering hardening
 
 **Feature/Bug:** eliminate false `plan reviewer modified files` failures caused by pre-existing planner/orchestrator edits
