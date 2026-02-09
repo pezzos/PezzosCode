@@ -102,3 +102,16 @@ Required changes:
 Optional suggestions:
 
 - Consider naming the derived compaction output location in terms of the resolver output (not a hardcoded path) in the plan narrative to reduce ambiguity during execution.
+
+### WI-20260209-01 - 2026-02-09
+
+Step Plan Reviewer BLOCK at attempt 2.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/03-logs/compacted/
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
