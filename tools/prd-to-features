@@ -1,0 +1,326 @@
+#!/usr/bin/env python3
+import argparse
+import re
+import shutil
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_PRD_PATH = Path("docs/01-product/prd.md")
+DEFAULT_FEATURES_DIR = Path("docs/02-features")
+TEMPLATE_DIRNAME = "feature-template"
+
+
+@dataclass(frozen=True)
+class FeatureRecord:
+    index: int
+    title: str
+    priority: str
+    slug: str
+    source: str
+
+
+@dataclass(frozen=True)
+class ExistingFeature:
+    path: Path
+    index: Optional[int]
+    slug: str
+
+
+@dataclass
+class ActionResult:
+    name: str
+    action: str
+    reason: str
+    details: Optional[List[str]] = None
+
+
+def slugify(title: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", title.strip().lower())
+    return slug.strip("-")
+
+
+def parse_prd_features(prd_text: str) -> List[FeatureRecord]:
+    features: List[Tuple[str, str, str]] = []
+    lines = prd_text.splitlines()
+    features.extend(_parse_feature_table(lines))
+    features.extend(_parse_process_features(lines))
+    seen = set()
+    ordered: List[Tuple[str, str, str]] = []
+    for priority, title, source in features:
+        key = slugify(title)
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append((priority, title, source))
+    prd_features: List[FeatureRecord] = []
+    index = 1
+    for priority, title, source in ordered:
+        if priority not in {"P0", "P1"}:
+            continue
+        prd_features.append(
+            FeatureRecord(
+                index=index,
+                title=title,
+                priority=priority,
+                slug=slugify(title),
+                source=source,
+            )
+        )
+        index += 1
+    return prd_features
+
+
+def _parse_feature_table(lines: Iterable[str]) -> List[Tuple[str, str, str]]:
+    in_section = False
+    rows: List[Tuple[str, str, str]] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.lower().startswith("## prioritized feature list"):
+            in_section = True
+            continue
+        if in_section and stripped.startswith("## "):
+            break
+        if not in_section:
+            continue
+        if not stripped.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        if cells[0].lower() == "priority":
+            continue
+        if set(cells[0]) <= {"-"}:
+            continue
+        priority = cells[0]
+        title = cells[1]
+        rows.append((priority, title, "table"))
+    return rows
+
+
+def _parse_process_features(lines: Iterable[str]) -> List[Tuple[str, str, str]]:
+    in_section = False
+    rows: List[Tuple[str, str, str]] = []
+    pattern = re.compile(r"^- \[[ xX]\]\s*(.+?)\s*\((P\d)\)\s*:?.*$")
+    for line in lines:
+        stripped = line.rstrip()
+        if stripped.lower().startswith("## process features"):
+            in_section = True
+            continue
+        if in_section and stripped.startswith("## "):
+            break
+        if not in_section:
+            continue
+        match = pattern.match(stripped)
+        if not match:
+            continue
+        title = match.group(1)
+        priority = match.group(2)
+        rows.append((priority, title, "process"))
+    return rows
+
+
+def discover_existing_features(
+    features_dir: Path,
+) -> Dict[str, Dict[str, ExistingFeature]]:
+    by_index: Dict[int, ExistingFeature] = {}
+    by_slug: Dict[str, ExistingFeature] = {}
+    if not features_dir.exists():
+        return {"by_index": {}, "by_slug": {}}
+    for entry in sorted(features_dir.iterdir(), key=lambda p: p.name):
+        if not entry.is_dir():
+            continue
+        if entry.name == TEMPLATE_DIRNAME:
+            continue
+        match = re.match(r"^(\d+)-(.+)$", entry.name)
+        index = int(match.group(1)) if match else None
+        slug = match.group(2) if match else entry.name
+        feature = ExistingFeature(path=entry, index=index, slug=slug)
+        if index is not None and index not in by_index:
+            by_index[index] = feature
+        if slug not in by_slug:
+            by_slug[slug] = feature
+    return {"by_index": by_index, "by_slug": by_slug}
+
+
+def parse_dev_tasks_status(dev_tasks_path: Path) -> Tuple[Optional[str], Optional[str]]:
+    if not dev_tasks_path.exists():
+        return None, "dev-tasks.md missing"
+    content = dev_tasks_path.read_text(encoding="utf-8")
+    for line in content.splitlines():
+        if line.strip().lower().startswith("status:"):
+            value = line.split(":", 1)[1].strip()
+            if not value:
+                return None, "Status line missing value"
+            return value, None
+    return None, "Status line not found"
+
+
+def status_is_done(status: Optional[str]) -> bool:
+    if not status:
+        return False
+    return bool(re.match(r"^done\b", status.strip(), re.IGNORECASE))
+
+
+def update_missing_files(
+    target_dir: Path, template_dir: Path
+) -> Tuple[List[str], List[str]]:
+    created: List[str] = []
+    skipped: List[str] = []
+    for entry in sorted(template_dir.iterdir(), key=lambda p: p.name):
+        dest = target_dir / entry.name
+        if dest.exists():
+            skipped.append(entry.name)
+            continue
+        if entry.is_dir():
+            shutil.copytree(entry, dest)
+        else:
+            shutil.copy2(entry, dest)
+        created.append(entry.name)
+    return created, skipped
+
+
+def create_feature_folder(
+    target_dir: Path, template_dir: Path
+) -> Tuple[List[str], List[str]]:
+    target_dir.mkdir(parents=True, exist_ok=False)
+    return update_missing_files(target_dir, template_dir)
+
+
+def apply_prd_to_features(
+    root: Path,
+    prd_path: Path = DEFAULT_PRD_PATH,
+    features_dir: Path = DEFAULT_FEATURES_DIR,
+) -> Dict[str, List[ActionResult]]:
+    prd_file = root / prd_path
+    features_root = root / features_dir
+    template_dir = features_root / TEMPLATE_DIRNAME
+    if not prd_file.exists():
+        raise FileNotFoundError(f"Missing PRD: {prd_file}")
+    if not template_dir.exists():
+        raise FileNotFoundError(f"Missing feature template: {template_dir}")
+    prd_features = parse_prd_features(prd_file.read_text(encoding="utf-8"))
+    existing = discover_existing_features(features_root)
+    by_index = existing["by_index"]
+    by_slug = existing["by_slug"]
+    summary: Dict[str, List[ActionResult]] = {
+        "created": [],
+        "updated": [],
+        "skipped": [],
+    }
+    for feature in prd_features:
+        desired_index = feature.index
+        desired_slug = feature.slug
+        desired_name = f"{desired_index:02d}-{desired_slug}"
+        existing_feature = None
+        drift_reason = None
+        if desired_index in by_index:
+            existing_feature = by_index[desired_index]
+            if existing_feature.slug != desired_slug:
+                drift_reason = (
+                    f"index {desired_index:02d} already mapped to "
+                    f"{existing_feature.path.name}; not renaming"
+                )
+        elif desired_slug in by_slug:
+            existing_feature = by_slug[desired_slug]
+            if (
+                existing_feature.index is not None
+                and existing_feature.index != desired_index
+            ):
+                drift_reason = (
+                    f"slug exists at index {existing_feature.index:02d}; not reindexing"
+                )
+        if existing_feature:
+            status, status_note = parse_dev_tasks_status(
+                existing_feature.path / "dev-tasks.md"
+            )
+            if status_is_done(status):
+                summary["skipped"].append(
+                    ActionResult(
+                        name=existing_feature.path.name,
+                        action="skipped",
+                        reason="Status: Done",
+                        details=[note for note in [drift_reason] if note],
+                    )
+                )
+                continue
+            created, _ = update_missing_files(existing_feature.path, template_dir)
+            if created:
+                reason_parts = ["missing template files"]
+                if status_note:
+                    reason_parts.append(status_note)
+                if drift_reason:
+                    reason_parts.append(drift_reason)
+                summary["updated"].append(
+                    ActionResult(
+                        name=existing_feature.path.name,
+                        action="updated",
+                        reason="; ".join(reason_parts),
+                        details=created,
+                    )
+                )
+            else:
+                reason_parts = ["existing folder; no missing sections"]
+                if status_note:
+                    reason_parts.append(status_note)
+                if drift_reason:
+                    reason_parts.append(drift_reason)
+                summary["skipped"].append(
+                    ActionResult(
+                        name=existing_feature.path.name,
+                        action="skipped",
+                        reason="; ".join(reason_parts),
+                    )
+                )
+            continue
+        created, _ = create_feature_folder(features_root / desired_name, template_dir)
+        summary["created"].append(
+            ActionResult(
+                name=desired_name,
+                action="created",
+                reason=f"missing feature folder from PRD ({feature.priority})",
+                details=created,
+            )
+        )
+    return summary
+
+
+def format_summary(summary: Dict[str, List[ActionResult]]) -> str:
+    lines = ["prd-to-features summary"]
+    for key in ("created", "updated", "skipped"):
+        lines.append(f"{key}:")
+        items = summary.get(key, [])
+        if not items:
+            lines.append("- (none)")
+            continue
+        for item in items:
+            detail = ""
+            if item.details:
+                detail = f" [{', '.join(item.details)}]"
+            lines.append(f"- {item.name}: {item.reason}{detail}")
+    return "\n".join(lines)
+
+
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate or update feature folders from the PRD incrementally."
+    )
+    parser.add_argument(
+        "--root",
+        default=str(ROOT),
+        help="Repository root (defaults to detected root).",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    args = parse_args(argv)
+    root = Path(args.root).resolve()
+    summary = apply_prd_to_features(root)
+    print(format_summary(summary))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
