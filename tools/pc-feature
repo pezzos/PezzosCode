@@ -86,6 +86,7 @@ GLOBAL_LOG_FILES = (
     "insights.md",
     "validation-log.md",
 )
+POSSIBLE_IMPROVEMENTS_PATH = os.path.join("docs", "possible-improvements.md")
 PROCESS_DOC_FILES = (
     "docs/04-process/ticket-execution-protocol.md",
     "docs/04-process/testing-strategy.md",
@@ -1077,6 +1078,14 @@ def global_log_paths() -> List[str]:
     return [os.path.join("docs", "03-logs", name) for name in GLOBAL_LOG_FILES]
 
 
+def possible_improvements_paths() -> List[str]:
+    return [POSSIBLE_IMPROVEMENTS_PATH]
+
+
+def orchestrator_owned_paths() -> List[str]:
+    return sorted(set(global_log_paths() + possible_improvements_paths()))
+
+
 def reset_role_logs_to_head(worktree_path: str, feature_dir: str) -> None:
     paths = role_log_paths(feature_dir)
     if not paths:
@@ -1087,6 +1096,14 @@ def reset_role_logs_to_head(worktree_path: str, feature_dir: str) -> None:
 
 def reset_global_logs_to_head(worktree_path: str) -> None:
     paths = global_log_paths()
+    if not paths:
+        return
+    cmd = ["git", "checkout", "--"] + paths
+    subprocess.run(cmd, check=False, cwd=worktree_path)
+
+
+def reset_possible_improvements_to_head(worktree_path: str) -> None:
+    paths = possible_improvements_paths()
     if not paths:
         return
     cmd = ["git", "checkout", "--"] + paths
@@ -1340,7 +1357,7 @@ def enforce_role_scope(
     if not paths:
         return
     role_paths = worktree_role_paths(feature_dir)
-    global_logs = set(global_log_paths())
+    orchestrator_owned = set(orchestrator_owned_paths())
     dev_tasks_path = os.path.join(feature_dir, "dev-tasks.md")
     allowed = set()
     forbidden = set(role_paths.values())
@@ -1350,10 +1367,10 @@ def enforce_role_scope(
     if role == "planner":
         allowed.add(dev_tasks_path)
     if role == "patcher":
-        illegal_globals = [path for path in paths if path in global_logs]
+        illegal_globals = [path for path in paths if path in orchestrator_owned]
         if illegal_globals:
             die(
-                "pc-feature: global logs are read-only until gates pass: "
+                "pc-feature: orchestrator-owned docs/logs are read-only until gates pass: "
                 + ", ".join(sorted(illegal_globals))
             )
         illegal = [
@@ -1365,10 +1382,10 @@ def enforce_role_scope(
                 + ", ".join(sorted(illegal))
             )
         return
-    illegal_globals = [path for path in paths if path in global_logs]
+    illegal_globals = [path for path in paths if path in orchestrator_owned]
     if illegal_globals:
         die(
-            "pc-feature: global logs are read-only until gates pass: "
+            "pc-feature: orchestrator-owned docs/logs are read-only until gates pass: "
             + ", ".join(sorted(illegal_globals))
         )
     illegal = [path for path in paths if path not in allowed]
@@ -1432,6 +1449,7 @@ def commit_role_step(
     if not paths:
         return False
     format_role_changes(role, worktree_path, feature_dir)
+    reset_possible_improvements_to_head(worktree_path)
     if role == "patcher":
         reset_role_logs_to_head(worktree_path, feature_dir)
         reset_global_logs_to_head(worktree_path)
@@ -1534,10 +1552,10 @@ def collect_branch_merge_paths(
     feature_dir: str,
 ) -> List[str]:
     changed = branch_diff_paths(root, base_ref, branch)
-    global_logs = set(global_log_paths())
+    orchestrator_owned = set(orchestrator_owned_paths())
     merged: List[str] = []
     for path in changed:
-        if path in global_logs:
+        if path in orchestrator_owned:
             continue
         if path.startswith("logs/"):
             continue
@@ -1596,6 +1614,209 @@ def summarize_feedback(feedback: str, *, max_chars: int = 420) -> str:
     return compact[: max_chars - 3].rstrip() + "..."
 
 
+def parse_feedback_field(feedback: str, field: str) -> str:
+    pattern = rf"^\s*{re.escape(field)}\s*:\s*(.+)$"
+    match = re.search(pattern, feedback or "", flags=re.IGNORECASE | re.MULTILINE)
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
+def pick_first_non_empty(*values: str) -> str:
+    for value in values:
+        if value and value.strip():
+            return value.strip()
+    return ""
+
+
+def join_unique_values(values: List[str], *, separator: str = ", ") -> str:
+    seen = set()
+    ordered: List[str] = []
+    for value in values:
+        cleaned = value.strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        ordered.append(cleaned)
+    return separator.join(ordered)
+
+
+def extract_failure_feedback_signals(feedback: str) -> Dict[str, str]:
+    return {
+        "file_path": parse_feedback_field(feedback, "File/Path"),
+        "check": parse_feedback_field(feedback, "Check"),
+        "evidence": parse_feedback_field(feedback, "Evidence"),
+        "expected_fix": parse_feedback_field(feedback, "Expected fix"),
+        "notes": parse_feedback_field(feedback, "Notes"),
+        "proposed_improvement": parse_feedback_field(feedback, "Proposed Improvement"),
+        "proposed_patch_location": parse_feedback_field(
+            feedback, "Proposed Patch Location"
+        ),
+        "risks": pick_first_non_empty(
+            parse_feedback_field(feedback, "Risks / Trade-offs"),
+            parse_feedback_field(feedback, "Risks/Trade-offs"),
+            parse_feedback_field(feedback, "Risks"),
+        ),
+    }
+
+
+def proposal_field_is_placeholder(value: str) -> bool:
+    lowered = (value or "").strip().lower()
+    if not lowered:
+        return True
+    if lowered.startswith("tbd") or lowered.startswith("unknown"):
+        return True
+    return lowered in {
+        "none noted",
+        "none noted.",
+        "n/a",
+        "dec-tbd",
+        "no failure summary provided.",
+        "none",
+        "(none)",
+    }
+
+
+def merge_agents(existing: str, incoming: str) -> str:
+    return join_unique_values(
+        [part.strip() for part in f"{existing}, {incoming}".split(",")],
+        separator=", ",
+    )
+
+
+def merge_preferred_text(existing: str, incoming: str) -> str:
+    if proposal_field_is_placeholder(existing) and not proposal_field_is_placeholder(
+        incoming
+    ):
+        return incoming
+    return existing
+
+
+def merge_collected_proposal_entries(
+    existing: "pc_runner.ProposalEntry", incoming: "pc_runner.ProposalEntry"
+) -> "pc_runner.ProposalEntry":
+    return pc_runner.ProposalEntry(
+        date=merge_preferred_text(existing.date, incoming.date),
+        work_item_id=existing.work_item_id,
+        agent=merge_agents(existing.agent, incoming.agent),
+        step=merge_preferred_text(existing.step, incoming.step),
+        failure_summary=merge_preferred_text(
+            existing.failure_summary, incoming.failure_summary
+        ),
+        proposed_improvement=merge_preferred_text(
+            existing.proposed_improvement, incoming.proposed_improvement
+        ),
+        proposed_patch_location=merge_preferred_text(
+            existing.proposed_patch_location, incoming.proposed_patch_location
+        ),
+        risks=merge_preferred_text(existing.risks, incoming.risks),
+        status=merge_preferred_text(existing.status, incoming.status),
+        decision_log_ref=merge_preferred_text(
+            existing.decision_log_ref, incoming.decision_log_ref
+        ),
+    )
+
+
+def dedupe_collected_proposals(
+    proposals: List["pc_runner.ProposalEntry"],
+) -> List["pc_runner.ProposalEntry"]:
+    if not proposals:
+        return []
+    by_signature: Dict[Tuple[str, str, str], "pc_runner.ProposalEntry"] = {}
+    order: List[Tuple[str, str, str]] = []
+    for proposal in proposals:
+        signature = pc_runner.proposal_signature(
+            proposal.work_item_id,
+            proposal.step,
+            proposal.failure_summary,
+        )
+        if signature not in by_signature:
+            by_signature[signature] = proposal
+            order.append(signature)
+            continue
+        by_signature[signature] = merge_collected_proposal_entries(
+            by_signature[signature], proposal
+        )
+    return [by_signature[signature] for signature in order]
+
+
+def queue_failure_proposal(
+    outcome_payload: Dict[str, Any],
+    pending: List["pc_runner.ProposalEntry"],
+    *,
+    runner_metadata: Optional["pc_runner.RunMetadata"] = None,
+    root: Optional[Path] = None,
+) -> None:
+    proposal = pc_runner.build_proposal_from_outcome(outcome_payload)
+    if not proposal:
+        return
+    pending.append(proposal)
+    if runner_metadata and root:
+        pc_runner.log_message(
+            runner_metadata,
+            "feature",
+            (
+                "proposal queued "
+                f"signature={pc_runner.proposal_signature(proposal.work_item_id, proposal.step, proposal.failure_summary)} "
+                f"pending={len(pending)}"
+            ),
+            root=root,
+        )
+
+
+def flush_collected_proposals(
+    pending: List["pc_runner.ProposalEntry"],
+    *,
+    root: Path,
+    reason: str,
+    runner_metadata: Optional["pc_runner.RunMetadata"] = None,
+    log_root: Optional[Path] = None,
+) -> None:
+    if not pending:
+        return
+    log_root_path = log_root or root
+    path = root / POSSIBLE_IMPROVEMENTS_PATH
+    if not path.exists():
+        if runner_metadata:
+            pc_runner.log_message(
+                runner_metadata,
+                "feature",
+                f"proposal flush skip missing {path} reason={reason}",
+                root=log_root_path,
+            )
+        pending.clear()
+        return
+    queued_count = len(pending)
+    deduped = dedupe_collected_proposals(pending)
+    actions: List[str] = []
+    for proposal in deduped:
+        _, action = pc_runner.update_possible_improvements(path, proposal)
+        actions.append(action)
+        if runner_metadata:
+            pc_runner.log_message(
+                runner_metadata,
+                "feature",
+                (
+                    f"proposal {action} "
+                    f"signature={pc_runner.proposal_signature(proposal.work_item_id, proposal.step, proposal.failure_summary)} "
+                    f"reason={reason}"
+                ),
+                root=log_root_path,
+            )
+    if runner_metadata:
+        pc_runner.log_message(
+            runner_metadata,
+            "feature",
+            (
+                f"proposal flush complete reason={reason} "
+                f"queued={queued_count} deduped={len(deduped)} "
+                f"actions={','.join(actions) if actions else 'none'}"
+            ),
+            root=log_root_path,
+        )
+    pending.clear()
+
+
 def build_failure_outcome_payload(
     *,
     work_item_id: str,
@@ -1612,18 +1833,78 @@ def build_failure_outcome_payload(
         agents.append("Reporter")
         if tester_outcome == "PASS":
             step = "Report"
+    tester_signals = extract_failure_feedback_signals(tester_feedback)
+    reporter_signals = extract_failure_feedback_signals(reporter_feedback)
+    proposed_improvement = pick_first_non_empty(
+        reporter_signals.get("proposed_improvement", ""),
+        tester_signals.get("proposed_improvement", ""),
+        reporter_signals.get("expected_fix", ""),
+        tester_signals.get("expected_fix", ""),
+    )
+    proposed_patch_location = join_unique_values(
+        [
+            reporter_signals.get("proposed_patch_location", ""),
+            tester_signals.get("proposed_patch_location", ""),
+            reporter_signals.get("file_path", ""),
+            tester_signals.get("file_path", ""),
+        ]
+    )
+    risks = pick_first_non_empty(
+        reporter_signals.get("risks", ""),
+        tester_signals.get("risks", ""),
+    )
+    if not risks:
+        risk_fragments = []
+        if reporter_signals.get("check") or reporter_signals.get("evidence"):
+            risk_fragments.append(
+                "Reporter: "
+                + summarize_feedback(
+                    "; ".join(
+                        value
+                        for value in (
+                            reporter_signals.get("check", ""),
+                            reporter_signals.get("evidence", ""),
+                        )
+                        if value
+                    ),
+                    max_chars=180,
+                )
+            )
+        if tester_signals.get("check") or tester_signals.get("evidence"):
+            risk_fragments.append(
+                "Tester: "
+                + summarize_feedback(
+                    "; ".join(
+                        value
+                        for value in (
+                            tester_signals.get("check", ""),
+                            tester_signals.get("evidence", ""),
+                        )
+                        if value
+                    ),
+                    max_chars=180,
+                )
+            )
+        risks = " | ".join(fragment for fragment in risk_fragments if fragment)
     failure_summary = (
         f"tester={tester_outcome}; reporter={reporter_outcome}; "
         f"tester_feedback={summarize_feedback(tester_feedback)}; "
         f"reporter_feedback={summarize_feedback(reporter_feedback)}"
     )
-    return {
+    payload: Dict[str, Any] = {
         "outcome": "FAIL",
         "work_item_id": work_item_id,
         "agent_names": agents,
         "step": step,
         "failure_summary": failure_summary,
     }
+    if proposed_improvement:
+        payload["proposed_improvement"] = proposed_improvement
+    if proposed_patch_location:
+        payload["proposed_patch_location"] = proposed_patch_location
+    if risks:
+        payload["risks"] = risks
+    return payload
 
 
 def record_failure_proposal(
@@ -1632,27 +1913,17 @@ def record_failure_proposal(
     root: Path,
     runner_metadata: Optional["pc_runner.RunMetadata"] = None,
 ) -> None:
-    proposal = pc_runner.build_proposal_from_outcome(outcome_payload)
-    if not proposal:
-        return
-    path = root / "docs" / "possible-improvements.md"
-    if not path.exists():
-        if runner_metadata:
-            pc_runner.log_message(
-                runner_metadata,
-                "feature",
-                f"proposal skip missing {path}",
-                root=root,
-            )
-        return
-    _, action = pc_runner.update_possible_improvements(path, proposal)
-    if runner_metadata:
-        pc_runner.log_message(
-            runner_metadata,
-            "feature",
-            f"proposal {action} signature={pc_runner.proposal_signature(proposal.work_item_id, proposal.step, proposal.failure_summary)}",
-            root=root,
-        )
+    pending: List["pc_runner.ProposalEntry"] = []
+    queue_failure_proposal(
+        outcome_payload, pending, runner_metadata=runner_metadata, root=root
+    )
+    flush_collected_proposals(
+        pending,
+        root=root,
+        reason="legacy-record-failure-proposal",
+        runner_metadata=runner_metadata,
+        log_root=root,
+    )
 
 
 def role_scoped_path_forbidden_for_patcher(path: str) -> bool:
@@ -1869,6 +2140,7 @@ def plan_policy_violations(
         r"docs/02-features/[^\s`]+/reporter-log\.md",
         r"docs/02-features/[^\s`]+/validation-log\.md",
         r"docs/03-logs/[^\s`]+",
+        r"docs/possible-improvements\.md",
     )
     for scan_scope, path_scan_text in path_scan_targets:
         for pattern in path_patterns:
@@ -2282,6 +2554,7 @@ def classify_resume_dirty_paths(
     allowed = {dev_tasks_path}
     allowed.update(role_log_paths(feature_dir))
     allowed.update(global_log_paths())
+    allowed.update(possible_improvements_paths())
     runtime_dirty = sorted(path for path in filtered if path in allowed)
     unexpected_dirty = sorted(path for path in filtered if path not in allowed)
     return runtime_dirty, unexpected_dirty
@@ -2652,6 +2925,7 @@ def collect_allowed_final_stage_paths(
     )
     allowed.add(dev_tasks_path)
     allowed.update(global_log_paths())
+    allowed.update(possible_improvements_paths())
     return sorted(allowed)
 
 
@@ -3069,6 +3343,16 @@ def main() -> None:
     stagnation_count = 0
     execution_attempt = 0
     last_failure_context = "No failure context recorded."
+    pending_failure_proposals: List["pc_runner.ProposalEntry"] = []
+
+    def flush_pending_failure_proposals(reason: str) -> None:
+        flush_collected_proposals(
+            pending_failure_proposals,
+            root=Path(root),
+            reason=reason,
+            runner_metadata=runner_metadata,
+            log_root=runner_root,
+        )
 
     def revise_plan_from_feedback(
         *,
@@ -3105,6 +3389,7 @@ def main() -> None:
                 "Planner revision limit reached during plan-reviewer loop.",
             )
             write_file(dev_tasks_path, content)
+            flush_pending_failure_proposals("planner revision limit reached")
             die(
                 "pc-feature: max planner revision attempts reached in plan-reviewer loop"
             )
@@ -3126,6 +3411,7 @@ def main() -> None:
             root=str(runner_root),
         ).strip()
         if not revised_plan_raw:
+            flush_pending_failure_proposals("planner returned empty revised plan")
             die("pc-feature: planner returned empty plan after feedback block")
 
         revised_plan = merge_revised_plan(current_plan, revised_plan_raw)
@@ -3139,6 +3425,7 @@ def main() -> None:
                 anti_hardcode_coverage_issues(revised_plan, tdd_section)
             )
         if quality_issues:
+            flush_pending_failure_proposals("revised plan quality check failed")
             die(
                 "pc-feature: revised plan failed quality checks: "
                 + "; ".join(sorted(set(quality_issues)))
@@ -3548,6 +3835,7 @@ def main() -> None:
                 "Plan reviewer conflict; resolve conflicting requirements and retry after updating the Plan.",
             )
             write_file(dev_tasks_path, content)
+            flush_pending_failure_proposals("plan reviewer conflict")
             die(
                 "pc-feature: plan reviewer conflict; resolve conflicting plan guidance "
                 "and update the Plan/Allowed Tests before retrying"
@@ -3575,6 +3863,7 @@ def main() -> None:
                     "Plan-reviewer block limit reached; resolve reviewer feedback and resume.",
                 )
                 write_file(dev_tasks_path, content)
+                flush_pending_failure_proposals("plan reviewer block limit reached")
                 die(
                     "pc-feature: max plan-reviewer block attempts reached; "
                     "check planner/reviewer feedback for unresolved policy constraints"
@@ -3745,6 +4034,24 @@ def main() -> None:
                 work_item_id,
                 feature_dir,
             )
+            queue_failure_proposal(
+                build_failure_outcome_payload(
+                    work_item_id=work_item_id,
+                    tester_outcome="FAIL",
+                    reporter_outcome="SKIPPED",
+                    tester_feedback=tester_feedback,
+                    reporter_feedback=(
+                        "Outcome: SKIPPED\n"
+                        "Docs/logs updated: reporter deferred\n"
+                        "Notes: Reporter skipped because tester failed during allowed-tests validation.\n"
+                        f"Work Item ID: {work_item_id}\n"
+                    ),
+                ),
+                pending_failure_proposals,
+                runner_metadata=runner_metadata,
+                root=runner_root,
+            )
+            flush_pending_failure_proposals("terminal allowed-tests validation failure")
             die("pc-feature: missing or forbidden allowed tests; update Allowed Tests")
 
         test_results: List[str] = []
@@ -3896,8 +4203,11 @@ def main() -> None:
                 tester_feedback=tester_feedback,
                 reporter_feedback=reporter_feedback,
             )
-            record_failure_proposal(
-                outcome_payload, root=runner_root, runner_metadata=runner_metadata
+            queue_failure_proposal(
+                outcome_payload,
+                pending_failure_proposals,
+                runner_metadata=runner_metadata,
+                root=runner_root,
             )
             last_failure_context = (
                 f"tester={tester_outcome}; reporter={reporter_outcome}; "
@@ -3935,6 +4245,9 @@ def main() -> None:
             if planner_decision == "REVISE_PLAN":
                 revised_plan_raw = parse_feedback_revised_plan(planner_feedback)
                 if not revised_plan_raw:
+                    flush_pending_failure_proposals(
+                        "planner missing Revised Plan in feedback loop"
+                    )
                     die(
                         "pc-feature: planner marked REVISE_PLAN but returned no Revised Plan section"
                     )
@@ -3951,6 +4264,9 @@ def main() -> None:
                         )
                     )
                 if quality_issues:
+                    flush_pending_failure_proposals(
+                        "planner revised plan quality check failed in feedback loop"
+                    )
                     die(
                         "pc-feature: revised plan failed quality checks: "
                         + "; ".join(sorted(set(quality_issues)))
@@ -4027,7 +4343,7 @@ def main() -> None:
         stall_summary = "Loop exhausted at MAX_LOOPS."
         if last_failure_context:
             stall_summary = f"{stall_summary} {last_failure_context}"
-        record_failure_proposal(
+        queue_failure_proposal(
             {
                 "outcome": "STALL",
                 "work_item_id": work_item_id,
@@ -4035,8 +4351,9 @@ def main() -> None:
                 "step": "Orchestration",
                 "failure_summary": stall_summary,
             },
-            root=runner_root,
+            pending_failure_proposals,
             runner_metadata=runner_metadata,
+            root=runner_root,
         )
         content = read_file(dev_tasks_path)
         content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
@@ -4053,6 +4370,7 @@ def main() -> None:
             "Loop exhausted; review Iteration Log for actionable remediation.",
         )
         write_file(dev_tasks_path, content)
+        flush_pending_failure_proposals("max iteration attempts reached")
         die("pc-feature: max iteration attempts reached; check execution log")
 
     base_ref = "HEAD"
@@ -4079,8 +4397,10 @@ def main() -> None:
                 "Collection conflict while replaying patcher branch",
             )
             write_file(dev_tasks_path, content)
+            flush_pending_failure_proposals("branch collection conflict")
             die("pc-feature: conflict detected while collecting worktrees")
 
+    flush_pending_failure_proposals("post-loop before final gates")
     allowed_stage_paths = collect_allowed_final_stage_paths(
         root, "refs/heads/main", patcher_branch, dev_tasks_repo_path, feature_dir
     )
@@ -4103,6 +4423,7 @@ def main() -> None:
         scoped_autofix_paths = stage_scoped_final_paths(root, allowed_stage_paths)
         staged_before_autofix = get_staged_paths(root)
         if sorted(set(scoped_autofix_paths)) != sorted(set(staged_before_autofix)):
+            flush_pending_failure_proposals("autofix scope drift")
             die("pc-feature: staged scope changed before autofix; aborting")
         autofix_exit = run_scoped_autofix(root, staged_before_autofix)
         autofix_notes.append(
@@ -4136,6 +4457,7 @@ def main() -> None:
         content = read_file(dev_tasks_path)
         content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
         write_file(dev_tasks_path, content)
+        flush_pending_failure_proposals("final gate failure")
         die(
             "pc-feature: make ci failed after final gate retry "
             f"(max attempts: {MAX_CI_ATTEMPTS})"

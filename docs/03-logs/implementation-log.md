@@ -5155,3 +5155,56 @@ Track when debt is paid down:
 - `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_policy_violations_allows_docs_logs_wildcard_handoff_note tests.test_pc_feature.TestPcFeature.test_plan_policy_violations_blocks_docs_logs_wildcard_in_files_section`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id `4c8d6b83107f50e31329a63db83ec36e7ee535f336b652a2144265a29890f85d`)
+
+### 2026-02-09 - Orchestrator proposal aggregation and dedupe for `docs/possible-improvements.md`
+
+**Feature/Bug:** workflow improvement proposal collection causing role scope failures
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/planner-create.md`
+- `prompts/planner-update-from-feedback.md`
+- `prompts/planner-update_from_feedback.md`
+- `prompts/plan-reviewer-gate.md`
+- `prompts/patcher-apply.md`
+- `prompts/patcher-update_from_feedback.md`
+- `prompts/reporter-review.md`
+- `docs/possible-improvements.md`
+- `docs/04-process/dev-workflow.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/AGENTS.md`
+- `tools/templates/docs/possible-improvements.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/AGENTS.md`
+- `tools/templates/prompts/planner-create.md`
+- `tools/templates/prompts/planner-update-from-feedback.md`
+- `tools/templates/prompts/planner-update_from_feedback.md`
+- `tools/templates/prompts/plan-reviewer-gate.md`
+- `tools/templates/prompts/patcher-apply.md`
+- `tools/templates/prompts/patcher-update_from_feedback.md`
+- `tools/templates/prompts/reporter-review.md`
+
+**What Changed:**
+
+- Added orchestrator-owned handling for `docs/possible-improvements.md` in `pc-feature` scope/staging rules.
+- Added queue/flush flow in `pc-feature` so failure proposals are collected across the run and written only at orchestrator checkpoints.
+- Added proposal dedupe/merge logic for queued entries and enriched proposal payload extraction from tester/reporter feedback fields.
+- Added policy enforcement to block plans that target `docs/possible-improvements.md`.
+- Updated role prompts/templates to keep registry writes orchestrator-only and allow optional structured improvement fields in reporter feedback.
+- Updated process docs/templates to document the new ownership and aggregation behavior.
+- Added regression tests for payload extraction, policy blocking, runtime scope allowance, final-stage allowlist coverage, and queue flush dedupe.
+
+**Why:**
+
+- Preserve continuous-improvement feedback from roles while removing side effects from role-scoped write violations in shared worktree execution.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Negligible (small in-memory queue + dedupe pass)
+- **Dependencies:** None

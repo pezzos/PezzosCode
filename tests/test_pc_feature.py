@@ -576,6 +576,34 @@ class TestPcFeature(unittest.TestCase):
             any("forbidden path in plan: docs/03-logs/*" in item for item in violations)
         )
 
+    def test_plan_policy_violations_blocks_possible_improvements_registry(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "- docs/possible-improvements.md\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertTrue(
+            any(
+                "forbidden path in plan: docs/possible-improvements.md" in item
+                for item in violations
+            )
+        )
+
     def test_plan_policy_violations_requires_plan_tests_to_match_allowed_tests(self):
         plan = (
             "Plan Contract v1\n"
@@ -753,6 +781,40 @@ class TestPcFeature(unittest.TestCase):
             "Failure context guard (reporter): missing required fields", guarded
         )
         self.assertIn("Expected fix:", guarded)
+
+    def test_build_failure_outcome_payload_uses_feedback_improvement_fields(self):
+        payload = self.pc_feature.build_failure_outcome_payload(
+            work_item_id="WI-20260209-01",
+            tester_outcome="FAIL",
+            reporter_outcome="FAIL",
+            tester_feedback=(
+                "Outcome: FAIL\n"
+                "File/Path: logs/WI-20260209-01/tests.log\n"
+                "Check: tests exit 0\n"
+                "Evidence: command exited 1\n"
+                "Expected fix: tighten assertions\n"
+                "Proposed Patch Location: tests/test_pc_feature.py\n"
+            ),
+            reporter_feedback=(
+                "Outcome: FAIL\n"
+                "File/Path: tools/pc-feature\n"
+                "Check: workflow retries\n"
+                "Evidence: repeated scope failures\n"
+                "Expected fix: route proposals through orchestrator queue\n"
+                "Proposed Improvement: collect and dedupe proposals at orchestrator checkpoints\n"
+                "Proposed Patch Location: tools/pc-feature\n"
+                "Risks / Trade-offs: Slightly more orchestration state\n"
+            ),
+        )
+        self.assertEqual(
+            payload.get("proposed_improvement"),
+            "collect and dedupe proposals at orchestrator checkpoints",
+        )
+        self.assertEqual(
+            payload.get("proposed_patch_location"),
+            "tools/pc-feature, tests/test_pc_feature.py, logs/WI-20260209-01/tests.log",
+        )
+        self.assertEqual(payload.get("risks"), "Slightly more orchestration state")
 
     def test_should_enforce_anti_hardcode_only_for_high_risk_or_trigger_paths(self):
         work_item_id = "WI-20260208-01"
@@ -1006,6 +1068,20 @@ class TestPcFeature(unittest.TestCase):
                 "docs/03-logs/implementation-log.md",
             ],
         )
+        self.assertEqual(unexpected, ["README.md"])
+
+    def test_classify_resume_dirty_paths_allows_possible_improvements_registry(self):
+        feature_dir = "docs/02-features/01-workflow-hardening"
+        dev_tasks = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+        runtime, unexpected = self.pc_feature.classify_resume_dirty_paths(
+            [
+                "docs/possible-improvements.md",
+                "README.md",
+            ],
+            feature_dir,
+            dev_tasks,
+        )
+        self.assertEqual(runtime, ["docs/possible-improvements.md"])
         self.assertEqual(unexpected, ["README.md"])
 
     def test_enforce_single_active_feature_blocks_other_active_patcher(self):
@@ -1389,6 +1465,26 @@ class TestPcFeature(unittest.TestCase):
                     ]
                 ],
             )
+
+    def test_collect_allowed_final_stage_paths_includes_possible_improvements(self):
+        with mock.patch.object(
+            self.pc_feature,
+            "collect_branch_merge_paths",
+            return_value=["tools/pc-feature"],
+        ):
+            paths = self.pc_feature.collect_allowed_final_stage_paths(
+                "/tmp/root",
+                "refs/heads/main",
+                "feature-branch",
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening",
+            )
+        self.assertIn("docs/possible-improvements.md", paths)
+        self.assertIn("tools/pc-feature", paths)
+        self.assertIn(
+            "docs/02-features/01-workflow-hardening/dev-tasks.md",
+            paths,
+        )
 
     def test_run_scoped_autofix_blocks_out_of_scope_files(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -4382,6 +4478,48 @@ class ProposalGenerationTests(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn("### Proposal:", updated)
+
+    def test_flush_collected_proposals_dedupes_and_merges_queue(self):
+        pc_feature = load_pc_feature()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            docs_dir = root / "docs"
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            registry = docs_dir / "possible-improvements.md"
+            registry.write_text(self._template(), encoding="utf-8")
+            pending = []
+            payload_a = {
+                "outcome": "FAIL",
+                "work_item_id": "WI-20260209-01",
+                "agent_name": "Tester",
+                "step": "Test",
+                "failure_summary": "Unit tests failed",
+                "proposed_patch_location": "tests/test_pc_feature.py",
+            }
+            payload_b = {
+                "outcome": "FAIL",
+                "work_item_id": "WI-20260209-01",
+                "agent_name": "Reporter",
+                "step": "Test",
+                "failure_summary": "Unit tests failed",
+                "proposed_improvement": "Route proposals through orchestrator queue",
+            }
+            pc_feature.queue_failure_proposal(payload_a, pending)
+            pc_feature.queue_failure_proposal(payload_b, pending)
+            self.assertEqual(len(pending), 2)
+            pc_feature.flush_collected_proposals(
+                pending,
+                root=root,
+                reason="unit-test",
+            )
+            self.assertEqual(pending, [])
+            updated = registry.read_text(encoding="utf-8")
+            self.assertEqual(self._entries_section(updated).count("### Proposal:"), 1)
+            self.assertIn("**Agent:** Tester, Reporter", updated)
+            self.assertIn(
+                "**Proposed Improvement:** Route proposals through orchestrator queue",
+                updated,
+            )
 
     def test_record_outcome_proposal_appends_entry(self):
         with tempfile.TemporaryDirectory() as tmp:

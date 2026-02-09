@@ -83,7 +83,7 @@ then align the live root files without modifying templates.
 5. **Report**
    - Summarize changes, commands run, and results.
    - Update logs and documentation.
-   - If the run failed or stalled, propose an improvement patch (not auto-applied) and log it in `docs/possible-improvements.md`.
+   - If the run failed or stalled, roles propose workflow improvements in feedback fields and the orchestrator records a clarified, deduplicated entry in `docs/possible-improvements.md`.
    - Create commit with the agreed message format.
    - Run `make test` before closing the work item.
 
@@ -98,6 +98,7 @@ then align the live root files without modifying templates.
 - Tester writes failures in the execution log entry.
 - Reporter reviews scope and completeness and records issues in the execution log entry.
 - Planner updates the plan and Patcher updates the patch.
+- Improvements are proposed by roles and persisted only by the orchestrator in `docs/possible-improvements.md`.
 - Repeat until feedback is resolved and tests pass.
 
 ## Orchestrator + Roles (Parallel Mode)

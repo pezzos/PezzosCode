@@ -1858,3 +1858,19 @@ When a decision is reversed or replaced, document it here:
   - Reduced false-positive blocks while preserving policy safety.
   - Earlier deterministic remediation for real plan-policy gaps.
   - More stable planner/reviewer loop behavior with clearer required changes.
+
+### DEC-038 - Orchestrator-owned aggregation for workflow improvement proposals
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** `docs/possible-improvements.md` was updated during role steps in the shared worktree, causing planner/reporter scope violations and unstable `make feature` runs.
+- **Decision:**
+  - Keep role feedback as the proposal source.
+  - Make `docs/possible-improvements.md` orchestrator-owned only.
+  - Queue proposals during the run and flush them at orchestrator checkpoints.
+  - Deduplicate queued proposals by signature and merge richer context before writing.
+  - Keep role/patcher plans from targeting `docs/possible-improvements.md` directly.
+- **Consequences:**
+  - Continuous-improvement signals are preserved across retries without widening role write scope.
+  - Proposal registry updates are clearer and deterministic.
+  - Scope violations from role edits to the global proposal registry are prevented.

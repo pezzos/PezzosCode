@@ -118,12 +118,14 @@
    - Tests must satisfy the anti-hardcode requirements in `docs/04-process/testing-strategy.md`.
 
 9. **Docs Sync (Mandatory)**
-   - Update required docs/logs per dev-tasks execution log entry.
-   - Global logs (docs/03-logs) are written only after the feature completes and gates pass.
-   - Reporter supplies the global log summaries for decision/implementation/validation logs at completion.
-   - Record a gating summary in docs/03-logs/implementation-log.md and validation findings in docs/03-logs/validation-log.md for the Execute work item workflow so the logs mirror the implemented sequence.
-   - Enforce the output offload workflow with tools/offload-proxy/pp at each gate and capture compliance decisions in docs/03-logs/decision-log.md.
-   - Orchestrator gate handoffs are logged in docs/03-logs/decision-log.md or docs/03-logs/validation-log.md before the PO loop continues.
+
+- Update required docs/logs per dev-tasks execution log entry.
+- Global logs (docs/03-logs) are written only after the feature completes and gates pass.
+- Reporter supplies the global log summaries for decision/implementation/validation logs at completion.
+- `docs/possible-improvements.md` is orchestrator-owned; roles propose improvements in feedback fields and the orchestrator writes clarified, deduplicated entries at run checkpoints.
+- Record a gating summary in docs/03-logs/implementation-log.md and validation findings in docs/03-logs/validation-log.md for the Execute work item workflow so the logs mirror the implemented sequence.
+  - Enforce the output offload workflow with tools/offload-proxy/pp at each gate and capture compliance decisions in docs/03-logs/decision-log.md.
+  - Orchestrator gate handoffs are logged in docs/03-logs/decision-log.md or docs/03-logs/validation-log.md before the PO loop continues.
 
 10. **Gates**
 

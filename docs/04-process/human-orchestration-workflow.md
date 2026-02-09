@@ -30,7 +30,7 @@
    - The PO loop now routes offload violations through docs/03-logs/decision-log.md so the enforced workflow is recorded before progressing.
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
-   - After the run completes or stops, propose improvements (patch not auto-applied) and record in `docs/possible-improvements.md`.
+   - During the run, roles can propose improvements in feedback fields; after the run completes or stops, the orchestrator writes a clarified, deduplicated collection to `docs/possible-improvements.md`.
 6. **Repeat**
    - Go back to step 4 for the next feature.
 
@@ -56,7 +56,7 @@
    - If a prompt file is missing, copy it from `tools/templates/prompts/` and rerun the step (prompt loading is file-based only).
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
-   - After the run completes or stops, propose improvements (patch not auto-applied) and record in `docs/possible-improvements.md`.
+   - During the run, roles can propose improvements in feedback fields; after the run completes or stops, the orchestrator writes a clarified, deduplicated collection to `docs/possible-improvements.md`.
 6. **Repeat**
    - Continue from step 4 until P0/P1 items are complete.
 

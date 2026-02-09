@@ -1164,3 +1164,20 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - The previously failing feature-15 plan with handoff text containing `docs/03-logs/*` no longer triggers deterministic policy violations.
   - Concrete/global-log file paths remain blocked when listed in `Files to change`.
   - Prompt/template copies stay in sync after wording updates.
+
+## 2026-02-09 - Validation for orchestrator-owned proposal aggregation
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_build_failure_outcome_payload_uses_feedback_improvement_fields tests.test_pc_feature.TestPcFeature.test_plan_policy_violations_blocks_possible_improvements_registry tests.test_pc_feature.TestPcFeature.test_collect_allowed_final_stage_paths_includes_possible_improvements tests.test_pc_feature.TestPcFeature.test_classify_resume_dirty_paths_allows_possible_improvements_registry tests.test_pc_feature.ProposalGenerationTests.test_flush_collected_proposals_dedupes_and_merges_queue`
+- Result: PASS (`5` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (offload id `bc42890dfae6d92d7fa6ffccf51d55b8b729086792f75575127d122822116d39`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs tests.test_orchestrator_workflow_docs tests.test_update_reapply_templates_docs`
+- Result: PASS (`21` tests)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: FAIL first pass due `black` reformatting `tests/test_pc_feature.py` (offload id `981005614a40eaf442435b5773d9a0b6e81161974170f918c5a4071d8c28f75e`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload id `b82faad3fb151085d508fdfd41957648f2ec69e22acb50731151955359336fc2`)
+- Command: `tools/offload-proxy/pp make ci` (post-log-update verification)
+- Result: PASS (offload id `2fafd5e76b88572eebefbb6044e5451be20383e68eb6199c40a9cf92f08ced56`)
