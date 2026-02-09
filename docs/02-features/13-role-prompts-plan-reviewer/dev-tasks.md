@@ -97,14 +97,13 @@
 Plan Contract v1
 Approach:
 
-1. Audit prompt inventory and template parity, then map required prompt paths used by `tools/pc-feature` to existing files.
+1. Audit prompt inventory and template parity, then map required prompt paths used by runtime loader to existing files.
    Files to change:
 
 - `prompts/`
 - `tools/templates/prompts/`
-- `tools/pc-feature`
   Risks:
-- Missing prompt variants could break `pc-feature` at runtime.
+- Missing prompt variants could break runtime prompt loading.
 - Prompt/template drift can reintroduce inconsistent role behavior.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: Create at least 2 fixtures per critical path (prompt-load success, missing prompt fail, reviewer approve, reviewer block/retry, reviewer conflict) with distinct prompt sets.
@@ -117,7 +116,7 @@ Approach:
 2. Align prompt contracts and loader logic with current workflow, ensuring file-based loading and explicit failure guidance.
    Files to change:
 
-- `tools/pc-feature`
+- `tools/pc-feature/`
 - `prompts/`
 - `tools/templates/prompts/`
   Risks:
@@ -197,6 +196,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: plan-reviewer no-op; reason=blocked by invalid allowed tests.
 - Attempt 1: patcher no-op; reason=blocked by invalid allowed tests.
 - Attempt 1: reporter no-op; reason=blocked by invalid allowed tests.
+- Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=2/3).
 
 #### Commit
 
