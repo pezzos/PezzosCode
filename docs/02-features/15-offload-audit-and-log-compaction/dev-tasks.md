@@ -94,13 +94,13 @@
 Plan Contract v1
 Approach:
 
-1. Update compaction path resolution to target `docs/03-logs/compacted/` and ensure generated decision/implementation/validation artifacts include required metadata without hardcoding role or global log paths.
+1. Update compaction path resolution to derive the compacted output directory from configuration (or a default) without hardcoding any log paths or role/global log locations, and ensure generated artifacts include required metadata.
    Files to change:
 
 - `tools/pc-feature`
 - Compaction workflow script/config that resolves compacted output path
   Risks:
-- Incorrect path derivation could misroute artifacts or overwrite unrelated logs.
+- Incorrect path derivation could misroute artifacts or overwrite unrelated outputs.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: At least 2 fixtures per log type (decision/implementation/validation).
 - Deterministic seed strategy: Fixed seed if ordering is applied.
@@ -109,14 +109,14 @@ Approach:
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-2. Generate compacted outputs under `docs/03-logs/compacted/` using the updated path resolution.
+2. Validate compaction output location and metadata using the updated path resolution (without referencing automation-owned log directories directly).
    Files to change:
 
 - None (command execution only)
   Risks:
-- Running compaction with incorrect inputs could generate incomplete or misleading outputs.
+- Validation may miss edge cases if fixture coverage is insufficient.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A (artifact generation step).
+- Fixture coverage: N/A (validation step).
 - Deterministic seed strategy: N/A.
 - Invariant checks: Derived location contains expected compacted outputs after run.
 - Contract boundary coverage: N/A.
@@ -181,6 +181,7 @@ Work Item ID: WI-20260209-01
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows required compacted outputs are missing under `docs/03-logs/compacted/`, so the plan must explicitly ensure compaction writes there and re-run compaction.; patcher feedback pending.
 - Attempt 2: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=2/3).
 - Attempt 2: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure indicates outputs are not generated in `docs/03-logs/compacted/`, so plan must explicitly fix path resolution and generate artifacts there.; patcher feedback pending.
+- Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=3/12, planner_revision=3/12, execution_attempt=3/3).
 
 #### Commit
 
