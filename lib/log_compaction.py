@@ -1,21 +1,60 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
-COMPACTED_LOGS_DIR = os.path.join("docs", "03-logs", "compacted")
 COMPACTED_LOG_OUTPUT_NAMES = {
     "decision": "decision-log-compact.json",
     "implementation": "implementation-log-compact.json",
     "validation": "validation-log-compact.json",
 }
 COMPACTED_LOGS_DIR_ENV = "PC_COMPACTED_LOGS_DIR"
+COMPACTION_CONFIG_ENV = "PC_LOG_COMPACTION_CONFIG"
+DEFAULT_COMPACTION_CONFIG_PATH = Path("tools") / "log-compaction-config.json"
+DEFAULT_COMPACTED_LOGS_DIR = "compacted"
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def resolve_compaction_config_path(root: Optional[Path] = None) -> Path:
+    override = os.environ.get(COMPACTION_CONFIG_ENV)
+    config_path = Path(override) if override else DEFAULT_COMPACTION_CONFIG_PATH
+    if config_path.is_absolute():
+        return config_path
+    base_root = root or REPO_ROOT
+    return base_root / config_path
+
+
+def load_compaction_config(root: Optional[Path] = None) -> Dict[str, Any]:
+    config_path = resolve_compaction_config_path(root)
+    try:
+        with open(config_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except FileNotFoundError:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return payload
+
+
+def log_sources(root: Optional[Path] = None) -> Dict[str, str]:
+    config = load_compaction_config(root)
+    sources = config.get("log_sources")
+    if not isinstance(sources, dict):
+        return {}
+    return {str(key): str(value) for key, value in sources.items()}
+
+
 def compacted_logs_dir() -> str:
-    return os.environ.get(COMPACTED_LOGS_DIR_ENV, COMPACTED_LOGS_DIR)
+    override = os.environ.get(COMPACTED_LOGS_DIR_ENV)
+    if override:
+        return override
+    config = load_compaction_config()
+    configured = config.get("compacted_logs_dir")
+    if isinstance(configured, str) and configured.strip():
+        return configured
+    return DEFAULT_COMPACTED_LOGS_DIR
 
 
 def resolve_compacted_logs_dir(root: Optional[Path] = None) -> str:

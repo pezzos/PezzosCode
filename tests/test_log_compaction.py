@@ -1,5 +1,8 @@
+import json
 import os
 import random
+import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -23,8 +26,8 @@ def validate_compact_entry(entry: dict) -> None:
     missing = REQUIRED_FIELDS - set(entry.keys())
     if missing:
         raise AssertionError(f"missing required fields: {missing}")
-    if not entry["source_path"].startswith("docs/03-logs/"):
-        raise AssertionError("source_path must reference docs/03-logs")
+    if not entry["source_path"].strip():
+        raise AssertionError("source_path must be non-empty")
     if not isinstance(entry["evidence_refs"], list) or not entry["evidence_refs"]:
         raise AssertionError("evidence_refs must be a non-empty list")
     if not entry["outcome_rationale"].strip():
@@ -33,6 +36,15 @@ def validate_compact_entry(entry: dict) -> None:
         raise AssertionError("summary must be non-empty")
     if not entry["source_section"].strip():
         raise AssertionError("source_section must be non-empty")
+
+
+def load_log_compaction_tool() -> object:
+    tool_path = Path(__file__).resolve().parents[1] / "tools" / "log-compaction"
+    module = types.ModuleType("log_compaction_tool")
+    module.__dict__["__file__"] = str(tool_path)
+    code = tool_path.read_text(encoding="utf-8")
+    exec(compile(code, str(tool_path), "exec"), module.__dict__)
+    return module
 
 
 class TestLogCompactionContract(unittest.TestCase):
@@ -62,8 +74,15 @@ class TestLogCompactionContract(unittest.TestCase):
 class TestLogCompactionPaths(unittest.TestCase):
     def test_compacted_log_output_paths_respect_root_override(self):
         root = Path("/tmp/pc-root")
+        config = log_compaction.load_compaction_config(
+            root=Path(__file__).resolve().parents[1]
+        )
+        configured_dir = config.get("compacted_logs_dir", "compacted")
+        if os.path.isabs(str(configured_dir)):
+            expected_dir = str(configured_dir)
+        else:
+            expected_dir = os.path.join(str(root), str(configured_dir))
         outputs = log_compaction.compacted_log_output_paths(root=root)
-        expected_dir = os.path.join("/tmp/pc-root", "docs", "03-logs", "compacted")
         self.assertEqual(
             outputs["decision"],
             os.path.join(expected_dir, "decision-log-compact.json"),
@@ -88,6 +107,33 @@ class TestLogCompactionPaths(unittest.TestCase):
             outputs["decision"],
             os.path.join(expected_dir, "decision-log-compact.json"),
         )
+
+    def test_compacted_log_output_paths_respect_config_override(self):
+        root = Path("/tmp/pc-root")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "log-compaction.json"
+            payload = {
+                "compacted_logs_dir": "alt/compacted",
+                "log_sources": {
+                    "decision": "logs/decision.md",
+                    "implementation": "logs/implementation.md",
+                    "validation": "logs/validation.md",
+                },
+            }
+            config_path.write_text(json.dumps(payload), encoding="utf-8")
+            with mock.patch.dict(
+                os.environ,
+                {"PC_LOG_COMPACTION_CONFIG": str(config_path)},
+                clear=False,
+            ):
+                outputs = log_compaction.compacted_log_output_paths(root=root)
+                sources = log_compaction.log_sources(root=root)
+        expected_dir = os.path.join("/tmp/pc-root", "alt", "compacted")
+        self.assertEqual(
+            outputs["implementation"],
+            os.path.join(expected_dir, "implementation-log-compact.json"),
+        )
+        self.assertEqual(sources["decision"], "logs/decision.md")
 
     def test_implementation_log_contract_fixtures(self):
         fixtures = [
@@ -132,6 +178,32 @@ class TestLogCompactionPaths(unittest.TestCase):
         ]
         for entry in fixtures:
             validate_compact_entry(entry)
+
+
+class TestLogCompactionEntries(unittest.TestCase):
+    def test_missing_sections_marked_with_required_metadata(self):
+        tool = load_log_compaction_tool()
+        entries = tool.build_entries("decision", "logs/decision.md", "", max_entries=5)
+        self.assertEqual(entries[0]["source_section"], "missing or moved")
+        for field in REQUIRED_FIELDS:
+            self.assertIn(field, entries[0])
+        self.assertEqual(entries[0]["source_path"], "logs/decision.md")
+        self.assertTrue(entries[0]["evidence_refs"])
+        self.assertTrue(entries[0]["outcome_rationale"].strip())
+
+    def test_work_item_and_date_extracted(self):
+        tool = load_log_compaction_tool()
+        sample = (
+            "### 2026-02-09 - Example\n"
+            "- Rationale\n"
+            "  - Completed WI-20260209-01\n"
+            "- Evidence: logs/WI-20260209-01/feature.log\n"
+        )
+        entries = tool.build_entries(
+            "decision", "logs/decision.md", sample, max_entries=5
+        )
+        self.assertEqual(entries[0]["source_section"], "2026-02-09")
+        self.assertEqual(entries[0]["work_item_ref"], "WI-20260209-01")
 
 
 if __name__ == "__main__":

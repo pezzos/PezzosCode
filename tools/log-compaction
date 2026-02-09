@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -13,12 +12,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from lib import log_compaction  # noqa: E402
-
-LOG_SOURCES = {
-    "decision": os.path.join("docs", "03-logs", "decision-log.md"),
-    "implementation": os.path.join("docs", "03-logs", "implementation-log.md"),
-    "validation": os.path.join("docs", "03-logs", "validation-log.md"),
-}
 
 DEFAULT_MAX_ENTRIES = 5
 
@@ -153,7 +146,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     outputs = log_compaction.compacted_log_output_paths(root=ROOT)
-    for key, source_path in LOG_SOURCES.items():
+    sources = log_compaction.log_sources(root=ROOT)
+    if not sources:
+        raise SystemExit(
+            "log-compaction: no log sources configured; set PC_LOG_COMPACTION_CONFIG "
+            "or update tools/log-compaction-config.json"
+        )
+    for key, source_path in sources.items():
         source_abs = ROOT / source_path
         output_path = outputs.get(key)
         if not output_path:

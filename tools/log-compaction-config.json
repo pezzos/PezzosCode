@@ -1,0 +1,8 @@
+{
+  "compacted_logs_dir": "docs/03-logs/compacted",
+  "log_sources": {
+    "decision": "docs/03-logs/decision-log.md",
+    "implementation": "docs/03-logs/implementation-log.md",
+    "validation": "docs/03-logs/validation-log.md"
+  }
+}
