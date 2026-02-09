@@ -54,3 +54,9 @@ Decision: Block Reasons: - Plan violates orchestrator scope policy. Required cha
 Step Planner revise after Plan Reviewer BLOCK at attempt 1.
 
 Decision: Block Reasons: - Tests section specifies `python -m unittest discover -s tests -p "test_*.py"` which is not in the Allowed Tests list (only `pytest ...`). This makes the plan non-compliant with the current test gate. Required changes: - Update the Tests section to use only the allowed pytest commands, or explicitly note that tests will be skipped pending updated allowed commands. Optional suggestions: -...
+
+### WI-20260209-01 - 2026-02-09
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Tests section lists commands that are not in the Allowed Tests list for this work item, so the plan is not executable under the current gate. Required changes: - Update the plan’s Tests section to use only the allowed commands (`pytest tests/test_pc_feature.py` and/or `pytest tests/test_docs_logs.py tests/test_orchestrator_workflow_docs.py tests_extra/test_bootstrap_into_extra.py`) or ex...
