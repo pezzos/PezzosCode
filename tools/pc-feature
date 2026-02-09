@@ -1926,8 +1926,17 @@ def record_failure_proposal(
     )
 
 
+def is_compacted_logs_path(path: str) -> bool:
+    normalized = normalize_repo_rel(path).lower().rstrip("/")
+    return normalized == "docs/03-logs/compacted" or normalized.startswith(
+        "docs/03-logs/compacted/"
+    )
+
+
 def role_scoped_path_forbidden_for_patcher(path: str) -> bool:
     normalized = normalize_repo_rel(path)
+    if is_compacted_logs_path(normalized):
+        return False
     if normalized.startswith("docs/03-logs/"):
         return True
     if not normalized.startswith("docs/02-features/"):
@@ -2150,6 +2159,8 @@ def plan_policy_violations(
                     and pattern == r"docs/03-logs/[^\s`]+"
                     and docs_logs_wildcard_reference(match)
                 ):
+                    continue
+                if pattern == r"docs/03-logs/[^\s`]+" and is_compacted_logs_path(match):
                     continue
                 entry = f"forbidden path in plan: {match}"
                 if entry not in violations:
