@@ -1,0 +1,34 @@
+[
+  {
+    "source_path": "docs/03-logs/implementation-log.md",
+    "source_section": "2026-02-09 - Reformulate Feature 15 for useful compact logs",
+    "work_item_ref": "",
+    "outcome_rationale": "F-15 scope was refined to ensure compaction outputs preserve learning-loop usefulness and evidence quality.",
+    "evidence_refs": [
+      "docs/03-logs/implementation-log.md#2026-02-09-Reformulate-Feature-15-for-useful-compact-logs",
+      "docs/03-logs/validation-log.md#2026-02-08-Feature-docs-13-16-rebaseline-validation"
+    ],
+    "summary": "Expanded compaction scope to decision/implementation/validation logs, added usefulness contract fields, and documented derived output guidance."
+  },
+  {
+    "source_path": "docs/03-logs/implementation-log.md",
+    "source_section": "2026-02-09 - Pre-patch policy recheck + patcher scope-violation reroute",
+    "work_item_ref": "",
+    "outcome_rationale": "Added deterministic pre-patch policy recheck and planner reroute to prevent late patcher hard-stops when forbidden paths are touched.",
+    "evidence_refs": [
+      "tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_prepatch_policy_recheck_routes_back_to_planner_before_patcher",
+      "offload:f286e4ef1d6de49fe6b76805ea23fd8710d0f2a61084c4b5691e8b7c34401028"
+    ],
+    "summary": "Introduced pre-patch policy scan with planner reroute on forbidden edits and added regression coverage."
+  },
+  {
+    "source_path": "docs/03-logs/implementation-log.md",
+    "source_section": "missing or moved",
+    "work_item_ref": "",
+    "outcome_rationale": "Section missing, documented in compact view.",
+    "evidence_refs": [
+      "docs/03-logs/implementation-log.md"
+    ],
+    "summary": "Compact entry flags missing source section."
+  }
+]

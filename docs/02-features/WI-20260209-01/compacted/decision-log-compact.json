@@ -1,0 +1,32 @@
+[
+  {
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "[DEC-018] - Interactive HIGH-risk approval gate for `pc-feature` (2026-02-06)",
+    "work_item_ref": "",
+    "outcome_rationale": "Interactive approval preserves the safety gate while reducing friction; non-interactive runs remain fail-closed unless APPROVE_HIGH_RISK=1 is set.",
+    "evidence_refs": [
+      "docs/03-logs/decision-log.md#DEC-018"
+    ],
+    "summary": "Require explicit interactive approval for HIGH-risk work items, with a fail-closed non-interactive override."
+  },
+  {
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "[DEC-017] - Observability-first workflow hardening (2026-02-05)",
+    "work_item_ref": "",
+    "outcome_rationale": "Adopted structured runner/logs and role prompts to reduce token burn and improve traceability without expanding scope.",
+    "evidence_refs": [
+      "docs/03-logs/decision-log.md#DEC-017"
+    ],
+    "summary": "Standardize runner + structured logs + role prompts; make script-driven execution the default."
+  },
+  {
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "missing or moved",
+    "work_item_ref": "",
+    "outcome_rationale": "Section missing, documented in compact view.",
+    "evidence_refs": [
+      "docs/03-logs/decision-log.md"
+    ],
+    "summary": "Compact entry flags missing source section."
+  }
+]
