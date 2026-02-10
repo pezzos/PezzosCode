@@ -165,3 +165,16 @@ Reasons:
 - Plan Contract v1 sections are present and sufficiently scoped for the work item, with clear risks and test requirements.
   Optional suggestions:
 - If possible, replace “Compaction workflow script/config” with a concrete path once discovered during preflight for tighter traceability.
+
+### WI-20260209-01 - 2026-02-10
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
