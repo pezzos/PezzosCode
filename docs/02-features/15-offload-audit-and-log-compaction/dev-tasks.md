@@ -94,31 +94,17 @@
 Plan Contract v1
 Approach:
 
-1. Update feature task status to reflect completed implementation and validation for WI-20260209-01.
+1. Identify required implementation targets for WI-20260209-01 from the feature specs and update only those implementation files (exclude role-scoped logs).
    Files to change:
 
-- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
+- `TBD (implementation target files identified from docs/02-features/15-offload-audit-and-log-compaction/ specs; no role-scoped logs)`
   Risks:
-- Incorrectly marking incomplete tasks as done could misrepresent scope.
+- Mis-scoping updates if the spec is incomplete or ambiguous.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A (docs-only update).
-- Deterministic seed strategy: N/A.
-- Invariant checks: Task checklist, Status, and Last Updated align with completed scope and validation references.
-- Contract boundary coverage: N/A.
-- Allowed test commands:
-  - `python -m unittest discover -s tests -p "test_*.py"`
-
-2. Do not run tests (no code changes); confirm prior validation reference is recorded in `dev-tasks.md`.
-   Files to change:
-
-- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
-  Risks:
-- Missing validation reference could leave status ambiguous.
-  Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A.
-- Deterministic seed strategy: N/A.
-- Invariant checks: Validation reference included for WI-20260209-01.
-- Contract boundary coverage: N/A.
+- Fixture coverage: N/A unless implementation changes require fixtures.
+- Deterministic seed strategy: N/A unless tests added.
+- Invariant checks: Ensure changes match spec acceptance criteria and do not alter scope boundaries.
+- Contract boundary coverage: N/A unless integration boundaries are modified.
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
