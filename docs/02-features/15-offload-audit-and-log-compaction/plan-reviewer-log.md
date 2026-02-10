@@ -178,3 +178,16 @@ Reasons:
 - forbidden path in plan: docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md
   Optional suggestions:
 - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260209-01 - 2026-02-10
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Files to change are `TBD`, so the plan doesn’t provide actionable scope for the patcher. This is a concrete gap because the patcher needs explicit targets before proceeding.
+  Required changes:
+- Replace `TBD` with the specific implementation file paths from `docs/02-features/15-offload-audit-and-log-compaction/` that will be edited.
+  Optional suggestions:
+- If multiple files are possible, list the likely candidates and note final selection after spec review.
