@@ -46,7 +46,7 @@
 - Patcher: Codex
 - Tester: Codex
 - Reporter: Codex
-- Outcome: complete
+- Outcome: needs replan
 - Tests run: `python -m unittest discover -s tests -p "test_*.py"` (pass; see validation log entry dated 2026-02-09)
 - Offload ids (if any): Recorded in `logs/WI-20260209-01/feature.log` and `logs/WI-20260209-01/tests.log`.
 - Docs/logs updated: `docs/04-process/output-offload.md`, `docs/03-logs/decision-log.md`, `docs/03-logs/implementation-log.md`, `docs/03-logs/validation-log.md`, `docs/03-logs/compacted/*`, `docs/02-features/15-offload-audit-and-log-compaction/feature-spec.md`, `docs/02-features/15-offload-audit-and-log-compaction/tech-design.md`, `docs/02-features/15-offload-audit-and-log-compaction/test-plan.md`, `docs/02-features/15-offload-audit-and-log-compaction/validation-log.md`, `docs/02-features/15-offload-audit-and-log-compaction/reporter-log.md`
@@ -151,11 +151,11 @@ Work Item ID: WI-20260209-01
 
 #### Gates
 
-- make ci:
+- make ci: FAIL
 
 #### Autofix Attempts
 
-- (none)
+tools/offload-proxy/pp pre-commit run --files <scoped>: FAIL
 
 #### Tester Feedback
 
