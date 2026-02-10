@@ -1,0 +1,52 @@
+[
+  {
+    "evidence_refs": [
+      "logs/*`"
+    ],
+    "outcome_rationale": "Prevent precommit Codex runs from editing unrelated files (especially `docs/03-logs/*` and feature logs) and reduce pre-commit latency/scope creep.",
+    "source_path": "docs/03-logs/implementation-log.md",
+    "source_section": "2026-02-08",
+    "summary": "Precommit autofix scope hardening and deterministic fallback",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": [
+      "docs/03-logs/implementation-log.md"
+    ],
+    "outcome_rationale": "Keep the template aligned with the living execution protocol guidance.",
+    "source_path": "docs/03-logs/implementation-log.md",
+    "source_section": "2026-02-08",
+    "summary": "Sync resume policy block into ticket execution protocol template",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": [
+      "docs/03-logs/implementation-log.md"
+    ],
+    "outcome_rationale": "The original F-12 docs were too generic and did not reflect the current process contract, which made implementation attempts ambiguous.",
+    "source_path": "docs/03-logs/implementation-log.md",
+    "source_section": "2026-02-08",
+    "summary": "Rebaseline feature docs for F-12 incremental PRD-to-features",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": [
+      "docs/03-logs/implementation-log.md"
+    ],
+    "outcome_rationale": "Keep the template aligned with the living execution protocol's Plan requirements.",
+    "source_path": "docs/03-logs/implementation-log.md",
+    "source_section": "2026-02-08",
+    "summary": "Template sync for ticket execution protocol (plan policy check)",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": [
+      "docs/03-logs/implementation-log.md"
+    ],
+    "outcome_rationale": "The original feature docs were generated before recent prompt/workflow hardening and no longer represented the current implementation context.",
+    "source_path": "docs/03-logs/implementation-log.md",
+    "source_section": "2026-02-08",
+    "summary": "Rebaseline backlog feature docs for F-13 to F-16",
+    "work_item_ref": ""
+  }
+]

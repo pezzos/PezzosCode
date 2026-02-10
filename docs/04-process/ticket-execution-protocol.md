@@ -74,7 +74,7 @@
    - Plan Reviewer is a first-class step with its own prompt (`prompts/plan-reviewer-gate.md`), log (`plan-reviewer-log.md`), and commit.
    - Task-specific prompts live at `prompts/<role>-<task>.md` (examples: `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`).
    - Plan Reviewer decisions are `APPROVE`, `BLOCK`, or `CONFLICT`. A `CONFLICT` stops execution with explicit remediation before any patching.
-   - Before patching, enforce deterministic plan policy checks and block if the plan includes role-scoped/global log files or forbidden commands in command context (`make feature`, `pc-feature`, `tools/pc-feature`).
+   - Before patching, enforce deterministic plan policy checks and block if the plan includes role-scoped/global log files (except derived compacted outputs under `docs/03-logs/compacted/`) or forbidden commands in command context (`make feature`, `pc-feature`, `tools/pc-feature`).
    - Plan-reviewer read-only enforcement uses pre/post worktree dirty snapshots and blocks only reviewer-introduced deltas.
    - Every step decision (`APPROVE` / `BLOCK` / `PASS` / `FAIL`) must be written to the step's role log and committed before the next step starts.
    - Plan must include anti-hardcode coverage (fixtures per critical path, seed strategy, invariant checks, contract boundaries).

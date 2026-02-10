@@ -5208,3 +5208,52 @@ Track when debt is paid down:
 - **Breaking changes:** No
 - **Performance:** Negligible (small in-memory queue + dedupe pass)
 - **Dependencies:** None
+
+### 2026-02-09 - Align compacted-output workflow policy and bootstrap guardrails
+
+**Feature/Bug:** prevent feature execution failures when compacted outputs are expected under `docs/03-logs/compacted/` but baseline policy still blocks that path.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `lib/log_compaction.py`
+- `prompts/planner-create.md`
+- `prompts/planner-update-from-feedback.md`
+- `prompts/planner-update_from_feedback.md`
+- `prompts/plan-reviewer-gate.md`
+- `prompts/patcher-apply.md`
+- `prompts/patcher-update_from_feedback.md`
+- `tools/templates/prompts/planner-create.md`
+- `tools/templates/prompts/planner-update-from-feedback.md`
+- `tools/templates/prompts/planner-update_from_feedback.md`
+- `tools/templates/prompts/plan-reviewer-gate.md`
+- `tools/templates/prompts/patcher-apply.md`
+- `tools/templates/prompts/patcher-update_from_feedback.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tests/test_pc_feature.py`
+- `tests/test_log_compaction.py`
+
+**What Changed:**
+
+- Added `compacted_policy_bootstrap_issues()` and `ensure_compacted_policy_bootstrap_ready()` in `pc-feature` and invoked the guard at startup before planner/reviewer/patcher flow.
+- Kept patcher blocking for role/global logs while preserving the explicit exception for compacted outputs.
+- Updated handoff policy detection so compacted-output-only plans no longer trigger mandatory global-log handoff violations.
+- Aligned planner/reviewer/patcher prompts (and template copies) so `docs/03-logs/compacted/` is the only allowed `docs/03-logs` patcher target.
+- Hardened compaction fallback path to default to `docs/03-logs/compacted` when config is absent.
+- Added regression tests for startup policy guards, compacted-only handoff handling, and missing-config fallback behavior.
+
+**Why:**
+
+- Feature 15 requires derived compacted outputs under `docs/03-logs/compacted/`.
+- Without bootstrap checks and aligned prompts/policy text, runs can fail late with patcher role-scope errors even when implementation intent is valid.
+
+**Impact:**
+
+- **Breaking changes:** No.
+- **Performance:** Negligible (small startup policy probe).
+- **Dependencies:** None.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_log_compaction` (offload id `8529c4685a50180140c300ebd3fd6dc1f6516fecbd6a290ebf5da9cf7aa64af2`).

@@ -1874,3 +1874,18 @@ When a decision is reversed or replaced, document it here:
   - Continuous-improvement signals are preserved across retries without widening role write scope.
   - Proposal registry updates are clearer and deterministic.
   - Scope violations from role edits to the global proposal registry are prevented.
+
+### DEC-039 - Allow only derived compacted outputs under docs/03-logs for patcher and enforce startup policy readiness
+
+- **Date:** 2026-02-09
+- **Status:** Accepted
+- **Context:** Feature execution required writing compacted outputs under `docs/03-logs/compacted/`, but stale baseline policy/prompt combinations could still treat those edits as forbidden and fail late in patcher.
+- **Decision:**
+  - Keep `docs/03-logs/*` blocked for patcher except derived compacted outputs under `docs/03-logs/compacted/`.
+  - Add a startup guard in `pc-feature` to fail fast when compacted output paths are still blocked by scope or plan-policy checks.
+  - Align planner/reviewer/patcher prompts and template copies with the compacted-output exception and non-compacted global-log handoff requirement.
+  - Keep `docs/04-process/ticket-execution-protocol.md` wording aligned with this exception.
+- **Consequences:**
+  - Workflow mismatches are caught before patching starts.
+  - Feature plans can target compacted artifacts without triggering contradictory handoff errors.
+  - Global logs remain orchestrator-owned outside the derived compacted-output exception.

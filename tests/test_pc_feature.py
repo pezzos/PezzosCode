@@ -180,6 +180,11 @@ class TestPcFeature(unittest.TestCase):
                 self.pc_feature, "ensure_root_start_scope", return_value=None
             ),
             mock.patch.object(
+                self.pc_feature,
+                "ensure_compacted_policy_bootstrap_ready",
+                return_value=None,
+            ),
+            mock.patch.object(
                 self.pc_feature, "check_allowed_tests_exist", return_value=[]
             ),
             mock.patch.object(
@@ -524,6 +529,36 @@ class TestPcFeature(unittest.TestCase):
             )
         )
 
+    def test_plan_policy_violations_skips_handoff_for_compacted_outputs_only(self):
+        compacted_path = self.pc_feature.compacted_log_output_paths()["decision"]
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Generate compacted outputs from canonical logs.\n"
+            "Files to change:\n"
+            f"- {compacted_path}\n"
+            "- tools/log-compaction\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertFalse(
+            any(
+                "assign docs/03-logs updates to reporter/orchestrator" in item
+                for item in violations
+            )
+        )
+        self.assertFalse(any(compacted_path in item for item in violations))
+
     def test_plan_policy_violations_allows_docs_logs_wildcard_handoff_note(self):
         plan = (
             "Plan Contract v1\n"
@@ -725,6 +760,32 @@ class TestPcFeature(unittest.TestCase):
                         "docs/02-features/11-simplify-worktree-tracking",
                     )
         self.assertIn("patcher edited role-scoped files", stderr_capture.getvalue())
+
+    def test_compacted_policy_bootstrap_issues_reports_scope_block(self):
+        with mock.patch.object(
+            self.pc_feature, "role_scoped_path_forbidden_for_patcher", return_value=True
+        ):
+            issues = self.pc_feature.compacted_policy_bootstrap_issues()
+        self.assertTrue(
+            any(
+                "patcher scope blocks compacted output path" in issue for issue in issues
+            )
+        )
+
+    def test_ensure_compacted_policy_bootstrap_ready_exits_on_policy_mismatch(self):
+        stderr_capture = io.StringIO()
+        with mock.patch.object(
+            self.pc_feature,
+            "compacted_policy_bootstrap_issues",
+            return_value=["scope mismatch"],
+        ):
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stderr(stderr_capture):
+                    self.pc_feature.ensure_compacted_policy_bootstrap_ready()
+        self.assertIn(
+            "compacted outputs are blocked by current workflow policy",
+            stderr_capture.getvalue(),
+        )
 
     def test_ensure_plan_reviewer_read_only_allows_preexisting_unchanged_dirty(self):
         baseline = {

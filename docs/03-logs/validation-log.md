@@ -1181,3 +1181,13 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Result: PASS (offload id `b82faad3fb151085d508fdfd41957648f2ec69e22acb50731151955359336fc2`)
 - Command: `tools/offload-proxy/pp make ci` (post-log-update verification)
 - Result: PASS (offload id `2fafd5e76b88572eebefbb6044e5451be20383e68eb6199c40a9cf92f08ced56`)
+
+## 2026-02-09 - Compact-output policy bootstrap and prompt alignment validation
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature tests.test_log_compaction`
+- Result: PASS (offload id `8529c4685a50180140c300ebd3fd6dc1f6516fecbd6a290ebf5da9cf7aa64af2`)
+- Verified:
+  - `pc-feature` startup now fails early with explicit remediation when compacted outputs are policy-blocked.
+  - Plans that only target derived compacted outputs do not incorrectly require non-compacted global-log handoff wording.
+  - Compaction fallback path defaults to `docs/03-logs/compacted` when external config is missing.
+  - Prompt/template policy guidance remains aligned with deterministic scope enforcement.

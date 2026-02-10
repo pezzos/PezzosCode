@@ -2001,6 +2001,45 @@ def missing_plan_contract_sections(plan_text: str) -> List[str]:
     return [section for section in PLAN_CONTRACT_SECTIONS if not sections.get(section)]
 
 
+def compacted_policy_bootstrap_issues() -> List[str]:
+    issues: List[str] = []
+    probe_paths = [compacted_logs_dir()]
+    probe_paths.extend(compacted_log_output_paths().values())
+    seen = set()
+    for path in probe_paths:
+        normalized = normalize_repo_rel(path)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        if role_scoped_path_forbidden_for_patcher(normalized):
+            issues.append(f"patcher scope blocks compacted output path: {normalized}")
+            continue
+        plan_issues = plan_policy_violations(f"- write {normalized}")
+        blocked = []
+        for issue in plan_issues:
+            if not issue.startswith("forbidden path in plan: "):
+                continue
+            candidate = issue.split(": ", 1)[1]
+            if is_compacted_logs_path(candidate):
+                blocked.append(issue)
+        if blocked:
+            issues.append(
+                "plan policy blocks compacted output path: " + ", ".join(sorted(blocked))
+            )
+    return issues
+
+
+def ensure_compacted_policy_bootstrap_ready() -> None:
+    issues = compacted_policy_bootstrap_issues()
+    if not issues:
+        return
+    die(
+        "pc-feature: compacted outputs are blocked by current workflow policy; "
+        "update workflow baseline before continuing.\n"
+        + "\n".join(f"- {issue}" for issue in issues)
+    )
+
+
 def normalize_plan_line(line: str) -> str:
     stripped = line.strip()
     if not stripped:
@@ -2108,14 +2147,24 @@ def missing_global_log_handoff_issue(plan_text: str) -> Optional[str]:
     sections = extract_plan_contract_sections(plan_text)
     files_scope_text = sections.get(PLAN_CONTRACT_FILES_SECTION, "")
     lowered = plan_text.lower()
+    files_scope_global_logs = [
+        match
+        for match in re.findall(r"docs/03-logs/[^\s`]+", files_scope_text, re.IGNORECASE)
+        if not is_compacted_logs_path(match)
+    ]
+    full_text_global_logs = [
+        match
+        for match in re.findall(r"docs/03-logs/[^\s`]+", plan_text, re.IGNORECASE)
+        if not is_compacted_logs_path(match)
+    ]
     requires_handoff = bool(
-        re.search(r"docs/03-logs/", files_scope_text, re.IGNORECASE)
+        files_scope_global_logs
         or re.search(r"docs/04-process/", files_scope_text, re.IGNORECASE)
-        or "docs/03-logs" in lowered
+        or full_text_global_logs
     )
     if not requires_handoff:
         return None
-    mentions_docs_logs = "docs/03-logs" in lowered
+    mentions_docs_logs = bool(full_text_global_logs)
     mentions_owner = "reporter" in lowered or "orchestrator" in lowered
     patcher_guard = any(
         marker in lowered
@@ -3199,6 +3248,7 @@ def main() -> None:
         role_log_paths_abs=role_paths_abs,
         work_item_id=work_item_id,
     )
+    ensure_compacted_policy_bootstrap_ready()
     content = read_file(dev_tasks_path)
     content = ensure_allowed_tests_section(content, work_item_id)
     current_main_head = git_ref_sha(root, "refs/heads/main")

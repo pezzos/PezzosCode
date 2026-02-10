@@ -135,6 +135,26 @@ class TestLogCompactionPaths(unittest.TestCase):
         )
         self.assertEqual(sources["decision"], "logs/decision.md")
 
+    def test_compacted_log_output_paths_fallback_when_config_missing(self):
+        root = Path("/tmp/pc-root")
+        missing_config = Path("/tmp/non-existent-log-compaction-config.json")
+        with mock.patch.dict(
+            os.environ,
+            {
+                "PC_LOG_COMPACTION_CONFIG": str(missing_config),
+                "PC_COMPACTED_LOGS_DIR": "",
+            },
+            clear=False,
+        ):
+            outputs = log_compaction.compacted_log_output_paths(root=root)
+        expected_dir = os.path.join(
+            "/tmp/pc-root", "docs", "03-logs", "compacted"
+        )
+        self.assertEqual(
+            outputs["validation"],
+            os.path.join(expected_dir, "validation-log-compact.json"),
+        )
+
     def test_implementation_log_contract_fixtures(self):
         fixtures = [
             {
