@@ -73,40 +73,41 @@ class TestLogCompactionContract(unittest.TestCase):
 
 class TestLogCompactionPaths(unittest.TestCase):
     def test_compacted_log_output_paths_respect_root_override(self):
-        root = Path("/tmp/pc-root")
-        config = log_compaction.load_compaction_config(
-            root=Path(__file__).resolve().parents[1]
-        )
-        configured_dir = config.get("compacted_logs_dir", "compacted")
-        if os.path.isabs(str(configured_dir)):
-            expected_dir = str(configured_dir)
-        else:
-            expected_dir = os.path.join(str(root), str(configured_dir))
-        outputs = log_compaction.compacted_log_output_paths(root=root)
-        self.assertEqual(
-            outputs["decision"],
-            os.path.join(expected_dir, "decision-log-compact.json"),
-        )
-        self.assertEqual(
-            outputs["implementation"],
-            os.path.join(expected_dir, "implementation-log-compact.json"),
-        )
-        self.assertEqual(
-            outputs["validation"],
-            os.path.join(expected_dir, "validation-log-compact.json"),
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config_path = root / "tools" / "log-compaction-config.json"
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_text(
+                json.dumps({"compacted_logs_dir": "alt/compacted"}),
+                encoding="utf-8",
+            )
+            outputs = log_compaction.compacted_log_output_paths(root=root)
+            expected_dir = os.path.join(str(root), "alt", "compacted")
+            self.assertEqual(
+                outputs["decision"],
+                os.path.join(expected_dir, "decision-log-compact.json"),
+            )
+            self.assertEqual(
+                outputs["implementation"],
+                os.path.join(expected_dir, "implementation-log-compact.json"),
+            )
+            self.assertEqual(
+                outputs["validation"],
+                os.path.join(expected_dir, "validation-log-compact.json"),
+            )
 
     def test_compacted_log_output_paths_respect_env_override(self):
-        root = Path("/tmp/pc-root")
-        with mock.patch.dict(
-            os.environ, {"PC_COMPACTED_LOGS_DIR": "alt/compacted"}, clear=False
-        ):
-            outputs = log_compaction.compacted_log_output_paths(root=root)
-        expected_dir = os.path.join("/tmp/pc-root", "alt", "compacted")
-        self.assertEqual(
-            outputs["decision"],
-            os.path.join(expected_dir, "decision-log-compact.json"),
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with mock.patch.dict(
+                os.environ, {"PC_COMPACTED_LOGS_DIR": "alt/compacted"}, clear=False
+            ):
+                outputs = log_compaction.compacted_log_output_paths(root=root)
+            expected_dir = os.path.join(str(root), "alt", "compacted")
+            self.assertEqual(
+                outputs["decision"],
+                os.path.join(expected_dir, "decision-log-compact.json"),
+            )
 
     def test_compacted_log_output_paths_respect_config_override(self):
         root = Path("/tmp/pc-root")
@@ -147,9 +148,7 @@ class TestLogCompactionPaths(unittest.TestCase):
             clear=False,
         ):
             outputs = log_compaction.compacted_log_output_paths(root=root)
-        expected_dir = os.path.join(
-            "/tmp/pc-root", "docs", "03-logs", "compacted"
-        )
+        expected_dir = os.path.join("/tmp/pc-root", "docs", "03-logs", "compacted")
         self.assertEqual(
             outputs["validation"],
             os.path.join(expected_dir, "validation-log-compact.json"),

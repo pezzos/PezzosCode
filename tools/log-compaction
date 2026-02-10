@@ -75,6 +75,33 @@ def summarize_title(title: str) -> str:
     return stripped or title.strip()
 
 
+def ensure_entry_contract(entry: dict, source_path: str) -> dict:
+    if not isinstance(entry, dict):
+        entry = {}
+    entry.setdefault("source_path", source_path)
+    if not str(entry.get("source_path", "")).strip():
+        entry["source_path"] = source_path
+    source_section = str(entry.get("source_section", "")).strip()
+    if not source_section:
+        entry["source_section"] = "missing or moved"
+    work_item_ref = entry.get("work_item_ref")
+    if work_item_ref is None:
+        entry["work_item_ref"] = ""
+    elif not isinstance(work_item_ref, str):
+        entry["work_item_ref"] = str(work_item_ref)
+    summary = str(entry.get("summary", "")).strip()
+    outcome = str(entry.get("outcome_rationale", "")).strip()
+    if not summary:
+        summary = outcome or "Missing summary."
+        entry["summary"] = summary
+    if not outcome:
+        entry["outcome_rationale"] = summary
+    evidence = entry.get("evidence_refs")
+    if not isinstance(evidence, list) or not evidence:
+        entry["evidence_refs"] = [entry["source_path"]]
+    return entry
+
+
 def build_entries(
     log_key: str, source_path: str, text: str, max_entries: int
 ) -> List[dict]:
@@ -87,16 +114,15 @@ def build_entries(
 
     sections = split_sections(text)
     if not sections:
-        return [
-            {
-                "source_path": source_path,
-                "source_section": "missing or moved",
-                "work_item_ref": "",
-                "outcome_rationale": "Source section missing or format changed.",
-                "evidence_refs": [source_path],
-                "summary": "No entries detected for compaction.",
-            }
-        ]
+        entry = {
+            "source_path": source_path,
+            "source_section": "missing or moved",
+            "work_item_ref": "",
+            "outcome_rationale": "Source section missing or format changed.",
+            "evidence_refs": [source_path],
+            "summary": "No entries detected for compaction.",
+        }
+        return [ensure_entry_contract(entry, source_path)]
 
     entries: List[dict] = []
     for title, section in sections[:max_entries]:
@@ -110,16 +136,15 @@ def build_entries(
             outcome = extract_after_label(section, "PASS")
         if not outcome:
             outcome = summary
-        entries.append(
-            {
-                "source_path": source_path,
-                "source_section": date or "missing or moved",
-                "work_item_ref": extract_work_item(section),
-                "outcome_rationale": outcome,
-                "evidence_refs": extract_evidence(section, source_path),
-                "summary": summary,
-            }
-        )
+        entry = {
+            "source_path": source_path,
+            "source_section": date or "missing or moved",
+            "work_item_ref": extract_work_item(section),
+            "outcome_rationale": outcome,
+            "evidence_refs": extract_evidence(section, source_path),
+            "summary": summary,
+        }
+        entries.append(ensure_entry_contract(entry, source_path))
     return entries
 
 

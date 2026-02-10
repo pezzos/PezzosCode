@@ -46,19 +46,19 @@ def log_sources(root: Optional[Path] = None) -> Dict[str, str]:
     return {str(key): str(value) for key, value in sources.items()}
 
 
-def compacted_logs_dir() -> str:
-    override = os.environ.get(COMPACTED_LOGS_DIR_ENV)
-    if override:
-        return override
-    config = load_compaction_config()
+def compacted_logs_dir(root: Optional[Path] = None) -> str:
+    config = load_compaction_config(root)
     configured = config.get("compacted_logs_dir")
     if isinstance(configured, str) and configured.strip():
         return configured
+    override = os.environ.get(COMPACTED_LOGS_DIR_ENV)
+    if override and override.strip():
+        return override
     return DEFAULT_COMPACTED_LOGS_DIR
 
 
 def resolve_compacted_logs_dir(root: Optional[Path] = None) -> str:
-    base = compacted_logs_dir()
+    base = compacted_logs_dir(root)
     if os.path.isabs(base):
         return base
     base_root = root or REPO_ROOT

@@ -86,7 +86,7 @@ GLOBAL_LOG_FILES = (
     "insights.md",
     "validation-log.md",
 )
-COMPACTED_LOGS_DIR = log_compaction.compacted_logs_dir()
+COMPACTED_LOGS_DIR = log_compaction.compacted_logs_dir(root=ROOT)
 COMPACTED_LOG_OUTPUT_NAMES = log_compaction.COMPACTED_LOG_OUTPUT_NAMES
 POSSIBLE_IMPROVEMENTS_PATH = os.path.join("docs", "possible-improvements.md")
 PROCESS_DOC_FILES = (
@@ -2024,7 +2024,8 @@ def compacted_policy_bootstrap_issues() -> List[str]:
                 blocked.append(issue)
         if blocked:
             issues.append(
-                "plan policy blocks compacted output path: " + ", ".join(sorted(blocked))
+                "plan policy blocks compacted output path: "
+                + ", ".join(sorted(blocked))
             )
     return issues
 
@@ -2149,7 +2150,9 @@ def missing_global_log_handoff_issue(plan_text: str) -> Optional[str]:
     lowered = plan_text.lower()
     files_scope_global_logs = [
         match
-        for match in re.findall(r"docs/03-logs/[^\s`]+", files_scope_text, re.IGNORECASE)
+        for match in re.findall(
+            r"docs/03-logs/[^\s`]+", files_scope_text, re.IGNORECASE
+        )
         if not is_compacted_logs_path(match)
     ]
     full_text_global_logs = [
