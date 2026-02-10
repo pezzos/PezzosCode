@@ -94,17 +94,42 @@
 Plan Contract v1
 Approach:
 
-1. Identify required implementation targets for WI-20260209-01 from the feature specs and update only those implementation files (exclude role-scoped logs).
+1. Align offload indexing and retention hooks with the WI-20260209-01 requirements by updating the offload proxy and its config.
    Files to change:
 
-- `TBD (implementation target files identified from docs/02-features/15-offload-audit-and-log-compaction/ specs; no role-scoped logs)`
+- `tools/offload-proxy/pp`
+- `pp.yml`
+- `.offload/index.jsonl`
   Risks:
-- Mis-scoping updates if the spec is incomplete or ambiguous.
+- Offload metadata schema or retention behavior diverges from feature requirements.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A unless implementation changes require fixtures.
-- Deterministic seed strategy: N/A unless tests added.
-- Invariant checks: Ensure changes match spec acceptance criteria and do not alter scope boundaries.
-- Contract boundary coverage: N/A unless integration boundaries are modified.
+- Fixture coverage: Use minimal offload samples in tests to avoid hardcoded paths/ids.
+- Deterministic seed strategy: N/A (no randomness expected).
+- Invariant checks: Index entries include required fields; retention rules preserve expected entries.
+- Contract boundary coverage: Offload proxy command input/output remains stable.
+- Allowed test commands:
+  - `python -m unittest discover -s tests -p "test_*.py"`
+
+2. Implement log compaction skills and supporting validation/docs for the compact-output contract.
+   Files to change:
+
+- `.codex/skills/log-compaction-decision/SKILL.md`
+- `.codex/skills/log-compaction-implementation/SKILL.md`
+- `.codex/skills/log-compaction-validation/SKILL.md`
+- `tests/test_log_compaction.py`
+- `tests/test_offload_index.py`
+- `tests/test_offload_retention.py`
+- `docs/04-process/output-offload.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/feature-spec.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/tech-design.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/test-plan.md`
+  Risks:
+- Compaction outputs omit required usefulness fields or violate derived-location contract.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Use representative log snippets to validate required compact fields.
+- Deterministic seed strategy: N/A (no randomness expected).
+- Invariant checks: Compact artifacts reference source path/section, include WI where available, and preserve evidence pointers.
+- Contract boundary coverage: Compaction output location and format remain stable for downstream use.
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
@@ -155,6 +180,7 @@ Work Item ID: WI-20260209-01
 - Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=3/12, planner_revision=3/12, execution_attempt=3/3).
 - Attempt 3: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows compacted outputs are not being generated under the required location, so the plan must add explicit generation and verification of those artifacts.; patcher feedback pending.
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure requires updating `dev-tasks.md`, which is not covered by the current plan.; patcher feedback pending.
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_attempt=1/3).
 
 #### Commit
 
