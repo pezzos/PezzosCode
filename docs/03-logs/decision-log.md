@@ -1887,3 +1887,18 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Reduces false terminal aborts from incidental `dev-tasks.md` dirt at tester/reporter/plan-reviewer commit boundaries.
   - Preserves role ownership and deterministic scope enforcement semantics.
+
+### DEC-040 - Make patcher-branch collection resilient with conflict auto-skip and explicit diagnostics
+
+- **Date:** 2026-02-10
+- **Status:** Accepted
+- **Context:** Final collection could abort with a generic `conflict detected while collecting worktrees` error even when tester/reporter outcomes were PASS. The failure stopped integration and did not clearly identify conflicting paths.
+- **Decision:**
+  - Keep `git apply --3way` collection strategy.
+  - Add diagnostics-first collection in `apply_branch_diff(...)` (precheck + conflict path extraction).
+  - During collection of patcher branch into main, auto-retry non-conflicting paths and fall back to per-path apply when needed.
+  - If conflicts remain, auto-skip conflicting paths, emit explicit warning logs listing those paths, append an Iteration Log note, and continue workflow to final gates.
+- **Consequences:**
+  - Reduced run-breaking behavior from localized collection conflicts.
+  - Better operator visibility into exactly which paths conflicted during `collecting patcher branch into main`.
+  - Non-conflicting changes have a higher chance of being integrated in the same run without manual patch replay.

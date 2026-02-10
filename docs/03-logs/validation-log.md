@@ -1195,3 +1195,17 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Notes:
   - The observed failures were in `ProposalGenerationTests` duplicate-count assertions and are unrelated to the tester role-scope reset change.
   - Targeted role-scope regression tests for this fix passed.
+
+## 2026-02-10 - Validate resilient collection conflict auto-skip and visibility hardening
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_collect_branch_into_main_auto_skips_conflicting_paths tests.test_pc_feature.TestPcFeature.test_collect_branch_into_main_falls_back_to_per_path_apply tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_logs_auto_reset_of_dev_tasks`
+- Result: PASS (`4` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_main_avoids_git_add_all_for_final_staging tests.test_pc_feature.TestPcFeature.test_main_skips_commit_generation_if_commit_section_already_filled`
+- Result: PASS (`2` tests)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: FAIL (offload id `266f1dafb11f5d96741307c099c1f0f0522f6fd8aafad12c858fd0e4ba3a55e3`)
+- Notes:
+  - Failing tests were `ProposalGenerationTests` duplicate-count assertions (`test_dedup_merges_placeholder_fields`, `test_dedup_skips_duplicate_signature`, `test_flush_collected_proposals_dedupes_and_merges_queue`) and are pre-existing/unrelated to this collection hardening change.
+  - New/changed hardening tests passed, including conflict auto-skip and explicit non-planner auto-reset logging.

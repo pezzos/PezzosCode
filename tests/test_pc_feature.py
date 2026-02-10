@@ -156,7 +156,7 @@ class TestPcFeature(unittest.TestCase):
                 self.pc_feature, "commit_worktree_changes", return_value=None
             ),
             mock.patch.object(
-                self.pc_feature, "reset_dev_tasks_if_dirty", return_value=None
+                self.pc_feature, "reset_dev_tasks_if_dirty", return_value=False
             ),
             mock.patch.object(
                 self.pc_feature, "reset_global_logs_to_head", return_value=None
@@ -310,6 +310,117 @@ class TestPcFeature(unittest.TestCase):
                 "tools/pc-feature",
             ],
         )
+
+    def test_collect_branch_into_main_auto_skips_conflicting_paths(self):
+        include_paths = ["src/a.py", "src/b.py", "src/c.py"]
+        calls = []
+
+        def fake_apply(
+            root,
+            base_ref,
+            branch,
+            include_paths=None,
+            diagnostics=None,
+            precheck=False,
+        ):
+            normalized = list(include_paths or [])
+            calls.append((normalized, precheck))
+            if normalized == ["src/a.py", "src/b.py", "src/c.py"]:
+                if diagnostics is not None:
+                    diagnostics.clear()
+                    diagnostics["precheck_conflicts"] = ["src/b.py"]
+                    diagnostics["conflicts"] = ["src/b.py"]
+                    diagnostics["attempts"] = []
+                return False
+            if normalized == ["src/a.py", "src/c.py"]:
+                if diagnostics is not None:
+                    diagnostics.clear()
+                    diagnostics["precheck_conflicts"] = []
+                    diagnostics["conflicts"] = []
+                    diagnostics["attempts"] = []
+                return True
+            raise AssertionError(f"unexpected include_paths call: {normalized}")
+
+        with mock.patch.object(
+            self.pc_feature,
+            "apply_branch_diff",
+            side_effect=fake_apply,
+        ):
+            summary = self.pc_feature.collect_branch_into_main(
+                str(ROOT),
+                "HEAD",
+                "patcher-branch",
+                include_paths,
+            )
+
+        self.assertEqual(summary["applied_paths"], ["src/a.py", "src/c.py"])
+        self.assertEqual(summary["skipped_paths"], ["src/b.py"])
+        self.assertEqual(summary["conflict_paths"], ["src/b.py"])
+        self.assertEqual(
+            calls,
+            [
+                (["src/a.py", "src/b.py", "src/c.py"], True),
+                (["src/a.py", "src/c.py"], False),
+            ],
+        )
+
+    def test_collect_branch_into_main_falls_back_to_per_path_apply(self):
+        include_paths = ["src/a.py", "src/b.py", "src/c.py"]
+
+        def fake_apply(
+            root,
+            base_ref,
+            branch,
+            include_paths=None,
+            diagnostics=None,
+            precheck=False,
+        ):
+            normalized = list(include_paths or [])
+            if normalized == ["src/a.py", "src/b.py", "src/c.py"]:
+                if diagnostics is not None:
+                    diagnostics.clear()
+                    diagnostics["precheck_conflicts"] = ["src/b.py"]
+                    diagnostics["conflicts"] = ["src/b.py"]
+                    diagnostics["attempts"] = []
+                return False
+            if normalized == ["src/a.py", "src/c.py"]:
+                if diagnostics is not None:
+                    diagnostics.clear()
+                    diagnostics["precheck_conflicts"] = []
+                    diagnostics["conflicts"] = []
+                    diagnostics["attempts"] = []
+                return False
+            if normalized == ["src/a.py"]:
+                if diagnostics is not None:
+                    diagnostics.clear()
+                    diagnostics["precheck_conflicts"] = []
+                    diagnostics["conflicts"] = []
+                    diagnostics["attempts"] = []
+                return True
+            if normalized == ["src/c.py"]:
+                if diagnostics is not None:
+                    diagnostics.clear()
+                    diagnostics["precheck_conflicts"] = []
+                    diagnostics["conflicts"] = []
+                    diagnostics["attempts"] = []
+                return False
+            raise AssertionError(f"unexpected include_paths call: {normalized}")
+
+        with mock.patch.object(
+            self.pc_feature,
+            "apply_branch_diff",
+            side_effect=fake_apply,
+        ):
+            summary = self.pc_feature.collect_branch_into_main(
+                str(ROOT),
+                "HEAD",
+                "patcher-branch",
+                include_paths,
+            )
+
+        self.assertEqual(summary["applied_paths"], ["src/a.py"])
+        self.assertEqual(summary["skipped_paths"], ["src/b.py", "src/c.py"])
+        self.assertEqual(summary["conflict_paths"], ["src/b.py", "src/c.py"])
 
     def test_normalize_allowed_test_restricts_to_unittest_or_pytest(self):
         self.assertEqual(
@@ -765,7 +876,7 @@ class TestPcFeature(unittest.TestCase):
         feature_dir = "docs/02-features/01-workflow-hardening"
         dev_tasks_path = f"{feature_dir}/dev-tasks.md"
         validation_log_path = f"{feature_dir}/validation-log.md"
-        reset_dev_tasks = mock.Mock(return_value=None)
+        reset_dev_tasks = mock.Mock(return_value=False)
         with mock.patch.object(
             self.pc_feature,
             "get_status_paths",
@@ -815,6 +926,68 @@ class TestPcFeature(unittest.TestCase):
                                         )
         self.assertTrue(committed)
         reset_dev_tasks.assert_called_once_with("/tmp/worktree", dev_tasks_path)
+
+    def test_commit_role_step_tester_logs_auto_reset_of_dev_tasks(self):
+        feature_dir = "docs/02-features/01-workflow-hardening"
+        dev_tasks_path = f"{feature_dir}/dev-tasks.md"
+        validation_log_path = f"{feature_dir}/validation-log.md"
+        reset_dev_tasks = mock.Mock(return_value=True)
+        with mock.patch.object(
+            self.pc_feature,
+            "get_status_paths",
+            side_effect=[
+                [dev_tasks_path, validation_log_path],
+                [validation_log_path],
+            ],
+        ):
+            with mock.patch.object(
+                self.pc_feature, "format_role_changes", return_value=None
+            ):
+                with mock.patch.object(
+                    self.pc_feature,
+                    "reset_possible_improvements_to_head",
+                    return_value=None,
+                ):
+                    with mock.patch.object(
+                        self.pc_feature, "reset_global_logs_to_head", return_value=None
+                    ):
+                        with mock.patch.object(
+                            self.pc_feature,
+                            "reset_dev_tasks_if_dirty",
+                            reset_dev_tasks,
+                        ):
+                            with mock.patch.object(
+                                self.pc_feature,
+                                "enforce_role_scope",
+                                return_value=None,
+                            ):
+                                with mock.patch.object(
+                                    self.pc_feature,
+                                    "commit_worktree_changes",
+                                    return_value=None,
+                                ):
+                                    with mock.patch.object(
+                                        self.pc_feature,
+                                        "ensure_clean_worktree",
+                                        return_value=None,
+                                    ):
+                                        with mock.patch("builtins.print") as print_mock:
+                                            committed = (
+                                                self.pc_feature.commit_role_step(
+                                                    "/tmp/root",
+                                                    "/tmp/worktree",
+                                                    "patcher-branch",
+                                                    "tester",
+                                                    "WI-20260210-01",
+                                                    feature_dir,
+                                                )
+                                            )
+        self.assertTrue(committed)
+        reset_dev_tasks.assert_called_once_with("/tmp/worktree", dev_tasks_path)
+        print_mock.assert_any_call(
+            "pc-feature: tester auto-reset planner-owned dev-tasks.md before "
+            f"scope check: {dev_tasks_path}"
+        )
 
     def test_compacted_policy_bootstrap_issues_reports_scope_block(self):
         with mock.patch.object(

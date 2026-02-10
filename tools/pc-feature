@@ -9,7 +9,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 PROMPTS_DIR = ROOT / "prompts"
@@ -1112,13 +1112,14 @@ def reset_possible_improvements_to_head(worktree_path: str) -> None:
     subprocess.run(cmd, check=False, cwd=worktree_path)
 
 
-def reset_dev_tasks_if_dirty(worktree_path: str, dev_tasks_path: str) -> None:
+def reset_dev_tasks_if_dirty(worktree_path: str, dev_tasks_path: str) -> bool:
     paths = get_status_paths(worktree_path)
     if dev_tasks_path not in paths:
-        return
+        return False
     subprocess.run(
         ["git", "checkout", "--", dev_tasks_path], check=False, cwd=worktree_path
     )
+    return True
 
 
 def check_allowed_tests_exist(
@@ -1458,7 +1459,13 @@ def commit_role_step(
         reset_global_logs_to_head(worktree_path)
     elif role in {"tester", "reporter", "plan-reviewer"}:
         reset_global_logs_to_head(worktree_path)
-        reset_dev_tasks_if_dirty(worktree_path, dev_tasks_path)
+        reset_performed = reset_dev_tasks_if_dirty(worktree_path, dev_tasks_path)
+        if reset_performed:
+            print(
+                "pc-feature: "
+                f"{role} auto-reset planner-owned dev-tasks.md before scope check: "
+                f"{dev_tasks_path}"
+            )
     enforce_role_scope(worktree_path, role, feature_dir)
     paths = filter_ignored_paths(get_status_paths(worktree_path))
     if not paths and not allow_empty:
@@ -1499,8 +1506,20 @@ def branch_behind_count(root: str, branch: str, base_ref: str) -> int:
 
 
 def apply_branch_diff(
-    root: str, base_ref: str, branch: str, include_paths: Optional[List[str]] = None
+    root: str,
+    base_ref: str,
+    branch: str,
+    include_paths: Optional[List[str]] = None,
+    *,
+    diagnostics: Optional[Dict[str, Any]] = None,
+    precheck: bool = False,
 ) -> bool:
+    if diagnostics is not None:
+        diagnostics.clear()
+        diagnostics["attempts"] = []
+        diagnostics["conflicts"] = []
+        diagnostics["precheck_conflicts"] = []
+
     if include_paths is not None and not include_paths:
         return True
     cmd: List[str] = ["git", "diff", "--binary", f"{base_ref}..{branch}"]
@@ -1521,17 +1540,99 @@ def apply_branch_diff(
     patch = result.stdout
     if not patch:
         return True
-    apply_result = subprocess.run(
-        ["git", "apply", "--3way", "--whitespace=nowarn"],
-        check=False,
-        input=patch,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=root,
-    )
-    if apply_result.returncode != 0:
-        return False
-    return True
+
+    def decode_apply_output(data: bytes) -> str:
+        return data.decode("utf-8", errors="replace") if data else ""
+
+    def parse_conflict_paths(*texts: str) -> List[str]:
+        patterns = (
+            r"Applied patch to '([^']+)' with conflicts\.",
+            r"CONFLICT \([^)]*\):.* in ([^\n]+)",
+            r"error:\s+([^:\n]+):\s+does not match index",
+            r"error:\s+([^:\n]+):\s+patch does not apply",
+        )
+        paths = set()
+        for text in texts:
+            if not text:
+                continue
+            for pattern in patterns:
+                for match in re.findall(pattern, text):
+                    candidate = normalize_repo_rel(match.strip())
+                    if candidate:
+                        paths.add(candidate)
+        return sorted(paths)
+
+    def restore_apply_delta(before_snapshot: Dict[str, str]) -> List[str]:
+        after_snapshot = collect_dirty_snapshot(root)
+        delta = dirty_delta_paths(before_snapshot, after_snapshot)
+        if not delta:
+            return []
+        subprocess.run(
+            ["git", "reset", "--"] + delta,
+            check=False,
+            cwd=root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        restore_dirty_paths(root, delta)
+        return delta
+
+    all_conflicts: List[str] = []
+    if precheck:
+        check_result = subprocess.run(
+            ["git", "apply", "--check", "--3way", "--whitespace=nowarn"],
+            check=False,
+            input=patch,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=root,
+        )
+        precheck_stdout = decode_apply_output(check_result.stdout)
+        precheck_stderr = decode_apply_output(check_result.stderr)
+        precheck_conflicts = parse_conflict_paths(precheck_stdout, precheck_stderr)
+        if diagnostics is not None:
+            diagnostics["precheck_conflicts"] = precheck_conflicts
+        for path in precheck_conflicts:
+            if path not in all_conflicts:
+                all_conflicts.append(path)
+
+    initial_snapshot = collect_dirty_snapshot(root)
+    attempts_to_run = 2
+    for attempt in range(1, attempts_to_run + 1):
+        apply_result = subprocess.run(
+            ["git", "apply", "--3way", "--whitespace=nowarn"],
+            check=False,
+            input=patch,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=root,
+        )
+        apply_stdout = decode_apply_output(apply_result.stdout)
+        apply_stderr = decode_apply_output(apply_result.stderr)
+        attempt_conflicts = parse_conflict_paths(apply_stdout, apply_stderr)
+        for path in attempt_conflicts:
+            if path not in all_conflicts:
+                all_conflicts.append(path)
+        if diagnostics is not None:
+            diagnostics["attempts"].append(
+                {
+                    "attempt": attempt,
+                    "returncode": apply_result.returncode,
+                    "conflicts": attempt_conflicts,
+                }
+            )
+        if apply_result.returncode == 0:
+            if diagnostics is not None:
+                diagnostics["conflicts"] = sorted(all_conflicts)
+            return True
+        restored = restore_apply_delta(initial_snapshot)
+        if diagnostics is not None:
+            diagnostics["attempts"][-1]["restored_paths"] = restored
+
+    if diagnostics is not None:
+        diagnostics["conflicts"] = sorted(all_conflicts)
+    return False
 
 
 def branch_diff_paths(root: str, base_ref: str, branch: str) -> List[str]:
@@ -1569,6 +1670,90 @@ def collect_branch_merge_paths(
             continue
         merged.append(path)
     return sorted(set(merged))
+
+
+def merge_collection_conflict_paths(diagnostics: Optional[Dict[str, Any]]) -> List[str]:
+    if not diagnostics:
+        return []
+    conflicts: Set[str] = set()
+    for key in ("precheck_conflicts", "conflicts"):
+        for path in diagnostics.get(key, []) or []:
+            normalized = normalize_repo_rel(str(path))
+            if normalized:
+                conflicts.add(normalized)
+    return sorted(conflicts)
+
+
+def collect_branch_into_main(
+    root: str,
+    base_ref: str,
+    branch: str,
+    include_paths: List[str],
+) -> Dict[str, List[str]]:
+    merged_paths = sorted(set(include_paths))
+    summary: Dict[str, List[str]] = {
+        "applied_paths": [],
+        "skipped_paths": [],
+        "conflict_paths": [],
+    }
+    if not merged_paths:
+        return summary
+
+    first_diagnostics: Dict[str, Any] = {}
+    if apply_branch_diff(
+        root,
+        base_ref,
+        branch,
+        include_paths=merged_paths,
+        diagnostics=first_diagnostics,
+        precheck=True,
+    ):
+        summary["applied_paths"] = merged_paths
+        return summary
+
+    conflict_paths = set(merge_collection_conflict_paths(first_diagnostics))
+    remaining_paths = [path for path in merged_paths if path not in conflict_paths]
+    applied_paths: Set[str] = set()
+
+    if remaining_paths:
+        retry_diagnostics: Dict[str, Any] = {}
+        if apply_branch_diff(
+            root,
+            base_ref,
+            branch,
+            include_paths=remaining_paths,
+            diagnostics=retry_diagnostics,
+            precheck=False,
+        ):
+            applied_paths.update(remaining_paths)
+        else:
+            conflict_paths.update(merge_collection_conflict_paths(retry_diagnostics))
+            for path in remaining_paths:
+                if path in conflict_paths:
+                    continue
+                path_diagnostics: Dict[str, Any] = {}
+                if apply_branch_diff(
+                    root,
+                    base_ref,
+                    branch,
+                    include_paths=[path],
+                    diagnostics=path_diagnostics,
+                    precheck=False,
+                ):
+                    applied_paths.add(path)
+                    continue
+                path_conflicts = merge_collection_conflict_paths(path_diagnostics)
+                if path_conflicts:
+                    conflict_paths.update(path_conflicts)
+                else:
+                    conflict_paths.add(path)
+
+    skipped_paths = sorted(path for path in merged_paths if path not in applied_paths)
+    conflict_paths.update(skipped_paths)
+    summary["applied_paths"] = sorted(applied_paths)
+    summary["skipped_paths"] = skipped_paths
+    summary["conflict_paths"] = sorted(conflict_paths)
+    return summary
 
 
 def cleanup_worktrees(
@@ -4476,20 +4661,48 @@ def main() -> None:
             dev_tasks_path=dev_tasks_repo_path,
             feature_dir=feature_dir,
         )
-        if not apply_branch_diff(root, base_ref, branch, include_paths=merge_paths):
-            content = read_file(dev_tasks_path)
-            content = update_entry_field(
-                content, work_item_id, "Outcome", "needs replan"
+        collection_summary = collect_branch_into_main(
+            root,
+            base_ref,
+            branch,
+            merge_paths,
+        )
+        skipped_paths = collection_summary["skipped_paths"]
+        if skipped_paths:
+            skipped_text = ", ".join(skipped_paths)
+            print(
+                "pc-feature: warning: collecting patcher branch into main "
+                "auto-skipped conflicting paths: " + skipped_text
             )
-            content = update_entry_field(
+            if collection_summary["applied_paths"]:
+                print(
+                    "pc-feature: collecting patcher branch into main "
+                    f"applied {len(collection_summary['applied_paths'])} path(s) "
+                    "after auto-skip."
+                )
+            else:
+                print(
+                    "pc-feature: warning: collecting patcher branch into main "
+                    "could not apply patcher diff paths; continuing run with "
+                    "orchestrator-owned updates only."
+                )
+            content = read_file(dev_tasks_path)
+            content = append_iteration_log_note(
                 content,
                 work_item_id,
-                "Notes",
-                "Collection conflict while replaying patcher branch",
+                "Collection stage: collecting patcher branch into main "
+                f"auto-skipped conflicting paths: {skipped_text}.",
             )
             write_file(dev_tasks_path, content)
-            flush_pending_failure_proposals("branch collection conflict")
-            die("pc-feature: conflict detected while collecting worktrees")
+            review_items.append(
+                "collect patcher branch into main: auto-skip conflicts ("
+                + skipped_text
+                + ")"
+            )
+        elif merge_paths:
+            review_items.append(
+                format_review_item("collect patcher branch into main", 0)
+            )
 
     flush_pending_failure_proposals("post-loop before final gates")
     allowed_stage_paths = collect_allowed_final_stage_paths(

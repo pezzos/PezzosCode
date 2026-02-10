@@ -72,7 +72,8 @@
 
 #### Allowed Tests
 
-- `python -m unittest discover -s tests -p 'test_*.py'`
+- `python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_logs_auto_reset_of_dev_tasks tests.test_pc_feature.TestPcFeature.test_collect_branch_into_main_auto_skips_conflicting_paths tests.test_pc_feature.TestPcFeature.test_collect_branch_into_main_falls_back_to_per_path_apply`
+- `python3 -m unittest tests.test_pc_feature`
 
 #### Files to Change
 
@@ -195,7 +196,8 @@ Work Item ID: WI-20260209-01
 
 ## Allowed Tests (Planner must populate before Tester runs)
 
-- `python -m unittest discover -s tests -p "test_*.py"`
+- `python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_logs_auto_reset_of_dev_tasks tests.test_pc_feature.TestPcFeature.test_collect_branch_into_main_auto_skips_conflicting_paths tests.test_pc_feature.TestPcFeature.test_collect_branch_into_main_falls_back_to_per_path_apply`
+- `python3 -m unittest tests.test_pc_feature`
 
 ## Related Documents
 
@@ -210,6 +212,7 @@ Work Item ID: WI-20260209-01
 
 | Date       | Changes                                                                                                    | Author       |
 | ---------- | ---------------------------------------------------------------------------------------------------------- | ------------ |
+| 2026-02-10 | Tightened Allowed Tests to focused `tests.test_pc_feature` commands for collection/reset hardening work.   | Codex        |
 | 2026-02-09 | Reformulated compaction scope for decision/implementation/validation + usefulness contract/output location | Codex        |
 | 2026-02-09 | Aligned workflow baseline to remove change-budget fields/section wording                                   | Codex        |
 | 2026-02-08 | Rebased tasks to explicit offload index lifecycle                                                          | Codex        |

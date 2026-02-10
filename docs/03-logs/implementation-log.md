@@ -5238,3 +5238,38 @@ Track when debt is paid down:
 - `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check`
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_enforce_role_scope_blocks_patcher_cross_feature_role_docs tests.test_pc_feature.TestPcFeature.test_prepatch_policy_recheck_routes_back_to_planner_before_patcher tests.test_pc_feature.TestPcFeature.test_failure_loop_invokes_planner_and_patcher_feedback_and_logs_iteration`
+
+### 2026-02-10 - Resilient patcher collection into main with conflict auto-skip
+
+**Feature/Bug:** `pc-feature: conflict detected while collecting worktrees` abort during final collection
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
+
+**What Changed:**
+
+- Added resilient collection flow in `collect_branch_into_main(...)`:
+  - dry precheck diagnostics (`git apply --check --3way`) via `apply_branch_diff(..., precheck=True)`,
+  - conflict path extraction/normalization,
+  - automatic retry on non-conflicting paths,
+  - per-path fallback application when batch retry fails.
+- Replaced terminal abort on collection conflict in `main()` with warning + auto-skip behavior:
+  - explicit run-log warning mentions "collecting patcher branch into main",
+  - conflicting paths are printed,
+  - Iteration Log note is appended in `dev-tasks.md`,
+  - run proceeds to final gates instead of hard stop.
+- Added explicit stdout line when non-planner roles auto-reset planner-owned `dev-tasks.md` before scope checks.
+- Tightened Feature 15 `Allowed Tests` commands to focused `tests.test_pc_feature` coverage, avoiding full-suite discovery by default.
+
+**Why:**
+
+- Collection conflicts were aborting otherwise successful runs with generic messaging and no automated recovery path. The new approach keeps strict visibility of conflicts while maximizing successful integration of non-conflicting changes.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Small additional `git apply` checks/retries during collection only
+- **Dependencies:** None
