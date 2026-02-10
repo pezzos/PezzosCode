@@ -94,46 +94,30 @@
 Plan Contract v1
 Approach:
 
-1. Update compaction path resolution and workflow so the compacted output directory is derived from configuration (defaulting to the required compacted outputs location) and ensure metadata requirements are enforced in generated artifacts.
+1. Update feature task status to reflect completed implementation and validation for WI-20260209-01.
    Files to change:
 
-- `tools/log-compaction`
-- `lib/log_compaction.py`
-- Compaction workflow script/config that resolves compacted output path
+- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
   Risks:
-- Incorrect path derivation could misroute artifacts or overwrite unrelated outputs.
+- Incorrectly marking incomplete tasks as done could misrepresent scope.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: At least 2 fixtures per log type (decision/implementation/validation).
-- Deterministic seed strategy: Fixed seed if ordering is applied.
-- Invariant checks: Output includes source path, date/section, WI ref (if available), outcome/rationale, evidence refs.
-- Contract boundary coverage: Missing/stale sections are marked explicitly.
-- Allowed test commands:
-  - `python -m unittest discover -s tests -p "test_*.py"`
-
-2. Run the compaction workflow to generate compacted outputs at the derived location and verify the expected decision/implementation/validation artifacts are created.
-   Files to change:
-
-- None (command execution only)
-  Risks:
-- Validation may miss edge cases if fixture coverage is insufficient.
-  Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A (workflow run).
+- Fixture coverage: N/A (docs-only update).
 - Deterministic seed strategy: N/A.
-- Invariant checks: Derived location contains expected compacted outputs after run.
+- Invariant checks: Task checklist, Status, and Last Updated align with completed scope and validation references.
 - Contract boundary coverage: N/A.
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
 
-3. Run the allowed tests to confirm behavior remains correct after path changes.
+2. Do not run tests (no code changes); confirm prior validation reference is recorded in `dev-tasks.md`.
    Files to change:
 
-- None (test execution only)
+- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
   Risks:
-- Tests may still discover zero cases; verify expectations align with current test suite.
+- Missing validation reference could leave status ambiguous.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: N/A.
 - Deterministic seed strategy: N/A.
-- Invariant checks: N/A.
+- Invariant checks: Validation reference included for WI-20260209-01.
 - Contract boundary coverage: N/A.
 - Allowed test commands:
   - `python -m unittest discover -s tests -p "test_*.py"`
@@ -184,6 +168,7 @@ Work Item ID: WI-20260209-01
 - Attempt 2: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure indicates outputs are not generated in `docs/03-logs/compacted/`, so plan must explicitly fix path resolution and generate artifacts there.; patcher feedback pending.
 - Attempt 3: Plan Reviewer BLOCK; planner updated plan (reviewer_block=3/12, planner_revision=3/12, execution_attempt=3/3).
 - Attempt 3: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter feedback shows compacted outputs are not being generated under the required location, so the plan must add explicit generation and verification of those artifacts.; patcher feedback pending.
+- Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Reporter failure requires updating `dev-tasks.md`, which is not covered by the current plan.; patcher feedback pending.
 
 #### Commit
 
