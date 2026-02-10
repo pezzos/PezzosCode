@@ -1,0 +1,40 @@
+[
+  {
+    "evidence_refs": [
+      "logs/compacted/decision-log-compact.json",
+      "logs/compacted/implementation-log-compact.json"
+    ],
+    "id": "implementation-47f82aaa54",
+    "source_section": "2026-02-10",
+    "summary_short": "Log compaction freshness + dedupe hardening with LLM compact outputs - Keep compact outputs current and trustworthy while minimizing prompt-token usage in repeated LLM calls.",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/implementation-log.md"],
+    "id": "implementation-59b9e2ca0b",
+    "source_section": "2026-02-10",
+    "summary_short": "Reset planner-owned `dev-tasks.md` before non-planner commits - In resumed/shared-worktree runs, incidental dirty state on `dev-tasks.md` can leak into non-planner role commit b...",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/implementation-log.md"],
+    "id": "implementation-2474dafee6",
+    "source_section": "2026-02-10",
+    "summary_short": "Resilient patcher collection into main with conflict auto-skip - Collection conflicts were aborting otherwise successful runs with generic messaging and no automated recovery pa...",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/implementation-log.md"],
+    "id": "implementation-2363bf3e81",
+    "source_section": "2026-02-09",
+    "summary_short": "Plan Reviewer first-class step + orchestration hardening - Prior runs showed planner/reviewer/patcher state coupling causing scope-guard failures and ambiguous audit history.",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/implementation-log.md"],
+    "id": "implementation-c8555c69fa",
+    "source_section": "2026-02-09",
+    "summary_short": "Pre-patch policy recheck + patcher scope-violation reroute - A feature-13 run hit `patcher edited role-scoped files` late after plan drift. We need deterministic defense at pre-...",
+    "work_item_ref": ""
+  }
+]

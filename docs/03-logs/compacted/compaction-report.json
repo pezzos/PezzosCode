@@ -1,0 +1,66 @@
+[
+  {
+    "generated_at": "2026-02-10T09:48:25Z",
+    "llm_evidence_max_items": 2,
+    "llm_summary_max_chars": 180,
+    "logs": {
+      "decision": {
+        "compacted_bytes": 2026,
+        "compacted_latest_date": "2026-02-10",
+        "dedupe_ratio": 0.0625,
+        "deduped_entries": 45,
+        "estimated_tokens_after": 507,
+        "estimated_tokens_before": 16149,
+        "estimated_tokens_llm": 337,
+        "freshness_lag_days": 0,
+        "llm_bytes": 1348,
+        "source_bytes": 64625,
+        "source_entries": 48,
+        "source_latest_date": "2026-02-10",
+        "source_path": "docs/03-logs/decision-log.md",
+        "written_entries": 5
+      },
+      "implementation": {
+        "compacted_bytes": 2775,
+        "compacted_latest_date": "2026-02-10",
+        "dedupe_ratio": 0.0054,
+        "deduped_entries": 185,
+        "estimated_tokens_after": 694,
+        "estimated_tokens_before": 46191,
+        "estimated_tokens_llm": 496,
+        "freshness_lag_days": 0,
+        "llm_bytes": 1982,
+        "source_bytes": 184801,
+        "source_entries": 186,
+        "source_latest_date": "2026-02-10",
+        "source_path": "docs/03-logs/implementation-log.md",
+        "written_entries": 5
+      },
+      "validation": {
+        "compacted_bytes": 2357,
+        "compacted_latest_date": "2026-02-10",
+        "dedupe_ratio": 0.0,
+        "deduped_entries": 96,
+        "estimated_tokens_after": 590,
+        "estimated_tokens_before": 15481,
+        "estimated_tokens_llm": 448,
+        "freshness_lag_days": 0,
+        "llm_bytes": 1791,
+        "source_bytes": 62003,
+        "source_entries": 96,
+        "source_latest_date": "2026-02-10",
+        "source_path": "docs/03-logs/validation-log.md",
+        "written_entries": 5
+      }
+    },
+    "max_entries": 5,
+    "semantic_map": "/Users/alexandrepezzotta/repos/PezzosCode/docs/03-logs/compacted/semantic-map.json",
+    "totals": {
+      "estimated_tokens_after": 1791,
+      "estimated_tokens_before": 77821,
+      "estimated_tokens_llm": 1281,
+      "token_reduction_ratio_compact": 0.977,
+      "token_reduction_ratio_llm": 0.9835
+    }
+  }
+]

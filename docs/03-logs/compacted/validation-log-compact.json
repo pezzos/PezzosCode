@@ -1,42 +1,45 @@
 [
   {
-    "evidence_refs": ["docs/03-logs/validation-log.md"],
-    "outcome_rationale": "`tools/offload-proxy/pp pre-commit run --files .pre-commit-config.yaml docs/04-process/ci-autofix-prompt.md docs/04-process/git-workflow.md docs/04-process/ticket-execution-protocol.md tools/markdown-lint tools/pc-autofix tools/pc-precommit tools/pc-template-sync tools/templates/docs/04-process/ci-autofix-prompt.md tools/templates/docs/04-process/git-workflow.md tools/templates/docs/04-process/ticket-execution-protocol.md tools/templates/root/.pre-commit-config.yaml tests/test_pc_autofix.py` (PASS)",
+    "evidence_refs": [
+      "logs/compacted/",
+      "logs/compacted/compaction-report.json"
+    ],
+    "outcome_rationale": "`tools/log-compaction` (PASS: rewrote compact + llm + report artifacts under `docs/03-logs/compacted/`)",
     "source_path": "docs/03-logs/validation-log.md",
-    "source_section": "2026-02-08",
-    "summary": "Precommit autofix scope hardening validation",
+    "source_section": "2026-02-10",
+    "summary": "Compaction freshness/dedupe hardening validation",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/validation-log.md"],
-    "outcome_rationale": "`tools/offload-proxy/pp rg -n \"Last Updated:\\\\*\\\\*\\\\s*2026-02-05\" docs/02-features/12-incremental-prd-to-features` (PASS: no stale 2026-02-05 metadata remains)",
+    "outcome_rationale": "Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check`",
     "source_path": "docs/03-logs/validation-log.md",
-    "source_section": "2026-02-08",
-    "summary": "Feature 12 docs rebaseline validation",
+    "source_section": "2026-02-10",
+    "summary": "Validate non-planner commit reset of planner-owned `dev-tasks.md`",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/validation-log.md"],
-    "outcome_rationale": "`tools/offload-proxy/pp rg -n \"Last Updated:\\\\*\\\\*\\\\s*2026-02-05\" docs/02-features/13-role-prompts-plan-reviewer docs/02-features/14-learning-loop-improvement-proposals docs/02-features/15-offload-audit-and-log-compaction docs/02-features/16-feature-gating-and-skill-mining` (PASS: no stale 2026-02-05 metadata remains in features 13-16 docs)",
+    "outcome_rationale": "Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_collect_branch_into_main_auto_skips_conflicting_paths tests.test_pc_feature.TestPcFeature.test_collect_branch_into_main_falls_back_to_per_path_apply tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_logs_auto_reset_of_dev_tasks`",
     "source_path": "docs/03-logs/validation-log.md",
-    "source_section": "2026-02-08",
-    "summary": "Feature docs 13-16 rebaseline validation",
+    "source_section": "2026-02-10",
+    "summary": "Validate resilient collection conflict auto-skip and visibility hardening",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/validation-log.md"],
-    "outcome_rationale": "Workflow doc sync validation",
+    "outcome_rationale": "Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`",
     "source_path": "docs/03-logs/validation-log.md",
-    "source_section": "2026-02-07",
-    "summary": "Workflow doc sync validation",
+    "source_section": "2026-02-09",
+    "summary": "Plan Reviewer first-class step hardening validation",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/validation-log.md"],
-    "outcome_rationale": "`tools/offload-proxy/pp env APPROVE_HIGH_RISK=1 make feature F=10` (FAIL: existing permission/network/session issues in worktree `.codex_subagent`, unrelated to high-risk prompt logic)",
+    "outcome_rationale": "Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`",
     "source_path": "docs/03-logs/validation-log.md",
-    "source_section": "2026-02-06",
-    "summary": "Interactive high-risk approval gate validation",
+    "source_section": "2026-02-09",
+    "summary": "Plan contract + reviewer loop guard validation",
     "work_item_ref": ""
   }
 ]

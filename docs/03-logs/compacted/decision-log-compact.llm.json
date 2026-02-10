@@ -1,0 +1,37 @@
+[
+  {
+    "evidence_refs": ["docs/03-logs/decision-log.md"],
+    "id": "DEC-039",
+    "source_section": "2026-02-10",
+    "summary_short": "DEC-039 - Non-planner role commits auto-reset planner-owned `dev-tasks.md`",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/decision-log.md"],
+    "id": "DEC-040",
+    "source_section": "2026-02-10",
+    "summary_short": "DEC-040 - Make patcher-branch collection resilient with conflict auto-skip and explicit diagnostics",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["logs/*.md", "logs/compacted/semantic-map.json"],
+    "id": "DEC-041",
+    "source_section": "2026-02-10",
+    "summary_short": "DEC-041 - Compaction must prefer freshest dated entries and emit LLM-optimized derived artifacts",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/decision-log.md"],
+    "id": "DEC-031",
+    "source_section": "2026-02-09",
+    "summary_short": "DEC-031 - Promote Plan Reviewer to a first-class orchestrator step",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/decision-log.md"],
+    "id": "DEC-032",
+    "source_section": "2026-02-09",
+    "summary_short": "DEC-032 - Enforce Plan Contract v1 and bounded reviewer/planner retry controls",
+    "work_item_ref": ""
+  }
+]

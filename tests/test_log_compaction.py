@@ -154,6 +154,34 @@ class TestLogCompactionPaths(unittest.TestCase):
             os.path.join(expected_dir, "validation-log-compact.json"),
         )
 
+    def test_compacted_llm_output_paths_respect_root_override(self):
+        root = Path("/tmp/pc-root")
+        outputs = log_compaction.compacted_llm_output_paths(root=root)
+        expected_dir = os.path.join("/tmp/pc-root", "docs", "03-logs", "compacted")
+        self.assertEqual(
+            outputs["decision"],
+            os.path.join(expected_dir, "decision-log-compact.llm.json"),
+        )
+        self.assertEqual(
+            outputs["implementation"],
+            os.path.join(expected_dir, "implementation-log-compact.llm.json"),
+        )
+        self.assertEqual(
+            outputs["validation"],
+            os.path.join(expected_dir, "validation-log-compact.llm.json"),
+        )
+
+    def test_compaction_report_and_semantic_map_paths(self):
+        root = Path("/tmp/pc-root")
+        self.assertEqual(
+            log_compaction.compaction_report_path(root=root),
+            "/tmp/pc-root/docs/03-logs/compacted/compaction-report.json",
+        )
+        self.assertEqual(
+            log_compaction.semantic_map_path(root=root),
+            "/tmp/pc-root/docs/03-logs/compacted/semantic-map.json",
+        )
+
     def test_implementation_log_contract_fixtures(self):
         fixtures = [
             {
@@ -202,13 +230,20 @@ class TestLogCompactionPaths(unittest.TestCase):
 class TestLogCompactionEntries(unittest.TestCase):
     def test_missing_sections_marked_with_required_metadata(self):
         tool = load_log_compaction_tool()
-        entries = tool.build_entries("decision", "logs/decision.md", "", max_entries=5)
+        entries, metadata = tool.build_entries(
+            "decision",
+            "logs/decision.md",
+            "",
+            max_entries=5,
+            semantic_map={},
+        )
         self.assertEqual(entries[0]["source_section"], "missing or moved")
         for field in REQUIRED_FIELDS:
             self.assertIn(field, entries[0])
         self.assertEqual(entries[0]["source_path"], "logs/decision.md")
         self.assertTrue(entries[0]["evidence_refs"])
         self.assertTrue(entries[0]["outcome_rationale"].strip())
+        self.assertEqual(metadata["source_entries"], 0)
 
     def test_work_item_and_date_extracted(self):
         tool = load_log_compaction_tool()
@@ -218,11 +253,101 @@ class TestLogCompactionEntries(unittest.TestCase):
             "  - Completed WI-20260209-01\n"
             "- Evidence: logs/WI-20260209-01/feature.log\n"
         )
-        entries = tool.build_entries(
-            "decision", "logs/decision.md", sample, max_entries=5
+        entries, metadata = tool.build_entries(
+            "decision",
+            "logs/decision.md",
+            sample,
+            max_entries=5,
+            semantic_map={},
         )
         self.assertEqual(entries[0]["source_section"], "2026-02-09")
         self.assertEqual(entries[0]["work_item_ref"], "WI-20260209-01")
+        self.assertEqual(metadata["source_entries"], 1)
+
+    def test_validation_mixed_heading_levels_sorted_newest(self):
+        tool = load_log_compaction_tool()
+        sample = (
+            "## Recent Validations\n"
+            "## 2026-02-08 - Older validation\n"
+            "- PASS result old\n"
+            "### 2026-02-10 - Newer validation\n"
+            "- PASS result new\n"
+        )
+        entries, metadata = tool.build_entries(
+            "validation",
+            "logs/validation.md",
+            sample,
+            max_entries=2,
+            semantic_map={},
+        )
+        self.assertEqual(entries[0]["source_section"], "2026-02-10")
+        self.assertEqual(entries[1]["source_section"], "2026-02-08")
+        self.assertEqual(metadata["source_latest_date"], "2026-02-10")
+        self.assertEqual(metadata["compacted_latest_date"], "2026-02-10")
+
+    def test_decision_dedupes_by_decision_id(self):
+        tool = load_log_compaction_tool()
+        sample = (
+            "## Decisions\n"
+            "### [DEC-050] - Keep compact outputs deterministic\n"
+            "**Date:** 2026-02-10\n"
+            "**Rationale:** Newest rationale.\n"
+            "- Evidence: logs/WI-20260210-01/feature.log\n"
+            "### [DEC-050] - Keep compact outputs deterministic\n"
+            "**Date:** 2026-02-08\n"
+            "**Rationale:** Older rationale.\n"
+            "- Evidence: offload:abc123def456\n"
+        )
+        entries, metadata = tool.build_entries(
+            "decision",
+            "logs/decision.md",
+            sample,
+            max_entries=5,
+            semantic_map={},
+        )
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["source_section"], "2026-02-10")
+        self.assertEqual(
+            entries[0]["evidence_refs"],
+            ["logs/WI-20260210-01/feature.log", "offload:abc123def456"],
+        )
+        self.assertEqual(metadata["source_entries"], 2)
+        self.assertEqual(metadata["deduped_entries"], 1)
+
+    def test_build_llm_entries_contract_and_truncation(self):
+        tool = load_log_compaction_tool()
+        entries = [
+            {
+                "source_path": "docs/03-logs/decision-log.md",
+                "source_section": "2026-02-10",
+                "work_item_ref": "WI-20260210-01",
+                "outcome_rationale": "A very long rationale " * 20,
+                "evidence_refs": [
+                    "logs/WI-20260210-01/feature.log",
+                    "offload:abc123def456",
+                    "offload:def456abc123",
+                ],
+                "summary": "[DEC-050] - Keep compact outputs deterministic",
+            }
+        ]
+        llm_entries = tool.build_llm_entries(
+            "decision",
+            entries,
+            summary_max_chars=80,
+            evidence_max_items=2,
+        )
+        self.assertEqual(len(llm_entries), 1)
+        self.assertEqual(llm_entries[0]["id"], "DEC-050")
+        self.assertEqual(llm_entries[0]["source_section"], "2026-02-10")
+        self.assertEqual(llm_entries[0]["work_item_ref"], "WI-20260210-01")
+        self.assertLessEqual(len(llm_entries[0]["summary_short"]), 80)
+        self.assertEqual(len(llm_entries[0]["evidence_refs"]), 2)
+
+    def test_freshness_lag_days(self):
+        tool = load_log_compaction_tool()
+        self.assertEqual(tool.freshness_lag_days("2026-02-10", "2026-02-10"), 0)
+        self.assertEqual(tool.freshness_lag_days("2026-02-10", "2026-02-08"), 2)
+        self.assertIsNone(tool.freshness_lag_days("", "2026-02-08"))
 
 
 if __name__ == "__main__":

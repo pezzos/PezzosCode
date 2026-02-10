@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -14,6 +17,19 @@ sys.path.insert(0, str(ROOT))
 from lib import log_compaction  # noqa: E402
 
 DEFAULT_MAX_ENTRIES = 5
+DEFAULT_LLM_SUMMARY_MAX_CHARS = 180
+DEFAULT_LLM_EVIDENCE_MAX_ITEMS = 2
+LOG_SECTION_MARKERS = {
+    "decision": "## Decisions",
+    "implementation": "## Log Entries",
+    "validation": "## Recent Validations",
+}
+LOG_SECTION_HEADING_PATTERNS = {
+    "decision": r"^###\s+.+$",
+    "implementation": r"^###\s+.+$",
+    "validation": r"^(?:##|###)\s+.+$",
+}
+MISSING_SECTION = "missing or moved"
 
 
 def read_text(path: str) -> str:
@@ -30,8 +46,8 @@ def slice_after_marker(text: str, marker: str) -> str:
     return text[idx + len(marker) :]
 
 
-def split_sections(text: str) -> List[Tuple[str, str]]:
-    matches = list(re.finditer(r"^###\s+.+$", text, flags=re.MULTILINE))
+def split_sections(text: str, heading_pattern: str) -> List[Tuple[str, str]]:
+    matches = list(re.finditer(heading_pattern, text, flags=re.MULTILINE))
     sections: List[Tuple[str, str]] = []
     for index, match in enumerate(matches):
         start = match.start()
@@ -47,6 +63,29 @@ def extract_date(text: str) -> str:
     return match.group(1) if match else ""
 
 
+def parse_date(value: str) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def normalize_text(text: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", " ", (text or "").lower())
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def truncate(text: str, max_chars: int) -> str:
+    cleaned = re.sub(r"\s+", " ", (text or "").strip())
+    if max_chars <= 0 or len(cleaned) <= max_chars:
+        return cleaned
+    if max_chars <= 3:
+        return cleaned[:max_chars]
+    return cleaned[: max_chars - 3].rstrip() + "..."
+
+
 def extract_after_label(section: str, label: str) -> str:
     lines = section.splitlines()
     for idx, line in enumerate(lines):
@@ -59,15 +98,35 @@ def extract_after_label(section: str, label: str) -> str:
 
 
 def extract_evidence(section: str, source_path: str) -> List[str]:
-    evidence = re.findall(r"(?:logs/[^)\s]+|offload:[a-f0-9]{6,})", section)
+    evidence = re.findall(
+        r"(?:logs/[^`\s)\]]+|offload:[a-f0-9]{6,}|\.offload/[a-f0-9]{6,}\.txt)",
+        section,
+    )
     if evidence:
         return evidence
     return [source_path]
 
 
+def dedupe_list(values: Iterable[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+    for value in values:
+        cleaned = str(value).strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        ordered.append(cleaned)
+    return ordered
+
+
 def extract_work_item(section: str) -> str:
     match = re.search(r"WI-\d{8}-\d{2}", section)
     return match.group(0) if match else ""
+
+
+def extract_decision_id(text: str) -> str:
+    match = re.search(r"\bDEC-\d{3,}\b", text)
+    return match.group(0).upper() if match else ""
 
 
 def summarize_title(title: str) -> str:
@@ -83,7 +142,7 @@ def ensure_entry_contract(entry: dict, source_path: str) -> dict:
         entry["source_path"] = source_path
     source_section = str(entry.get("source_section", "")).strip()
     if not source_section:
-        entry["source_section"] = "missing or moved"
+        entry["source_section"] = MISSING_SECTION
     work_item_ref = entry.get("work_item_ref")
     if work_item_ref is None:
         entry["work_item_ref"] = ""
@@ -99,53 +158,246 @@ def ensure_entry_contract(entry: dict, source_path: str) -> dict:
     evidence = entry.get("evidence_refs")
     if not isinstance(evidence, list) or not evidence:
         entry["evidence_refs"] = [entry["source_path"]]
+    else:
+        entry["evidence_refs"] = dedupe_list(str(item) for item in evidence)
     return entry
 
 
-def build_entries(
-    log_key: str, source_path: str, text: str, max_entries: int
-) -> List[dict]:
-    if log_key == "decision":
-        text = slice_after_marker(text, "## Decisions")
-    elif log_key == "implementation":
-        text = slice_after_marker(text, "## Log Entries")
-    elif log_key == "validation":
-        text = slice_after_marker(text, "## Recent Validations")
+def sort_entries_desc(entries: List[dict]) -> List[dict]:
+    decorated: List[Tuple[int, datetime, int, dict]] = []
+    minimum = datetime.min
+    for index, entry in enumerate(entries):
+        parsed = parse_date(str(entry.get("source_section", "")))
+        decorated.append(
+            (
+                1 if parsed else 0,
+                parsed or minimum,
+                -index,
+                entry,
+            )
+        )
+    decorated.sort(reverse=True)
+    return [item[3] for item in decorated]
 
-    sections = split_sections(text)
+
+def choose_non_placeholder(primary: str, secondary: str) -> str:
+    if primary and normalize_text(primary) not in {"", "missing summary"}:
+        return primary
+    return secondary or primary
+
+
+def merge_entries(primary: dict, incoming: dict) -> dict:
+    merged = dict(primary)
+    if (
+        not str(merged.get("work_item_ref", "")).strip()
+        and str(incoming.get("work_item_ref", "")).strip()
+    ):
+        merged["work_item_ref"] = incoming.get("work_item_ref", "")
+    merged["outcome_rationale"] = choose_non_placeholder(
+        str(merged.get("outcome_rationale", "")).strip(),
+        str(incoming.get("outcome_rationale", "")).strip(),
+    )
+    merged["evidence_refs"] = dedupe_list(
+        list(merged.get("evidence_refs", [])) + list(incoming.get("evidence_refs", []))
+    )
+    return merged
+
+
+def entry_dedupe_key(log_key: str, entry: dict) -> str:
+    summary = str(entry.get("summary", "")).strip()
+    outcome = str(entry.get("outcome_rationale", "")).strip()
+    work_item_ref = str(entry.get("work_item_ref", "")).strip()
+    evidence_refs = dedupe_list(str(item) for item in entry.get("evidence_refs", []))
+
+    if log_key == "decision":
+        decision_id = extract_decision_id(summary) or extract_decision_id(outcome)
+        if decision_id:
+            return f"decision:{decision_id.lower()}"
+        return f"decision:title:{normalize_text(summary)}"
+
+    evidence_fingerprint = "|".join(
+        sorted(normalize_text(item) for item in evidence_refs)
+    )
+    return "|".join(
+        [
+            log_key,
+            normalize_text(summary),
+            normalize_text(work_item_ref),
+            evidence_fingerprint,
+        ]
+    )
+
+
+def load_semantic_map(path: str) -> Dict[str, Dict[str, str]]:
+    semantic_path = Path(path)
+    if not semantic_path.exists():
+        return {}
+    payload = json.loads(semantic_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return {}
+    mapped: Dict[str, Dict[str, str]] = {}
+    for log_key, entries in payload.items():
+        if not isinstance(entries, dict):
+            continue
+        normalized_log_key = str(log_key)
+        mapped[normalized_log_key] = {}
+        for source_key, canonical_key in entries.items():
+            mapped[normalized_log_key][str(source_key)] = str(canonical_key)
+    return mapped
+
+
+def apply_semantic_map(
+    log_key: str, key: str, semantic_map: Dict[str, Dict[str, str]]
+) -> str:
+    mapping = semantic_map.get(log_key)
+    if not mapping:
+        return key
+    return mapping.get(key, key)
+
+
+def dedupe_entries(
+    log_key: str,
+    entries: List[dict],
+    semantic_map: Dict[str, Dict[str, str]],
+) -> List[dict]:
+    deduped: Dict[str, dict] = {}
+    order: List[str] = []
+    for entry in entries:
+        key = entry_dedupe_key(log_key, entry)
+        key = apply_semantic_map(log_key, key, semantic_map)
+        if key not in deduped:
+            deduped[key] = entry
+            order.append(key)
+            continue
+        deduped[key] = merge_entries(deduped[key], entry)
+    return [deduped[key] for key in order]
+
+
+def section_label(log_key: str) -> str:
+    return {
+        "decision": "Rationale",
+        "implementation": "Why",
+        "validation": "PASS",
+    }[log_key]
+
+
+def build_entries(
+    log_key: str,
+    source_path: str,
+    text: str,
+    max_entries: int,
+    semantic_map: Dict[str, Dict[str, str]],
+) -> Tuple[List[dict], Dict[str, Any]]:
+    marker = LOG_SECTION_MARKERS.get(log_key, "")
+    content = slice_after_marker(text, marker) if marker else text
+    heading_pattern = LOG_SECTION_HEADING_PATTERNS.get(log_key, r"^###\s+.+$")
+    sections = split_sections(content, heading_pattern)
+
     if not sections:
-        entry = {
+        fallback = {
             "source_path": source_path,
-            "source_section": "missing or moved",
+            "source_section": MISSING_SECTION,
             "work_item_ref": "",
             "outcome_rationale": "Source section missing or format changed.",
             "evidence_refs": [source_path],
             "summary": "No entries detected for compaction.",
         }
-        return [ensure_entry_contract(entry, source_path)]
+        return [ensure_entry_contract(fallback, source_path)], {
+            "source_entries": 0,
+            "deduped_entries": 1,
+            "source_latest_date": "",
+            "compacted_latest_date": "",
+        }
 
     entries: List[dict] = []
-    for title, section in sections[:max_entries]:
+    for title, section in sections:
         date = extract_date(section) or extract_date(title)
         summary = summarize_title(title)
-        if log_key == "decision":
-            outcome = extract_after_label(section, "Rationale")
-        elif log_key == "implementation":
-            outcome = extract_after_label(section, "Why")
-        else:
-            outcome = extract_after_label(section, "PASS")
+        outcome = extract_after_label(section, section_label(log_key))
         if not outcome:
             outcome = summary
         entry = {
             "source_path": source_path,
-            "source_section": date or "missing or moved",
+            "source_section": date or MISSING_SECTION,
             "work_item_ref": extract_work_item(section),
             "outcome_rationale": outcome,
             "evidence_refs": extract_evidence(section, source_path),
             "summary": summary,
         }
         entries.append(ensure_entry_contract(entry, source_path))
-    return entries
+
+    ordered_entries = sort_entries_desc(entries)
+    deduped_entries = dedupe_entries(log_key, ordered_entries, semantic_map)
+    selected_entries = deduped_entries[: max(1, max_entries)]
+
+    source_latest_date = ""
+    for candidate in ordered_entries:
+        value = str(candidate.get("source_section", ""))
+        if parse_date(value):
+            source_latest_date = value
+            break
+
+    compact_latest_date = ""
+    for candidate in selected_entries:
+        value = str(candidate.get("source_section", ""))
+        if parse_date(value):
+            compact_latest_date = value
+            break
+
+    return selected_entries, {
+        "source_entries": len(sections),
+        "deduped_entries": len(deduped_entries),
+        "source_latest_date": source_latest_date,
+        "compacted_latest_date": compact_latest_date,
+    }
+
+
+def build_llm_entry_id(log_key: str, entry: dict) -> str:
+    summary = str(entry.get("summary", ""))
+    outcome = str(entry.get("outcome_rationale", ""))
+    decision_id = extract_decision_id(summary) or extract_decision_id(outcome)
+    if decision_id:
+        return decision_id
+    stable = hashlib.sha1(
+        (
+            f"{log_key}|{entry.get('source_section', '')}|"
+            f"{entry.get('work_item_ref', '')}|{summary}"
+        ).encode("utf-8")
+    ).hexdigest()[:10]
+    return f"{log_key}-{stable}"
+
+
+def build_llm_entries(
+    log_key: str,
+    entries: Iterable[dict],
+    summary_max_chars: int,
+    evidence_max_items: int,
+) -> List[dict]:
+    llm_entries: List[dict] = []
+    for entry in entries:
+        summary = str(entry.get("summary", "")).strip()
+        outcome = str(entry.get("outcome_rationale", "")).strip()
+        if outcome and normalize_text(outcome) != normalize_text(summary):
+            base = f"{summary} - {outcome}".strip(" -")
+        else:
+            base = summary or outcome
+        summary_short = truncate(
+            base,
+            summary_max_chars,
+        )
+        llm_entries.append(
+            {
+                "id": build_llm_entry_id(log_key, entry),
+                "source_section": str(entry.get("source_section", "")).strip()
+                or MISSING_SECTION,
+                "work_item_ref": str(entry.get("work_item_ref", "")).strip(),
+                "summary_short": summary_short,
+                "evidence_refs": list(entry.get("evidence_refs", []))[
+                    0:evidence_max_items
+                ],
+            }
+        )
+    return llm_entries
 
 
 def write_compacted_output(entries: Iterable[dict], output_path: str) -> None:
@@ -153,6 +405,23 @@ def write_compacted_output(entries: Iterable[dict], output_path: str) -> None:
     with open(output_path, "w", encoding="utf-8") as handle:
         json.dump(list(entries), handle, indent=2, sort_keys=True)
         handle.write("\n")
+
+
+def estimate_tokens(text: str) -> int:
+    if not text:
+        return 0
+    return int(math.ceil(len(text) / 4.0))
+
+
+def freshness_lag_days(
+    source_latest_date: str, compact_latest_date: str
+) -> Optional[int]:
+    source_dt = parse_date(source_latest_date)
+    compact_dt = parse_date(compact_latest_date)
+    if not source_dt or not compact_dt:
+        return None
+    delta = source_dt - compact_dt
+    return max(0, delta.days)
 
 
 def parse_args() -> argparse.Namespace:
@@ -165,28 +434,146 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_MAX_ENTRIES,
         help="Maximum entries per log to include in compacted output.",
     )
+    parser.add_argument(
+        "--llm-summary-max-chars",
+        type=int,
+        default=DEFAULT_LLM_SUMMARY_MAX_CHARS,
+        help="Maximum summary characters for LLM-optimized compact outputs.",
+    )
+    parser.add_argument(
+        "--llm-evidence-max-items",
+        type=int,
+        default=DEFAULT_LLM_EVIDENCE_MAX_ITEMS,
+        help="Maximum evidence refs per entry for LLM-optimized compact outputs.",
+    )
+    parser.add_argument(
+        "--semantic-map",
+        default=log_compaction.semantic_map_path(root=ROOT),
+        help="Optional semantic map JSON file for dedupe key canonicalization.",
+    )
+    parser.add_argument(
+        "--no-semantic-map",
+        action="store_true",
+        help="Disable semantic-map loading even if a semantic-map file exists.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     outputs = log_compaction.compacted_log_output_paths(root=ROOT)
+    llm_outputs = log_compaction.compacted_llm_output_paths(root=ROOT)
+    report_path = log_compaction.compaction_report_path(root=ROOT)
     sources = log_compaction.log_sources(root=ROOT)
     if not sources:
         raise SystemExit(
             "log-compaction: no log sources configured; set PC_LOG_COMPACTION_CONFIG "
             "or update tools/log-compaction-config.json"
         )
+
+    semantic_map: Dict[str, Dict[str, str]] = {}
+    if not args.no_semantic_map and args.semantic_map:
+        semantic_map = load_semantic_map(args.semantic_map)
+
+    report_logs: Dict[str, Dict[str, Any]] = {}
+    total_source_tokens = 0
+    total_compact_tokens = 0
+    total_llm_tokens = 0
+
     for key, source_path in sources.items():
         source_abs = ROOT / source_path
         output_path = outputs.get(key)
-        if not output_path:
+        llm_output_path = llm_outputs.get(key)
+        if not output_path or not llm_output_path:
             continue
-        entries = build_entries(
-            key, source_path, read_text(str(source_abs)), args.max_entries
+
+        source_text = read_text(str(source_abs))
+        entries, metadata = build_entries(
+            key,
+            source_path,
+            source_text,
+            args.max_entries,
+            semantic_map,
         )
+        llm_entries = build_llm_entries(
+            key,
+            entries,
+            summary_max_chars=max(0, args.llm_summary_max_chars),
+            evidence_max_items=max(1, args.llm_evidence_max_items),
+        )
+
         write_compacted_output(entries, output_path)
+        write_compacted_output(llm_entries, llm_output_path)
+
+        compact_text = json.dumps(entries, indent=2, sort_keys=True)
+        llm_text = json.dumps(llm_entries, indent=2, sort_keys=True)
+
+        source_tokens = estimate_tokens(source_text)
+        compact_tokens = estimate_tokens(compact_text)
+        llm_tokens = estimate_tokens(llm_text)
+
+        total_source_tokens += source_tokens
+        total_compact_tokens += compact_tokens
+        total_llm_tokens += llm_tokens
+
+        source_entries = int(metadata.get("source_entries", 0))
+        deduped_entries = int(metadata.get("deduped_entries", len(entries)))
+
+        report_logs[key] = {
+            "source_path": source_path,
+            "source_entries": source_entries,
+            "deduped_entries": deduped_entries,
+            "written_entries": len(entries),
+            "dedupe_ratio": (
+                round((source_entries - deduped_entries) / source_entries, 4)
+                if source_entries > 0
+                else 0.0
+            ),
+            "source_bytes": len(source_text.encode("utf-8")),
+            "compacted_bytes": len(compact_text.encode("utf-8")),
+            "llm_bytes": len(llm_text.encode("utf-8")),
+            "estimated_tokens_before": source_tokens,
+            "estimated_tokens_after": compact_tokens,
+            "estimated_tokens_llm": llm_tokens,
+            "source_latest_date": metadata.get("source_latest_date", ""),
+            "compacted_latest_date": metadata.get("compacted_latest_date", ""),
+            "freshness_lag_days": freshness_lag_days(
+                str(metadata.get("source_latest_date", "")),
+                str(metadata.get("compacted_latest_date", "")),
+            ),
+        }
+
         print(f"wrote {output_path}")
+        print(f"wrote {llm_output_path}")
+
+    report_payload = {
+        "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "max_entries": args.max_entries,
+        "llm_summary_max_chars": args.llm_summary_max_chars,
+        "llm_evidence_max_items": args.llm_evidence_max_items,
+        "semantic_map": args.semantic_map if semantic_map else "",
+        "logs": report_logs,
+        "totals": {
+            "estimated_tokens_before": total_source_tokens,
+            "estimated_tokens_after": total_compact_tokens,
+            "estimated_tokens_llm": total_llm_tokens,
+            "token_reduction_ratio_compact": (
+                round(
+                    (total_source_tokens - total_compact_tokens) / total_source_tokens,
+                    4,
+                )
+                if total_source_tokens > 0
+                else 0.0
+            ),
+            "token_reduction_ratio_llm": (
+                round((total_source_tokens - total_llm_tokens) / total_source_tokens, 4)
+                if total_source_tokens > 0
+                else 0.0
+            ),
+        },
+    }
+    write_compacted_output([report_payload], report_path)
+    print(f"wrote {report_path}")
 
 
 if __name__ == "__main__":

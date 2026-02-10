@@ -1,42 +1,42 @@
 [
   {
     "evidence_refs": ["docs/03-logs/decision-log.md"],
-    "outcome_rationale": "This keeps the safety gate while reducing workflow friction. For unattended/non-interactive runs, safety remains fail-closed by default unless `APPROVE_HIGH_RISK=1` is explicitly set.",
+    "outcome_rationale": "DEC-039 - Non-planner role commits auto-reset planner-owned `dev-tasks.md`",
     "source_path": "docs/03-logs/decision-log.md",
-    "source_section": "2026-02-06",
-    "summary": "[DEC-018] - Interactive HIGH-risk approval gate for `pc-feature`",
-    "work_item_ref": ""
-  },
-  {
-    "evidence_refs": ["logs/<WI>/<step>.log`"],
-    "outcome_rationale": "[DEC-017] - Observability-first workflow hardening",
-    "source_path": "docs/03-logs/decision-log.md",
-    "source_section": "2026-02-05",
-    "summary": "[DEC-017] - Observability-first workflow hardening",
+    "source_section": "2026-02-10",
+    "summary": "DEC-039 - Non-planner role commits auto-reset planner-owned `dev-tasks.md`",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/decision-log.md"],
-    "outcome_rationale": "[DEC-018] - Increment work item IDs per feature",
+    "outcome_rationale": "DEC-040 - Make patcher-branch collection resilient with conflict auto-skip and explicit diagnostics",
     "source_path": "docs/03-logs/decision-log.md",
-    "source_section": "2026-02-06",
-    "summary": "[DEC-018] - Increment work item IDs per feature",
+    "source_section": "2026-02-10",
+    "summary": "DEC-040 - Make patcher-branch collection resilient with conflict auto-skip and explicit diagnostics",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["logs/*.md", "logs/compacted/semantic-map.json"],
+    "outcome_rationale": "DEC-041 - Compaction must prefer freshest dated entries and emit LLM-optimized derived artifacts",
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "2026-02-10",
+    "summary": "DEC-041 - Compaction must prefer freshest dated entries and emit LLM-optimized derived artifacts",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/decision-log.md"],
-    "outcome_rationale": "[DEC-016] - Defer global log updates until feature completion",
+    "outcome_rationale": "DEC-031 - Promote Plan Reviewer to a first-class orchestrator step",
     "source_path": "docs/03-logs/decision-log.md",
-    "source_section": "2026-02-05",
-    "summary": "[DEC-016] - Defer global log updates until feature completion",
+    "source_section": "2026-02-09",
+    "summary": "DEC-031 - Promote Plan Reviewer to a first-class orchestrator step",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/decision-log.md"],
-    "outcome_rationale": "[DEC-015] - Keep dev-tasks planner-only; move tester/reporter output to role logs",
+    "outcome_rationale": "DEC-032 - Enforce Plan Contract v1 and bounded reviewer/planner retry controls",
     "source_path": "docs/03-logs/decision-log.md",
-    "source_section": "2026-02-05",
-    "summary": "[DEC-015] - Keep dev-tasks planner-only; move tester/reporter output to role logs",
+    "source_section": "2026-02-09",
+    "summary": "DEC-032 - Enforce Plan Contract v1 and bounded reviewer/planner retry controls",
     "work_item_ref": ""
   }
 ]

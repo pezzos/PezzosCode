@@ -27,6 +27,12 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-10 - Compaction freshness/dedupe hardening validation
+
+- `tools/offload-proxy/pp python3 -m unittest tests.test_log_compaction` (PASS)
+- `tools/log-compaction` (PASS: rewrote compact + llm + report artifacts under `docs/03-logs/compacted/`)
+- `tools/offload-proxy/pp rg -n "\"freshness_lag_days\": 0|\"token_reduction_ratio_llm\"" docs/03-logs/compacted/compaction-report.json` (PASS: all three logs report `freshness_lag_days: 0`; LLM token reduction metric present)
+
 ### 2026-02-08 - Precommit autofix scope hardening validation
 
 - `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_autofix.py"` (PASS)

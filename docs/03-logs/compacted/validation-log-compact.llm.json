@@ -1,0 +1,40 @@
+[
+  {
+    "evidence_refs": [
+      "logs/compacted/",
+      "logs/compacted/compaction-report.json"
+    ],
+    "id": "validation-839c05c06f",
+    "source_section": "2026-02-10",
+    "summary_short": "Compaction freshness/dedupe hardening validation - `tools/log-compaction` (PASS: rewrote compact + llm + report artifacts under `docs/03-logs/compacted/`)",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/validation-log.md"],
+    "id": "validation-64deac7827",
+    "source_section": "2026-02-10",
+    "summary_short": "Validate non-planner commit reset of planner-owned `dev-tasks.md` - Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_ste...",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/validation-log.md"],
+    "id": "validation-f2620b4f10",
+    "source_section": "2026-02-10",
+    "summary_short": "Validate resilient collection conflict auto-skip and visibility hardening - Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_collect...",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/validation-log.md"],
+    "id": "validation-65cf60c840",
+    "source_section": "2026-02-09",
+    "summary_short": "Plan Reviewer first-class step hardening validation - Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/validation-log.md"],
+    "id": "validation-f2db8e972d",
+    "source_section": "2026-02-09",
+    "summary_short": "Plan contract + reviewer loop guard validation - Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`",
+    "work_item_ref": ""
+  }
+]

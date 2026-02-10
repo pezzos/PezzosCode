@@ -1902,3 +1902,18 @@ When a decision is reversed or replaced, document it here:
   - Reduced run-breaking behavior from localized collection conflicts.
   - Better operator visibility into exactly which paths conflicted during `collecting patcher branch into main`.
   - Non-conflicting changes have a higher chance of being integrated in the same run without manual patch replay.
+
+### DEC-041 - Compaction must prefer freshest dated entries and emit LLM-optimized derived artifacts
+
+- **Date:** 2026-02-10
+- **Status:** Accepted
+- **Context:** Canonical logs in `docs/03-logs/*.md` had recent entries that were not present in compacted artifacts. The previous compaction parser depended on strict heading shape and first-in-file selection, so compacted views could become stale and expensive to use in LLM prompts.
+- **Decision:**
+  - Parse compaction sections with log-specific heading handling, including mixed `##`/`###` validation headings.
+  - Sort extracted entries by parsed date (newest first) before truncation.
+  - Deduplicate by deterministic keys (`DEC-*` identity for decisions; normalized summary/work-item/evidence fingerprint for implementation/validation), with optional semantic-map canonicalization via `docs/03-logs/compacted/semantic-map.json`.
+  - Emit two derived output contracts per log: full compact JSON and token-optimized LLM JSON (`*.llm.json`), plus a `compaction-report.json` with freshness and token metrics.
+- **Consequences:**
+  - Compacted logs stay aligned with latest canonical entries (`freshness_lag_days=0` target).
+  - Prompt token usage is reduced for repeated log-context retrieval.
+  - Canonical logs remain non-destructive source-of-truth while derived compact artifacts become the default retrieval surface for LLM workflows.

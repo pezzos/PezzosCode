@@ -27,6 +27,46 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-10 - Log compaction freshness + dedupe hardening with LLM compact outputs
+
+**Feature/Bug:** F-15 follow-up hardening (offload audit + useful compaction)
+
+**Changed Files:**
+
+- `tools/log-compaction`
+- `lib/log_compaction.py`
+- `tests/test_log_compaction.py`
+- `docs/04-process/output-offload.md`
+- `docs/03-logs/compacted/decision-log-compact.json`
+- `docs/03-logs/compacted/implementation-log-compact.json`
+- `docs/03-logs/compacted/validation-log-compact.json`
+- `docs/03-logs/compacted/decision-log-compact.llm.json`
+- `docs/03-logs/compacted/implementation-log-compact.llm.json`
+- `docs/03-logs/compacted/validation-log-compact.llm.json`
+- `docs/03-logs/compacted/compaction-report.json`
+- `docs/03-logs/compacted/semantic-map.json`
+
+**What Changed:**
+
+- Reworked `tools/log-compaction` to:
+  - parse mixed heading styles by log type,
+  - sort entries by parsed date descending before truncation,
+  - dedupe entries deterministically with merge logic for evidence/work-item context,
+  - support optional semantic-map canonicalization, and
+  - emit a token-optimized LLM artifact (`*.llm.json`) in addition to the full compact output.
+- Added metrics reporting via `docs/03-logs/compacted/compaction-report.json` with dedupe ratio, freshness lag, and token estimates.
+- Added reusable path helpers in `lib/log_compaction.py` for LLM outputs, report, and semantic map.
+- Expanded `tests/test_log_compaction.py` to cover mixed heading parsing, freshness lag, DEC-id dedupe, LLM output contract, and new path helpers.
+- Updated process docs with explicit compaction commands and report interpretation guidance.
+
+**Why:**
+
+- Keep compact outputs current and trustworthy while minimizing prompt-token usage in repeated LLM calls.
+
+**How:**
+
+- Implemented deterministic parse/sort/dedupe pipeline in compaction tooling, then regenerated derived compact artifacts from canonical logs.
+
 ### 2026-02-08 - Precommit autofix scope hardening and deterministic fallback
 
 **Feature/Bug:** Process/Tooling - precommit autofix guardrails

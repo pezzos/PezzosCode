@@ -10,6 +10,13 @@ COMPACTED_LOG_OUTPUT_NAMES = {
     "implementation": "implementation-log-compact.json",
     "validation": "validation-log-compact.json",
 }
+COMPACTED_LLM_OUTPUT_NAMES = {
+    "decision": "decision-log-compact.llm.json",
+    "implementation": "implementation-log-compact.llm.json",
+    "validation": "validation-log-compact.llm.json",
+}
+COMPACTION_REPORT_NAME = "compaction-report.json"
+SEMANTIC_MAP_NAME = "semantic-map.json"
 COMPACTED_LOGS_DIR_ENV = "PC_COMPACTED_LOGS_DIR"
 COMPACTION_CONFIG_ENV = "PC_LOG_COMPACTION_CONFIG"
 DEFAULT_COMPACTION_CONFIG_PATH = Path("tools") / "log-compaction-config.json"
@@ -71,3 +78,19 @@ def compacted_log_output_paths(root: Optional[Path] = None) -> Dict[str, str]:
         key: os.path.join(output_root, name)
         for key, name in COMPACTED_LOG_OUTPUT_NAMES.items()
     }
+
+
+def compacted_llm_output_paths(root: Optional[Path] = None) -> Dict[str, str]:
+    output_root = resolve_compacted_logs_dir(root)
+    return {
+        key: os.path.join(output_root, name)
+        for key, name in COMPACTED_LLM_OUTPUT_NAMES.items()
+    }
+
+
+def compaction_report_path(root: Optional[Path] = None) -> str:
+    return os.path.join(resolve_compacted_logs_dir(root), COMPACTION_REPORT_NAME)
+
+
+def semantic_map_path(root: Optional[Path] = None) -> str:
+    return os.path.join(resolve_compacted_logs_dir(root), SEMANTIC_MAP_NAME)

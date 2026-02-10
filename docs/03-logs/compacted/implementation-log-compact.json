@@ -1,42 +1,51 @@
 [
   {
-    "evidence_refs": ["logs/*`"],
-    "outcome_rationale": "Prevent precommit Codex runs from editing unrelated files (especially `docs/03-logs/*` and feature logs) and reduce pre-commit latency/scope creep.",
+    "evidence_refs": [
+      "logs/compacted/decision-log-compact.json",
+      "logs/compacted/implementation-log-compact.json",
+      "logs/compacted/validation-log-compact.json",
+      "logs/compacted/decision-log-compact.llm.json",
+      "logs/compacted/implementation-log-compact.llm.json",
+      "logs/compacted/validation-log-compact.llm.json",
+      "logs/compacted/compaction-report.json",
+      "logs/compacted/semantic-map.json"
+    ],
+    "outcome_rationale": "Keep compact outputs current and trustworthy while minimizing prompt-token usage in repeated LLM calls.",
     "source_path": "docs/03-logs/implementation-log.md",
-    "source_section": "2026-02-08",
-    "summary": "Precommit autofix scope hardening and deterministic fallback",
+    "source_section": "2026-02-10",
+    "summary": "Log compaction freshness + dedupe hardening with LLM compact outputs",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/implementation-log.md"],
-    "outcome_rationale": "Keep the template aligned with the living execution protocol guidance.",
+    "outcome_rationale": "In resumed/shared-worktree runs, incidental dirty state on `dev-tasks.md` can leak into non-planner role commit boundaries and trigger terminal scope failures (`tester edited out-of-scope files`) even when role outputs are otherwise valid.",
     "source_path": "docs/03-logs/implementation-log.md",
-    "source_section": "2026-02-08",
-    "summary": "Sync resume policy block into ticket execution protocol template",
+    "source_section": "2026-02-10",
+    "summary": "Reset planner-owned `dev-tasks.md` before non-planner commits",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/implementation-log.md"],
-    "outcome_rationale": "The original F-12 docs were too generic and did not reflect the current process contract, which made implementation attempts ambiguous.",
+    "outcome_rationale": "Collection conflicts were aborting otherwise successful runs with generic messaging and no automated recovery path. The new approach keeps strict visibility of conflicts while maximizing successful integration of non-conflicting changes.",
     "source_path": "docs/03-logs/implementation-log.md",
-    "source_section": "2026-02-08",
-    "summary": "Rebaseline feature docs for F-12 incremental PRD-to-features",
+    "source_section": "2026-02-10",
+    "summary": "Resilient patcher collection into main with conflict auto-skip",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/implementation-log.md"],
-    "outcome_rationale": "Keep the template aligned with the living execution protocol's Plan requirements.",
+    "outcome_rationale": "Prior runs showed planner/reviewer/patcher state coupling causing scope-guard failures and ambiguous audit history.",
     "source_path": "docs/03-logs/implementation-log.md",
-    "source_section": "2026-02-08",
-    "summary": "Template sync for ticket execution protocol (plan policy check)",
+    "source_section": "2026-02-09",
+    "summary": "Plan Reviewer first-class step + orchestration hardening",
     "work_item_ref": ""
   },
   {
     "evidence_refs": ["docs/03-logs/implementation-log.md"],
-    "outcome_rationale": "The original feature docs were generated before recent prompt/workflow hardening and no longer represented the current implementation context.",
+    "outcome_rationale": "A feature-13 run hit `patcher edited role-scoped files` late after plan drift. We need deterministic defense at pre-patch time and a recoverable planner reroute path.",
     "source_path": "docs/03-logs/implementation-log.md",
-    "source_section": "2026-02-08",
-    "summary": "Rebaseline backlog feature docs for F-13 to F-16",
+    "source_section": "2026-02-09",
+    "summary": "Pre-patch policy recheck + patcher scope-violation reroute",
     "work_item_ref": ""
   }
 ]
