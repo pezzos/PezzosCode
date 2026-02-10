@@ -1181,3 +1181,17 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Result: PASS (offload id `b82faad3fb151085d508fdfd41957648f2ec69e22acb50731151955359336fc2`)
 - Command: `tools/offload-proxy/pp make ci` (post-log-update verification)
 - Result: PASS (offload id `2fafd5e76b88572eebefbb6044e5451be20383e68eb6199c40a9cf92f08ced56`)
+
+## 2026-02-10 - Validate non-planner commit reset of planner-owned `dev-tasks.md`
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_enforce_role_scope_blocks_patcher_cross_feature_role_docs tests.test_pc_feature.TestPcFeature.test_prepatch_policy_recheck_routes_back_to_planner_before_patcher tests.test_pc_feature.TestPcFeature.test_failure_loop_invokes_planner_and_patcher_feedback_and_logs_iteration`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: FAIL (offload id `85d376c68567b022100cd6af2e809e3812ae213c7502b4d104248665bbd11b2e`)
+- Notes:
+  - The observed failures were in `ProposalGenerationTests` duplicate-count assertions and are unrelated to the tester role-scope reset change.
+  - Targeted role-scope regression tests for this fix passed.

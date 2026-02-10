@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+from typing import Iterable, List, Tuple
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from lib import log_compaction  # noqa: E402
+
+DEFAULT_MAX_ENTRIES = 5
+
+
+def read_text(path: str) -> str:
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return ""
+
+
+def slice_after_marker(text: str, marker: str) -> str:
+    idx = text.find(marker)
+    if idx == -1:
+        return text
+    return text[idx + len(marker) :]
+
+
+def split_sections(text: str) -> List[Tuple[str, str]]:
+    matches = list(re.finditer(r"^###\s+.+$", text, flags=re.MULTILINE))
+    sections: List[Tuple[str, str]] = []
+    for index, match in enumerate(matches):
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        section = text[start:end].strip()
+        title = match.group(0).lstrip("#").strip()
+        sections.append((title, section))
+    return sections
+
+
+def extract_date(text: str) -> str:
+    match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", text)
+    return match.group(1) if match else ""
+
+
+def extract_after_label(section: str, label: str) -> str:
+    lines = section.splitlines()
+    for idx, line in enumerate(lines):
+        if label.lower() in line.lower():
+            for next_line in lines[idx + 1 :]:
+                cleaned = next_line.strip().lstrip("-").strip()
+                if cleaned:
+                    return cleaned
+    return ""
+
+
+def extract_evidence(section: str, source_path: str) -> List[str]:
+    evidence = re.findall(r"(?:logs/[^)\s]+|offload:[a-f0-9]{6,})", section)
+    if evidence:
+        return evidence
+    return [source_path]
+
+
+def extract_work_item(section: str) -> str:
+    match = re.search(r"WI-\d{8}-\d{2}", section)
+    return match.group(0) if match else ""
+
+
+def summarize_title(title: str) -> str:
+    stripped = re.sub(r"^\d{4}-\d{2}-\d{2}\s+-\s+", "", title).strip()
+    return stripped or title.strip()
+
+
+def ensure_entry_contract(entry: dict, source_path: str) -> dict:
+    if not isinstance(entry, dict):
+        entry = {}
+    entry.setdefault("source_path", source_path)
+    if not str(entry.get("source_path", "")).strip():
+        entry["source_path"] = source_path
+    source_section = str(entry.get("source_section", "")).strip()
+    if not source_section:
+        entry["source_section"] = "missing or moved"
+    work_item_ref = entry.get("work_item_ref")
+    if work_item_ref is None:
+        entry["work_item_ref"] = ""
+    elif not isinstance(work_item_ref, str):
+        entry["work_item_ref"] = str(work_item_ref)
+    summary = str(entry.get("summary", "")).strip()
+    outcome = str(entry.get("outcome_rationale", "")).strip()
+    if not summary:
+        summary = outcome or "Missing summary."
+        entry["summary"] = summary
+    if not outcome:
+        entry["outcome_rationale"] = summary
+    evidence = entry.get("evidence_refs")
+    if not isinstance(evidence, list) or not evidence:
+        entry["evidence_refs"] = [entry["source_path"]]
+    return entry
+
+
+def build_entries(
+    log_key: str, source_path: str, text: str, max_entries: int
+) -> List[dict]:
+    if log_key == "decision":
+        text = slice_after_marker(text, "## Decisions")
+    elif log_key == "implementation":
+        text = slice_after_marker(text, "## Log Entries")
+    elif log_key == "validation":
+        text = slice_after_marker(text, "## Recent Validations")
+
+    sections = split_sections(text)
+    if not sections:
+        entry = {
+            "source_path": source_path,
+            "source_section": "missing or moved",
+            "work_item_ref": "",
+            "outcome_rationale": "Source section missing or format changed.",
+            "evidence_refs": [source_path],
+            "summary": "No entries detected for compaction.",
+        }
+        return [ensure_entry_contract(entry, source_path)]
+
+    entries: List[dict] = []
+    for title, section in sections[:max_entries]:
+        date = extract_date(section) or extract_date(title)
+        summary = summarize_title(title)
+        if log_key == "decision":
+            outcome = extract_after_label(section, "Rationale")
+        elif log_key == "implementation":
+            outcome = extract_after_label(section, "Why")
+        else:
+            outcome = extract_after_label(section, "PASS")
+        if not outcome:
+            outcome = summary
+        entry = {
+            "source_path": source_path,
+            "source_section": date or "missing or moved",
+            "work_item_ref": extract_work_item(section),
+            "outcome_rationale": outcome,
+            "evidence_refs": extract_evidence(section, source_path),
+            "summary": summary,
+        }
+        entries.append(ensure_entry_contract(entry, source_path))
+    return entries
+
+
+def write_compacted_output(entries: Iterable[dict], output_path: str) -> None:
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as handle:
+        json.dump(list(entries), handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate compacted log artifacts for decision/implementation/validation logs."
+    )
+    parser.add_argument(
+        "--max-entries",
+        type=int,
+        default=DEFAULT_MAX_ENTRIES,
+        help="Maximum entries per log to include in compacted output.",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    outputs = log_compaction.compacted_log_output_paths(root=ROOT)
+    sources = log_compaction.log_sources(root=ROOT)
+    if not sources:
+        raise SystemExit(
+            "log-compaction: no log sources configured; set PC_LOG_COMPACTION_CONFIG "
+            "or update tools/log-compaction-config.json"
+        )
+    for key, source_path in sources.items():
+        source_abs = ROOT / source_path
+        output_path = outputs.get(key)
+        if not output_path:
+            continue
+        entries = build_entries(
+            key, source_path, read_text(str(source_abs)), args.max_entries
+        )
+        write_compacted_output(entries, output_path)
+        print(f"wrote {output_path}")
+
+
+if __name__ == "__main__":
+    main()

@@ -5208,3 +5208,33 @@ Track when debt is paid down:
 - **Breaking changes:** No
 - **Performance:** Negligible (small in-memory queue + dedupe pass)
 - **Dependencies:** None
+
+### 2026-02-10 - Reset planner-owned `dev-tasks.md` before non-planner commits
+
+**Feature/Bug:** intermittent `tester edited out-of-scope files` aborts near end of `make feature`
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Updated `commit_role_step(...)` to reset planner-owned `dev-tasks.md` when the role is `tester`, `reporter`, or `plan-reviewer` before role-scope enforcement.
+- Added regression coverage asserting tester commit flow invokes `reset_dev_tasks_if_dirty(...)` on the feature `dev-tasks.md` path.
+
+**Why:**
+
+- In resumed/shared-worktree runs, incidental dirty state on `dev-tasks.md` can leak into non-planner role commit boundaries and trigger terminal scope failures (`tester edited out-of-scope files`) even when role outputs are otherwise valid.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Negligible (one extra dirty-path check at non-planner commit boundaries)
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check`
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_enforce_role_scope_blocks_patcher_cross_feature_role_docs tests.test_pc_feature.TestPcFeature.test_prepatch_policy_recheck_routes_back_to_planner_before_patcher tests.test_pc_feature.TestPcFeature.test_failure_loop_invokes_planner_and_patcher_feedback_and_logs_iteration`

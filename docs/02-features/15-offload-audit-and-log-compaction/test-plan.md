@@ -8,9 +8,9 @@
 
 **Feature:** Offload audit + log compaction
 
-**Status:** Draft
+**Status:** Complete
 
-**Last Updated:** 2026-02-09
+**Last Updated:** 2026-02-10
 
 ### Product Surfaces
 

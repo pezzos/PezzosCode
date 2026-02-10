@@ -1874,3 +1874,16 @@ When a decision is reversed or replaced, document it here:
   - Continuous-improvement signals are preserved across retries without widening role write scope.
   - Proposal registry updates are clearer and deterministic.
   - Scope violations from role edits to the global proposal registry are prevented.
+
+### DEC-039 - Non-planner role commits auto-reset planner-owned `dev-tasks.md`
+
+- **Date:** 2026-02-10
+- **Status:** Accepted
+- **Context:** Feature execution could terminate near completion with `tester edited out-of-scope files: .../dev-tasks.md` even when tester/reporter flow otherwise passed, due to planner-owned `dev-tasks.md` remaining dirty at non-planner commit boundaries in shared/resumed worktrees.
+- **Decision:**
+  - Keep planner ownership of `dev-tasks.md` unchanged.
+  - Before role-scope enforcement in `commit_role_step(...)`, auto-reset `dev-tasks.md` for non-planner roles (`tester`, `reporter`, `plan-reviewer`).
+  - Keep strict terminal guards for patcher/global-log scope unchanged.
+- **Consequences:**
+  - Reduces false terminal aborts from incidental `dev-tasks.md` dirt at tester/reporter/plan-reviewer commit boundaries.
+  - Preserves role ownership and deterministic scope enforcement semantics.

@@ -5,3 +5,4 @@ always_offload:
   - git diff
   - rg
   - cat
+index_path: .offload/index.jsonl

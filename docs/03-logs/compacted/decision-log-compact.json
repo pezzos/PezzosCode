@@ -1,0 +1,42 @@
+[
+  {
+    "evidence_refs": ["docs/03-logs/decision-log.md"],
+    "outcome_rationale": "This keeps the safety gate while reducing workflow friction. For unattended/non-interactive runs, safety remains fail-closed by default unless `APPROVE_HIGH_RISK=1` is explicitly set.",
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "2026-02-06",
+    "summary": "[DEC-018] - Interactive HIGH-risk approval gate for `pc-feature`",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["logs/<WI>/<step>.log`"],
+    "outcome_rationale": "[DEC-017] - Observability-first workflow hardening",
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "2026-02-05",
+    "summary": "[DEC-017] - Observability-first workflow hardening",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/decision-log.md"],
+    "outcome_rationale": "[DEC-018] - Increment work item IDs per feature",
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "2026-02-06",
+    "summary": "[DEC-018] - Increment work item IDs per feature",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/decision-log.md"],
+    "outcome_rationale": "[DEC-016] - Defer global log updates until feature completion",
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "2026-02-05",
+    "summary": "[DEC-016] - Defer global log updates until feature completion",
+    "work_item_ref": ""
+  },
+  {
+    "evidence_refs": ["docs/03-logs/decision-log.md"],
+    "outcome_rationale": "[DEC-015] - Keep dev-tasks planner-only; move tester/reporter output to role logs",
+    "source_path": "docs/03-logs/decision-log.md",
+    "source_section": "2026-02-05",
+    "summary": "[DEC-015] - Keep dev-tasks planner-only; move tester/reporter output to role logs",
+    "work_item_ref": ""
+  }
+]

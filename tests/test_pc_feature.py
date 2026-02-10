@@ -180,6 +180,11 @@ class TestPcFeature(unittest.TestCase):
                 self.pc_feature, "ensure_root_start_scope", return_value=None
             ),
             mock.patch.object(
+                self.pc_feature,
+                "ensure_compacted_policy_bootstrap_ready",
+                return_value=None,
+            ),
+            mock.patch.object(
                 self.pc_feature, "check_allowed_tests_exist", return_value=[]
             ),
             mock.patch.object(
@@ -407,14 +412,17 @@ class TestPcFeature(unittest.TestCase):
         self.assertIn(("/tmp/worktree/new-dir", True), removed_dirs)
 
     def test_plan_policy_violations_detects_forbidden_paths_and_commands(self):
+        compacted_path = self.pc_feature.compacted_log_output_paths()["decision"]
         plan = (
             "- Edit docs/02-features/12-incremental-prd-to-features/dev-tasks.md\n"
             "- Update docs/03-logs/implementation-log.md\n"
+            f"- Write {compacted_path}\n"
             "- Run make feature F=12\n"
         )
         violations = self.pc_feature.plan_policy_violations(plan)
         self.assertTrue(any("dev-tasks.md" in item for item in violations))
         self.assertTrue(any("docs/03-logs" in item for item in violations))
+        self.assertFalse(any(compacted_path in item for item in violations))
         self.assertTrue(any("make feature" in item for item in violations))
 
     def test_plan_policy_violations_scans_full_plan_beyond_files_section(self):
@@ -520,6 +528,36 @@ class TestPcFeature(unittest.TestCase):
                 for item in violations
             )
         )
+
+    def test_plan_policy_violations_skips_handoff_for_compacted_outputs_only(self):
+        compacted_path = self.pc_feature.compacted_log_output_paths()["decision"]
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Generate compacted outputs from canonical logs.\n"
+            "Files to change:\n"
+            f"- {compacted_path}\n"
+            "- tools/log-compaction\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertFalse(
+            any(
+                "assign docs/03-logs updates to reporter/orchestrator" in item
+                for item in violations
+            )
+        )
+        self.assertFalse(any(compacted_path in item for item in violations))
 
     def test_plan_policy_violations_allows_docs_logs_wildcard_handoff_note(self):
         plan = (
@@ -685,6 +723,7 @@ class TestPcFeature(unittest.TestCase):
         self.assertEqual(merged, revised)
 
     def test_role_scoped_path_forbidden_for_patcher_detects_cross_feature_docs(self):
+        compacted_path = self.pc_feature.compacted_log_output_paths()["decision"]
         self.assertTrue(
             self.pc_feature.role_scoped_path_forbidden_for_patcher(
                 "docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
@@ -694,6 +733,9 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.role_scoped_path_forbidden_for_patcher(
                 "docs/03-logs/validation-log.md"
             )
+        )
+        self.assertFalse(
+            self.pc_feature.role_scoped_path_forbidden_for_patcher(compacted_path)
         )
         self.assertFalse(
             self.pc_feature.role_scoped_path_forbidden_for_patcher(
@@ -718,6 +760,88 @@ class TestPcFeature(unittest.TestCase):
                         "docs/02-features/11-simplify-worktree-tracking",
                     )
         self.assertIn("patcher edited role-scoped files", stderr_capture.getvalue())
+
+    def test_commit_role_step_tester_resets_dev_tasks_before_scope_check(self):
+        feature_dir = "docs/02-features/01-workflow-hardening"
+        dev_tasks_path = f"{feature_dir}/dev-tasks.md"
+        validation_log_path = f"{feature_dir}/validation-log.md"
+        reset_dev_tasks = mock.Mock(return_value=None)
+        with mock.patch.object(
+            self.pc_feature,
+            "get_status_paths",
+            side_effect=[
+                [dev_tasks_path, validation_log_path],
+                [validation_log_path],
+            ],
+        ):
+            with mock.patch.object(
+                self.pc_feature, "format_role_changes", return_value=None
+            ):
+                with mock.patch.object(
+                    self.pc_feature,
+                    "reset_possible_improvements_to_head",
+                    return_value=None,
+                ):
+                    with mock.patch.object(
+                        self.pc_feature, "reset_global_logs_to_head", return_value=None
+                    ):
+                        with mock.patch.object(
+                            self.pc_feature,
+                            "reset_dev_tasks_if_dirty",
+                            reset_dev_tasks,
+                        ):
+                            with mock.patch.object(
+                                self.pc_feature,
+                                "enforce_role_scope",
+                                return_value=None,
+                            ):
+                                with mock.patch.object(
+                                    self.pc_feature,
+                                    "commit_worktree_changes",
+                                    return_value=None,
+                                ):
+                                    with mock.patch.object(
+                                        self.pc_feature,
+                                        "ensure_clean_worktree",
+                                        return_value=None,
+                                    ):
+                                        committed = self.pc_feature.commit_role_step(
+                                            "/tmp/root",
+                                            "/tmp/worktree",
+                                            "patcher-branch",
+                                            "tester",
+                                            "WI-20260210-01",
+                                            feature_dir,
+                                        )
+        self.assertTrue(committed)
+        reset_dev_tasks.assert_called_once_with("/tmp/worktree", dev_tasks_path)
+
+    def test_compacted_policy_bootstrap_issues_reports_scope_block(self):
+        with mock.patch.object(
+            self.pc_feature, "role_scoped_path_forbidden_for_patcher", return_value=True
+        ):
+            issues = self.pc_feature.compacted_policy_bootstrap_issues()
+        self.assertTrue(
+            any(
+                "patcher scope blocks compacted output path" in issue
+                for issue in issues
+            )
+        )
+
+    def test_ensure_compacted_policy_bootstrap_ready_exits_on_policy_mismatch(self):
+        stderr_capture = io.StringIO()
+        with mock.patch.object(
+            self.pc_feature,
+            "compacted_policy_bootstrap_issues",
+            return_value=["scope mismatch"],
+        ):
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stderr(stderr_capture):
+                    self.pc_feature.ensure_compacted_policy_bootstrap_ready()
+        self.assertIn(
+            "compacted outputs are blocked by current workflow policy",
+            stderr_capture.getvalue(),
+        )
 
     def test_ensure_plan_reviewer_read_only_allows_preexisting_unchanged_dirty(self):
         baseline = {

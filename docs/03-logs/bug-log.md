@@ -660,3 +660,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Planner prompts required a handoff sentence containing `docs/03-logs/*`, but deterministic policy checks treated the same token as a forbidden path and repeatedly blocked plan revisions until stagnation abort.
 - **Fix:** Updated planner/reviewer prompt wording to avoid mandatory wildcard-token output and added a narrow policy exception that ignores only literal wildcard handoff tokens in full-plan fallback scans (while still blocking `Files to change` wildcard/global-log edits).
 - **Validation:** `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature` (offload id `4c8d6b83107f50e31329a63db83ec36e7ee535f336b652a2144265a29890f85d`) and direct policy replay on `WI-20260209-01` plan (`violations_count=0`).
+
+## 2026-02-10 - Tester out-of-scope abort on planner-owned `dev-tasks.md`
+
+- **ID:** BUG-20260210-01
+- **Status:** Fixed
+- **Source:** User report (`make feature F=15`)
+- **Summary:** `pc-feature` could abort late with `tester edited out-of-scope files: docs/02-features/.../dev-tasks.md` when planner-owned `dev-tasks.md` remained dirty at tester commit time in a shared/resumed worktree.
+- **Fix:** `commit_role_step(...)` now discards planner-owned `dev-tasks.md` deltas for non-planner roles (`tester`, `reporter`, `plan-reviewer`) before enforcing role scope.
+- **Validation:** `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`; `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check`.
