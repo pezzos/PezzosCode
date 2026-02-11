@@ -5489,3 +5489,37 @@ Track when debt is paid down:
 **Testing:**
 
 - Not run (planning/docs-only update)
+
+### 2026-02-11 - PRD sync from context/process docs (context-to-product)
+
+**Feature/Bug:** PRD alignment with latest expected features and execution protocol constraints
+
+**Changed Files:**
+
+- `docs/01-product/prd.md`
+
+**What Changed:**
+
+- Updated PRD metadata (`Version: 0.5`, `Last Updated: 2026-02-11`) and changelog.
+- Added missing expected features into the PRD Process Features list:
+  - resume in-progress tickets,
+  - commit gating on completed ticket docs,
+  - workflow hardening for template-drift/autofix recovery,
+  - synthetic feature for end-to-end workflow smoke testing.
+- Added functional requirements for resume behavior, commit gating, and drift/autofix hardening, plus a Should Have requirement for synthetic-feature smoke tests.
+- Expanded Workflow/Process Requirements to mirror protocol constraints for high-risk approval, Allowed Tests policy, final `make ci` gate behavior, precommit log-scope restrictions, and resume semantics.
+
+**Why:**
+
+- Keep `docs/01-product/prd.md` as an accurate product/process contract that reflects `docs/00-context/*.md` and `docs/04-process/*.md` after recent roadmap and workflow updates.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None (docs-only)
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp rg -n '^## |^### ' docs/01-product/prd.md`
+- `tools/offload-proxy/pp rg -n 'Workflow hardening|template drift|synthetic feature|smoke test' docs/01-product/prd.md docs/00-context/expected-features.md`

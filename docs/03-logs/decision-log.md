@@ -1964,3 +1964,17 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Captures the next roadmap priorities in the canonical intake document.
   - Preserves incremental planning workflow and avoids creating partial feature specs before kickoff.
+
+### DEC-045 - Mirror new expected features and protocol guardrails directly in the PRD
+
+- **Date:** 2026-02-11
+- **Status:** Accepted
+- **Context:** `docs/00-context/expected-features.md` now includes two additional reliability/testing features, and protocol docs in `docs/04-process/` contain stricter execution constraints (Allowed Tests policy, explicit high-risk gate behavior, final CI gate limits, precommit log-scope rules) that were only partially reflected in `docs/01-product/prd.md`.
+- **Decision:**
+  - Update `docs/01-product/prd.md` to include the missing expected features in Process Features.
+  - Add matching FR entries for resume behavior, commit gating, and template-drift/autofix hardening, plus a synthetic-feature smoke-test requirement.
+  - Expand the PRD Workflow/Process Requirements bullets to match current protocol guardrails.
+  - Bump PRD metadata version/date and add a corresponding changelog row.
+- **Consequences:**
+  - PRD remains a current source of truth for both product scope and execution constraints.
+  - Context→PRD mapping stays deterministic when running context-to-product updates.
