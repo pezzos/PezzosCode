@@ -1,22 +1,21 @@
-# SolidLSP Override for Serena
+# Serena SolidLSP Override
 
 ## Purpose
 
-Provide a local SolidLSP override used by Serena, with wiring configured via
-`.codex.toml`.
+- Hold the repo-local SolidLSP override used by Serena.
+- Support the LSP override strategy documented in `docs/03-logs/decision-log.md` (DEC-002).
 
 ## Structure / Map
 
-- `solidlsp/` - Vendored SolidLSP source.
-- `.codex.toml` - Sets `mcp_servers.serena.env.PYTHONPATH` to this folder.
+- `solidlsp/` - Local SolidLSP override source.
+- `solidlsp/language_servers/elixir_tools/` - Elixir-specific language-server integration.
 
 ## Workflow
 
-To refresh the vendor copy:
-
-1. Replace `solidlsp/` with a new snapshot.
-2. Re-apply any local patches as needed.
+1. Keep Serena override wiring aligned with `.codex.toml`.
+2. Keep local changes minimal when refreshing override files.
 
 ## Related Docs
 
 - `.codex.toml`
+- `docs/03-logs/decision-log.md` (DEC-002)

@@ -27,6 +27,10 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-11 - Role-loop control-flow contract docs validation
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"` (PASS: 12 tests, including explicit role order/restart/no-op/artifact-reuse assertions)
+
 ### 2026-02-10 - Compaction freshness/dedupe hardening validation
 
 - `tools/offload-proxy/pp python3 -m unittest tests.test_log_compaction` (PASS)

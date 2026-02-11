@@ -2,44 +2,35 @@
 
 # PezzosCode bootstrap
 
-> A reusable starter kit for docs-first, AI-assisted development.
+> Docs-first, AI-first starter kit for a single developer/PO workflow.
 
 ## Purpose
 
-This repo provides:
-
-- A structured documentation system in `docs/`.
-- Reusable skills for Codex in `.codex/skills/`.
-- Helper scripts in `tools/`.
-- Ready-to-copy AI usage rules in `AGENTS.md`.
+- Bootstrap a repo with the PezzosCode docs, tools, and skills.
+- Keep execution predictable with a CLI-only operating model.
+- Preserve traceability through context docs and chronological logs.
 
 ## Quick Start
 
-1. Clone this repo (or use it as a GitHub template).
-2. For an existing project, run:
+1. Bootstrap into a target repo:
    ```bash
    ./tools/bootstrap-into /path/to/your/project
    ```
-3. Fill out core context:
-   - `docs/00-context/vision.md`
-   - `docs/00-context/system-map.md`
-   - `docs/00-context/users.md`
-   - `docs/00-context/assumptions.md`
-   - `docs/00-context/context-boundaries-operating-model.md`
-4. Define requirements in `docs/01-product/prd.md`.
-5. Start your first feature from `docs/02-features/feature-template/`.
+2. Fill core context in `docs/00-context/`.
+3. Define or update feature docs under `docs/02-features/`.
+4. Execute work using the ticket protocol in `docs/04-process/ticket-execution-protocol.md`.
 
 ## Structure / Map
 
-- `docs/` - Documentation system (see `docs/README.md`).
+- `docs/` - Context, product, features, logs, and process docs.
+- `tools/` - Workflow scripts (`bootstrap-into`, `pc-feature`, `pc-commit`, offload proxy).
 - `.codex/skills/` - Reusable Codex skills.
-- `tools/` - Helper scripts (see `tools/README.md`).
-- `AGENTS.md` - Repo-specific AI rules.
+- `AGENTS.md` - Repo execution rules for AI agents.
 
 ## Related Docs
 
 - `docs/README.md`
+- `docs/00-context/vision.md`
+- `docs/00-context/system-map.md`
 - `docs/00-context/context-boundaries-operating-model.md`
-- `docs/01-product/prd.md`
-- `docs/04-process/definition-of-done.md`
 - `docs/04-process/ticket-execution-protocol.md`

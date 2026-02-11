@@ -110,6 +110,19 @@
    - If a step has nothing to do during a retry, record a no-op entry in the iteration log and continue.
    - Repeat until feedback is resolved.
 
+### Control-Flow Contract (Execution Order + Restart Rules)
+
+- Required runtime order is:
+  `Orchestrator → Planner → Plan Reviewer → Patcher → Tester → Reporter → Orchestrator`.
+- Plan Reviewer `BLOCK` restarts from **Planner**. Patcher and downstream steps must not run until the reviewer approves.
+- Plan Reviewer `APPROVE` proceeds directly to **Patcher**.
+- Tester `FAIL` restarts from **Planner** (plan and patch must be revisited before retesting).
+- Tester `PASS` proceeds directly to **Reporter**.
+- Reporter `FAIL` restarts from **Planner**.
+- Reporter `PASS` marks the role loop successful and returns control to **Orchestrator** for final gates and collection.
+- On any loop restart where a role has no new work, the orchestrator must append an explicit no-op note to the iteration log and continue.
+- Restart behavior must be artifact-aware: reuse existing work-item artifacts when safe (`dev-tasks` entry, role logs, `logs/<WI>/...`) and re-run validation steps instead of reinitializing from scratch.
+
 8. **TDD Cycle (when applicable)**
    - Write tests first.
    - Run tests and confirm they fail for the right reason.

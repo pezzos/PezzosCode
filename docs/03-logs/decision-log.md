@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-042] - Enforce explicit role-loop control-flow contract
+
+**Date:** 2026-02-11
+
+**Status:** Implemented
+
+**Decision:**
+Define one required runtime order (`Orchestrator → Planner → Plan Reviewer → Patcher → Tester → Reporter → Orchestrator`) and deterministic restart rules (reviewer `BLOCK`, tester `FAIL`, and reporter `FAIL` all restart at Planner; only reporter `PASS` returns control to final Orchestrator gates).
+
+**Rationale:**
+Retry loops were under-specified across process docs and prompts, which risked inconsistent reruns and weak handoff context. A single contract keeps retries predictable and auditable.
+
+**Implications:**
+
+- Role outputs must include actionable failure context for restart passes.
+- No-op restart passes must be recorded explicitly in iteration logs.
+- Restarts should reuse existing artifacts/logs when safe instead of reinitializing work from scratch.
+
 ### [DEC-018] - Interactive HIGH-risk approval gate for `pc-feature`
 
 **Date:** 2026-02-06
