@@ -1334,8 +1334,23 @@ class TestPcFeature(unittest.TestCase):
         self.assertIsNone(self.pc_feature.select_resume_work_item_id(content))
 
     def test_parse_resume_mode_defaults_to_auto(self):
-        with mock.patch.dict(self.pc_feature.os.environ, {}, clear=False):
+        with mock.patch.dict(self.pc_feature.os.environ, {}, clear=True):
             self.assertEqual(self.pc_feature.parse_resume_mode(), "auto")
+
+    def test_parse_resume_mode_normalizes_supported_values(self):
+        cases = [
+            ({}, "auto"),
+            ({"RESUME_MODE": "  "}, "auto"),
+            ({"RESUME_MODE": "AUTO"}, "auto"),
+            ({"RESUME_MODE": " Prompt "}, "prompt"),
+            ({"RESUME_MODE": "fresh"}, "fresh"),
+        ]
+        for env_updates, expected in cases:
+            with self.subTest(env=env_updates, expected=expected):
+                with mock.patch.dict(
+                    self.pc_feature.os.environ, env_updates, clear=True
+                ):
+                    self.assertEqual(self.pc_feature.parse_resume_mode(), expected)
 
     def test_parse_resume_mode_invalid_value_exits(self):
         stderr_capture = io.StringIO()
@@ -1540,6 +1555,209 @@ class TestPcFeature(unittest.TestCase):
             )
         self.assertEqual(first, second)
         self.assertEqual(first, ("tester", None))
+
+    def test_detect_resume_route_fixture_matrix_is_deterministic(self):
+        def with_plan(content: str, work_item_id: str) -> str:
+            return self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Plan",
+                "Plan Contract v1\n\nApproach:\n- done",
+            )
+
+        fixtures = [
+            {
+                "name": "valid-routes-to-patcher",
+                "work_item_id": "WI-20260211-11",
+                "path": "valid",
+                "build": lambda content, work_item_id: with_plan(content, work_item_id),
+                "expected_route": "patcher",
+                "reason_contains": None,
+            },
+            {
+                "name": "valid-routes-to-tester",
+                "work_item_id": "WI-20260211-12",
+                "path": "valid",
+                "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
+                    self.pc_feature.replace_entry_section(
+                        self.pc_feature.replace_entry_section(
+                            self.pc_feature.replace_entry_section(
+                                with_plan(content, work_item_id),
+                                work_item_id,
+                                "Patch",
+                                "- patch complete",
+                            ),
+                            work_item_id,
+                            "Test Results",
+                            "- python -m pytest ... -> 0",
+                        ),
+                        work_item_id,
+                        "Reporter Review",
+                        "Outcome: PASS\nNotes: approved",
+                    ),
+                    work_item_id,
+                    "Reporter Feedback",
+                    "Outcome: PASS\nNotes: approved",
+                ),
+                "expected_route": "tester",
+                "reason_contains": None,
+            },
+            {
+                "name": "contradiction-tester-fail-vs-reporter-pass",
+                "work_item_id": "WI-20260211-13",
+                "path": "contradictory",
+                "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
+                    self.pc_feature.replace_entry_section(
+                        self.pc_feature.replace_entry_section(
+                            self.pc_feature.replace_entry_section(
+                                self.pc_feature.replace_entry_section(
+                                    with_plan(content, work_item_id),
+                                    work_item_id,
+                                    "Patch",
+                                    "- patch complete",
+                                ),
+                                work_item_id,
+                                "Test Results",
+                                "- python -m pytest ... -> 1",
+                            ),
+                            work_item_id,
+                            "Reporter Review",
+                            "Outcome: PASS\nNotes: approved",
+                        ),
+                        work_item_id,
+                        "Tester Feedback",
+                        "Outcome: FAIL\nNotes: failed",
+                    ),
+                    work_item_id,
+                    "Reporter Feedback",
+                    "Outcome: PASS\nNotes: approved",
+                ),
+                "expected_route": "block",
+                "reason_contains": "contradictory",
+            },
+            {
+                "name": "contradiction-reporter-feedback-before-review",
+                "work_item_id": "WI-20260211-14",
+                "path": "contradictory",
+                "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
+                    self.pc_feature.replace_entry_section(
+                        self.pc_feature.replace_entry_section(
+                            with_plan(content, work_item_id),
+                            work_item_id,
+                            "Patch",
+                            "- patch complete",
+                        ),
+                        work_item_id,
+                        "Test Results",
+                        "- python -m pytest ... -> 0",
+                    ),
+                    work_item_id,
+                    "Reporter Feedback",
+                    "Outcome: PASS\nNotes: exists before review",
+                ),
+                "expected_route": "block",
+                "reason_contains": "reporter feedback",
+            },
+            {
+                "name": "baseline-no-plan-routes-to-planner",
+                "work_item_id": "WI-20260211-15",
+                "path": "baseline",
+                "build": lambda content, _work_item_id: content,
+                "expected_route": "planner",
+                "reason_contains": None,
+            },
+            {
+                "name": "baseline-plan-and-patchout-routes-to-patcher",
+                "work_item_id": "WI-20260211-16",
+                "path": "baseline",
+                "build": lambda content, work_item_id: with_plan(content, work_item_id),
+                "expected_route": "patcher",
+                "reason_contains": None,
+            },
+        ]
+
+        path_counts = {}
+        for fixture in fixtures:
+            path_counts[fixture["path"]] = path_counts.get(fixture["path"], 0) + 1
+        self.assertGreaterEqual(path_counts.get("valid", 0), 2)
+        self.assertGreaterEqual(path_counts.get("contradictory", 0), 2)
+        self.assertGreaterEqual(path_counts.get("baseline", 0), 2)
+
+        for fixture in fixtures:
+            with self.subTest(fixture=fixture["name"]):
+                content = self._build_entry_content(fixture["work_item_id"])
+                content = fixture["build"](content, fixture["work_item_id"])
+                first = self.pc_feature.detect_resume_route(
+                    content, fixture["work_item_id"]
+                )
+                second = self.pc_feature.detect_resume_route(
+                    content, fixture["work_item_id"]
+                )
+                self.assertEqual(first, second)
+                self.assertEqual(first[0], fixture["expected_route"])
+                if fixture["reason_contains"]:
+                    self.assertIsNotNone(first[1])
+                    self.assertIn(fixture["reason_contains"], first[1])
+                else:
+                    self.assertIsNone(first[1])
+
+    def test_main_resume_consistency_gate_shared_by_auto_and_prompt(self):
+        class StopAfterRoute(RuntimeError):
+            pass
+
+        for resume_mode in ("auto", "prompt"):
+            with self.subTest(resume_mode=resume_mode):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    root = Path(tmp_dir)
+                    patcher_path = root / "patcher"
+                    patcher_path.mkdir(parents=True, exist_ok=True)
+                    (patcher_path / ".git").write_text(
+                        "gitdir: /tmp/fake\n", encoding="utf-8"
+                    )
+                    work_item_id = "WI-20260211-17"
+                    content = self._build_entry_content(work_item_id)
+                    feature_dir = self._write_feature_workspace(root, content)
+                    die_messages = []
+
+                    def capture_die(message: str) -> None:
+                        die_messages.append(message)
+                        raise StopAfterRoute()
+
+                    with contextlib.ExitStack() as stack:
+                        for patcher in self._patch_main_base(
+                            root, feature_dir, patcher_path
+                        ):
+                            stack.enter_context(patcher)
+                        stack.enter_context(
+                            mock.patch.object(
+                                self.pc_feature,
+                                "parse_resume_mode",
+                                return_value=resume_mode,
+                            )
+                        )
+                        detect_mock = stack.enter_context(
+                            mock.patch.object(
+                                self.pc_feature,
+                                "detect_resume_route",
+                                return_value=(
+                                    "block",
+                                    "contradictory resume state: fixture",
+                                ),
+                            )
+                        )
+                        stack.enter_context(
+                            mock.patch.object(
+                                self.pc_feature,
+                                "die",
+                                side_effect=capture_die,
+                            )
+                        )
+                        with self.assertRaises(StopAfterRoute):
+                            self.pc_feature.main()
+                    self.assertEqual(detect_mock.call_count, 1)
+                    self.assertEqual(len(die_messages), 1)
+                    self.assertIn("contradictory resume state", die_messages[0])
+                    self.assertIn(f"mode={resume_mode}", die_messages[0])
 
     def test_classify_resume_dirty_paths_separates_runtime_and_unexpected(self):
         feature_dir = "docs/02-features/01-workflow-hardening"
