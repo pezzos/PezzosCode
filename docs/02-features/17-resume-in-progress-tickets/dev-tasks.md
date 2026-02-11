@@ -90,50 +90,50 @@
 Plan Contract v1
 Approach:
 
-1. Reproduce the failing `tests.test_docs_logs` case from WI-20260211-02, inspect the docs/log validation expectation that is failing, and isolate the minimal contract mismatch causing exit code 1.
+1. Reproduce and isolate the `tests.test_docs_logs` failure by running only the Allowed Test command, then identify the exact failing assertion and the contract rule it enforces.
    Files to change:
 
-- tests/test_docs_logs.py
-- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+- `tests/test_docs_logs.py`
+- `tools/pc-feature`
   Risks:
-- Misidentifying the failing assertion source could mask a real docs/log policy regression.
+- Fixing only the symptom could leave the docs/log contract inconsistent with resume guardrails.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: Add/verify at least one valid and one invalid fixture layout for compacted WI evidence placement/content rules.
-- Deterministic seed strategy: Use fixed fixture names, fixed content, and stable temp-directory structure with no clock/random input.
-- Invariant checks: The same fixture tree must always produce the same pass/fail result.
-- Contract boundary coverage: Separate checks for evidence path constraints vs evidence content requirements.
+- Fixture coverage: Add/verify at least one passing and one failing fixture for compacted WI evidence contract checks.
+- Deterministic seed strategy: Use fixed fixture names/content and stable temp paths only; no clock/random input.
+- Invariant checks: The same fixture inputs must always produce identical pass/fail outcomes.
+- Contract boundary coverage: Validate path-placement rules independently from content-schema rules.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
 
-2. Patch the docs/log validator and/or related resume guardrail expectations so contradictory or invalid artifacts still fail closed, while valid WI compacted evidence passes `tests.test_docs_logs`.
+2. Patch contract enforcement so invalid or contradictory artifacts fail closed while valid compacted WI evidence passes, without regressing resume-routing behavior.
    Files to change:
 
-- tools/pc-feature
-- tests/test_pc_feature.py
-- tests/test_docs_logs.py
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `tests/test_docs_logs.py`
   Risks:
-- Guardrail adjustments may unintentionally change accepted resume-routing behavior.
+- Guardrail changes may accidentally alter explicit vs inferred resume decisions.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: Preserve complete, incomplete, contradictory, and non-resume cases with at least two fixtures for each critical branch.
-- Deterministic seed strategy: Keep artifact inputs and temp-path creation static; avoid nondeterministic ordering/time dependence.
-- Invariant checks: Identical artifacts plus mode must always yield identical route and block/continue decisions.
-- Contract boundary coverage: Enforce equal consistency checks for inferred and explicit resume modes while maintaining docs/log contract compliance.
+- Fixture coverage: Keep complete, incomplete, contradictory, and non-resume branches covered with at least two fixtures for each critical branch.
+- Deterministic seed strategy: Keep all artifact inputs static and ordering deterministic.
+- Invariant checks: Identical artifacts and mode must always yield the same route/block decision.
+- Contract boundary coverage: Enforce parity between inferred and explicit resume consistency checks while preserving docs/log validation constraints.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
 
-3. Execute all Allowed Tests until both exit 0, then update compacted WI evidence with exact commands and outcomes to reflect final passing state.
+3. Run all Allowed Tests until both exit 0, then update compacted WI evidence with exact executed commands and final results.
    Files to change:
 
-- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+- `docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md`
   Risks:
-- Evidence drift from actual executed commands/results can block downstream review.
+- Evidence can drift from actual execution if not updated from final command outputs only.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: N/A for evidence update; reference fixture coverage completed in steps 1-2.
-- Deterministic seed strategy: Record exact command lines and final deterministic exit statuses only.
-- Invariant checks: Evidence entries must match executed commands/results exactly.
-- Contract boundary coverage: Restrict patcher docs edits to compacted WI evidence only.
+- Deterministic seed strategy: Record exact command strings and deterministic exit codes only.
+- Invariant checks: Evidence entries must exactly match executed commands/results.
+- Contract boundary coverage: Limit patcher docs edits to compacted outputs only.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
@@ -177,6 +177,8 @@ Work Item ID: WI-20260211-02
 - Attempt 1: tester=FAIL, reporter=SKIPPED; planner decision=REVISE_PLAN; rationale=One required Allowed Tests command is failing (`python3 -m unittest tests.test_docs_logs`), so the plan must add explicit remediation to restore full green status before review.; patcher feedback pending.
 - Attempt 2: reporter no-op; reason=tester failed.
 - Attempt 2: tester=FAIL, reporter=SKIPPED; planner decision=REVISE_PLAN; rationale=One allowed test command still exits non-zero, so the plan must tighten failure isolation and acceptance criteria to guarantee both allowed tests pass before handoff.; patcher feedback pending.
+- Attempt 3: reporter no-op; reason=tester failed.
+- Attempt 3: tester=FAIL, reporter=SKIPPED; planner decision=REVISE_PLAN; rationale=One required Allowed Test command (`python3 -m unittest tests.test_docs_logs`) still exits 1, so the current plan is not sufficient to reach a passing gate.; patcher feedback pending.
 
 #### Commit
 
