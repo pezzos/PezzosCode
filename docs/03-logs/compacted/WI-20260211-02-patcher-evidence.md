@@ -5,6 +5,7 @@
 
 ## Commands Executed
 
+- `make feature F=WI-20260211-02` -> FAIL (`pc-feature: run from main branch only`) because current branch is `feature-17-resume-in-progress-tickets-patcher`.
 - `tools/offload-proxy/pp python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`119 passed`, `0 failed`).
 - `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs` -> PASS (`Ran 8 tests`, `OK`).
 
