@@ -3226,6 +3226,10 @@ def detect_resume_route(
         contradictions.append(
             "reporter artifact exists while reporter review section is pending"
         )
+    if reporter_outcome and test_results_complete and not reporter_review_complete:
+        contradictions.append(
+            "reporter feedback exists while reporter review section is pending"
+        )
     if patch_complete and not plan_complete:
         contradictions.append("patch exists without complete plan")
     if test_results_complete and not patch_complete:
@@ -3237,7 +3241,12 @@ def detect_resume_route(
     if tester_outcome == "FAIL" and reporter_review_complete:
         contradictions.append("tester failed but reporter review is complete")
     if contradictions:
-        return ("block", "contradictory resume state: " + "; ".join(contradictions))
+        return (
+            "block",
+            "contradictory resume state: "
+            + "; ".join(contradictions)
+            + "; remediation: align pending sections and role artifacts before resume",
+        )
 
     if reporter_outcome and not test_results_complete:
         return (

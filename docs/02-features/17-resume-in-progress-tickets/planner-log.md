@@ -92,3 +92,212 @@ Approach:
 Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit non-compacted `docs/03-logs` files. Role-scoped execution-record updates and reporter rerun handoff remain outside patcher file edits in this plan.
 
 Work Item ID: WI-20260211-01
+
+### WI-20260211-02 - 2026-02-11
+
+Updated `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260211-02` with:
+
+- `#### Allowed Tests` populated with exact commands only:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+- `#### Plan` replaced with the required **Plan Contract v1** structure.
+- Anti-hardcode coverage explicitly included in each step:
+  - fixture coverage (`>=2 fixtures per critical path`)
+  - deterministic seed strategy
+  - invariant checks
+  - contract boundary coverage
+- Required explicit handoff note added:
+  - non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned; patcher will not edit them.
+- `#### Docs Updated` adjusted to remove non-compacted `docs/03-logs/*` from planned patcher edits.
+- `Systematic review` command log filled with executed commands and outcomes.
+
+I could not complete the requested final commit due sandbox/gitdir permission limits in this environment:
+`fatal: Unable to create '/Users/alexandrepezzotta/repos/PezzosCode/.git/worktrees/PezzosCode-17-resume-in-progress-tickets-patcher/index.lock': Operation not permitted`
+
+Current state: modified file is unstaged in working tree (`M docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`).
+
+### WI-20260211-02 - 2026-02-11
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260211-02 - 2026-02-11
+
+Decision: REVISE_PLAN
+Rationale: One required Allowed Tests command is failing (`python3 -m unittest tests.test_docs_logs`), so the plan must add explicit remediation to restore full green status before review.
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Reproduce and isolate the `tests.test_docs_logs` failure path tied to WI-20260211-02 and identify the exact docs/log contract mismatch causing exit code 1.
+   Files to change:
+
+- tests/test_docs_logs.py
+- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+  Risks:
+- Fixing assertions too narrowly could hide a real logging contract regression.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Validate at least one passing and one failing docs/log layout fixture for compacted evidence expectations.
+- Deterministic seed strategy: Use static file names/content and fixed temporary directory structure.
+- Invariant checks: The same docs tree input must always produce the same pass/fail verdict.
+- Contract boundary coverage: Verify boundaries between compacted evidence location rules and WI-scoped evidence content checks.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Patch resume-routing/guardrail implementation and/or test expectations so contradictory in-progress artifacts still fail closed while remaining compliant with docs/log validation rules.
+   Files to change:
+
+- tools/pc-feature
+- tests/test_pc_feature.py
+- tests/test_docs_logs.py
+  Risks:
+- Behavioral guardrail changes could unintentionally alter valid resume flows.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Keep complete, incomplete, contradictory, and non-resume fixtures with at least two fixtures for each critical path.
+- Deterministic seed strategy: Use fixed artifacts and stable temp-path construction; no time/random-dependent logic.
+- Invariant checks: Identical artifacts plus mode must always yield identical route and block/continue outcomes.
+- Contract boundary coverage: Enforce the same consistency gate for inferred and explicit resume modes while preserving docs/log contract compliance.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Re-run all Allowed Tests, record compacted WI evidence with exact commands and outcomes, and keep patcher edits scoped away from non-compacted docs logs.
+   Files to change:
+
+- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+  Risks:
+- Incomplete or inaccurate evidence can block reporter/orchestrator handoff.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A for evidence update; reference executed fixtures from steps 1-2.
+- Deterministic seed strategy: Record exact command lines and deterministic outcomes only.
+- Invariant checks: Evidence must match executed commands/results verbatim.
+- Contract boundary coverage: Limit patcher evidence updates to compacted WI output only.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator, and patcher will not edit non-compacted `docs/03-logs` files.
+
+Work Item ID: WI-20260211-02
+
+### WI-20260211-02 - 2026-02-11
+
+Decision: REVISE_PLAN
+Rationale: One allowed test command still exits non-zero, so the plan must tighten failure isolation and acceptance criteria to guarantee both allowed tests pass before handoff.
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Reproduce the failing `tests.test_docs_logs` case from WI-20260211-02, inspect the docs/log validation expectation that is failing, and isolate the minimal contract mismatch causing exit code 1.
+   Files to change:
+
+- tests/test_docs_logs.py
+- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+  Risks:
+- Misidentifying the failing assertion source could mask a real docs/log policy regression.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Add/verify at least one valid and one invalid fixture layout for compacted WI evidence placement/content rules.
+- Deterministic seed strategy: Use fixed fixture names, fixed content, and stable temp-directory structure with no clock/random input.
+- Invariant checks: The same fixture tree must always produce the same pass/fail result.
+- Contract boundary coverage: Separate checks for evidence path constraints vs evidence content requirements.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Patch the docs/log validator and/or related resume guardrail expectations so contradictory or invalid artifacts still fail closed, while valid WI compacted evidence passes `tests.test_docs_logs`.
+   Files to change:
+
+- tools/pc-feature
+- tests/test_pc_feature.py
+- tests/test_docs_logs.py
+  Risks:
+- Guardrail adjustments may unintentionally change accepted resume-routing behavior.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Preserve complete, incomplete, contradictory, and non-resume cases with at least two fixtures for each critical branch.
+- Deterministic seed strategy: Keep artifact inputs and temp-path creation static; avoid nondeterministic ordering/time dependence.
+- Invariant checks: Identical artifacts plus mode must always yield identical route and block/continue decisions.
+- Contract boundary coverage: Enforce equal consistency checks for inferred and explicit resume modes while maintaining docs/log contract compliance.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Execute all Allowed Tests until both exit 0, then update compacted WI evidence with exact commands and outcomes to reflect final passing state.
+   Files to change:
+
+- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+  Risks:
+- Evidence drift from actual executed commands/results can block downstream review.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A for evidence update; reference fixture coverage completed in steps 1-2.
+- Deterministic seed strategy: Record exact command lines and final deterministic exit statuses only.
+- Invariant checks: Evidence entries must match executed commands/results exactly.
+- Contract boundary coverage: Restrict patcher docs edits to compacted WI evidence only.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator, and patcher will not edit non-compacted `docs/03-logs` files.
+
+Work Item ID: WI-20260211-02
+
+### WI-20260211-02 - 2026-02-11
+
+Decision: REVISE_PLAN
+Rationale: One required Allowed Test command (`python3 -m unittest tests.test_docs_logs`) still exits 1, so the current plan is not sufficient to reach a passing gate.
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Reproduce and isolate the `tests.test_docs_logs` failure by running only the Allowed Test command, then identify the exact failing assertion and the contract rule it enforces.
+   Files to change:
+
+- `tests/test_docs_logs.py`
+- `tools/pc-feature`
+  Risks:
+- Fixing only the symptom could leave the docs/log contract inconsistent with resume guardrails.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Add/verify at least one passing and one failing fixture for compacted WI evidence contract checks.
+- Deterministic seed strategy: Use fixed fixture names/content and stable temp paths only; no clock/random input.
+- Invariant checks: The same fixture inputs must always produce identical pass/fail outcomes.
+- Contract boundary coverage: Validate path-placement rules independently from content-schema rules.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Patch contract enforcement so invalid or contradictory artifacts fail closed while valid compacted WI evidence passes, without regressing resume-routing behavior.
+   Files to change:
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `tests/test_docs_logs.py`
+  Risks:
+- Guardrail changes may accidentally alter explicit vs inferred resume decisions.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Keep complete, incomplete, contradictory, and non-resume branches covered with at least two fixtures for each critical branch.
+- Deterministic seed strategy: Keep all artifact inputs static and ordering deterministic.
+- Invariant checks: Identical artifacts and mode must always yield the same route/block decision.
+- Contract boundary coverage: Enforce parity between inferred and explicit resume consistency checks while preserving docs/log validation constraints.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Run all Allowed Tests until both exit 0, then update compacted WI evidence with exact executed commands and final results.
+   Files to change:
+
+- `docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md`
+  Risks:
+- Evidence can drift from actual execution if not updated from final command outputs only.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A for evidence update; reference fixture coverage completed in steps 1-2.
+- Deterministic seed strategy: Record exact command strings and deterministic exit codes only.
+- Invariant checks: Evidence entries must exactly match executed commands/results.
+- Contract boundary coverage: Limit patcher docs edits to compacted outputs only.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator, and patcher will not edit non-compacted `docs/03-logs` files.
+
+Work Item ID: WI-20260211-02

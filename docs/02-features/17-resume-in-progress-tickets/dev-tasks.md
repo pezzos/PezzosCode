@@ -26,6 +26,168 @@
 
 ## Execution Log
 
+### WI-20260211-02 - Work item execution
+
+- Date: 2026-02-11
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome: needs replan
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes: Main head locked: 22b4f76000fb5e584fd9418a512b1720b0127c01
+
+#### Preflight Report
+
+- Work Item: WI-20260211-02
+- PRD ref: docs/01-product/prd.md
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: ['Deterministic resume-state detection from existing work-item artifacts and role logs', 'Resume policy resolution for modes `auto`, `prompt`, and `fresh`', 'Fail-closed handling for contradictory artifact state with explicit remediation', 'Step routing that skips only safe completed steps while always re-running tests and final CI gate', 'Traceable resume decisions/checkpoints logged in feature/work-item documentation']
+- Scope out: ['Multi-feature concurrent resume orchestration', 'Background/daemon-based resume automation', 'Non-CLI surfaces (TUI/API/Web)']
+- Non-goals reminder: Do not change the single-feature-worktree operating model, do not add scheduler/daemon behavior, and do not weaken mandatory rerun of tests and final CI on resume.
+- Files to change: tools/pc-feature, tests/test_pc_feature.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+- TDD plan: TC-17-001 resume from completed planner+reviewer continues at patcher, TC-17-002 resume after tester fail routes back to planner, TC-17-003 resume after reporter pass proceeds to final gates, TC-17-101 contradictory step state blocks with remediation, TC-17-102 dirty worktree preserved in auto mode, TC-17-201 missing critical artifacts returns deterministic block/error, TC-17-301 non-resume execution path regression remains unchanged, python -m pytest tests/test_pc_feature.py::TestPcFeature, python3 -m unittest tests.test_docs_logs
+- Systematic review:
+  - `rg -n "WI-20260211-02|#### Allowed Tests|#### Plan" docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` -> located WI-20260211-02 placeholders requiring planner updates.
+  - `nl -ba docs/02-features/17-resume-in-progress-tickets/dev-tasks.md | sed -n '1,220p'` -> inspected WI-20260211-02 execution block, confirmed placeholder plan and disallowed non-compacted log targets in docs update notes.
+  - `nl -ba docs/02-features/17-resume-in-progress-tickets/dev-tasks.md | sed -n '40,170p'` -> verified Plan Contract v1 content, exact Allowed Tests commands, and ownership handoff note after patch.
+
+#### TDD Plan
+
+- Tests to write first:
+  - TC-17-001 resume from completed planner+reviewer continues at patcher
+  - TC-17-002 resume after tester fail routes back to planner
+  - TC-17-003 resume after reporter pass proceeds to final gates
+  - TC-17-101 contradictory step state blocks with remediation
+  - TC-17-102 dirty worktree preserved in auto mode
+  - TC-17-201 missing critical artifacts returns deterministic block/error
+  - TC-17-301 non-resume execution path regression remains unchanged
+  - python -m pytest tests/test_pc_feature.py::TestPcFeature
+  - python3 -m unittest tests.test_docs_logs
+
+#### Allowed Tests
+
+- `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
+
+#### Files to Change
+
+- Files: tools/pc-feature, tests/test_pc_feature.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+
+#### Docs Updated
+
+- docs/02-features/17-resume-in-progress-tickets/dev-tasks.md: populate WI-20260211-02 preflight, TDD plan, file list, executed command review, and outcome sections
+- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md: record implementation/test evidence and offload pointers for traceability
+- Non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned and out of patcher scope for this work item.
+
+#### Plan
+
+Plan Contract v1
+Approach:
+
+1. Reproduce and isolate the `tests.test_docs_logs` failure by running only the Allowed Test command, then identify the exact failing assertion and the contract rule it enforces.
+   Files to change:
+
+- `tests/test_docs_logs.py`
+- `tools/pc-feature`
+  Risks:
+- Fixing only the symptom could leave the docs/log contract inconsistent with resume guardrails.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Add/verify at least one passing and one failing fixture for compacted WI evidence contract checks.
+- Deterministic seed strategy: Use fixed fixture names/content and stable temp paths only; no clock/random input.
+- Invariant checks: The same fixture inputs must always produce identical pass/fail outcomes.
+- Contract boundary coverage: Validate path-placement rules independently from content-schema rules.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Patch contract enforcement so invalid or contradictory artifacts fail closed while valid compacted WI evidence passes, without regressing resume-routing behavior.
+   Files to change:
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `tests/test_docs_logs.py`
+  Risks:
+- Guardrail changes may accidentally alter explicit vs inferred resume decisions.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Keep complete, incomplete, contradictory, and non-resume branches covered with at least two fixtures for each critical branch.
+- Deterministic seed strategy: Keep all artifact inputs static and ordering deterministic.
+- Invariant checks: Identical artifacts and mode must always yield the same route/block decision.
+- Contract boundary coverage: Enforce parity between inferred and explicit resume consistency checks while preserving docs/log validation constraints.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Run all Allowed Tests until both exit 0, then update compacted WI evidence with exact executed commands and final results.
+   Files to change:
+
+- `docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md`
+  Risks:
+- Evidence can drift from actual execution if not updated from final command outputs only.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A for evidence update; reference fixture coverage completed in steps 1-2.
+- Deterministic seed strategy: Record exact command strings and deterministic exit codes only.
+- Invariant checks: Evidence entries must exactly match executed commands/results.
+- Contract boundary coverage: Limit patcher docs edits to compacted outputs only.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator, and patcher will not edit non-compacted `docs/03-logs` files.
+
+Work Item ID: WI-20260211-02
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
+- Attempt 1: reporter no-op; reason=tester failed.
+- Attempt 1: tester=FAIL, reporter=SKIPPED; planner decision=REVISE_PLAN; rationale=One required Allowed Tests command is failing (`python3 -m unittest tests.test_docs_logs`), so the plan must add explicit remediation to restore full green status before review.; patcher feedback pending.
+- Attempt 2: reporter no-op; reason=tester failed.
+- Attempt 2: tester=FAIL, reporter=SKIPPED; planner decision=REVISE_PLAN; rationale=One allowed test command still exits non-zero, so the plan must tighten failure isolation and acceptance criteria to guarantee both allowed tests pass before handoff.; patcher feedback pending.
+- Attempt 3: reporter no-op; reason=tester failed.
+- Attempt 3: tester=FAIL, reporter=SKIPPED; planner decision=REVISE_PLAN; rationale=One required Allowed Test command (`python3 -m unittest tests.test_docs_logs`) still exits 1, so the current plan is not sufficient to reach a passing gate.; patcher feedback pending.
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 ### WI-20260211-01 - Work item execution
 
 - Date: 2026-02-11
