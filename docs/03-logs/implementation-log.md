@@ -5523,3 +5523,43 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp rg -n '^## |^### ' docs/01-product/prd.md`
 - `tools/offload-proxy/pp rg -n 'Workflow hardening|template drift|synthetic feature|smoke test' docs/01-product/prd.md docs/00-context/expected-features.md`
+
+### 2026-02-11 - Incremental PRD-to-features generation for newly missing P0/P1 items
+
+**Feature/Bug:** Feature-doc scaffolding from PRD process features (incremental mode)
+
+**Changed Files:**
+
+- `docs/02-features/17-resume-in-progress-tickets/*`
+- `docs/02-features/18-commit-gated-by-completed-ticket-docs/*`
+- `docs/02-features/19-template-drift-hardening-autofix-recovery/*`
+- `docs/02-features/20-synthetic-feature-workflow-smoke-test/*`
+
+**What Changed:**
+
+- Created four new feature folders for PRD P0/P1 process features not previously represented as dedicated feature docs:
+  - Resume in-progress tickets
+  - Commit gated by completed ticket docs
+  - Template drift hardening + autofix recovery
+  - Synthetic feature workflow smoke test
+- Each folder was initialized from `docs/02-features/feature-template/` and populated with concrete content in:
+  - `feature-spec.md`
+  - `tech-design.md`
+  - `dev-tasks.md`
+  - `test-plan.md`
+- Preserved template role-log files (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`) as initialization stubs.
+
+**Why:**
+
+- Apply `prd-to-features` incrementally after PRD updates so missing P0/P1 process features are documented without modifying or regenerating existing feature folders.
+
+**Impact:**
+
+- **Breaking changes:** No (docs-only)
+- **Performance:** None
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp rg -n '^# Feature Specification|^# Technical Design|^# Development Tasks|^# Test Plan|^\\*\\*Status:\\*\\*' docs/02-features/17-resume-in-progress-tickets docs/02-features/18-commit-gated-by-completed-ticket-docs docs/02-features/19-template-drift-hardening-autofix-recovery docs/02-features/20-synthetic-feature-workflow-smoke-test`
+- `tools/offload-proxy/pp rg -n '\\[Feature Name\\]|\\[Phase Name\\]|\\[unique-id\\]' docs/02-features/17-resume-in-progress-tickets docs/02-features/18-commit-gated-by-completed-ticket-docs docs/02-features/19-template-drift-hardening-autofix-recovery docs/02-features/20-synthetic-feature-workflow-smoke-test`

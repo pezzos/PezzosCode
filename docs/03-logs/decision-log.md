@@ -1978,3 +1978,20 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - PRD remains a current source of truth for both product scope and execution constraints.
   - Context→PRD mapping stays deterministic when running context-to-product updates.
+
+### DEC-046 - Generate dedicated feature folders for missing PRD P0/P1 process features
+
+- **Date:** 2026-02-11
+- **Status:** Accepted
+- **Context:** After PRD v0.5 alignment, four P0/P1 process features were not represented as dedicated folders under `docs/02-features/`, while incremental mode requires adding only missing features without touching existing folders.
+- **Decision:**
+  - Create new feature folders `17` through `20` for:
+    - resume in-progress tickets,
+    - commit gated by completed ticket docs,
+    - template drift hardening + autofix recovery,
+    - synthetic feature workflow smoke test.
+  - Keep existing folders `01`-`16` unchanged (no regeneration, no renumbering, no deletion).
+  - Populate the template core documents (`feature-spec.md`, `tech-design.md`, `dev-tasks.md`, `test-plan.md`) with CLI-focused content and maintain template role-log stubs.
+- **Consequences:**
+  - PRD-to-features coverage now includes newly introduced P0/P1 process features.
+  - Incremental/additive behavior is preserved for existing projects.
