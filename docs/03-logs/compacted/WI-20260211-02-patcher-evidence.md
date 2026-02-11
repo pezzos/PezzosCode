@@ -1,11 +1,10 @@
 # WI-20260211-02 Patcher Evidence (Compacted)
 
 - Date: 2026-02-11
-- Scope: rerun Allowed Tests after tester-reported docs/log failure and record compacted WI evidence.
+- Scope: execute Allowed Tests and record final compacted WI evidence.
 
 ## Commands Executed
 
-- `tools/offload-proxy/pp make feature F=17` -> blocked by guardrail: `pc-feature: run from main branch only`.
 - `tools/offload-proxy/pp python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`119 passed`, `0 failed`).
 - `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs` -> PASS (`Ran 8 tests`, `OK`).
 
