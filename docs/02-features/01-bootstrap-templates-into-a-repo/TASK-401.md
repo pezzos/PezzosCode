@@ -3,7 +3,7 @@ id: 401
 title: "Add or update tests"
 prd_ref: "01"
 status: "Done"
-status_reason: ""
+status_reason: "dod: all checked"
 complexity: "simple"
 approval: "" # set to "granted" to resume HIGH risk tickets
 change_budget:
@@ -50,9 +50,9 @@ Add or update tests
 
 ## Definition of Done (Ticket-Specific)
 
-- [ ] Tests cover the primary path
-- [ ] Relevant tests updated and passing
-- [ ] Logs/docs updated if required by this task
+- [x] Tests cover the primary path
+- [x] Relevant tests updated and passing
+- [x] Logs/docs updated if required by this task
 
 ## Plan (Draft)
 
