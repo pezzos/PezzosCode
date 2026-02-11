@@ -1232,3 +1232,14 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Notes:
   - Failing tests were `ProposalGenerationTests` duplicate-count assertions (`test_dedup_merges_placeholder_fields`, `test_dedup_skips_duplicate_signature`, `test_flush_collected_proposals_dedupes_and_merges_queue`) and are pre-existing/unrelated to this collection hardening change.
   - New/changed hardening tests passed, including conflict auto-skip and explicit non-planner auto-reset logging.
+
+## 2026-02-11 - Validate side-effect-safe final-gate sequencing + hermetic proposal tests
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (offload id `17a8ec41f09e37973a3a896ec4b15c325638f8da2cfc2f65a704f751c97ea614`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload id `ba175e3a0d04c6934e3fb6a78a4d31209981be22425e6717288083c253dbc2bf`)
+- Verified:
+  - Final gate CI attempts execute in patcher worktree context.
+  - Collection into `main` is deferred until after final gates pass.
+  - Proposal generation/dedupe tests no longer depend on mutable `docs/possible-improvements.md` content.

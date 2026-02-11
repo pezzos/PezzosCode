@@ -1995,3 +1995,17 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - PRD-to-features coverage now includes newly introduced P0/P1 process features.
   - Incremental/additive behavior is preserved for existing projects.
+
+### DEC-047 - Run final CI gates on patcher candidate before collecting into main
+
+- **Date:** 2026-02-11
+- **Status:** Accepted
+- **Context:** `make feature` could collect patcher changes into `main` and only then run final `make ci`. When final CI failed, users were left with partially collected/staged `main` changes despite a failed workflow.
+- **Decision:**
+  - Execute final `make ci` attempts in the patcher worktree candidate (`cwd=patcher_path`) before any collection into `main`.
+  - Run scoped autofix against explicit candidate paths in the patcher worktree and commit patcher autofix deltas before retrying CI.
+  - Collect patcher branch changes into `main` only after final gates pass.
+- **Consequences:**
+  - Final gate failures no longer write partial collection side effects to `main`.
+  - Final gate behavior remains deterministic with the same two-attempt CI policy.
+  - Patcher autofix output is validated and versioned before collection.

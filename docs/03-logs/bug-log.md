@@ -669,3 +669,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** `pc-feature` could abort late with `tester edited out-of-scope files: docs/02-features/.../dev-tasks.md` when planner-owned `dev-tasks.md` remained dirty at tester commit time in a shared/resumed worktree.
 - **Fix:** `commit_role_step(...)` now discards planner-owned `dev-tasks.md` deltas for non-planner roles (`tester`, `reporter`, `plan-reviewer`) before enforcing role scope.
 - **Validation:** `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`; `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_commit_role_step_tester_resets_dev_tasks_before_scope_check`.
+
+## 2026-02-11 - Final gate failure could leave partial collection side effects on main
+
+- **ID:** BUG-20260211-01
+- **Status:** Fixed
+- **Source:** User report (`make feature F=17`)
+- **Summary:** Final gate `make ci` could fail after patcher branch collection into `main`, leaving partial staged/dirty `main` updates despite workflow failure.
+- **Fix:** Run final CI and scoped autofix in the patcher worktree first, then collect into `main` only after gates pass; add regression coverage asserting no collection on gate failure and hermetic proposal-dedup tests.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (offload id `17a8ec41f09e37973a3a896ec4b15c325638f8da2cfc2f65a704f751c97ea614`); `tools/offload-proxy/pp make ci` (offload id `ba175e3a0d04c6934e3fb6a78a4d31209981be22425e6717288083c253dbc2bf`).

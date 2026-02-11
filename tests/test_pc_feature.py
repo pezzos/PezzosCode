@@ -169,6 +169,9 @@ class TestPcFeature(unittest.TestCase):
                 self.pc_feature, "collect_allowed_final_stage_paths", return_value=[]
             ),
             mock.patch.object(
+                self.pc_feature, "collect_branch_merge_paths", return_value=[]
+            ),
+            mock.patch.object(
                 self.pc_feature,
                 "classify_resume_dirty_paths",
                 return_value=([], []),
@@ -1344,6 +1347,200 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.parse_resume_mode()
         self.assertIn("invalid RESUME_MODE value", stderr_capture.getvalue())
 
+    def test_detect_resume_route_planner_and_reviewer_complete_routes_to_patcher(self):
+        work_item_id = "WI-20260210-01"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Plan",
+            "Plan Contract v1\n\nApproach:\n- resume safely",
+        )
+        first = self.pc_feature.detect_resume_route(content, work_item_id)
+        second = self.pc_feature.detect_resume_route(content, work_item_id)
+        self.assertEqual(first, second)
+        self.assertEqual(first, ("patcher", None))
+
+    def test_detect_resume_route_tester_failed_routes_to_planner(self):
+        work_item_id = "WI-20260210-02"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Plan",
+            "Plan Contract v1\n\nApproach:\n- apply patch",
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Patch", "- patched files present"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Tester Feedback",
+            "Outcome: FAIL\nNotes: test failed",
+        )
+        self.assertEqual(
+            self.pc_feature.detect_resume_route(content, work_item_id),
+            ("planner", None),
+        )
+
+    def test_detect_resume_route_reporter_complete_routes_to_tester(self):
+        work_item_id = "WI-20260210-03"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Patch", "- patch complete"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", "- python -m pytest ... -> 0"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Reporter Review", "Outcome: PASS\nNotes: approved"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Tester Feedback", "Outcome: PASS\nNotes: clean"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Reporter Feedback", "Outcome: PASS\nNotes: clean"
+        )
+        self.assertEqual(
+            self.pc_feature.detect_resume_route(content, work_item_id),
+            ("tester", None),
+        )
+
+    def test_detect_resume_route_blocks_contradictory_state(self):
+        work_item_id = "WI-20260210-04"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Patch", "- patch complete"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", "- python -m pytest ... -> 1"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Reporter Review", "Outcome: PASS\nNotes: approved"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Tester Feedback", "Outcome: FAIL\nNotes: failed"
+        )
+        route, reason = self.pc_feature.detect_resume_route(content, work_item_id)
+        self.assertEqual(route, "block")
+        self.assertIn("contradictory", reason)
+
+    def test_detect_resume_route_blocks_missing_critical_artifact(self):
+        work_item_id = "WI-20260210-05"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Patch", "- patch complete"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Reporter Feedback", "Outcome: PASS\nNotes: approved"
+        )
+        route, reason = self.pc_feature.detect_resume_route(content, work_item_id)
+        self.assertEqual(route, "block")
+        self.assertIn("missing critical artifact", reason)
+
+    def test_detect_resume_route_blocks_pending_sections_when_role_artifacts_exist(
+        self,
+    ):
+        work_item_id = "WI-20260210-06"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tester_log = Path(tmpdir) / "validation-log.md"
+            reporter_log = Path(tmpdir) / "reporter-log.md"
+            tester_log.write_text(
+                (
+                    "# Validation Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-11\n\nOutcome: PASS\n"
+                ),
+                encoding="utf-8",
+            )
+            reporter_log.write_text(
+                (
+                    "# Reporter Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-11\n\nOutcome: FAIL\n"
+                ),
+                encoding="utf-8",
+            )
+            route, reason = self.pc_feature.detect_resume_route(
+                content,
+                work_item_id,
+                tester_log_path=str(tester_log),
+                reporter_log_path=str(reporter_log),
+            )
+        self.assertEqual(route, "block")
+        self.assertIn("contradictory", reason)
+        self.assertIn("patch section is pending", reason)
+        self.assertIn("test results section is pending", reason)
+        self.assertIn("reporter review section is pending", reason)
+
+    def test_detect_resume_route_allows_complete_sections_with_role_artifacts(self):
+        work_item_id = "WI-20260210-07"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Patch", "- patch complete"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", "- python -m pytest ... -> 0"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Reporter Review",
+            "Outcome: FAIL\nNotes: traceability",
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Reporter Feedback",
+            "Outcome: FAIL\nNotes: traceability",
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tester_log = Path(tmpdir) / "validation-log.md"
+            reporter_log = Path(tmpdir) / "reporter-log.md"
+            tester_log.write_text(
+                (
+                    "# Validation Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-11\n\nOutcome: PASS\n"
+                ),
+                encoding="utf-8",
+            )
+            reporter_log.write_text(
+                (
+                    "# Reporter Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-11\n\nOutcome: FAIL\n"
+                ),
+                encoding="utf-8",
+            )
+            first = self.pc_feature.detect_resume_route(
+                content,
+                work_item_id,
+                tester_log_path=str(tester_log),
+                reporter_log_path=str(reporter_log),
+            )
+            second = self.pc_feature.detect_resume_route(
+                content,
+                work_item_id,
+                tester_log_path=str(tester_log),
+                reporter_log_path=str(reporter_log),
+            )
+        self.assertEqual(first, second)
+        self.assertEqual(first, ("tester", None))
+
     def test_classify_resume_dirty_paths_separates_runtime_and_unexpected(self):
         feature_dir = "docs/02-features/01-workflow-hardening"
         dev_tasks = "docs/02-features/01-workflow-hardening/dev-tasks.md"
@@ -2097,6 +2294,54 @@ class TestPcFeature(unittest.TestCase):
                 work_item_id,
                 feature_slug="01-workflow-hardening",
             )
+
+    def test_main_fresh_mode_ignores_resume_item_and_starts_new_work_item(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            (patcher_path / ".git").write_text("gitdir: /tmp/fake\n", encoding="utf-8")
+            existing_work_item = "WI-20260211-01"
+            content = self._build_entry_content(existing_work_item)
+            feature_dir = self._write_feature_workspace(root, content)
+            selected = {}
+            next_work_item_id = "WI-20990101-01"
+
+            def capture_allowed(content: str, work_item_id: str) -> str:
+                selected["work_item_id"] = work_item_id
+                raise StopMain()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_resume_mode",
+                        return_value="fresh",
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "next_work_item_id",
+                        return_value=next_work_item_id,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_allowed_tests_section",
+                        side_effect=capture_allowed,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(selected.get("work_item_id"), next_work_item_id)
 
     def test_allowed_tests_run_in_worktree_cwd(self):
         class StopMain(RuntimeError):
@@ -3129,6 +3374,7 @@ class TestPcFeature(unittest.TestCase):
             original_entry_complete = self.pc_feature.entry_section_complete
             ci_attempts = {"count": 0}
             autofix_calls = {"count": 0}
+            ci_cwds = []
             scoped_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
 
             def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
@@ -3168,6 +3414,7 @@ class TestPcFeature(unittest.TestCase):
                     return 0
                 if step == "ci":
                     ci_attempts["count"] += 1
+                    ci_cwds.append(kwargs.get("cwd"))
                     if ci_attempts["count"] == 1:
                         return 1
                     if ci_attempts["count"] == 2:
@@ -3176,9 +3423,21 @@ class TestPcFeature(unittest.TestCase):
                 return 0
 
             stderr_capture = io.StringIO()
+            collect_mock = mock.Mock(
+                return_value={
+                    "applied_paths": [scoped_path],
+                    "skipped_paths": [],
+                    "conflict_paths": [],
+                }
+            )
             with contextlib.ExitStack() as stack:
                 for patcher in self._patch_main_base(root, feature_dir, patcher_path):
                     stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "branch_ahead_count", return_value=1
+                    )
+                )
                 stack.enter_context(
                     mock.patch.object(
                         self.pc_feature,
@@ -3207,6 +3466,20 @@ class TestPcFeature(unittest.TestCase):
                         self.pc_feature,
                         "run_command_with_step_log",
                         side_effect=fake_run_with_step_log,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_branch_merge_paths",
+                        return_value=[scoped_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_branch_into_main",
+                        collect_mock,
                     )
                 )
                 stack.enter_context(
@@ -3251,7 +3524,9 @@ class TestPcFeature(unittest.TestCase):
                         self.pc_feature.main()
 
             self.assertEqual(ci_attempts["count"], 2)
+            self.assertEqual(ci_cwds, [str(patcher_path), str(patcher_path)])
             self.assertEqual(autofix_calls["count"], 1)
+            collect_mock.assert_not_called()
             self.assertIn("max attempts: 2", stderr_capture.getvalue())
 
     def test_plan_reviewer_block_routes_back_to_planner_before_patch(self):
@@ -4628,10 +4903,172 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn("revised plan from failure feedback", dev_tasks)
             self.assertIn("patcher feedback pending", dev_tasks)
 
+    def test_feedback_loop_scope_violation_routes_back_to_planner(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-13"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            planner_feedback_calls = {"count": 0}
+            patcher_feedback_calls = {"count": 0}
+            patcher_commit_attempts = {"count": 0}
+            patcher_dirty = {"value": False}
+            restore_calls = []
+            dev_tasks_repo_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    planner_feedback_calls["count"] += 1
+                    return (
+                        "Decision: REVISE_PLAN\n"
+                        "Rationale: tighten assertions before rerun\n"
+                        "Revised Plan:\n"
+                        "- revised plan from failure feedback"
+                    )
+                if (
+                    "Apply the smallest possible patch based on failure feedback"
+                    in prompt
+                ):
+                    patcher_feedback_calls["count"] += 1
+                    patcher_dirty["value"] = True
+                    return "Patched based on feedback."
+                return "ok"
+
+            def fake_get_status_paths(path: str):
+                if Path(path) == patcher_path and patcher_dirty["value"]:
+                    return [dev_tasks_repo_path]
+                return []
+
+            def fake_restore_dirty_paths(worktree_path: str, paths):
+                restore_calls.append((worktree_path, list(paths)))
+                patcher_dirty["value"] = False
+
+            def fake_commit_role_step(
+                root_path: str,
+                worktree_path: str,
+                branch: str,
+                role: str,
+                work_item: str,
+                feature_path: str,
+                *,
+                allow_empty: bool = False,
+            ) -> bool:
+                if role == "patcher":
+                    patcher_commit_attempts["count"] += 1
+                return False
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        return_value=(1, "failed"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "commit_role_step",
+                        side_effect=fake_commit_role_step,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "get_status_paths",
+                        side_effect=fake_get_status_paths,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "restore_dirty_paths",
+                        side_effect=fake_restore_dirty_paths,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "MAX_LOOPS",
+                        1,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    self.pc_feature.main()
+
+            self.assertEqual(planner_feedback_calls["count"], 1)
+            self.assertEqual(patcher_feedback_calls["count"], 1)
+            self.assertEqual(patcher_commit_attempts["count"], 0)
+            self.assertEqual(
+                restore_calls,
+                [(str(patcher_path), [dev_tasks_repo_path])],
+            )
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("patcher feedback role-scope violation", dev_tasks)
+
 
 class ProposalGenerationTests(unittest.TestCase):
+    PROPOSAL_TEMPLATE = """# Possible Improvements
+
+## Entries
+
+<!-- Add proposals here -->
+"""
+
     def _template(self) -> str:
-        return (ROOT / "docs" / "possible-improvements.md").read_text(encoding="utf-8")
+        return self.PROPOSAL_TEMPLATE
 
     def _entries_section(self, content: str) -> str:
         marker = "## Entries"

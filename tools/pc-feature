@@ -1771,6 +1771,15 @@ def parse_outcome(text: str) -> str:
     return match.group(1).upper()
 
 
+def parse_section_outcome(text: str) -> Optional[str]:
+    match = re.search(
+        r"Outcome:\s*(PASS|FAIL|NEEDS REPLAN|SKIPPED)", text, re.IGNORECASE
+    )
+    if not match:
+        return None
+    return match.group(1).upper()
+
+
 def missing_failure_context_fields(text: str) -> List[str]:
     if parse_outcome(text) != "FAIL":
         return []
@@ -3167,6 +3176,84 @@ def select_resume_work_item_id(content: str) -> Optional[str]:
     return newest_id
 
 
+def detect_resume_route(
+    content: str,
+    work_item_id: str,
+    *,
+    tester_log_path: Optional[str] = None,
+    reporter_log_path: Optional[str] = None,
+) -> Tuple[str, Optional[str]]:
+    def role_log_has_work_item(log_path: Optional[str]) -> bool:
+        if not log_path or not os.path.exists(log_path):
+            return False
+        try:
+            log_content = read_file(log_path)
+        except OSError:
+            return False
+        return f"### {work_item_id} " in log_content
+
+    def is_complete(section: str) -> bool:
+        body = get_entry_section(content, work_item_id, section)
+        if not body or "(pending)" in body:
+            return False
+        return True
+
+    plan_complete = is_complete("Plan")
+    patch_complete = is_complete("Patch")
+    test_results_complete = is_complete("Test Results")
+    reporter_review_complete = is_complete("Reporter Review")
+    tester_feedback = get_entry_section(content, work_item_id, "Tester Feedback")
+    reporter_feedback = get_entry_section(content, work_item_id, "Reporter Feedback")
+    tester_outcome = parse_section_outcome(tester_feedback)
+    reporter_outcome = parse_section_outcome(reporter_feedback)
+    tester_log_has_artifact = role_log_has_work_item(tester_log_path)
+    reporter_log_has_artifact = role_log_has_work_item(reporter_log_path)
+
+    contradictions: List[str] = []
+    if tester_log_has_artifact and not patch_complete:
+        contradictions.append("tester artifact exists while patch section is pending")
+    if tester_log_has_artifact and not test_results_complete:
+        contradictions.append(
+            "tester artifact exists while test results section is pending"
+        )
+    if reporter_log_has_artifact and not patch_complete:
+        contradictions.append("reporter artifact exists while patch section is pending")
+    if reporter_log_has_artifact and not test_results_complete:
+        contradictions.append(
+            "reporter artifact exists while test results section is pending"
+        )
+    if reporter_log_has_artifact and not reporter_review_complete:
+        contradictions.append(
+            "reporter artifact exists while reporter review section is pending"
+        )
+    if patch_complete and not plan_complete:
+        contradictions.append("patch exists without complete plan")
+    if test_results_complete and not patch_complete:
+        contradictions.append("test results exist without complete patch")
+    if reporter_review_complete and not test_results_complete:
+        contradictions.append("reporter review exists without test results")
+    if tester_outcome == "FAIL" and reporter_outcome == "PASS":
+        contradictions.append("tester failed but reporter is pass")
+    if tester_outcome == "FAIL" and reporter_review_complete:
+        contradictions.append("tester failed but reporter review is complete")
+    if contradictions:
+        return ("block", "contradictory resume state: " + "; ".join(contradictions))
+
+    if reporter_outcome and not test_results_complete:
+        return (
+            "block",
+            "missing critical artifact: reporter feedback exists without test results",
+        )
+
+    if tester_outcome == "FAIL":
+        return ("planner", None)
+    if not plan_complete:
+        return ("planner", None)
+    if not patch_complete:
+        return ("patcher", None)
+    return ("tester", None)
+
+
 def append_iteration_log_note(content: str, work_item_id: str, note: str) -> str:
     body = get_entry_section(content, work_item_id, "Iteration Log")
     entry = f"- {note.strip()}"
@@ -3251,10 +3338,10 @@ def get_staged_paths(root: str) -> List[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def run_scoped_autofix(root: str, staged_paths: List[str]) -> int:
-    scoped_paths = sorted(set(filter_ignored_paths(staged_paths)))
+def run_scoped_autofix_paths(root: str, scoped_paths: List[str]) -> int:
+    scoped_paths = sorted(set(filter_ignored_paths(scoped_paths)))
     if not scoped_paths:
-        die("pc-feature: no staged files available for scoped autofix")
+        die("pc-feature: no scoped files available for scoped autofix")
     autofix_cmd = [
         "tools/offload-proxy/pp",
         "pre-commit",
@@ -3278,6 +3365,13 @@ def run_scoped_autofix(root: str, staged_paths: List[str]) -> int:
     if add_result.returncode != 0:
         die("pc-feature: failed to restage scoped autofix files")
     return autofix_exit
+
+
+def run_scoped_autofix(root: str, staged_paths: List[str]) -> int:
+    scoped_paths = sorted(set(filter_ignored_paths(staged_paths)))
+    if not scoped_paths:
+        die("pc-feature: no staged files available for scoped autofix")
+    return run_scoped_autofix_paths(root, scoped_paths)
 
 
 def append_log_line(path: str, line: str) -> None:
@@ -3397,7 +3491,11 @@ def main() -> None:
         )
         for role, role_path in role_paths.items()
     }
-    resume_work_item_id = select_resume_work_item_id(content)
+    resume_work_item_id = (
+        None
+        if resume_mode == RESUME_MODE_FRESH
+        else select_resume_work_item_id(content)
+    )
     dirty_before_checkpoint = sorted(
         filter_ignored_paths(get_status_paths(patcher_path))
     )
@@ -3425,7 +3523,12 @@ def main() -> None:
             + ", ".join(dirty_after_checkpoint)
         )
     content = read_file(dev_tasks_path)
-    work_item_id = select_resume_work_item_id(content)
+    work_item_id = (
+        None
+        if resume_mode == RESUME_MODE_FRESH
+        else select_resume_work_item_id(content)
+    )
+    resuming_existing_work_item = work_item_id is not None
     if not work_item_id:
         work_item_id = next_work_item_id(content)
         entry = build_execution_entry(work_item_id)
@@ -3441,6 +3544,27 @@ def main() -> None:
     ensure_compacted_policy_bootstrap_ready()
     content = read_file(dev_tasks_path)
     content = ensure_allowed_tests_section(content, work_item_id)
+    resume_start_step = "planner"
+    force_planner_on_resume = False
+    if resuming_existing_work_item:
+        resume_start_step, resume_block_reason = detect_resume_route(
+            content,
+            work_item_id,
+            tester_log_path=role_paths_abs["tester"],
+            reporter_log_path=role_paths_abs["reporter"],
+        )
+        if resume_block_reason:
+            die(
+                "pc-feature: "
+                + resume_block_reason
+                + f"; work_item={work_item_id}; mode={resume_mode}"
+            )
+        if resume_start_step == "planner":
+            tester_feedback = get_entry_section(
+                content, work_item_id, "Tester Feedback"
+            )
+            force_planner_on_resume = parse_section_outcome(tester_feedback) == "FAIL"
+        print(f"pc-feature: resume route selected: {resume_start_step}")
     current_main_head = git_ref_sha(root, "refs/heads/main")
     notes_value = get_entry_field(content, work_item_id, "Notes")
     locked_main_head = parse_locked_main_head(notes_value)
@@ -3773,6 +3897,57 @@ def main() -> None:
             feature_dir,
         )
 
+    def handle_patcher_scope_violation(
+        *,
+        attempt: int,
+        current_plan: str,
+        tdd_section: str,
+        source_label: str,
+    ) -> bool:
+        patcher_dirty_paths = filter_ignored_paths(get_status_paths(patcher_path))
+        illegal_patcher_paths = sorted(
+            {
+                path
+                for path in patcher_dirty_paths
+                if role_scoped_path_forbidden_for_patcher(path)
+            }
+        )
+        if not illegal_patcher_paths:
+            return False
+        restore_dirty_paths(patcher_path, patcher_dirty_paths)
+        residual_dirty = filter_ignored_paths(get_status_paths(patcher_path))
+        if residual_dirty:
+            die(
+                "pc-feature: patcher cleanup after scope violation failed: "
+                + ", ".join(sorted(residual_dirty))
+            )
+        illegal_paths = ", ".join(illegal_patcher_paths)
+        patcher_scope_feedback = (
+            "Decision: Block\n"
+            "Reasons:\n"
+            "- Patcher touched role-scoped/global-log files, which violates orchestrator scope policy.\n"
+            "Required changes:\n"
+            f"- Remove forbidden paths from the plan and patch instructions: {illegal_paths}\n"
+            "- Keep patcher changes limited to implementation files only; planner owns dev-tasks and role logs.\n"
+            "Optional suggestions:\n"
+            "- Replace broad file patterns with exact non-role-scoped paths.\n"
+        )
+        revise_plan_from_feedback(
+            attempt=attempt,
+            current_plan=current_plan,
+            tdd_section=tdd_section,
+            feedback=patcher_scope_feedback,
+            iteration_reason=f"{source_label} ({illegal_paths})",
+            planner_log_step=(
+                f"Step Planner revise after {source_label} at attempt {attempt}."
+            ),
+            failure_context=(
+                "patcher touched role-scoped/global-log files; "
+                f"planner revision required ({illegal_paths})."
+            ),
+        )
+        return True
+
     while execution_attempt < MAX_LOOPS:
         current_main_head = git_ref_sha(root, "refs/heads/main")
         if current_main_head != locked_main_head:
@@ -3804,7 +3979,14 @@ def main() -> None:
             )
             write_file(dev_tasks_path, content)
             planner_changed = True
-        if not entry_section_complete(content, work_item_id, "Plan"):
+        force_planner_step = (
+            execution_attempt == 0
+            and resuming_existing_work_item
+            and force_planner_on_resume
+        )
+        if force_planner_step or not entry_section_complete(
+            content, work_item_id, "Plan"
+        ):
             plan_prompt = render_prompt_template(
                 load_prompt_template("planner", "create"),
                 {
@@ -4207,48 +4389,12 @@ def main() -> None:
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
-            patcher_dirty_paths = filter_ignored_paths(get_status_paths(patcher_path))
-            illegal_patcher_paths = sorted(
-                {
-                    path
-                    for path in patcher_dirty_paths
-                    if role_scoped_path_forbidden_for_patcher(path)
-                }
-            )
-            if illegal_patcher_paths:
-                restore_dirty_paths(patcher_path, patcher_dirty_paths)
-                residual_dirty = filter_ignored_paths(get_status_paths(patcher_path))
-                if residual_dirty:
-                    die(
-                        "pc-feature: patcher cleanup after scope violation failed: "
-                        + ", ".join(sorted(residual_dirty))
-                    )
-                illegal_paths = ", ".join(illegal_patcher_paths)
-                patcher_scope_feedback = (
-                    "Decision: Block\n"
-                    "Reasons:\n"
-                    "- Patcher touched role-scoped/global-log files, which violates orchestrator scope policy.\n"
-                    "Required changes:\n"
-                    f"- Remove forbidden paths from the plan and patch instructions: {illegal_paths}\n"
-                    "- Keep patcher changes limited to implementation files only; planner owns dev-tasks and role logs.\n"
-                    "Optional suggestions:\n"
-                    "- Replace broad file patterns with exact non-role-scoped paths.\n"
-                )
-                revise_plan_from_feedback(
-                    attempt=attempt,
-                    current_plan=current_plan,
-                    tdd_section=tdd_section,
-                    feedback=patcher_scope_feedback,
-                    iteration_reason=f"patcher scope violation ({illegal_paths})",
-                    planner_log_step=(
-                        "Step Planner revise after patcher role-scope violation "
-                        f"at attempt {attempt}."
-                    ),
-                    failure_context=(
-                        "patcher touched role-scoped/global-log files; "
-                        f"planner revision required ({illegal_paths})."
-                    ),
-                )
+            if handle_patcher_scope_violation(
+                attempt=attempt,
+                current_plan=current_plan,
+                tdd_section=tdd_section,
+                source_label="patcher role-scope violation",
+            ):
                 continue
             commit_role_step(
                 root,
@@ -4601,6 +4747,15 @@ def main() -> None:
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
+            content = read_file(dev_tasks_path)
+            feedback_tdd_section = get_entry_section(content, work_item_id, "TDD Plan")
+            if handle_patcher_scope_violation(
+                attempt=attempt,
+                current_plan=updated_plan,
+                tdd_section=feedback_tdd_section,
+                source_label="patcher feedback role-scope violation",
+            ):
+                continue
             commit_role_step(
                 root,
                 patcher_path,
@@ -4649,64 +4804,13 @@ def main() -> None:
         flush_pending_failure_proposals("max iteration attempts reached")
         die("pc-feature: max iteration attempts reached; check execution log")
 
-    base_ref = "HEAD"
-    role_branches = [patcher_branch]
-    for branch in role_branches:
-        if branch_ahead_count(root, base_ref, branch) == 0:
-            continue
-        merge_paths = collect_branch_merge_paths(
-            root,
-            base_ref,
-            branch,
-            dev_tasks_path=dev_tasks_repo_path,
-            feature_dir=feature_dir,
-        )
-        collection_summary = collect_branch_into_main(
-            root,
-            base_ref,
-            branch,
-            merge_paths,
-        )
-        skipped_paths = collection_summary["skipped_paths"]
-        if skipped_paths:
-            skipped_text = ", ".join(skipped_paths)
-            print(
-                "pc-feature: warning: collecting patcher branch into main "
-                "auto-skipped conflicting paths: " + skipped_text
-            )
-            if collection_summary["applied_paths"]:
-                print(
-                    "pc-feature: collecting patcher branch into main "
-                    f"applied {len(collection_summary['applied_paths'])} path(s) "
-                    "after auto-skip."
-                )
-            else:
-                print(
-                    "pc-feature: warning: collecting patcher branch into main "
-                    "could not apply patcher diff paths; continuing run with "
-                    "orchestrator-owned updates only."
-                )
-            content = read_file(dev_tasks_path)
-            content = append_iteration_log_note(
-                content,
-                work_item_id,
-                "Collection stage: collecting patcher branch into main "
-                f"auto-skipped conflicting paths: {skipped_text}.",
-            )
-            write_file(dev_tasks_path, content)
-            review_items.append(
-                "collect patcher branch into main: auto-skip conflicts ("
-                + skipped_text
-                + ")"
-            )
-        elif merge_paths:
-            review_items.append(
-                format_review_item("collect patcher branch into main", 0)
-            )
-
     flush_pending_failure_proposals("post-loop before final gates")
-    allowed_stage_paths = collect_allowed_final_stage_paths(
-        root, "refs/heads/main", patcher_branch, dev_tasks_repo_path, feature_dir
+    candidate_autofix_paths = collect_branch_merge_paths(
+        root,
+        "refs/heads/main",
+        patcher_branch,
+        dev_tasks_path=dev_tasks_repo_path,
+        feature_dir=feature_dir,
     )
     gate_status = "FAIL"
     autofix_notes: List[str] = []
@@ -4717,6 +4821,7 @@ def main() -> None:
         step="ci",
         root=runner_root,
         label="make ci attempt=1",
+        cwd=patcher_path,
     )
     review_items.append(
         format_review_item("tools/offload-proxy/pp make ci", first_ci_exit)
@@ -4724,23 +4829,36 @@ def main() -> None:
     if first_ci_exit == 0:
         gate_status = "PASS"
     else:
-        scoped_autofix_paths = stage_scoped_final_paths(root, allowed_stage_paths)
-        staged_before_autofix = get_staged_paths(root)
-        if sorted(set(scoped_autofix_paths)) != sorted(set(staged_before_autofix)):
-            flush_pending_failure_proposals("autofix scope drift")
-            die("pc-feature: staged scope changed before autofix; aborting")
-        autofix_exit = run_scoped_autofix(root, staged_before_autofix)
-        autofix_notes.append(
-            format_review_item(
-                "tools/offload-proxy/pp pre-commit run --files <scoped>", autofix_exit
+        if candidate_autofix_paths:
+            autofix_exit = run_scoped_autofix_paths(
+                patcher_path, candidate_autofix_paths
             )
-        )
+            autofix_notes.append(
+                format_review_item(
+                    "tools/offload-proxy/pp pre-commit run --files <scoped>",
+                    autofix_exit,
+                )
+            )
+            if filter_ignored_paths(get_status_paths(patcher_path)):
+                commit_role_step(
+                    root,
+                    patcher_path,
+                    patcher_branch,
+                    "patcher",
+                    work_item_id,
+                    feature_dir,
+                )
+        else:
+            autofix_notes.append(
+                "tools/offload-proxy/pp pre-commit run --files <scoped>: skipped (no candidate paths)"
+            )
         second_ci_exit = run_command_with_step_log(
             ci_cmd,
             runner_metadata,
             step="ci",
             root=runner_root,
             label="make ci attempt=2",
+            cwd=patcher_path,
         )
         review_items.append(
             format_review_item("tools/offload-proxy/pp make ci", second_ci_exit)
@@ -4816,6 +4934,65 @@ def main() -> None:
             os.path.join("docs", "03-logs", "decision-log.md"),
             decision_line,
         )
+
+    base_ref = "HEAD"
+    role_branches = [patcher_branch]
+    for branch in role_branches:
+        if branch_ahead_count(root, base_ref, branch) == 0:
+            continue
+        merge_paths = collect_branch_merge_paths(
+            root,
+            base_ref,
+            branch,
+            dev_tasks_path=dev_tasks_repo_path,
+            feature_dir=feature_dir,
+        )
+        collection_summary = collect_branch_into_main(
+            root,
+            base_ref,
+            branch,
+            merge_paths,
+        )
+        skipped_paths = collection_summary["skipped_paths"]
+        if skipped_paths:
+            skipped_text = ", ".join(skipped_paths)
+            print(
+                "pc-feature: warning: collecting patcher branch into main "
+                "auto-skipped conflicting paths: " + skipped_text
+            )
+            if collection_summary["applied_paths"]:
+                print(
+                    "pc-feature: collecting patcher branch into main "
+                    f"applied {len(collection_summary['applied_paths'])} path(s) "
+                    "after auto-skip."
+                )
+            else:
+                print(
+                    "pc-feature: warning: collecting patcher branch into main "
+                    "could not apply patcher diff paths; continuing run with "
+                    "orchestrator-owned updates only."
+                )
+            content = read_file(dev_tasks_path)
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                "Collection stage: collecting patcher branch into main "
+                f"auto-skipped conflicting paths: {skipped_text}.",
+            )
+            write_file(dev_tasks_path, content)
+            review_items.append(
+                "collect patcher branch into main: auto-skip conflicts ("
+                + skipped_text
+                + ")"
+            )
+        elif merge_paths:
+            review_items.append(
+                format_review_item("collect patcher branch into main", 0)
+            )
+
+    allowed_stage_paths = collect_allowed_final_stage_paths(
+        root, "refs/heads/main", patcher_branch, dev_tasks_repo_path, feature_dir
+    )
 
     content = read_file(dev_tasks_path)
     commit_already_done = entry_section_complete(content, work_item_id, "Commit")

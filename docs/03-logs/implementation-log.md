@@ -5563,3 +5563,39 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp rg -n '^# Feature Specification|^# Technical Design|^# Development Tasks|^# Test Plan|^\\*\\*Status:\\*\\*' docs/02-features/17-resume-in-progress-tickets docs/02-features/18-commit-gated-by-completed-ticket-docs docs/02-features/19-template-drift-hardening-autofix-recovery docs/02-features/20-synthetic-feature-workflow-smoke-test`
 - `tools/offload-proxy/pp rg -n '\\[Feature Name\\]|\\[Phase Name\\]|\\[unique-id\\]' docs/02-features/17-resume-in-progress-tickets docs/02-features/18-commit-gated-by-completed-ticket-docs docs/02-features/19-template-drift-hardening-autofix-recovery docs/02-features/20-synthetic-feature-workflow-smoke-test`
+
+### 2026-02-11 - Side-effect-safe final gate sequencing and hermetic proposal tests
+
+**Feature/Bug:** `pc-feature` final-gate reliability (`make feature F=17` late failure side effects)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added `run_scoped_autofix_paths(...)` to support scoped autofix on explicit path lists without depending on pre-staged files.
+- Changed final gate execution order in `pc-feature`:
+  - run final `make ci` attempts in the patcher worktree (`cwd=patcher_path`),
+  - run optional scoped autofix in patcher and commit patcher autofix deltas,
+  - collect patcher branch into `main` only after CI gates pass.
+- Preserved existing final gate retry cap and scoped-autofix constraints while removing pre-gate `main` collection side effects.
+- Made `ProposalGenerationTests` hermetic by replacing the live `docs/possible-improvements.md` dependency with a fixed in-test template fixture.
+- Updated gate regression coverage to assert CI runs in patcher cwd and collection is not invoked on final-gate failure.
+
+**Why:**
+
+- Prevent failed final gates from leaving partially collected changes on `main`.
+- Eliminate flaky proposal-dedup tests caused by mutable repository log content.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Neutral (same final gate command count)
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS, offload id `17a8ec41f09e37973a3a896ec4b15c325638f8da2cfc2f65a704f751c97ea614`)
+- `tools/offload-proxy/pp make ci` (PASS, offload id `ba175e3a0d04c6934e3fb6a78a4d31209981be22425e6717288083c253dbc2bf`)

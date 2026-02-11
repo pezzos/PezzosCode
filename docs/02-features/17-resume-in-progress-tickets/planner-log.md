@@ -1,3 +1,94 @@
 # Planner Log
 
 ## Entries
+
+### WI-20260211-01 - 2026-02-11
+
+Updated `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` with the planner output for `WI-20260211-01`:
+
+- Filled `#### Plan` using the required `Plan Contract v1` structure at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:85`.
+- Added exact `Allowed Tests` commands at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:72`.
+- Ensured all concrete test commands in the plan match Allowed Tests verbatim.
+- Enforced planned patcher file-edit scope to exclude disallowed paths, including non-compacted `docs/03-logs/*`, in:
+  - `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:53`
+  - `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:79`
+- Added explicit handoff note that non-compacted `docs/03-logs` updates are reporter/orchestrator-owned at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:106`.
+- Added systematic review command log/results at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:55`.
+
+Systematic review commands executed:
+
+- `nl -ba docs/02-features/17-resume-in-progress-tickets/dev-tasks.md | sed -n '60,130p'`
+- `nl -ba docs/02-features/17-resume-in-progress-tickets/dev-tasks.md | sed -n '30,95p'`
+- `git status --short`
+- `git diff -- docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
+
+Commit status:
+
+- I attempted to commit once at the end, but sandbox permissions blocked git lock creation:
+  - `fatal: Unable to create .../index.lock: Operation not permitted`
+- No commit was created.
+
+### WI-20260211-01 - 2026-02-11
+
+Updated Allowed Tests to satisfy existence and scope checks.
+
+### WI-20260211-01 - 2026-02-11
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260211-01 - 2026-02-11
+
+Decision: REVISE_PLAN
+Rationale: Reporter failure shows a traceability gap not covered by the prior implementation-focused plan, so execution-record consistency must be enforced before approval.
+
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Add/adjust tests that fail when tester/reporter artifacts exist but execution-entry completion signals are still pending, while preserving existing resume-routing expectations.
+   Files to change:
+
+- tests/test_pc_feature.py
+  Risks:
+- Tests may accidentally encode file-format specifics too tightly and become brittle to harmless wording changes.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Include fixtures for complete execution entries, pending execution entries with tester/reporter artifacts present, and clean non-resume runs.
+- Deterministic seed strategy: Use fixed fixture content and stable temp paths for repeatable outcomes.
+- Invariant checks: Assert identical inputs always produce identical block/continue decisions.
+- Contract boundary coverage: Validate boundaries between artifact discovery, execution-entry completeness checks, and mode policy handling.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+
+2. Implement execution-record consistency guardrails in orchestration logic so contradictory resume evidence is blocked with explicit reasons.
+   Files to change:
+
+- tools/pc-feature
+  Risks:
+- Over-strict validation could block legitimate recovery paths if edge cases are missed.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Reuse contradictory/complete fixture corpus from step 1 for implementation validation.
+- Deterministic seed strategy: Keep checks purely input-derived with no time/order dependence.
+- Invariant checks: Ensure guardrails never allow continuation when required completion signals are absent.
+- Contract boundary coverage: Confirm explicit mode selections and inferred resume state both pass through the same consistency gate.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+
+3. Re-run targeted validation and capture compacted evidence only; hand off role-scoped and non-compacted documentation updates for final reporting pass.
+   Files to change:
+
+- docs/03-logs/compacted/
+  Risks:
+- Incomplete evidence handoff can still delay reporter approval even when code behavior is correct.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A for documentation-only evidence step.
+- Deterministic seed strategy: N/A for documentation-only evidence step.
+- Invariant checks: Evidence must match executed command and resulting guard behavior.
+- Contract boundary coverage: Document only this work item’s implemented scope and validation outcome.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+
+Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit non-compacted `docs/03-logs` files. Role-scoped execution-record updates and reporter rerun handoff remain outside patcher file edits in this plan.
+
+Work Item ID: WI-20260211-01

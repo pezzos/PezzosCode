@@ -564,3 +564,8 @@ Based on everything we've learned, these are the principles that guide our work:
 
 - JSON-only LLM contracts in orchestrators should include a deterministic fallback path so final gates cannot fail on formatting drift.
 - Role-scope prompts should avoid write/commit language when the step is signal-only; conflicting instructions increase ambiguity and failure rates.
+
+## 2026-02-11 - Final gate side-effect containment
+
+- Final validation gates should run in an isolated candidate context before mutating integration targets (`main`) so failures remain non-destructive.
+- Tests that read mutable repository artifacts (like live proposal registries) are brittle; fixture-driven templates are required for deterministic behavior.
