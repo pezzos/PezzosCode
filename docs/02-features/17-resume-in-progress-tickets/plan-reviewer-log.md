@@ -43,3 +43,16 @@ Reasons:
 - None.
   Optional suggestions:
 - In step 3, name the exact compacted output file path(s) (not just the directory) to reduce execution ambiguity.
+
+### WI-20260211-02 - 2026-02-11
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
