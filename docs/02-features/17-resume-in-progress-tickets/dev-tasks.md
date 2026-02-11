@@ -87,26 +87,57 @@
 
 #### Plan
 
-Updated `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260211-02` with:
+Plan Contract v1
+Approach:
 
-- `#### Allowed Tests` populated with exact commands only:
+1. Add and refine resume-routing tests to enforce deterministic behavior for complete, incomplete, and contradictory in-progress ticket artifacts without hardcoded text coupling.
+   Files to change:
+
+- tests/test_pc_feature.py
+  Risks:
+- Tests may become brittle if they assert incidental wording instead of behavioral contracts.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Include at least two fixtures per critical path (valid resume, contradictory state, and non-resume baseline).
+- Deterministic seed strategy: Use fixed fixture payloads and stable temporary paths so outcomes are repeatable.
+- Invariant checks: Assert identical input artifacts and mode always produce identical routing and block/continue decisions.
+- Contract boundary coverage: Validate boundaries between artifact discovery, resume-policy resolution (`auto`/`prompt`/`fresh`), and step-selection behavior.
+- Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
-- `#### Plan` replaced with the required **Plan Contract v1** structure.
-- Anti-hardcode coverage explicitly included in each step:
-  - fixture coverage (`>=2 fixtures per critical path`)
-  - deterministic seed strategy
-  - invariant checks
-  - contract boundary coverage
-- Required explicit handoff note added:
-  - non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned; patcher will not edit them.
-- `#### Docs Updated` adjusted to remove non-compacted `docs/03-logs/*` from planned patcher edits.
-- `Systematic review` command log filled with executed commands and outcomes.
 
-I could not complete the requested final commit due sandbox/gitdir permission limits in this environment:
-`fatal: Unable to create '/Users/alexandrepezzotta/repos/PezzosCode/.git/worktrees/PezzosCode-17-resume-in-progress-tickets-patcher/index.lock': Operation not permitted`
+2. Implement or adjust resume-state consistency guardrails so contradictory execution evidence fails closed with explicit remediation and safe step routing.
+   Files to change:
 
-Current state: modified file is unstaged in working tree (`M docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`).
+- tools/pc-feature
+  Risks:
+- Overly strict checks could block legitimate recovery paths if completion criteria are misclassified.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Reuse and expand step-1 fixtures to cover both inferred and explicit resume mode paths.
+- Deterministic seed strategy: Keep logic purely input-derived with no timestamp, randomness, or environment-order dependency.
+- Invariant checks: Guardrails must never permit continuation when required completion signals are missing or contradictory.
+- Contract boundary coverage: Ensure both explicit mode selection and inferred resume state pass through the same consistency gate.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Record compacted implementation and validation evidence for this work item and keep documentation edits within patcher scope.
+   Files to change:
+
+- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+  Risks:
+- Missing or unclear evidence can block reporter validation despite correct implementation.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A for evidence-compaction step; reference fixtures executed in steps 1-2.
+- Deterministic seed strategy: N/A for evidence-compaction step; record exact deterministic commands/results.
+- Invariant checks: Evidence entries must match executed commands and observed outcomes exactly.
+- Contract boundary coverage: Document only WI-20260211-02 implementation and validation artifacts in compacted form.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator, and patcher will not edit non-compacted `docs/03-logs` files.
+
+Work Item ID: WI-20260211-02
 
 #### Patch
 
@@ -138,7 +169,7 @@ Current state: modified file is unstaged in working tree (`M docs/02-features/17
 
 #### Iteration Log
 
--
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
 
 #### Commit
 

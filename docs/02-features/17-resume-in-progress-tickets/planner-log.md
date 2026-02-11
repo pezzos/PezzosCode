@@ -115,3 +115,9 @@ I could not complete the requested final commit due sandbox/gitdir permission li
 `fatal: Unable to create '/Users/alexandrepezzotta/repos/PezzosCode/.git/worktrees/PezzosCode-17-resume-in-progress-tickets-patcher/index.lock': Operation not permitted`
 
 Current state: modified file is unstaged in working tree (`M docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`).
+
+### WI-20260211-02 - 2026-02-11
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
