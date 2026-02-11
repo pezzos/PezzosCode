@@ -92,3 +92,26 @@ Approach:
 Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit non-compacted `docs/03-logs` files. Role-scoped execution-record updates and reporter rerun handoff remain outside patcher file edits in this plan.
 
 Work Item ID: WI-20260211-01
+
+### WI-20260211-02 - 2026-02-11
+
+Updated `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260211-02` with:
+
+- `#### Allowed Tests` populated with exact commands only:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+- `#### Plan` replaced with the required **Plan Contract v1** structure.
+- Anti-hardcode coverage explicitly included in each step:
+  - fixture coverage (`>=2 fixtures per critical path`)
+  - deterministic seed strategy
+  - invariant checks
+  - contract boundary coverage
+- Required explicit handoff note added:
+  - non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned; patcher will not edit them.
+- `#### Docs Updated` adjusted to remove non-compacted `docs/03-logs/*` from planned patcher edits.
+- `Systematic review` command log filled with executed commands and outcomes.
+
+I could not complete the requested final commit due sandbox/gitdir permission limits in this environment:
+`fatal: Unable to create '/Users/alexandrepezzotta/repos/PezzosCode/.git/worktrees/PezzosCode-17-resume-in-progress-tickets-patcher/index.lock': Operation not permitted`
+
+Current state: modified file is unstaged in working tree (`M docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`).

@@ -26,6 +26,128 @@
 
 ## Execution Log
 
+### WI-20260211-02 - Work item execution
+
+- Date: 2026-02-11
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome:
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes: Main head locked: 22b4f76000fb5e584fd9418a512b1720b0127c01
+
+#### Preflight Report
+
+- Work Item: WI-20260211-02
+- PRD ref: docs/01-product/prd.md
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: ['Deterministic resume-state detection from existing work-item artifacts and role logs', 'Resume policy resolution for modes `auto`, `prompt`, and `fresh`', 'Fail-closed handling for contradictory artifact state with explicit remediation', 'Step routing that skips only safe completed steps while always re-running tests and final CI gate', 'Traceable resume decisions/checkpoints logged in feature/work-item documentation']
+- Scope out: ['Multi-feature concurrent resume orchestration', 'Background/daemon-based resume automation', 'Non-CLI surfaces (TUI/API/Web)']
+- Non-goals reminder: Do not change the single-feature-worktree operating model, do not add scheduler/daemon behavior, and do not weaken mandatory rerun of tests and final CI on resume.
+- Files to change: tools/pc-feature, tests/test_pc_feature.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+- TDD plan: TC-17-001 resume from completed planner+reviewer continues at patcher, TC-17-002 resume after tester fail routes back to planner, TC-17-003 resume after reporter pass proceeds to final gates, TC-17-101 contradictory step state blocks with remediation, TC-17-102 dirty worktree preserved in auto mode, TC-17-201 missing critical artifacts returns deterministic block/error, TC-17-301 non-resume execution path regression remains unchanged, python -m pytest tests/test_pc_feature.py::TestPcFeature, python3 -m unittest tests.test_docs_logs
+- Systematic review:
+  - `rg -n "WI-20260211-02|#### Allowed Tests|#### Plan" docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` -> located WI-20260211-02 placeholders requiring planner updates.
+  - `nl -ba docs/02-features/17-resume-in-progress-tickets/dev-tasks.md | sed -n '1,220p'` -> inspected WI-20260211-02 execution block, confirmed placeholder plan and disallowed non-compacted log targets in docs update notes.
+  - `nl -ba docs/02-features/17-resume-in-progress-tickets/dev-tasks.md | sed -n '40,170p'` -> verified Plan Contract v1 content, exact Allowed Tests commands, and ownership handoff note after patch.
+
+#### TDD Plan
+
+- Tests to write first:
+  - TC-17-001 resume from completed planner+reviewer continues at patcher
+  - TC-17-002 resume after tester fail routes back to planner
+  - TC-17-003 resume after reporter pass proceeds to final gates
+  - TC-17-101 contradictory step state blocks with remediation
+  - TC-17-102 dirty worktree preserved in auto mode
+  - TC-17-201 missing critical artifacts returns deterministic block/error
+  - TC-17-301 non-resume execution path regression remains unchanged
+  - python -m pytest tests/test_pc_feature.py::TestPcFeature
+  - python3 -m unittest tests.test_docs_logs
+
+#### Allowed Tests
+
+- `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
+
+#### Files to Change
+
+- Files: tools/pc-feature, tests/test_pc_feature.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
+
+#### Docs Updated
+
+- docs/02-features/17-resume-in-progress-tickets/dev-tasks.md: populate WI-20260211-02 preflight, TDD plan, file list, executed command review, and outcome sections
+- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md: record implementation/test evidence and offload pointers for traceability
+- Non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned and out of patcher scope for this work item.
+
+#### Plan
+
+Updated `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260211-02` with:
+
+- `#### Allowed Tests` populated with exact commands only:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+- `#### Plan` replaced with the required **Plan Contract v1** structure.
+- Anti-hardcode coverage explicitly included in each step:
+  - fixture coverage (`>=2 fixtures per critical path`)
+  - deterministic seed strategy
+  - invariant checks
+  - contract boundary coverage
+- Required explicit handoff note added:
+  - non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned; patcher will not edit them.
+- `#### Docs Updated` adjusted to remove non-compacted `docs/03-logs/*` from planned patcher edits.
+- `Systematic review` command log filled with executed commands and outcomes.
+
+I could not complete the requested final commit due sandbox/gitdir permission limits in this environment:
+`fatal: Unable to create '/Users/alexandrepezzotta/repos/PezzosCode/.git/worktrees/PezzosCode-17-resume-in-progress-tickets-patcher/index.lock': Operation not permitted`
+
+Current state: modified file is unstaged in working tree (`M docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`).
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+-
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 ### WI-20260211-01 - Work item execution
 
 - Date: 2026-02-11
