@@ -19,6 +19,7 @@ Constraints:
 - Keep scope tight; no new features or refactors.
 - Use Serena for symbol-aware navigation when exploring code.
 - Prefer deterministic scripts for deterministic steps.
+- Ensure the plan is restart-safe: each step should be retryable using existing artifacts/logs without reinitializing the workflow.
 
 Output format:
 

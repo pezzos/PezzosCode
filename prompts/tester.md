@@ -14,6 +14,8 @@ Constraints:
 - Follow `docs/04-process/ticket-execution-protocol.md`.
 - Do not run `make feature` or `pc-feature` as tests.
 - Do not expand scope or add extra tests without approval.
+- On failure, provide actionable context for planner/patcher restart (`File/Path`, `Check`, `Evidence`, `Expected fix`).
+- If there is no new test work on a retry pass, log an explicit no-op note and return control.
 
 Output format:
 
