@@ -19,6 +19,7 @@ Find the right document by topic:
 Ticket implementation entrypoint:
 
 - Run `make feature F=<feature-id>` to bootstrap and execute autonomously by default.
+- Command authority: only the human PO/user may run `make feature` / `pc-feature`; agents must not execute either command without explicit per-run user approval.
 - Manual mode: `make feature MANUAL=1 F=<feature-id>`.
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
 

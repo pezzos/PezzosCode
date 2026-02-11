@@ -18,6 +18,7 @@ Rules:
 - If context is missing or unclear, ask for the relevant document rather than
   guessing.
 - For any work item implementation, run `make feature F=<feature-id>` and follow `docs/04-process/ticket-execution-protocol.md`.
+- **Execution authority:** Only the human PO/user may run `make feature` or `pc-feature`. Codex is forbidden from invoking either command unless the user gives explicit approval in the current turn.
 - Enforce **Plan → Patch → Test → Report** for every work item.
 - If HIGH RISK, stop after Preflight and set status to "Awaiting PO Approval".
 - Codex MUST use Serena for symbol-aware navigation and edits when available.

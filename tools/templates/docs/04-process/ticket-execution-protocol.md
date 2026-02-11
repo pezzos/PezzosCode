@@ -19,6 +19,7 @@
 
 1. **Work Item Ingestion**
    - Run `make feature F=<feature-id>` to bootstrap and execute the work item.
+   - Command authority: only the human PO/user runs `make feature` / `pc-feature`; agents must not execute either command without explicit per-run user approval.
    - Manual mode (no autonomous TDD/implementation): `make feature MANUAL=1 F=<feature-id>`.
    - Example (one command): `make feature F=01`.
    - Validate feature doc schema with `tools/pc-devtasks-schema-check` when creating/updating feature folders.

@@ -32,6 +32,36 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 
 ## Entries
 
+### Proposal: WI-20260211-02 - Orchestration
+
+**Date:** 2026-02-11
+**Work Item:** WI-20260211-02
+**Agent:** pc-feature
+**Step:** Orchestration
+**Failure Summary:** Loop exhausted at MAX_LOOPS. tester=FAIL; reporter=SKIPPED; tester_feedback=Outcome: FAIL Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 1 File/Path: logs/WI-20260211-02/tests.log Check: Allowed Tests commands must all exit 0. Evidence: `python3 -m unittest tests.test_docs_logs` -> 1 Expected fix:...; reporter_feedback=Outcome: SKIPPED Docs/logs updated: reporter deferred Notes: Reporter skipped because tester failed; planner must replan before review. Work Item ID: WI-20260211-02
+**Proposed Improvement:** TBD - investigate failure and propose remediation.
+**Proposed Patch Location:** TBD
+**Risks / Trade-offs:** None noted.
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
+### Proposal: WI-20260211-02 - Test
+
+**Date:** 2026-02-11
+**Work Item:** WI-20260211-02
+**Agent:** Tester
+**Step:** Test
+**Failure Summary:** tester=FAIL; reporter=SKIPPED; tester_feedback=Outcome: FAIL Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 1 File/Path: logs/WI-20260211-02/tests.log Check: Allowed Tests commands must all exit 0. Evidence: `python3 -m unittest tests.test_docs_logs` -> 1 Expected fix:...; reporter_feedback=Outcome: SKIPPED Docs/logs updated: reporter deferred Notes: Reporter skipped because tester failed; planner must replan before review. Work Item ID: WI-20260211-02
+**Proposed Improvement:** adjust plan/patch until all allowed tests pass.
+**Proposed Patch Location:** logs/WI-20260211-02/tests.log
+**Risks / Trade-offs:** Tester: Allowed Tests commands must all exit 0.; `python3 -m unittest tests.test_docs_logs` -> 1
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
 ### Proposal: WI-20260209-01 - Orchestration
 
 **Date:** 2026-02-09
