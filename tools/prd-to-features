@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PRD_PATH = Path("docs/01-product/prd.md")
 DEFAULT_FEATURES_DIR = Path("docs/02-features")
 TEMPLATE_DIRNAME = "feature-template"
+EXEC_LOG_HEADER = "## Execution Log"
 
 
 @dataclass(frozen=True)
@@ -181,6 +182,23 @@ def update_missing_files(
     return created, skipped
 
 
+def ensure_execution_log_section(dev_tasks_path: Path) -> bool:
+    if not dev_tasks_path.exists():
+        return False
+    content = dev_tasks_path.read_text(encoding="utf-8")
+    if re.search(r"^\s*##\s+Execution Log\s*$", content, re.IGNORECASE | re.MULTILINE):
+        return False
+    insert_block = f"{EXEC_LOG_HEADER}\n\n- No runs yet.\n\n"
+    if "## Task Breakdown" in content:
+        content = content.replace(
+            "## Task Breakdown", insert_block + "## Task Breakdown", 1
+        )
+    else:
+        content = content.rstrip() + "\n\n" + insert_block
+    dev_tasks_path.write_text(content, encoding="utf-8")
+    return True
+
+
 def create_feature_folder(
     target_dir: Path, template_dir: Path
 ) -> Tuple[List[str], List[str]]:
@@ -246,18 +264,30 @@ def apply_prd_to_features(
                 )
                 continue
             created, _ = update_missing_files(existing_feature.path, template_dir)
-            if created:
-                reason_parts = ["missing template files"]
+            repaired_exec_log = ensure_execution_log_section(
+                existing_feature.path / "dev-tasks.md"
+            )
+            if created or repaired_exec_log:
+                reason_parts = []
+                if created:
+                    reason_parts.append("missing template files")
+                if repaired_exec_log:
+                    reason_parts.append(
+                        "dev-tasks.md missing Execution Log (autofixed)"
+                    )
                 if status_note:
                     reason_parts.append(status_note)
                 if drift_reason:
                     reason_parts.append(drift_reason)
+                details: List[str] = list(created)
+                if repaired_exec_log:
+                    details.append("dev-tasks.md")
                 summary["updated"].append(
                     ActionResult(
                         name=existing_feature.path.name,
                         action="updated",
                         reason="; ".join(reason_parts),
-                        details=created,
+                        details=details,
                     )
                 )
             else:

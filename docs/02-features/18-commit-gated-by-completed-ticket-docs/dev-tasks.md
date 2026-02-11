@@ -24,6 +24,10 @@
 - Reporter writes: `reporter-log.md`
 - Patcher edits implementation/docs except role-owned log files
 
+## Execution Log
+
+- No runs yet.
+
 ## Task Breakdown
 
 - [ ] **Task 1 - Define mandatory commit-doc checklist (data model)**

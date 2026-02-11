@@ -34,6 +34,13 @@ repos:
         language: system
         types: [markdown]
 
+      - id: devtasks-schema-check
+        name: devtasks-schema-check
+        entry: tools/pc-devtasks-schema-check
+        language: system
+        pass_filenames: false
+        files: "^docs/02-features/"
+
       - id: template-sync
         name: template-sync
         entry: tools/pc-template-sync

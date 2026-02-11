@@ -21,6 +21,7 @@
    - Run `make feature F=<feature-id>` to bootstrap and execute the work item.
    - Manual mode (no autonomous TDD/implementation): `make feature MANUAL=1 F=<feature-id>`.
    - Example (one command): `make feature F=01`.
+   - Validate feature doc schema with `tools/pc-devtasks-schema-check` when creating/updating feature folders.
    - `make feature` is orchestration/bootstrap only; do not include it in Planner Plan steps or Allowed Tests.
    - Open the work item source: `docs/02-features/<feature>/dev-tasks.md`.
    - Confirm scope and success criteria.

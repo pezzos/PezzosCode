@@ -46,6 +46,14 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
             content,
         )
 
+    def test_execution_protocol_mentions_devtasks_schema_check(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "Validate feature doc schema with `tools/pc-devtasks-schema-check` when creating/updating feature folders.",
+            content,
+        )
+
     def test_human_orchestration_workflow_calls_out_offload_decision_logging(self):
         path = ROOT / "docs" / "04-process" / "human-orchestration-workflow.md"
         content = path.read_text(encoding="utf-8")

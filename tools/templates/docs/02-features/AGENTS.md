@@ -13,9 +13,11 @@ Structure:
   - `dev-tasks.md`
   - `test-plan.md`
   - `planner-log.md`
+  - `plan-reviewer-log.md`
   - `reporter-log.md`
   - `validation-log.md`
 - Execution is driven by `dev-tasks.md`, which also stores the execution log and role ownership.
+- `dev-tasks.md` must include the `## Execution Log` section so `tools/pc-feature` can bootstrap work items.
 
 Selection rule for skills:
 

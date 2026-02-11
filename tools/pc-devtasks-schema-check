@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Validate required dev-tasks.md sections for all feature folders."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+from typing import Iterable, List
+
+DEFAULT_ROOT = Path(__file__).resolve().parents[1]
+FEATURES_DIR = Path("docs/02-features")
+TEMPLATE_DIRNAME = "feature-template"
+
+REQUIRED_SECTIONS = ("Execution Log",)
+
+
+def section_pattern(section: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"^\s*##\s+{re.escape(section)}\s*$", re.IGNORECASE | re.MULTILINE
+    )
+
+
+def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Validate required dev-tasks.md sections across features."
+    )
+    parser.add_argument(
+        "--root",
+        default=str(DEFAULT_ROOT),
+        help="Repository root (defaults to detected root).",
+    )
+    return parser.parse_args(argv)
+
+
+def feature_dirs(features_root: Path) -> Iterable[Path]:
+    for entry in sorted(features_root.iterdir(), key=lambda item: item.name):
+        if not entry.is_dir():
+            continue
+        if entry.name == TEMPLATE_DIRNAME:
+            continue
+        if re.match(r"^\d+-", entry.name):
+            yield entry
+
+
+def missing_sections(content: str) -> List[str]:
+    missing: List[str] = []
+    for section in REQUIRED_SECTIONS:
+        if not section_pattern(section).search(content):
+            missing.append(section)
+    return missing
+
+
+def check_dev_tasks_file(path: Path, *, label: str) -> List[str]:
+    if not path.exists():
+        return [f"{label}: missing file {path.as_posix()}"]
+    content = path.read_text(encoding="utf-8")
+    missing = missing_sections(content)
+    return [
+        f"{label}: missing section '## {section}' in {path.as_posix()}"
+        for section in missing
+    ]
+
+
+def run_check(root: Path) -> List[str]:
+    features_root = root / FEATURES_DIR
+    if not features_root.exists():
+        return [f"missing features directory: {(FEATURES_DIR).as_posix()}"]
+
+    errors: List[str] = []
+    template_path = features_root / TEMPLATE_DIRNAME / "dev-tasks.md"
+    errors.extend(check_dev_tasks_file(template_path, label="feature-template"))
+
+    for feature_dir in feature_dirs(features_root):
+        dev_tasks_path = feature_dir / "dev-tasks.md"
+        errors.extend(check_dev_tasks_file(dev_tasks_path, label=feature_dir.name))
+    return errors
+
+
+def main(argv: List[str] | None = None) -> int:
+    args = parse_args(argv)
+    root = Path(args.root).resolve()
+    errors = run_check(root)
+    if errors:
+        print(
+            "pc-devtasks-schema-check: invalid dev-tasks schema detected:",
+            file=sys.stderr,
+        )
+        for item in errors:
+            print(f"- {item}", file=sys.stderr)
+        print(
+            "remediation: align files with docs/02-features/feature-template/dev-tasks.md",
+            file=sys.stderr,
+        )
+        return 1
+
+    checked_count = 1 + sum(1 for _ in feature_dirs(root / FEATURES_DIR))
+    print(f"pc-devtasks-schema-check: ok ({checked_count} files)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

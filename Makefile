@@ -65,7 +65,8 @@ skills-check:
 		echo "skills-check: ok"'
 
 docs-check:
-	@echo "docs-check covered by markdown lint"
+	@tools/pc-devtasks-schema-check
+	@echo "docs-check: ok"
 
 check: lint test
 	@echo "check: ok"

@@ -28,7 +28,11 @@ def write_template(root: Path) -> None:
         "reporter-log.md",
         "validation-log.md",
     ]:
-        (template_dir / name).write_text(f"# {name}\n", encoding="utf-8")
+        if name == "dev-tasks.md":
+            content = "## Overview\n\nStatus: Not Started\n\n## Execution Log\n"
+        else:
+            content = f"# {name}\n"
+        (template_dir / name).write_text(content, encoding="utf-8")
 
 
 def write_prd(root: Path, content: str) -> None:
@@ -127,6 +131,30 @@ class PrdToFeaturesTests(unittest.TestCase):
         self.assertTrue(
             any("Status line not found" in item.reason for item in summary["updated"])
         )
+
+    def test_autofixes_missing_execution_log_for_existing_feature(self):
+        prd = """## Prioritized Feature List (Template)
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | X | Y |
+"""
+        write_prd(self.root, prd)
+        feature_dir = self.root / "docs/02-features/01-alpha-feature"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "dev-tasks.md").write_text(
+            "## Overview\n\nStatus: In Progress\n\n## Task Breakdown\n",
+            encoding="utf-8",
+        )
+        for name in ["feature-spec.md", "tech-design.md", "test-plan.md"]:
+            (feature_dir / name).write_text(f"# {name}\n", encoding="utf-8")
+
+        summary = self.tool.apply_prd_to_features(self.root)
+        content = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+
+        self.assertIn("## Execution Log", content)
+        self.assertEqual(len(summary["updated"]), 1)
+        self.assertIn("Execution Log", summary["updated"][0].reason)
 
     def test_slug_drift_by_index_skips_duplicate_creation(self):
         prd = """## Prioritized Feature List (Template)
