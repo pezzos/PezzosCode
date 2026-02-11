@@ -258,7 +258,7 @@ Deterministic steps are delegated to scripts, observability is improved with str
 - Plan → Patch → Test → Report is mandatory for every ticket.
 - Ticket-specific Definition of Done is required before coding.
 - Output offload is required for noisy commands.
-- Orchestrator + implementer/reviewer/tester roles are supported.
+- Orchestrator + planner/plan-reviewer/patcher/tester/reporter roles are supported.
 - Worktree policy and naming convention are defined and followed.
 - Plan Reviewer validates plans before patching (no code edits).
 - Role-specific prompts are used for planner/plan-reviewer/patcher/tester/reporter.

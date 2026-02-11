@@ -71,7 +71,7 @@
    - Data touched: dev-tasks, execution logs, docs/logs, git changes.
    - Execution pattern: Plan → Patch → Test → Report.
    - Output hygiene: noisy command output is offloaded to `.offload/`.
-   - Parallel roles use worktrees for isolation (planner/patcher/tester/reporter).
+   - Role sessions share one feature worktree by default (planner/plan-reviewer/patcher/tester/reporter) with role-scoped logs.
 
 ## Deployment
 
@@ -136,5 +136,5 @@ None.
 
 ---
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-11
 **Updated By:** Alexandre Pezzotta

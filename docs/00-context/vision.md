@@ -24,7 +24,7 @@
 - After bootstrapping, the user can work with AI with almost no manual work beyond describing features/tasks.
 - The AI is treated as a developer: the repo ships the tools and hooks it needs to be autonomous and productive.
 - Commands are simple, memorable, and the workflow is robust, low‑token, and easy to use.
-- Work is orchestrated with clear roles (orchestrator, implementer, reviewer, tester) and clean workspaces.
+- Work is orchestrated with clear roles (orchestrator, planner, plan-reviewer, patcher, tester, reporter) and clean workspaces.
 - Large outputs are offloaded, keeping AI context focused and deterministic.
 - Deterministic workflow steps are delegated to scripts with a shared runner and consistent metadata.
 - Execution is observable: structured logs, timestamps, and tail-friendly output are standard.
@@ -66,7 +66,7 @@
 - Minimal dependencies: only essential tools to keep setup and maintenance light.
 - Token‑efficient workflow: prefer hooks and tools over verbose AI instructions.
 - Predictable execution: Plan → Patch → Test → Report for every ticket.
-- Parallelizable: use worktrees for clean isolation when multiple roles run in parallel.
+- Parallelizable: use separate role sessions with a single feature worktree by default; add extra worktrees only when necessary.
 - Script-first for deterministic tasks, AI for judgment-heavy steps.
 - Observability-first: structured logs and traceable runs.
 - Learning loops with human gates to reduce repeated failures.

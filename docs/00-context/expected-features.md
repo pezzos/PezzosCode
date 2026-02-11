@@ -19,7 +19,7 @@ inputs to the PRD feature list and must be reflected unless explicitly rejected.
 - Feature: Worktree policy for parallel roles
   - Owner: Developer/PO
   - Problem: Parallel roles contaminate each other's context or diffs
-  - Outcome: Clean isolation for implementer/reviewer/tester
+  - Outcome: Clean isolation for planner/plan-reviewer/patcher/tester/reporter
   - Priority: P1
   - Notes: Naming convention `../<repo_name>-<feature_name>-<agent_name>`
 

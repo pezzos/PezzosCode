@@ -5420,3 +5420,44 @@ Track when debt is paid down:
 - **Breaking changes:** No
 - **Performance:** Small additional `git apply` checks/retries during collection only
 - **Dependencies:** None
+
+### 2026-02-11 - Context/workflow doc sync for execution-model consistency
+
+**Feature/Bug:** Documentation coherence between context/product docs and canonical execution protocol
+
+**Changed Files:**
+
+- `docs/00-context/vision.md`
+- `docs/00-context/context-boundaries-operating-model.md`
+- `docs/00-context/system-map.md`
+- `docs/00-context/expected-features.md`
+- `docs/01-product/prd.md`
+- `docs/04-process/dev-workflow.md`
+- `docs/04-process/definition-of-done.md`
+- `docs/03-logs/decision-log.md`
+
+**What Changed:**
+
+- Updated role terminology to the canonical runtime model: orchestrator, planner, plan-reviewer, patcher, tester, reporter.
+- Clarified single-feature-worktree default semantics in context/system docs and removed ambiguous "parallel roles use worktrees" phrasing.
+- Updated PRD workflow/process requirements to remove mixed legacy role names.
+- Updated dev workflow to:
+  - explicitly defer to ticket-execution protocol on conflicts,
+  - align report/final-gate wording to `make ci`,
+  - align feedback ownership to planner-owned execution log + tester/reporter role logs,
+  - clarify role file scope in the shared feature worktree.
+- Added DoD scope notes marking deployment/staging/team-notification checks as conditional for downstream deployed products, with local-tooling work items treated as `N/A` where appropriate.
+
+**Why:**
+
+- Keep context/product/process docs consistent with the implemented orchestration protocol and reduce execution drift.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None (docs-only)
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/offload-proxy/pp rg -n "implementer/reviewer/tester|parallel roles use worktrees|Run \`make test\` before closing the work item" docs/00-context docs/01-product/prd.md docs/04-process/dev-workflow.md`

@@ -38,8 +38,8 @@ Provide guardrails that keep the workflow aligned with a simple, robust, AI-firs
 - Human gates are required for HIGH-risk work; approvals are explicit and prompted.
 - The workflow loops: context → PRD → features → ticket → execute → repeat.
 - Each ticket follows Plan → Patch → Test → Report.
-- Parallel roles use worktrees for isolation when needed.
-- Implementer must iterate based on tester/reviewer feedback until issues are resolved.
+- Execution roles run in a single feature worktree by default; role scope is enforced by owned files/logs.
+- Planner and patcher iterate based on plan-reviewer/tester/reporter feedback until issues are resolved.
 - If requirements are unclear, stop and ask before continuing.
 - The system must recover from errors and allow safe re-runs.
 - Prefer tool-assisted workflows (Serena, hooks, scripts) over ad-hoc AI output.

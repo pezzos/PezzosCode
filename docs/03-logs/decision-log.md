@@ -1935,3 +1935,18 @@ When a decision is reversed or replaced, document it here:
   - Compacted logs stay aligned with latest canonical entries (`freshness_lag_days=0` target).
   - Prompt token usage is reduced for repeated log-context retrieval.
   - Canonical logs remain non-destructive source-of-truth while derived compact artifacts become the default retrieval surface for LLM workflows.
+
+### DEC-043 - Align context/product docs to the canonical execution protocol
+
+- **Date:** 2026-02-11
+- **Status:** Accepted
+- **Context:** Process/workflow updates (single feature worktree semantics, explicit planner/plan-reviewer/patcher/tester/reporter roles, role-log ownership, and final `make ci` gating) were implemented in protocol docs, but context/product docs still contained mixed legacy wording and ambiguous guidance.
+- **Decision:**
+  - Keep `docs/04-process/ticket-execution-protocol.md` as the authoritative execution spec.
+  - Sync `docs/00-context/*` and `docs/01-product/prd.md` terminology to the current role model and single-worktree default.
+  - Update `docs/04-process/dev-workflow.md` to remove conflicting execution details and defer to protocol semantics where conflicts exist.
+  - Clarify in `docs/04-process/definition-of-done.md` that deployment/staging/team-notification checklists are conditional for downstream deployed products.
+- **Consequences:**
+  - Reduces process drift across context/product/process docs.
+  - Makes execution ownership and gate semantics easier to apply consistently during `make feature` runs.
+  - Keeps this repo's local-tooling DoD coherent without removing reusable downstream guidance.
