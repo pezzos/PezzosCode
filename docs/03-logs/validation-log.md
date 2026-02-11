@@ -27,6 +27,19 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-11 - Docs template/living parity validation
+
+- `tools/offload-proxy/pp tools/pc-template-sync` (PASS: no template/living mismatch reported)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"` (PASS: 12 tests; offload id `45b1851eaa30f11140bc7f44b74e4f5c548ebe2a7a24aa9947f30bf1e2bcf153`)
+
+### 2026-02-11 - Root config sync validation
+
+- `rg -n "^approval_policy\\s*=\\s*\\\"" .codex.toml` (PASS: approval policy remains `never`)
+- `python3` one-off check for `.serena/project.yml` languages uniqueness (PASS: `python, markdown, yaml, toml, bash`; duplicates: none)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_bootstrap_into.py"` (PASS: 17 tests; offload id `cb7e70ee0c164e3c974c8c9e89865d74d4f805460be0b3f8e2ccd4c1aec12552`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests_extra -p "test_bootstrap_into_extra.py"` (PASS: 6 tests; offload id `b9aa3541fca1d3dc65d0de1afeb2bc5b2ffa2bc3bd9b8c1b55307f03e300d0ae`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 7 tests; offload id `fe836cbecd3b6b4f70bec51b58d30c3e45ad72ae7fb3cb63421a0f7337e651ae`)
+
 ### 2026-02-11 - Role-loop control-flow contract docs validation
 
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"` (PASS: 12 tests, including explicit role order/restart/no-op/artifact-reuse assertions)

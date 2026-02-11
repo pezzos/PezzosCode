@@ -41,7 +41,9 @@ Rules:
 
 ## Tests/Lint
 
-- None defined. Ask which commands to run.
+- `make lint` to run pre-commit checks for tracked files.
+- `make test` to run Python tests plus docs/skills checks.
+- `make ci` to run the full local CI gate (`lint` + `test`).
 
 ## DoD
 

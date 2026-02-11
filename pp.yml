@@ -5,4 +5,10 @@ always_offload:
   - git diff
   - rg
   - cat
+  - sed
+  - python3 -m unittest
+  - python -m unittest
+  - make test
+  - make ci
+  - pre-commit run
 index_path: .offload/index.jsonl

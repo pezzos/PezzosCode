@@ -86,9 +86,9 @@ ignore_all_files_in_gitignore: true
 # (contrary to the memories, which are loaded on demand).
 initial_prompt: |
   You are in the PezzosCode tooling/template repo.
-  Source of truth: docs/README.md and docs/00-context/.
-  Follow docs/04-process/ticket-execution-protocol.md for ticket work.
-  Keep diffs small and ask if context is missing.
+  Sources of truth: docs/00-context/ and docs/03-logs/.
+  Follow docs/04-process/ticket-execution-protocol.md and docs/04-process/human-orchestration-workflow.md.
+  Use tools/offload-proxy/pp for large-output reads, keep diffs small, and ask if context is missing.
 
 # the encoding used by text files in the project
 # For a list of possible encodings, see https://docs.python.org/3.11/library/codecs.html#standard-encodings

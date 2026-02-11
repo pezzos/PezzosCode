@@ -27,6 +27,58 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-11 - Sync docs templates with updated live process/docs files
+
+**Feature/Bug:** Template/living parity (docs template sync)
+
+**Changed Files:**
+
+- `tools/templates/docs/README.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+
+**What Changed:**
+
+- Synced template docs to match the already-updated live docs for README and workflow control-flow/restart guidance.
+- Removed drift causing `pc-template-sync` manual-resolution errors for unchanged pairs.
+
+**Why:**
+
+- Keep bootstrapped docs consistent with current live docs and restore deterministic template/living parity checks.
+
+**How:**
+
+- Copied live docs into their template counterparts and validated parity with `tools/pc-template-sync`.
+
+### 2026-02-11 - Root config sync from context (non-template root files)
+
+**Feature/Bug:** Root workflow alignment (context-driven sync)
+
+**Changed Files:**
+
+- `AGENTS.md`
+- `.gitignore`
+- `LICENSE`
+- `pp.yml`
+- `.serena/project.yml`
+- `.serena/.gitignore`
+
+**What Changed:**
+
+- Updated AGENTS test/lint guidance to point to current `make lint`, `make test`, and `make ci` commands.
+- Added local runtime cache ignores (`.pytest_cache/`, `.ruff_cache/`) and Serena memory ignore (`.serena/.gitignore`).
+- Replaced MIT license placeholder owner/year with project-specific values.
+- Expanded offload defaults in `pp.yml` for large-output command families used by this repo (`sed`, unittest invocations, `make test/ci`, `pre-commit run`).
+- Refined Serena project initial prompt to reference context/log sources and current orchestration/process docs.
+
+**Why:**
+
+- Keep live root files aligned with the documented operating model (CLI-first, offload-first, deterministic workflow) while preserving template files untouched.
+
+**How:**
+
+- Reconciled root file content against `docs/00-context/` and `docs/01-product/prd.md`, then applied minimal edits only where drift or placeholders were present.
+
 ### 2026-02-11 - README sync and deduplication
 
 **Feature/Bug:** Documentation hygiene (README consolidation)

@@ -8,3 +8,5 @@
 __pycache__/
 *.pyc
 .codex_precommit/
+.pytest_cache/
+.ruff_cache/
