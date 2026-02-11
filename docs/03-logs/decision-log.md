@@ -1950,3 +1950,17 @@ When a decision is reversed or replaced, document it here:
   - Reduces process drift across context/product/process docs.
   - Makes execution ownership and gate semantics easier to apply consistently during `make feature` runs.
   - Keeps this repo's local-tooling DoD coherent without removing reusable downstream guidance.
+
+### DEC-044 - Stage reliability and workflow-validation work as expected features first
+
+- **Date:** 2026-02-11
+- **Status:** Accepted
+- **Context:** Most current feature set is already implemented, but two follow-up needs were identified: stronger recovery when template/living files drift during autofix/pre-commit, and a repeatable end-to-end workflow test path. These should be planned without prematurely creating full feature folders.
+- **Decision:**
+  - Add two new entries to `docs/00-context/expected-features.md`:
+    - workflow hardening for template-drift and autofix recovery;
+    - end-to-end workflow smoke testing via a synthetic/fake feature.
+  - Keep scope at expected-features planning level only for now (no `docs/02-features/<feature>/` scaffolding yet).
+- **Consequences:**
+  - Captures the next roadmap priorities in the canonical intake document.
+  - Preserves incremental planning workflow and avoids creating partial feature specs before kickoff.

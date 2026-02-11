@@ -5461,3 +5461,31 @@ Track when debt is paid down:
 **Testing:**
 
 - `tools/offload-proxy/pp rg -n "implementer/reviewer/tester|parallel roles use worktrees|Run \`make test\` before closing the work item" docs/00-context docs/01-product/prd.md docs/04-process/dev-workflow.md`
+
+### 2026-02-11 - Planned two new workflow-level features in expected-features
+
+**Feature/Bug:** Post-completion roadmap planning for reliability and workflow testing
+
+**Changed Files:**
+
+- `docs/00-context/expected-features.md`
+
+**What Changed:**
+
+- Added a new expected feature for workflow hardening focused on template-drift detection and autofix recovery during pre-commit/CI checks.
+- Added a new expected feature for end-to-end workflow smoke testing using a synthetic/fake feature to validate orchestration and gates.
+- Kept the update at context planning level only; no feature folder scaffolding was created under `docs/02-features/`.
+
+**Why:**
+
+- Capture the next two priorities in the canonical expected-features intake file before expanding them into full feature specs and execution tasks.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** None (docs-only)
+- **Dependencies:** None
+
+**Testing:**
+
+- Not run (planning/docs-only update)

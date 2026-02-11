@@ -137,3 +137,17 @@ inputs to the PRD feature list and must be reflected unless explicitly rejected.
   - Outcome: Detect recurring prompts and propose reusable skills (e.g., `fix-issue.md`)
   - Priority: P2
   - Notes: Analyze prompts + offloaded outputs; propose DoD and steps
+
+- Feature: Workflow hardening for template drift and autofix recovery
+  - Owner: Developer/PO
+  - Problem: Pre-commit or CI can fail when template files drift from living files or autofix steps do not fully resync touched files
+  - Outcome: Deterministic hardening flow auto-detects drift, repairs scoped files, re-stages only allowed paths, and re-runs checks with clear fail-close remediation
+  - Priority: P0
+  - Notes: Prioritize pre-commit drift scenarios where templates and repo files are out of sync
+
+- Feature: End-to-end workflow smoke test with a synthetic feature
+  - Owner: Developer/PO
+  - Problem: Full workflow regressions are hard to catch without a realistic Plan -> Patch -> Test -> Report run
+  - Outcome: Repeatable synthetic/fake feature test validates end-to-end orchestration, gates, resume behavior, and logs before real feature work
+  - Priority: P1
+  - Notes: Keep fixture lightweight so teams can run collaborative workflow checks quickly
