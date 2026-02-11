@@ -35,7 +35,7 @@
 - Patcher:
 - Tester:
 - Reporter:
-- Outcome:
+- Outcome: needs replan
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
@@ -90,47 +90,50 @@
 Plan Contract v1
 Approach:
 
-1. Add and refine resume-routing tests to enforce deterministic behavior for complete, incomplete, and contradictory in-progress ticket artifacts without hardcoded text coupling.
+1. Reproduce and isolate the `tests.test_docs_logs` failure path tied to WI-20260211-02 and identify the exact docs/log contract mismatch causing exit code 1.
    Files to change:
 
-- tests/test_pc_feature.py
+- tests/test_docs_logs.py
+- docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
   Risks:
-- Tests may become brittle if they assert incidental wording instead of behavioral contracts.
+- Fixing assertions too narrowly could hide a real logging contract regression.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: Include at least two fixtures per critical path (valid resume, contradictory state, and non-resume baseline).
-- Deterministic seed strategy: Use fixed fixture payloads and stable temporary paths so outcomes are repeatable.
-- Invariant checks: Assert identical input artifacts and mode always produce identical routing and block/continue decisions.
-- Contract boundary coverage: Validate boundaries between artifact discovery, resume-policy resolution (`auto`/`prompt`/`fresh`), and step-selection behavior.
+- Fixture coverage: Validate at least one passing and one failing docs/log layout fixture for compacted evidence expectations.
+- Deterministic seed strategy: Use static file names/content and fixed temporary directory structure.
+- Invariant checks: The same docs tree input must always produce the same pass/fail verdict.
+- Contract boundary coverage: Verify boundaries between compacted evidence location rules and WI-scoped evidence content checks.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
 
-2. Implement or adjust resume-state consistency guardrails so contradictory execution evidence fails closed with explicit remediation and safe step routing.
+2. Patch resume-routing/guardrail implementation and/or test expectations so contradictory in-progress artifacts still fail closed while remaining compliant with docs/log validation rules.
    Files to change:
 
 - tools/pc-feature
+- tests/test_pc_feature.py
+- tests/test_docs_logs.py
   Risks:
-- Overly strict checks could block legitimate recovery paths if completion criteria are misclassified.
+- Behavioral guardrail changes could unintentionally alter valid resume flows.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: Reuse and expand step-1 fixtures to cover both inferred and explicit resume mode paths.
-- Deterministic seed strategy: Keep logic purely input-derived with no timestamp, randomness, or environment-order dependency.
-- Invariant checks: Guardrails must never permit continuation when required completion signals are missing or contradictory.
-- Contract boundary coverage: Ensure both explicit mode selection and inferred resume state pass through the same consistency gate.
+- Fixture coverage: Keep complete, incomplete, contradictory, and non-resume fixtures with at least two fixtures for each critical path.
+- Deterministic seed strategy: Use fixed artifacts and stable temp-path construction; no time/random-dependent logic.
+- Invariant checks: Identical artifacts plus mode must always yield identical route and block/continue outcomes.
+- Contract boundary coverage: Enforce the same consistency gate for inferred and explicit resume modes while preserving docs/log contract compliance.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
 
-3. Record compacted implementation and validation evidence for this work item and keep documentation edits within patcher scope.
+3. Re-run all Allowed Tests, record compacted WI evidence with exact commands and outcomes, and keep patcher edits scoped away from non-compacted docs logs.
    Files to change:
 
 - docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md
   Risks:
-- Missing or unclear evidence can block reporter validation despite correct implementation.
+- Incomplete or inaccurate evidence can block reporter/orchestrator handoff.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: N/A for evidence-compaction step; reference fixtures executed in steps 1-2.
-- Deterministic seed strategy: N/A for evidence-compaction step; record exact deterministic commands/results.
-- Invariant checks: Evidence entries must match executed commands and observed outcomes exactly.
-- Contract boundary coverage: Document only WI-20260211-02 implementation and validation artifacts in compacted form.
+- Fixture coverage: N/A for evidence update; reference executed fixtures from steps 1-2.
+- Deterministic seed strategy: Record exact command lines and deterministic outcomes only.
+- Invariant checks: Evidence must match executed commands/results verbatim.
+- Contract boundary coverage: Limit patcher evidence updates to compacted WI output only.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
@@ -170,6 +173,8 @@ Work Item ID: WI-20260211-02
 #### Iteration Log
 
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
+- Attempt 1: reporter no-op; reason=tester failed.
+- Attempt 1: tester=FAIL, reporter=SKIPPED; planner decision=REVISE_PLAN; rationale=One required Allowed Tests command is failing (`python3 -m unittest tests.test_docs_logs`), so the plan must add explicit remediation to restore full green status before review.; patcher feedback pending.
 
 #### Commit
 
