@@ -27,6 +27,35 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-11 - Workflow role-loop audit contract and retry guidance
+
+**Feature/Bug:** Workflow control-flow hardening (role orchestration docs/prompts)
+
+**Changed Files:**
+
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `prompts/planner.md`
+- `prompts/plan-reviewer-gate.md`
+- `prompts/patcher-apply.md`
+- `prompts/tester.md`
+- `tests/test_orchestrator_workflow_docs.py`
+
+**What Changed:**
+
+- Added an explicit execution-order and restart contract to the ticket execution protocol.
+- Synced the human orchestration workflow with strict routing and no-op logging requirements.
+- Strengthened role prompts with retry/restart and actionable failure-context guidance.
+- Added doc-level regression tests that assert ordering and restart rules are documented.
+
+**Why:**
+
+- Ensure every role can restart cleanly after failure, propagate actionable context, and preserve deterministic workflow ordering.
+
+**How:**
+
+- Updated canonical process docs and role prompts, then added focused tests to prevent documentation regressions.
+
 ### 2026-02-10 - Log compaction freshness + dedupe hardening with LLM compact outputs
 
 **Feature/Bug:** F-15 follow-up hardening (offload audit + useful compaction)

@@ -118,6 +118,33 @@ class TestOrchestratorWorkflowDocs(unittest.TestCase):
             content,
         )
 
+
+    def test_execution_protocol_defines_explicit_role_order_and_restarts(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "Orchestrator → Planner → Plan Reviewer → Patcher → Tester → Reporter → Orchestrator",
+            content,
+        )
+        self.assertIn(
+            "Plan Reviewer `BLOCK` restarts from **Planner**",
+            content,
+        )
+        self.assertIn("Tester `FAIL` restarts from **Planner**", content)
+        self.assertIn("Reporter `FAIL` restarts from **Planner**", content)
+
+    def test_execution_protocol_requires_noop_logging_and_artifact_reuse(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "append an explicit no-op note to the iteration log",
+            content,
+        )
+        self.assertIn(
+            "reuse existing work-item artifacts when safe",
+            content,
+        )
+
     def test_decision_log_records_orchestrator_gate_entry(self):
         path = ROOT / "docs" / "03-logs" / "decision-log.md"
         content = path.read_text(encoding="utf-8")
