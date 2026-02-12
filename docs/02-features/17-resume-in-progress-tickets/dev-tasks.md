@@ -35,7 +35,7 @@
 - Patcher:
 - Tester:
 - Reporter:
-- Outcome:
+- Outcome: needs replan
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
@@ -89,50 +89,50 @@
 Plan Contract v1
 Approach:
 
-1. Implement deterministic resume-state detection and safe step routing for single-feature execution, including fail-closed handling for contradictory artifact state and explicit remediation messaging.
+1. Preserve and, if needed, minimally patch resume-state routing and contradiction fail-closed behavior so implementation remains aligned with tested role-transition guarantees.
    Files to change:
 
 - `tools/pc-feature`
   Risks:
-- Misclassifying partially complete runs could skip required work or re-run wrong roles.
-- Contradictory artifacts may be silently tolerated unless fail-closed checks are enforced first.
+- A narrow patch could unintentionally alter non-resume paths if guard ordering is changed.
+- Contradiction detection regressions could reintroduce unsafe advancement.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: add scenarios for completed planner+reviewer, failed tester, completed reporter, contradictory role artifacts, and missing critical artifacts.
-- Deterministic seed strategy: use fixed fixture directory structures and fixed identifiers/timestamps in test artifacts so resume classification is stable across runs.
-- Invariant checks: enforce that `auto`, `prompt`, and `fresh` preserve policy guarantees, never bypass required gates, and never advance on contradictory state.
-- Contract boundary coverage: validate resume decision boundaries at role transitions and error boundaries between recoverable and blocking states.
+- Fixture coverage: cover planner+reviewer complete, tester failed, reporter complete, contradictory artifacts, and missing critical artifacts.
+- Deterministic seed strategy: use fixed fixture trees and stable identifiers/timestamps for repeatable classification.
+- Invariant checks: assert no contradictory state advances, no unsafe role skip, and policy guarantees for `auto`/`prompt`/`fresh`.
+- Contract boundary coverage: verify transitions at planner->patcher->tester->reporter boundaries and blocking/error boundaries.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
 
-2. Add and update automated tests that lock behavior for resume policies, artifact-aware routing, fail-closed contradictions, regression on non-resume flows, and mandatory gate re-runs.
+2. Keep regression tests authoritative for resume policies, fail-closed contradictions, mandatory gate reruns, and non-resume flow stability.
    Files to change:
 
 - `tests/test_pc_feature.py`
 - `tests/test_docs_logs.py`
   Risks:
-- Tests may overfit current output text instead of behavior contracts.
-- Missing edge fixtures can leave contradictory-state or missing-artifact branches unverified.
+- Assertions may drift toward output strings instead of behavior contracts.
+- Missing invalid-mix fixtures could leave contradiction edges unguarded.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: include explicit artifacts for each role state and mixed/invalid combinations.
-- Deterministic seed strategy: use stable fixture names and controlled environment inputs to avoid flaky ordering.
-- Invariant checks: assert blocked-on-contradiction, no unsafe skip, and required final gates remain mandatory on resumed runs.
-- Contract boundary coverage: assert CLI-visible outcomes at policy boundaries (`auto` vs `prompt` vs `fresh`) and artifact-presence boundaries.
+- Fixture coverage: explicit valid/invalid artifact combinations per role state and mixed-state contradictions.
+- Deterministic seed strategy: stable fixture names, deterministic environment inputs, and fixed ordering assumptions.
+- Invariant checks: blocked-on-contradiction, mandatory final gates on resumed runs, and no unsafe bypass across policies.
+- Contract boundary coverage: CLI-visible outcomes at artifact-presence and policy-selection boundaries.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
 
-3. Record compacted implementation/validation evidence for this work item and keep non-compacted project logs out of patcher scope.
+3. Publish compacted patcher evidence with explicit reporter/orchestrator handoff requirements for non-code execution-record completion before final reporter re-review.
    Files to change:
 
 - `docs/03-logs/compacted/WI-20260212-03-patcher-evidence.md`
   Risks:
-- Evidence can drift from implemented behavior if test outcomes and decisions are not summarized precisely.
+- Handoff ambiguity can cause repeated reporter failures despite passing code/tests.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: document which resume fixtures and contradiction fixtures were executed.
-- Deterministic seed strategy: document fixed fixture/seeding choices used to keep outcomes reproducible.
-- Invariant checks: document verified invariants (fail-closed contradiction, mandatory gate rerun, no unsafe step skip).
-- Contract boundary coverage: document validated transition boundaries and blocking boundaries.
+- Fixture coverage: document which resume and contradiction fixtures were executed.
+- Deterministic seed strategy: document stable fixture/seeding conventions used for reproducibility.
+- Invariant checks: document verified fail-closed contradiction handling, mandatory gate rerun, and no unsafe step skip.
+- Contract boundary coverage: document verified role-transition and blocking boundaries tied to reporter handoff readiness.
 - Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
@@ -172,6 +172,7 @@ Work Item ID: WI-20260212-03
 #### Iteration Log
 
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
+- Attempt 1: tester=PASS, reporter=FAIL; planner decision=REVISE_PLAN; rationale=Tester validation passed, but reporter found a release-readiness gap (pending execution record fields) that requires an explicit reporter/orchestrator handoff path in the plan.; patcher feedback pending.
 
 #### Commit
 

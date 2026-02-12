@@ -327,3 +327,64 @@ Per repo instructions, I need your direction before proceeding. Should I:
 Step Planner revise after Plan Reviewer BLOCK at attempt 1.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260212-03 - 2026-02-12
+
+Decision: REVISE_PLAN
+Rationale: Tester validation passed, but reporter found a release-readiness gap (pending execution record fields) that requires an explicit reporter/orchestrator handoff path in the plan.
+
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Preserve and, if needed, minimally patch resume-state routing and contradiction fail-closed behavior so implementation remains aligned with tested role-transition guarantees.
+   Files to change:
+
+- `tools/pc-feature`
+  Risks:
+- A narrow patch could unintentionally alter non-resume paths if guard ordering is changed.
+- Contradiction detection regressions could reintroduce unsafe advancement.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: cover planner+reviewer complete, tester failed, reporter complete, contradictory artifacts, and missing critical artifacts.
+- Deterministic seed strategy: use fixed fixture trees and stable identifiers/timestamps for repeatable classification.
+- Invariant checks: assert no contradictory state advances, no unsafe role skip, and policy guarantees for `auto`/`prompt`/`fresh`.
+- Contract boundary coverage: verify transitions at planner->patcher->tester->reporter boundaries and blocking/error boundaries.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Keep regression tests authoritative for resume policies, fail-closed contradictions, mandatory gate reruns, and non-resume flow stability.
+   Files to change:
+
+- `tests/test_pc_feature.py`
+- `tests/test_docs_logs.py`
+  Risks:
+- Assertions may drift toward output strings instead of behavior contracts.
+- Missing invalid-mix fixtures could leave contradiction edges unguarded.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: explicit valid/invalid artifact combinations per role state and mixed-state contradictions.
+- Deterministic seed strategy: stable fixture names, deterministic environment inputs, and fixed ordering assumptions.
+- Invariant checks: blocked-on-contradiction, mandatory final gates on resumed runs, and no unsafe bypass across policies.
+- Contract boundary coverage: CLI-visible outcomes at artifact-presence and policy-selection boundaries.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Publish compacted patcher evidence with explicit reporter/orchestrator handoff requirements for non-code execution-record completion before final reporter re-review.
+   Files to change:
+
+- `docs/03-logs/compacted/WI-20260212-03-patcher-evidence.md`
+  Risks:
+- Handoff ambiguity can cause repeated reporter failures despite passing code/tests.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: document which resume and contradiction fixtures were executed.
+- Deterministic seed strategy: document stable fixture/seeding conventions used for reproducibility.
+- Invariant checks: document verified fail-closed contradiction handling, mandatory gate rerun, and no unsafe step skip.
+- Contract boundary coverage: document verified role-transition and blocking boundaries tied to reporter handoff readiness.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required note: non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit those files.
+
+Work Item ID: WI-20260212-03
