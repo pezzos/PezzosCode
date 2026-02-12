@@ -9,6 +9,9 @@
 - `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`130 passed`, `0 failed`).
 - `python3 -m unittest tests.test_docs_logs` -> FAIL (`FileNotFoundError` for missing `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md`).
 - `python3 -m unittest tests.test_docs_logs` -> PASS (after adding compacted evidence contract file).
+- Revalidation (patcher feedback pass):
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`130 passed`, `0 failed`).
+  - `python3 -m unittest tests.test_docs_logs` -> PASS (`Ran 12 tests`, `OK`).
 
 ## Resume Fixtures
 
@@ -42,3 +45,4 @@
 
 - Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator and were not edited by patcher.
 - Role-scoped logs (`planner-log.md`, `validation-log.md`, `reporter-log.md`) were not edited by patcher.
+- `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` remains reporter/orchestrator handoff work for WI execution metadata in this pass due explicit patcher file restrictions in the step prompt.
