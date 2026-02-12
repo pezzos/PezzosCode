@@ -1519,3 +1519,24 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Final `pc-feature` commit failures now include concise `pc-commit` detail in workflow event reason text.
 
 - Validated WI-20260212-03 by running the feature’s checks and confirming gate behavior passes for completed tickets and blocks incomplete ones.
+
+## 2026-02-12 - Validate active WI commit-gate targeting and commit-step auto-fix behavior
+
+- Command: `python3 -m py_compile lib/pc_runner.py tools/pc-feature tests/test_pc_commit.py tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_commit.py"`
+- Result: PASS (`6` tests, offload id `c9964818638f257ec03eec9237af0dba86b558dd2ac6abb31413827691b4210e`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "main_avoids_git_add_all_for_final_staging"`
+- Result: PASS (`1` test, offload id `be70c18be6b075e605357946d613d67259a70bef0393654912da3b02916b3635`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "main_commit_failure_surfaces_pc_commit_detail"`
+- Result: PASS (`1` test, offload id `353239c6a391a5fe2e900b988e30c68aa3a27170e16d3a962ba3592c634b44fa`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "extract_command_failure_detail_prefers_gate_marker_over_noise"`
+- Result: PASS (`1` test, offload id `c346f1228fe88f4ab3cb336ffa610dc3a34ec7c7bb7d05df7a1c222f2d928881`)
+- Command: `SKIP=template-sync tools/offload-proxy/pp pre-commit run --files lib/pc_runner.py tests/test_pc_commit.py tests/test_pc_feature.py tools/pc-commit tools/pc-feature`
+- Result: PASS (offload id `1928ea77b6c2d39822268b394b7a7c5fa94877e6d56e20ddd3cadf64f42d5336`)
+- Verified:
+  - Commit-evidence gate can target explicit active WI and no longer depends on markdown entry append order.
+  - Missing explicit WI id is reported deterministically.
+  - Remediation line no longer triggers shell command substitution errors.
+  - Commit-step failure reasons prefer actionable gate/fatal markers over noisy first output lines.
+  - UTC deprecation warning source switched to timezone-aware timestamp generation.

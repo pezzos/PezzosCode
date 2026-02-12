@@ -2165,3 +2165,20 @@ When a decision is reversed or replaced, document it here:
   - Missing runtime prefixes (like `.tmp`) no longer cause false-negative final commit failures.
   - Commit scope enforcement remains fail-closed via allow-rule validation.
   - Future debugging of commit-step failures becomes deterministic from workflow status/history output.
+
+### DEC-055 - Commit evidence gate must target active WI and prefer actionable failure detail
+
+- **Date:** 2026-02-12
+- **Status:** Accepted
+- **Context:** Feature execution produced false commit-gate failures by validating stale WI blocks when `dev-tasks.md` entries were not ordered by append position. Commit failure reasons also captured noisy first output lines, and shell quoting in remediation text produced `command not found` side errors.
+- **Decision:**
+  - `pc-feature` passes the active `work_item_id` to `tools/pc-commit`.
+  - `pc-commit` validates that explicit WI when provided.
+  - Fallback behavior (no explicit WI) selects newest WI by parsed WI id, not by file position.
+  - Commit evidence gate runs before expensive checks and again after checks for fail-fast + fail-closed behavior.
+  - Failure detail extraction prioritizes high-signal markers (`Commit evidence gate failed`, `fatal`, traceback/error) instead of first-line output.
+  - Remediation output uses literal quoting only (no shell command substitution).
+- **Consequences:**
+  - Active work-item commit gating is deterministic even when execution log entries are reordered.
+  - Commit failure summaries in workflow history are materially more diagnostic.
+  - Failing commit-gate runs waste less execution time.

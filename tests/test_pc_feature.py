@@ -4881,6 +4881,9 @@ class TestPcFeature(unittest.TestCase):
                 if token == "--allow"
             ]
             self.assertIn("logs", allow_values)
+            self.assertIn("--work-item-id", pc_commit_cmds[0])
+            wi_idx = pc_commit_cmds[0].index("--work-item-id")
+            self.assertEqual(pc_commit_cmds[0][wi_idx + 1], work_item_id)
 
     def test_main_commit_failure_surfaces_pc_commit_detail(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -4995,6 +4998,18 @@ class TestPcFeature(unittest.TestCase):
                 ),
                 stderr_capture.getvalue(),
             )
+
+    def test_extract_command_failure_detail_prefers_gate_marker_over_noise(self):
+        output = "\n".join(
+            [
+                "pc-feature: requested feature id=01; resolved feature=01-workflow-hardening",
+                "........................................................",
+                "Commit evidence gate failed:",
+                "docs/.../dev-tasks.md [WI-20260212-01]: active ticket status is not completed",
+            ]
+        )
+        detail = self.pc_feature.extract_command_failure_detail(output)
+        self.assertEqual(detail, "Commit evidence gate failed:")
 
     def test_main_skips_commit_generation_if_commit_section_already_filled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

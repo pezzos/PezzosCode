@@ -8,6 +8,7 @@ Usage: tools/pc-commit [options]
 
 Options:
   --allow <path>    Allow changed path (repeatable)
+  --work-item-id <id>  Validate commit evidence against this work item (WI-YYYYMMDD-NN)
   --message <msg>   Use full commit message (skip prompts)
   --type <type>     Commit type: feat|fix|docs|chore
   --scope <scope>   Commit scope (required unless --message)
@@ -25,11 +26,16 @@ type=""
 scope=""
 summary=""
 allow_paths=()
+work_item_id=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --allow)
       allow_paths+=("$2")
+      shift 2
+      ;;
+    --work-item-id)
+      work_item_id="$2"
       shift 2
       ;;
     --message)
@@ -187,7 +193,8 @@ validate_commit_evidence_gate() {
 
   local validation_output
   if ! validation_output="$(
-    python3 - "${dev_tasks_paths[@]}" <<'PY'
+    PC_COMMIT_WORK_ITEM_ID="$work_item_id" python3 - "${dev_tasks_paths[@]}" <<'PY'
+import os
 import re
 import sys
 from pathlib import Path
@@ -208,6 +215,8 @@ OUTCOME_PATTERN = re.compile(
     re.IGNORECASE,
 )
 COMPLETED_TICKET_STATUSES = {"completed", "pass"}
+WORK_ITEM_PATTERN = re.compile(r"^WI-(\d{8})-(\d{2})$")
+TARGET_WORK_ITEM_ID = os.environ.get("PC_COMMIT_WORK_ITEM_ID", "").strip()
 
 
 def parse_label(text: str, label: str) -> str:
@@ -223,19 +232,40 @@ def normalize_ticket_status(value: str) -> str:
     return " ".join(str(value or "").strip().split()).lower()
 
 
-def latest_entry_block(content: str):
+def work_item_sort_key(work_item_id: str):
+    match = WORK_ITEM_PATTERN.fullmatch(work_item_id or "")
+    if not match:
+        return ("00000000", 0)
+    return (match.group(1), int(match.group(2)))
+
+
+def collect_entry_blocks(content: str):
     matches = list(ENTRY_PATTERN.finditer(content))
     if not matches:
-        return "", ""
-    start = matches[-1].start()
-    end = len(content)
-    for marker in matches:
-      if marker.start() > start:
-        end = marker.start()
-        break
-    block = content[start:end]
-    work_item = matches[-1].group(1)
-    return work_item, block
+        return []
+    entries = []
+    for idx, marker in enumerate(matches):
+        start = marker.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(content)
+        entries.append((marker.group(1), content[start:end]))
+    return entries
+
+
+def select_entry_block(content: str):
+    entries = collect_entry_blocks(content)
+    if not entries:
+        return "", "", ""
+    if TARGET_WORK_ITEM_ID:
+        for candidate_id, candidate_block in entries:
+            if candidate_id == TARGET_WORK_ITEM_ID:
+                return candidate_id, candidate_block, ""
+        return (
+            TARGET_WORK_ITEM_ID,
+            "",
+            f"requested work-item execution entry not found: {TARGET_WORK_ITEM_ID}",
+        )
+    selected_id, selected_block = max(entries, key=lambda item: work_item_sort_key(item[0]))
+    return selected_id, selected_block, ""
 
 
 def parse_sections(block: str):
@@ -256,7 +286,10 @@ def parse_sections(block: str):
 
 def validate(path: Path):
     content = path.read_text(encoding="utf-8")
-    work_item_id, block = latest_entry_block(content)
+    work_item_id, block, selection_issue = select_entry_block(content)
+    if selection_issue:
+        label = work_item_id or "unknown-work-item"
+        return [f"{path} [{label}]: {selection_issue}"]
     if not block:
         return [f"{path}: missing work-item execution entry header (expected `### WI-YYYYMMDD-NN`)"]
     issues = []
@@ -319,7 +352,7 @@ PY
   )"; then
     echo "Commit evidence gate failed:" >&2
     echo "$validation_output" >&2
-    echo "Remediation: complete required `Test Results`, `Commit`, and `Final Report` evidence before commit." >&2
+    echo 'Remediation: complete required "Test Results", "Commit", and "Final Report" evidence before commit.' >&2
     return 1
   fi
 
@@ -382,6 +415,9 @@ auto_restage_linted() {
 if [[ "$dry_run" == true ]]; then
   echo "[dry-run] make check"
 else
+  if ! validate_commit_evidence_gate; then
+    exit 1
+  fi
   set +e
   make check
   status=$?
@@ -419,10 +455,9 @@ else
     echo "Use --allow <path> to permit expected files." >&2
     exit 1
   fi
-fi
-
-if ! validate_commit_evidence_gate; then
-  exit 1
+  if ! validate_commit_evidence_gate; then
+    exit 1
+  fi
 fi
 
 allowed_types=("feat" "fix" "docs" "chore")

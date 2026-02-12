@@ -6180,3 +6180,40 @@ Track when debt is paid down:
 - **Dependencies:** None.
 
 - WI-20260212-03 completed: documentation patching flow now enforces commit gating on completed ticket state across the targeted workflow.
+
+### 2026-02-12 - Target active work-item commit gate and fail fast with actionable commit errors
+
+**Feature/Bug:** `make feature F=18` commit step failed by validating stale `WI-...-01` instead of active `WI-...-03`, emitted shell backtick errors in remediation text, and surfaced unrelated noisy details in commit failure reason.
+
+**Changed Files:**
+
+- `tools/pc-commit`
+- `tools/pc-feature`
+- `lib/pc_runner.py`
+- `tests/test_pc_commit.py`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added `--work-item-id WI-YYYYMMDD-NN` to `tools/pc-commit`.
+- Updated commit-evidence gate selection logic:
+  - if `--work-item-id` is provided, validate that exact work-item entry,
+  - if not provided, auto-select the newest work item by WI id sort key (date + sequence), independent of markdown section ordering.
+- Added explicit failure when requested work-item entry is missing.
+- Moved commit-evidence gate execution to run before `make check` (fail-fast), and kept post-check validation to stay fail-closed if files change during checks.
+- Fixed remediation output quoting so required section names are literal text (no shell command substitution).
+- Updated `tools/pc-feature` final commit call to pass `--work-item-id`.
+- Added `extract_command_failure_detail(...)` in `tools/pc-feature` so failure reasons prefer actionable lines (`Commit evidence gate failed`, `fatal:`, traceback/error markers) over noisy first output lines.
+- Replaced deprecated `datetime.utcnow()` with timezone-aware UTC in `lib/pc_runner.py`.
+
+**Why:**
+
+- The gate must validate the active execution entry, not whichever WI block happens to be last in file order.
+- Commit failures must be actionable in workflow status without requiring deep log spelunking.
+- Gate failures should stop early to avoid wasting CI/test runtime.
+
+**Impact:**
+
+- **Breaking changes:** `tools/pc-commit` now accepts `--work-item-id` (additive); explicit unknown work item fails fast with clear message.
+- **Performance:** Improved on failing runs via pre-check gate short-circuit.
+- **Dependencies:** None.

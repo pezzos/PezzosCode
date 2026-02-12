@@ -462,7 +462,7 @@ def build_proposal_from_outcome(
     if not decision_log_ref:
         decision_log_ref = "DEC-TBD"
 
-    date_value = date or datetime.utcnow().strftime("%Y-%m-%d")
+    date_value = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     return ProposalEntry(
         date=date_value,
