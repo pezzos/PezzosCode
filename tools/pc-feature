@@ -3180,6 +3180,8 @@ def detect_resume_route(
     content: str,
     work_item_id: str,
     *,
+    planner_log_path: Optional[str] = None,
+    reviewer_log_path: Optional[str] = None,
     tester_log_path: Optional[str] = None,
     reporter_log_path: Optional[str] = None,
 ) -> Tuple[str, Optional[str]]:
@@ -3206,10 +3208,18 @@ def detect_resume_route(
     reporter_feedback = get_entry_section(content, work_item_id, "Reporter Feedback")
     tester_outcome = parse_section_outcome(tester_feedback)
     reporter_outcome = parse_section_outcome(reporter_feedback)
+    planner_log_has_artifact = role_log_has_work_item(planner_log_path)
+    reviewer_log_has_artifact = role_log_has_work_item(reviewer_log_path)
     tester_log_has_artifact = role_log_has_work_item(tester_log_path)
     reporter_log_has_artifact = role_log_has_work_item(reporter_log_path)
 
     contradictions: List[str] = []
+    if planner_log_has_artifact and not plan_complete:
+        contradictions.append("planner artifact exists while plan section is pending")
+    if reviewer_log_has_artifact and not plan_complete:
+        contradictions.append(
+            "plan-reviewer artifact exists while plan section is pending"
+        )
     if tester_log_has_artifact and not patch_complete:
         contradictions.append("tester artifact exists while patch section is pending")
     if tester_log_has_artifact and not test_results_complete:
@@ -3248,6 +3258,16 @@ def detect_resume_route(
             + "; remediation: align pending sections and role artifacts before resume",
         )
 
+    if test_results_complete and not tester_outcome:
+        return (
+            "block",
+            "missing critical artifact: test results exist without tester feedback",
+        )
+    if reporter_review_complete and not reporter_outcome:
+        return (
+            "block",
+            "missing critical artifact: reporter review exists without reporter feedback",
+        )
     if reporter_outcome and not test_results_complete:
         return (
             "block",
@@ -3559,6 +3579,8 @@ def main() -> None:
         resume_start_step, resume_block_reason = detect_resume_route(
             content,
             work_item_id,
+            planner_log_path=role_paths_abs["planner"],
+            reviewer_log_path=role_paths_abs["plan-reviewer"],
             tester_log_path=role_paths_abs["tester"],
             reporter_log_path=role_paths_abs["reporter"],
         )
