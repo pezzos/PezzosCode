@@ -46,3 +46,9 @@
 - Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator and were not edited by patcher.
 - Role-scoped logs (`planner-log.md`, `validation-log.md`, `reporter-log.md`) were not edited by patcher.
 - `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` remains reporter/orchestrator handoff work for WI execution metadata in this pass due explicit patcher file restrictions in the step prompt.
+
+## Rerun Validation (Reporter Feedback Pass)
+
+- `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`130 passed`, `0 failed`, `6 warnings`).
+- `python3 -m unittest tests.test_docs_logs` -> PASS (`Ran 12 tests`, `OK`; offload id `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`).
+- Remaining reporter feedback target (`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` execution metadata completion) is outside patcher edit scope for this step and therefore intentionally not modified.
