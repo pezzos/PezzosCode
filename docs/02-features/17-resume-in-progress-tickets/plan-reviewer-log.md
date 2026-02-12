@@ -102,3 +102,48 @@ Reasons:
 - None.
   Optional suggestions:
 - In step 1, clarify whether `docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md` is only updated after tests pass (step 3) to avoid intermediate evidence churn.
+
+### WI-20260212-03 - 2026-02-12
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260212-03 - 2026-02-12
+
+Step Plan Reviewer APPROVE at attempt 1.
+
+Decision: Approve
+Reasons:
+
+- Plan Contract v1 sections are present and explicit for `Approach`, `Files to change`, `Risks`, and `Tests (anti-hardcode coverage required)` across all workstreams.
+- Proposed file edits stay within allowed scope: code/tests plus compacted evidence only; it explicitly forbids patcher edits to non-compacted `docs/03-logs/*`.
+- No forbidden orchestration commands (`make feature`, `pc-feature`, `tools/pc-feature`) appear in command context.
+- Test strategy is behavior-focused and includes contradiction/fail-closed boundaries, policy invariants, deterministic fixtures, and boundary coverage for `auto`/`prompt`/`fresh`.
+  Required changes:
+- None.
+  Optional suggestions:
+- In `tests/test_pc_feature.py`, prefer asserting structured outcomes (exit codes/state enums) before message text to further reduce wording-coupled brittleness.
+
+### WI-20260212-03 - 2026-02-12
+
+Step Plan Reviewer APPROVE at attempt 2.
+
+Decision: Approve
+Reasons:
+
+- Plan Contract v1 sections are present and explicit (`Approach`, `Files to change`, `Risks`, `Tests`) with anti-hardcode coverage requirements included per step.
+- File scope complies with policy: only `tools/pc-feature`, test files, and a compacted log under `docs/03-logs/compacted/` are targeted; forbidden role-scoped logs and non-compacted `docs/03-logs/*` are not assigned to patcher.
+- Command scope complies with policy: no forbidden orchestration commands (`make feature`, `pc-feature`, `tools/pc-feature`) are listed as execution commands; allowed test commands are appropriate.
+- The required ownership note is present and correctly assigns non-compacted global log updates to reporter/orchestrator flow while stating patcher will not edit them.
+  Required changes:
+- None.
+  Optional suggestions:
+- In step 1, clarify whether `tools/pc-feature` changes are expected or “only if tests prove required,” to reduce unnecessary patch churn.

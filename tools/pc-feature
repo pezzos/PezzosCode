@@ -3377,9 +3377,20 @@ def detect_resume_route(
     content: str,
     work_item_id: str,
     *,
+    planner_log_path: Optional[str] = None,
+    reviewer_log_path: Optional[str] = None,
     tester_log_path: Optional[str] = None,
     reporter_log_path: Optional[str] = None,
 ) -> Tuple[str, Optional[str]]:
+    def role_log_has_work_item(log_path: Optional[str]) -> bool:
+        if not log_path or not os.path.exists(log_path):
+            return False
+        try:
+            log_content = read_file(log_path)
+        except OSError:
+            return False
+        return f"### {work_item_id} " in log_content
+
     def is_complete(section: str) -> bool:
         body = get_entry_section(content, work_item_id, section)
         if not body or "(pending)" in body:
@@ -3405,8 +3416,16 @@ def detect_resume_route(
     reporter_requires_review = reporter_log_has_artifact and (
         reporter_outcome != "SKIPPED"
     )
+    planner_log_has_artifact = role_log_has_work_item(planner_log_path)
+    reviewer_log_has_artifact = role_log_has_work_item(reviewer_log_path)
 
     contradictions: List[str] = []
+    if planner_log_has_artifact and not plan_complete:
+        contradictions.append("planner artifact exists while plan section is pending")
+    if reviewer_log_has_artifact and not plan_complete:
+        contradictions.append(
+            "plan-reviewer artifact exists while plan section is pending"
+        )
     if tester_log_has_artifact and not patch_complete:
         contradictions.append("tester artifact exists while patch section is pending")
     if tester_log_has_artifact and not test_results_complete:
@@ -3454,6 +3473,16 @@ def detect_resume_route(
             + "; remediation: align pending sections and role artifacts before resume",
         )
 
+    if test_results_complete and not tester_outcome:
+        return (
+            "block",
+            "missing critical artifact: test results exist without tester feedback",
+        )
+    if reporter_review_complete and not reporter_outcome:
+        return (
+            "block",
+            "missing critical artifact: reporter review exists without reporter feedback",
+        )
     if reporter_outcome and reporter_outcome != "SKIPPED" and not test_results_complete:
         return (
             "block",
@@ -3777,6 +3806,8 @@ def main() -> None:
                 candidate_start_step, candidate_block_reason = detect_resume_route(
                     repaired_content,
                     work_item_id,
+                    planner_log_path=role_paths_abs["planner"],
+                    reviewer_log_path=role_paths_abs["plan-reviewer"],
                     tester_log_path=role_paths_abs["tester"],
                     reporter_log_path=role_paths_abs["reporter"],
                 )
@@ -3807,6 +3838,8 @@ def main() -> None:
         resume_start_step, resume_block_reason = detect_resume_route(
             content,
             work_item_id,
+            planner_log_path=role_paths_abs["planner"],
+            reviewer_log_path=role_paths_abs["plan-reviewer"],
             tester_log_path=role_paths_abs["tester"],
             reporter_log_path=role_paths_abs["reporter"],
         )

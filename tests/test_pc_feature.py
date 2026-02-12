@@ -1555,6 +1555,12 @@ class TestPcFeature(unittest.TestCase):
         content = self.pc_feature.replace_entry_section(
             content,
             work_item_id,
+            "Tester Feedback",
+            "Outcome: PASS\nNotes: clean",
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
             "Reporter Review",
             "Outcome: FAIL\nNotes: traceability",
         )
@@ -1596,10 +1602,62 @@ class TestPcFeature(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first, ("tester", None))
 
-    def test_detect_resume_route_uses_role_artifact_outcomes_when_feedback_missing(
+    def test_detect_resume_route_blocks_pending_plan_when_planner_artifacts_exist(
         self,
     ):
         work_item_id = "WI-20260210-08"
+        content = self._build_entry_content(work_item_id)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            planner_log = Path(tmpdir) / "planner-log.md"
+            reviewer_log = Path(tmpdir) / "plan-reviewer-log.md"
+            planner_log.write_text(
+                (
+                    "# Planner Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-11\n\nPlan drafted.\n"
+                ),
+                encoding="utf-8",
+            )
+            reviewer_log.write_text(
+                (
+                    "# Plan Reviewer Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-11\n\nDecision: APPROVE\n"
+                ),
+                encoding="utf-8",
+            )
+            route, reason = self.pc_feature.detect_resume_route(
+                content,
+                work_item_id,
+                planner_log_path=str(planner_log),
+                reviewer_log_path=str(reviewer_log),
+            )
+        self.assertEqual(route, "block")
+        self.assertIn("contradictory", reason)
+        self.assertIn("planner artifact exists while plan section is pending", reason)
+        self.assertIn(
+            "plan-reviewer artifact exists while plan section is pending", reason
+        )
+
+    def test_detect_resume_route_blocks_missing_tester_feedback_for_test_results(self):
+        work_item_id = "WI-20260210-09"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Patch", "- patch complete"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", "- python -m pytest ... -> 0"
+        )
+        route, reason = self.pc_feature.detect_resume_route(content, work_item_id)
+        self.assertEqual(route, "block")
+        self.assertIn("missing critical artifact", reason)
+        self.assertIn("tester feedback", reason)
+
+    def test_detect_resume_route_uses_role_artifact_outcomes_when_feedback_missing(
+        self,
+    ):
+        work_item_id = "WI-20260210-10"
         content = self._build_entry_content(work_item_id)
         content = self.pc_feature.replace_entry_section(
             content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
@@ -1630,7 +1688,7 @@ class TestPcFeature(unittest.TestCase):
         self.assertIsNone(reason)
 
     def test_detect_resume_route_allows_reporter_skipped_without_reporter_review(self):
-        work_item_id = "WI-20260210-09"
+        work_item_id = "WI-20260210-11"
         content = self._build_entry_content(work_item_id)
         content = self.pc_feature.replace_entry_section(
             content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
@@ -1676,7 +1734,7 @@ class TestPcFeature(unittest.TestCase):
         self.assertIsNone(reason)
 
     def test_reconcile_resume_pending_sections_backfills_pending_sections_only(self):
-        work_item_id = "WI-20260210-10"
+        work_item_id = "WI-20260210-12"
         content = self._build_entry_content(work_item_id)
         content = self.pc_feature.replace_entry_section(
             content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
@@ -1734,7 +1792,7 @@ class TestPcFeature(unittest.TestCase):
         )
 
     def test_reconcile_resume_pending_sections_skips_reporter_review_for_skipped(self):
-        work_item_id = "WI-20260210-11"
+        work_item_id = "WI-20260210-13"
         content = self._build_entry_content(work_item_id)
         content = self.pc_feature.replace_entry_section(
             content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
@@ -1772,6 +1830,44 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.get_entry_section(updated, work_item_id, "Reporter Review"),
         )
 
+    def test_detect_resume_route_planner_and_reviewer_artifacts_route_to_patcher(self):
+        work_item_id = "WI-20260210-14"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            planner_log = Path(tmpdir) / "planner-log.md"
+            reviewer_log = Path(tmpdir) / "plan-reviewer-log.md"
+            planner_log.write_text(
+                (
+                    "# Planner Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-11\n\nPlan drafted.\n"
+                ),
+                encoding="utf-8",
+            )
+            reviewer_log.write_text(
+                (
+                    "# Plan Reviewer Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-11\n\nDecision: APPROVE\n"
+                ),
+                encoding="utf-8",
+            )
+            first = self.pc_feature.detect_resume_route(
+                content,
+                work_item_id,
+                planner_log_path=str(planner_log),
+                reviewer_log_path=str(reviewer_log),
+            )
+            second = self.pc_feature.detect_resume_route(
+                content,
+                work_item_id,
+                planner_log_path=str(planner_log),
+                reviewer_log_path=str(reviewer_log),
+            )
+        self.assertEqual(first, second)
+        self.assertEqual(first, ("patcher", None))
+
     def test_detect_resume_route_fixture_matrix_is_deterministic(self):
         def with_plan(content: str, work_item_id: str) -> str:
             return self.pc_feature.replace_entry_section(
@@ -1798,24 +1894,65 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.replace_entry_section(
                         self.pc_feature.replace_entry_section(
                             self.pc_feature.replace_entry_section(
-                                with_plan(content, work_item_id),
+                                self.pc_feature.replace_entry_section(
+                                    with_plan(content, work_item_id),
+                                    work_item_id,
+                                    "Patch",
+                                    "- patch complete",
+                                ),
                                 work_item_id,
-                                "Patch",
-                                "- patch complete",
+                                "Test Results",
+                                "- python -m pytest ... -> 0",
                             ),
                             work_item_id,
-                            "Test Results",
-                            "- python -m pytest ... -> 0",
+                            "Reporter Review",
+                            "Outcome: PASS\nNotes: approved",
                         ),
                         work_item_id,
-                        "Reporter Review",
-                        "Outcome: PASS\nNotes: approved",
+                        "Tester Feedback",
+                        "Outcome: PASS\nNotes: clean",
                     ),
                     work_item_id,
                     "Reporter Feedback",
                     "Outcome: PASS\nNotes: approved",
                 ),
                 "expected_route": "tester",
+                "reason_contains": None,
+            },
+            {
+                "name": "missing-critical-test-results-without-tester-feedback",
+                "work_item_id": "WI-20260211-18",
+                "path": "missing-critical",
+                "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
+                    self.pc_feature.replace_entry_section(
+                        with_plan(content, work_item_id),
+                        work_item_id,
+                        "Patch",
+                        "- patch complete",
+                    ),
+                    work_item_id,
+                    "Test Results",
+                    "- python -m pytest ... -> 0",
+                ),
+                "expected_route": "block",
+                "reason_contains": "missing critical artifact",
+            },
+            {
+                "name": "contradiction-pending-plan-with-planner-artifacts",
+                "work_item_id": "WI-20260211-19",
+                "path": "contradictory",
+                "build": lambda content, _work_item_id: content,
+                "with_artifacts": "planner-reviewer",
+                "expected_route": "block",
+                "reason_contains": "plan section is pending",
+            },
+            {
+                "name": "valid-planner-reviewer-artifacts-route-to-patcher",
+                "work_item_id": "WI-20260211-20",
+                "path": "valid",
+                "build": lambda content, work_item_id: with_plan(content, work_item_id),
+                "with_artifacts": "planner-reviewer",
+                "expected_route": "patcher",
                 "reason_contains": None,
             },
             {
@@ -1898,17 +2035,48 @@ class TestPcFeature(unittest.TestCase):
         self.assertGreaterEqual(path_counts.get("valid", 0), 2)
         self.assertGreaterEqual(path_counts.get("contradictory", 0), 2)
         self.assertGreaterEqual(path_counts.get("baseline", 0), 2)
+        self.assertGreaterEqual(path_counts.get("missing-critical", 0), 1)
 
         for fixture in fixtures:
             with self.subTest(fixture=fixture["name"]):
                 content = self._build_entry_content(fixture["work_item_id"])
                 content = fixture["build"](content, fixture["work_item_id"])
-                first = self.pc_feature.detect_resume_route(
-                    content, fixture["work_item_id"]
-                )
-                second = self.pc_feature.detect_resume_route(
-                    content, fixture["work_item_id"]
-                )
+                kwargs = {}
+                if fixture.get("with_artifacts") == "planner-reviewer":
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        planner_log = Path(tmpdir) / "planner-log.md"
+                        reviewer_log = Path(tmpdir) / "plan-reviewer-log.md"
+                        planner_log.write_text(
+                            (
+                                "# Planner Log\n\n## Entries\n\n"
+                                f"### {fixture['work_item_id']} - 2026-02-11\n\nPlan drafted.\n"
+                            ),
+                            encoding="utf-8",
+                        )
+                        reviewer_log.write_text(
+                            (
+                                "# Plan Reviewer Log\n\n## Entries\n\n"
+                                f"### {fixture['work_item_id']} - 2026-02-11\n\nDecision: APPROVE\n"
+                            ),
+                            encoding="utf-8",
+                        )
+                        kwargs = {
+                            "planner_log_path": str(planner_log),
+                            "reviewer_log_path": str(reviewer_log),
+                        }
+                        first = self.pc_feature.detect_resume_route(
+                            content, fixture["work_item_id"], **kwargs
+                        )
+                        second = self.pc_feature.detect_resume_route(
+                            content, fixture["work_item_id"], **kwargs
+                        )
+                else:
+                    first = self.pc_feature.detect_resume_route(
+                        content, fixture["work_item_id"]
+                    )
+                    second = self.pc_feature.detect_resume_route(
+                        content, fixture["work_item_id"]
+                    )
                 self.assertEqual(first, second)
                 self.assertEqual(first[0], fixture["expected_route"])
                 if fixture["reason_contains"]:
@@ -1974,6 +2142,39 @@ class TestPcFeature(unittest.TestCase):
                     self.assertEqual(len(die_messages), 1)
                     self.assertIn("contradictory resume state", die_messages[0])
                     self.assertIn(f"mode={resume_mode}", die_messages[0])
+
+    def test_main_passes_all_role_logs_to_resume_route(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260211-21"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+
+            def capture_detect(content: str, incoming_work_item_id: str, **kwargs):
+                self.assertEqual(incoming_work_item_id, work_item_id)
+                self.assertIn("planner_log_path", kwargs)
+                self.assertIn("reviewer_log_path", kwargs)
+                self.assertIn("tester_log_path", kwargs)
+                self.assertIn("reporter_log_path", kwargs)
+                raise StopMain()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "detect_resume_route",
+                        side_effect=capture_detect,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
 
     def test_classify_resume_dirty_paths_separates_runtime_and_unexpected(self):
         feature_dir = "docs/02-features/01-workflow-hardening"

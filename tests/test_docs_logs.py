@@ -46,6 +46,20 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
             content,
         )
 
+    def test_execution_protocol_defines_resume_modes_and_mandatory_reruns(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn("`auto` (default): resume in-progress work", content)
+        self.assertIn(
+            "`prompt`: ask before continuing/recreating an existing feature worktree.",
+            content,
+        )
+        self.assertIn(
+            "`fresh`: recreate the feature patcher worktree and start from a clean baseline.",
+            content,
+        )
+        self.assertIn("Tests and CI are always re-run on resume.", content)
+
     def test_execution_protocol_mentions_devtasks_schema_check(self):
         path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
         content = path.read_text(encoding="utf-8")
