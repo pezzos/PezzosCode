@@ -39,7 +39,7 @@
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
-- Notes: Planner/reviewer stagnation detected; manual intervention required.
+- Notes: Planner/reviewer stagnation detected; manual intervention required.; Main head locked: e2eedb6614ea6ada6db0161c2ccde845476241d7
 
 #### Preflight Report
 
