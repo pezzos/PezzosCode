@@ -102,3 +102,16 @@ Reasons:
 - None.
   Optional suggestions:
 - In step 1, clarify whether `docs/03-logs/compacted/WI-20260211-02-patcher-evidence.md` is only updated after tests pass (step 3) to avoid intermediate evidence churn.
+
+### WI-20260212-03 - 2026-02-12
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
