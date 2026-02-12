@@ -438,3 +438,25 @@ Decision: PLAN_STILL_VALID
 Rationale: Tester feedback shows all planned implementation and allowed validations passed, and the reporter FAIL is limited to execution-record completion in role-scoped docs outside this plan’s patch scope.
 Revised Plan:
 (none)
+
+### WI-20260212-05 - 2026-02-12
+
+Updated `WI-20260212-05` in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:29` with:
+
+- Exact `Allowed Tests` commands at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:71`.
+- Full `Plan Contract v1` content (including required anti-hardcode coverage bullets and exact allowed test commands) at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:87`.
+- Explicit handoff note that non-compacted `docs/03-logs/*` is reporter/orchestrator-owned and patcher will not edit those files at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:139`.
+- Systematic review command/result entries at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:55`.
+
+Systematic review commands executed and outcomes:
+
+1. `mcp__serena__search_for_pattern` for the WI block -> found placeholders and target scope.
+2. `mcp__serena__search_for_pattern` for `Allowed Tests` through `Work Item ID` -> verified final structure and required fields.
+
+Commit status:
+
+- Commit could not be created due sandbox permission error writing worktree git lock:
+  - `fatal: Unable to create .../.git/worktrees/.../index.lock: Operation not permitted`
+
+Also detected an unexpected untracked path: `logs/WI-20260212-05/` (not modified by me).
+If you want, I can proceed with a non-committing handoff only, or adjust around that path per your direction.
