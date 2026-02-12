@@ -32,6 +32,65 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 
 ## Entries
 
+### Proposal: WI-20260212-04 - Orchestration
+
+**Date:** 2026-02-12
+**Work Item:** WI-20260212-04
+**Agent:** pc-feature
+**Step:** Orchestration
+**Failure Summary:** Loop exhausted at MAX_LOOPS. tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 130 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: Updated `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` with `### WI-20260212-04 (rerun 2) - 2026-02-12`. File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`. Evidence: Primary scope view from this run shows in-scope WI artifacts but incomplete ex...
+**Proposed Improvement:** TBD - investigate failure and propose remediation.
+**Proposed Patch Location:** TBD
+**Risks / Trade-offs:** None noted.
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
+### Proposal: WI-20260212-04 - Report
+
+**Date:** 2026-02-12
+**Work Item:** WI-20260212-04
+**Agent:** Reporter
+**Step:** Report
+**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 130 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: Updated `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` with `### WI-20260212-04 (rerun 2) - 2026-02-12`. File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`. Evidence: Primary scope view from this run shows in-scope WI artifacts but incomplete ex...
+**Proposed Improvement:** Add a post-tester handoff checklist item that blocks reporter PASS when WI execution placeholders remain.
+**Proposed Patch Location:** `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` (WI-20260212-04 block), `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
+**Risks / Trade-offs:** Keeping FAIL blocks closure despite passing tests, but preserves traceability and prevents incomplete orchestration records.
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
+### Proposal: WI-20260212-04 - Report
+
+**Date:** 2026-02-12
+**Work Item:** WI-20260212-04
+**Agent:** Reporter
+**Step:** Report
+**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 130 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: Updated `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` with `### WI-20260212-04 (rerun) - 2026-02-12`. File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`. Evidence: Primary scope view from this run (`git status --short`, `git diff --stat refs/he...
+**Proposed Improvement:** Populate `WI-20260212-04`execution metadata and sections in`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`(top role fields plus`Patch`, `Test Results`, `Reporter Review`), then rerun reporter review.
+**Proposed Patch Location:** `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`**Risks / Trade-offs:** Reporter: Work-item execution record completeness and reporter handoff readiness for`WI-20260212-04`.; Primary scope view from this run (`git status --short`, `git diff --stat refs/heads...
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
+### Proposal: WI-20260212-04 - Report
+
+**Date:** 2026-02-12
+**Work Item:** WI-20260212-04
+**Agent:** Reporter
+**Step:** Report
+**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 130 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: Updated `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` with the WI-20260212-04 reporter entry. File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`. Evidence: Primary scope checks (`git status --short`, `git diff --stat refs/heads/main..HEAD`) sho...
+**Proposed Improvement:** Populate WI-20260212-04 execution metadata and sections in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` (including `Patch`, `Test Results`, `Reporter Review`, and top execution fields), then rerun reporter review.
+**Proposed Patch Location:** `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
+**Risks / Trade-offs:** Reporter: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`.; Primary scope checks (`git status --short`, `git diff --stat refs/heads/main..HEAD`...
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
 ### Proposal: WI-20260211-03 - Orchestration
 
 **Date:** 2026-02-11
