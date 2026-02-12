@@ -147,3 +147,16 @@ Reasons:
 - None.
   Optional suggestions:
 - In step 1, clarify whether `tools/pc-feature` changes are expected or “only if tests prove required,” to reduce unnecessary patch churn.
+
+### WI-20260212-04 - 2026-02-12
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
