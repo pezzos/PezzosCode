@@ -27,6 +27,61 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-12 - Precommit template-sync autofix policy update
+
+**Feature/Bug:** Deterministic template/living sync in precommit
+
+**Changed Files:**
+
+- `.pre-commit-config.yaml`
+- `tools/pc-template-sync`
+- `tools/pc-precommit`
+- `tests/test_pc_template_sync.py`
+
+**What Changed:**
+
+- Updated precommit hook entry so `template-sync` runs in autofix mode (`--apply --stage`).
+- Extended `pc-template-sync` behavior:
+  - one-side-changed mismatch: copy changed side into unchanged paired file and optionally stage target,
+  - neither-side-changed mismatch (unexpected drift): copy live file to template deterministically,
+  - both-sides-changed mismatch: fail with explicit Codex-assisted merge guidance (no automatic overwrite).
+- Added staging support in `pc-template-sync` so synced targets are immediately staged.
+- Updated `pc-precommit` to refresh staged-file scope between runs and rerun hooks when hook execution changes the staged file set.
+- Added dedicated unit tests for the new `pc-template-sync` behavior matrix.
+
+**Why:**
+
+- Remove noisy manual failures for simple copy-sync cases.
+- Keep strict safety for conflicting dual-edits that require semantic merge.
+- Ensure subsequent hooks validate newly staged template files in the same precommit run.
+
+### 2026-02-12 - Feature 17 closure on `main` (final worktree merge + completed status)
+
+**Feature/Bug:** F-17 closeout and documentation finalization
+
+**Changed Files:**
+
+- `docs/02-features/17-resume-in-progress-tickets/feature-spec.md`
+- `docs/02-features/17-resume-in-progress-tickets/tech-design.md`
+- `docs/02-features/17-resume-in-progress-tickets/test-plan.md`
+- `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
+
+**What Changed:**
+
+- Merged the remaining `feature-17-resume-in-progress-tickets-patcher` branch commits into `main` (merge commit `9614166`).
+- Updated F-17 documentation status headers from draft/incomplete state to `Completed`.
+- Updated F-17 `Last Updated` metadata to `2026-02-12` across the core feature docs.
+
+**Why:**
+
+- Finalize feature 17 on `main` so continued work and review happen from a single, up-to-date branch state.
+- Make feature-level documentation reflect the completed delivery state.
+
+**How:**
+
+- Used a non-fast-forward git merge from the feature worktree branch into `main`.
+- Applied focused doc-header edits only (status + date) to avoid rewriting execution history.
+
 ### 2026-02-12 - Resume contradiction auto-repair for pending execution sections
 
 **Feature/Bug:** F-17 resume auto-repair (contradictory resume state remediation)

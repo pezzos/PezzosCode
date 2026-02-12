@@ -76,18 +76,26 @@ PY
 log_event "start"
 
 staged_paths=()
-while IFS= read -r -d '' path; do
-  staged_paths+=("$path")
-done < <(git diff --cached --name-only -z)
+refresh_staged_paths() {
+  staged_paths=()
+  while IFS= read -r -d '' path; do
+    staged_paths+=("$path")
+  done < <(git diff --cached --name-only -z)
+}
+
+staged_signature() {
+  if [[ ${#staged_paths[@]} -eq 0 ]]; then
+    echo ""
+    return 0
+  fi
+  printf '%s\n' "${staged_paths[@]}"
+}
+
+refresh_staged_paths
 if [[ ${#staged_paths[@]} -eq 0 ]]; then
   echo "No staged changes detected." >&2
   exit 1
 fi
-
-initial_added_paths=()
-while IFS= read -r -d '' path; do
-  initial_added_paths+=("$path")
-done < <(git diff --cached --name-only --diff-filter=A -z)
 
 contains_path() {
   local needle="$1"
@@ -142,9 +150,14 @@ restage_staged() {
 
   git add -u -- "${modified_paths[@]}"
 
+  current_added_paths=()
+  while IFS= read -r -d '' path; do
+    current_added_paths+=("$path")
+  done < <(git diff --cached --name-only --diff-filter=A -z)
+
   added_modified=()
   for path in "${modified_paths[@]}"; do
-    if contains_path "$path" "${initial_added_paths[@]}"; then
+    if contains_path "$path" "${current_added_paths[@]}"; then
       added_modified+=("$path")
     fi
   done
@@ -158,10 +171,31 @@ restage_staged() {
 
 lint_attempts=0
 max_lint_attempts=2
+stage_change_reruns=0
+max_stage_change_reruns=2
 status=1
 
 while [[ "$lint_attempts" -lt "$max_lint_attempts" ]]; do
+  refresh_staged_paths
+  if [[ ${#staged_paths[@]} -eq 0 ]]; then
+    echo "No staged changes detected." >&2
+    status=1
+    break
+  fi
+  before_signature="$(staged_signature)"
   if run_precommit; then
+    refresh_staged_paths
+    after_signature="$(staged_signature)"
+    if [[ "$after_signature" != "$before_signature" ]]; then
+      stage_change_reruns=$((stage_change_reruns + 1))
+      if [[ "$stage_change_reruns" -gt "$max_stage_change_reruns" ]]; then
+        echo "pre-commit: staged files changed repeatedly during hooks; aborting." >&2
+        status=1
+        break
+      fi
+      echo "pre-commit: staged files changed during hooks; re-running with updated scope." >&2
+      continue
+    fi
     status=0
     break
   fi
@@ -170,6 +204,11 @@ while [[ "$lint_attempts" -lt "$max_lint_attempts" ]]; do
 done
 
 if [[ "$status" -ne 0 ]]; then
+  refresh_staged_paths
+  if [[ ${#staged_paths[@]} -eq 0 ]]; then
+    echo "No staged changes detected." >&2
+    exit 1
+  fi
   echo "pre-commit: running AI autofix after $max_lint_attempts failed attempt(s)." >&2
   autofix_cmd=(
     tools/pc-autofix
@@ -190,10 +229,32 @@ if [[ "$status" -ne 0 ]]; then
   fi
   "${autofix_cmd[@]}"
   restage_staged
-  if ! run_precommit; then
+  refresh_staged_paths
+  if [[ ${#staged_paths[@]} -eq 0 ]]; then
+    echo "No staged changes detected." >&2
     status=1
   else
-    status=0
+    before_signature="$(staged_signature)"
+    if ! run_precommit; then
+      status=1
+    else
+      refresh_staged_paths
+      after_signature="$(staged_signature)"
+      if [[ "$after_signature" != "$before_signature" ]]; then
+        echo "pre-commit: staged files changed during autofix rerun; validating once more." >&2
+        refresh_staged_paths
+        if [[ ${#staged_paths[@]} -eq 0 ]]; then
+          echo "No staged changes detected." >&2
+          status=1
+        elif ! run_precommit; then
+          status=1
+        else
+          status=0
+        fi
+      else
+        status=0
+      fi
+    fi
   fi
 fi
 

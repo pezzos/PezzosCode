@@ -8,9 +8,9 @@
 
 **Feature:** Resume in-progress tickets
 
-**Status:** Draft
+**Status:** Completed
 
-**Last Updated:** 2026-02-11
+**Last Updated:** 2026-02-12
 
 ### Product Surfaces
 

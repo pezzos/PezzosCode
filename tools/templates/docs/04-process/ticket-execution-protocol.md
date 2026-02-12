@@ -48,6 +48,11 @@
    - Existing dirty state in the active feature worktree is treated as work-in-progress and checkpointed at startup.
    - Startup must not discard dirty files in the active feature worktree unless `RESUME_MODE=fresh` is explicitly requested.
    - If an existing feature worktree is behind `main`, auto-resume fails (policy: `main` must stay unchanged while a feature is running).
+   - Startup contradiction handling is controlled by `RESUME_CONTRADICTION_POLICY`:
+     - `repair` (default): try a deterministic planner-owned repair of pending `Patch`/`Test Results`/`Reporter Review` sections from role artifacts before blocking.
+     - `block`: keep strict fail-closed behavior with no auto-repair.
+     - `rewind`: reserved policy mode; currently behaves like `block`.
+   - `RESUME_REPAIR_DRY_RUN=1` reports what startup repair would change without writing files.
    - Preflight is skipped if the **Preflight Report** section is already filled.
    - TDD generation is skipped if the **TDD Plan** section is already filled.
    - Tests and CI are always re-run on resume.

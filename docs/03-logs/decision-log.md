@@ -104,6 +104,42 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-045] - Precommit template-sync uses deterministic copy autofix with Codex-only conflict escalation
+
+**Date:** 2026-02-12
+
+**Status:** Implemented
+
+**Decision:**
+Run `tools/pc-template-sync --apply --stage` in precommit and apply deterministic copy rules for non-conflicting drift, while failing dual-edited pairs for Codex-assisted semantic merge.
+
+**Rationale:**
+Most template/living mismatches are mechanical synchronization tasks and should not block commits. True dual-edit divergence can encode intent on both sides and requires semantic resolution rather than blind overwrite.
+
+**Implications:**
+
+- One-side-changed and neither-side-changed mismatches are auto-fixed by copy and staged.
+- Both-sides-changed mismatches remain blocked with explicit remediation instructions.
+- `tools/pc-precommit` now re-evaluates staged-file scope when hooks stage additional files.
+
+### [DEC-044] - Close feature 17 on `main` and mark feature docs completed
+
+**Date:** 2026-02-12
+
+**Status:** Implemented
+
+**Decision:**
+Complete feature 17 by fully merging `feature-17-resume-in-progress-tickets-patcher` into `main`, then set F-17 core doc statuses to `Completed`.
+
+**Rationale:**
+The active worktree branch had additional delivery commits beyond prior merges. Closing on `main` removes split-brain execution context and keeps documentation aligned with delivered state.
+
+**Implications:**
+
+- `main` becomes the single source for feature 17 continuation/follow-up work.
+- Feature status metadata now reflects completion in spec/design/test/tasks docs.
+- Historical execution details remain preserved in role logs and execution entries.
+
 ### [DEC-043] - Repair pending resume sections from role artifacts before blocking
 
 **Date:** 2026-02-12

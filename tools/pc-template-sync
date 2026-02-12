@@ -18,6 +18,7 @@ class Pair:
 class Mismatch:
     source: Path
     target: Path
+    reason: str
 
 
 def die(message: str) -> None:
@@ -109,6 +110,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Apply deterministic one-sided sync changes.",
     )
+    parser.add_argument(
+        "--stage",
+        action="store_true",
+        help="Stage synced target files after applying changes.",
+    )
     return parser.parse_args()
 
 
@@ -121,6 +127,7 @@ def main() -> int:
     pairs = build_pairs(root)
 
     mismatches: list[Mismatch] = []
+    codex_conflicts: list[str] = []
     errors: list[str] = []
 
     for pair in pairs:
@@ -141,14 +148,29 @@ def main() -> int:
         if live_changed ^ template_changed:
             source = pair.live if live_changed else pair.template
             target = pair.template if live_changed else pair.live
-            mismatches.append(Mismatch(source=source, target=target))
-        else:
-            reason = (
-                "both changed"
-                if live_changed and template_changed
-                else "neither changed"
+            mismatches.append(
+                Mismatch(
+                    source=source,
+                    target=target,
+                    reason="changed side copied to unchanged side",
+                )
             )
-            errors.append(f"out-of-sync pair ({reason}): {live_rel} <-> {template_rel}")
+        else:
+            if live_changed and template_changed:
+                codex_conflicts.append(f"{live_rel} <-> {template_rel}")
+                continue
+            if args.apply:
+                mismatches.append(
+                    Mismatch(
+                        source=pair.live,
+                        target=pair.template,
+                        reason="neither side changed; copied live to template",
+                    )
+                )
+            else:
+                errors.append(
+                    f"out-of-sync pair (neither changed): {live_rel} <-> {template_rel}"
+                )
 
     if errors:
         detail = "\n".join(f"- {entry}" for entry in errors)
@@ -158,7 +180,15 @@ def main() -> int:
         )
 
     if not mismatches:
-        return 0
+        if not codex_conflicts:
+            return 0
+        detail = "\n".join(f"- {entry}" for entry in codex_conflicts)
+        die(
+            "pc-template-sync: out-of-sync pair(s) with both sides changed require "
+            "Codex-assisted merge before copy-sync:\n" + detail + "\nResolution:\n"
+            "- Merge intent into one side.\n"
+            "- Copy the merged file content to its paired file."
+        )
 
     if not args.apply:
         detail = "\n".join(
@@ -174,9 +204,27 @@ def main() -> int:
     for mismatch in mismatches:
         mismatch.target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(mismatch.source, mismatch.target)
+        if args.stage:
+            target_rel = str(mismatch.target.relative_to(root))
+            add_result = run(["git", "add", "--", target_rel], root)
+            if add_result.returncode != 0:
+                die(
+                    "pc-template-sync: failed to stage synced file "
+                    f"{target_rel}\n{add_result.stderr}"
+                )
         print(
             "pc-template-sync: synced "
-            f"{mismatch.target.relative_to(root)} from {mismatch.source.relative_to(root)}"
+            f"{mismatch.target.relative_to(root)} from {mismatch.source.relative_to(root)} "
+            f"({mismatch.reason})"
+        )
+
+    if codex_conflicts:
+        detail = "\n".join(f"- {entry}" for entry in codex_conflicts)
+        die(
+            "pc-template-sync: out-of-sync pair(s) with both sides changed require "
+            "Codex-assisted merge before copy-sync:\n" + detail + "\nResolution:\n"
+            "- Merge intent into one side.\n"
+            "- Copy the merged file content to its paired file."
         )
 
     return 0

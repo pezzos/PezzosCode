@@ -27,6 +27,26 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-12 - Template-sync precommit autofix validation
+
+- `python3 -m py_compile tools/pc-template-sync` (PASS)
+- `bash -n tools/pc-precommit` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"` (PASS: 3 tests; offload id `04c0cf134088cb3e56847e4476bc04529080f4367ca79c9d0d7b69070ba4d390`)
+- Verified:
+  - one-side-changed mismatch is auto-synced by copy and target gets staged,
+  - neither-side-changed drift is auto-synced by deterministic live->template copy,
+  - both-sides-changed mismatch fails with explicit Codex-assisted merge guidance.
+
+### 2026-02-12 - Feature 17 merge closeout + completed-status docs validation
+
+- `git rev-list --left-right --count refs/heads/main...refs/heads/feature-17-resume-in-progress-tickets-patcher` (PASS: `1 0`; feature branch has no commits missing from `main`)
+- `git merge-base --is-ancestor refs/heads/feature-17-resume-in-progress-tickets-patcher refs/heads/main && echo "feature-17 is fully merged into main"` (PASS)
+- `tools/offload-proxy/pp tools/pc-devtasks-schema-check` (PASS: `pc-devtasks-schema-check: ok (21 files)`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 12 tests; offload id `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`)
+- Verified:
+  - F-17 core docs (`feature-spec.md`, `tech-design.md`, `test-plan.md`, `dev-tasks.md`) now carry `**Status:** Completed`.
+  - F-17 core docs metadata date is aligned to `2026-02-12`.
+
 ### 2026-02-12 - Resume contradiction auto-repair validation
 
 - `tools/offload-proxy/pp python -m pytest tests/test_pc_feature.py::TestPcFeature` (PASS: 126 passed, 0 failed)
