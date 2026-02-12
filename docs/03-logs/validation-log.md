@@ -1376,3 +1376,30 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Reporter role-log commit no longer relies on dirty planner-owned `dev-tasks.md`.
   - Runtime reconciliation survives reporter commits and remains present for subsequent checks.
   - Reporter `FAIL` feedback limited to finalization-owned placeholders is normalized and no longer consumes planner-feedback retry loops.
+
+## 2026-02-12 - Validate quiet lint/formatter output and concise failure logging
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_hooks_run.py"`
+- Result: PASS (offload id `1f2a80ee431a938177aa3d87b706572be68a7b4d039f263b63fc396b7e1bae19`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_markdown_lint.py"`
+- Result: PASS (offload id `5279d1fc9a1ced44f9c96da1414ef59e4676f963fbad52e7a1a2903538819b0d`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_devtasks_schema_check.py"`
+- Result: PASS (offload id `4c979c0d06f0e9e2109df48cae7f69ac5d403754045b4cfe404fe744e7390b47`)
+- Command: `tools/offload-proxy/pp make lint`
+- Result: FAIL in sandbox due existing `end-of-file-fixer` permission errors on `.codex/skills/*`; wrapper emitted concise failure summary and offloaded full raw log to id `0de181d82bdf2f7f9be486890cd2edb32ca60399540fa3d7fc63b87e98562bd6`.
+- Command: `tools/offload-proxy/pp pre-commit run --files .pre-commit-config.yaml Makefile tests/test_pc_devtasks_schema_check.py tools/markdown-lint tools/pc-devtasks-schema-check tools/templates/root/.pre-commit-config.yaml tools/templates/root/Makefile tests/test_markdown_lint.py tests/test_pc_hooks_run.py tools/pc-hooks-run`
+- Result: PASS (offload id `b93bd152e7e73a9496a95d0054a65d983a017bc4739052add876f486fc163ed9`)
+- Command: `tools/pc-hooks-run --hook-stage pre-commit --files .pre-commit-config.yaml Makefile tests/test_pc_hooks_run.py tools/pc-hooks-run`
+- Result: PASS (no stdout/stderr on success; validates quiet-green contract)
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `8917897eda70673ad10be015db1d6049d2901442074e8d519cc6ba72d51aada3`)
+- Command: `tools/offload-proxy/pp pre-commit run --files .pre-commit-config.yaml Makefile docs/03-logs/implementation-log.md docs/03-logs/validation-log.md tests/test_pc_devtasks_schema_check.py tools/markdown-lint tools/pc-devtasks-schema-check tools/templates/root/.pre-commit-config.yaml tools/templates/root/Makefile tests/test_markdown_lint.py tests/test_pc_hooks_run.py tools/pc-hooks-run`
+- Result: PASS (offload id `c989df74ac293b2962c5321e11b3bd4256f9f5935ff8742ddf11b462b52212e6`)
+- Command: `tools/offload-proxy/pp make test` (post-log update rerun)
+- Result: PASS (offload id `aa57d84073f3e9637f323164f4039ea109a0ea7a83a68dd6886b0a0660e78cca`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (post-log-entry format check)
+- Result: PASS (offload id `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`)
+- Command: `tools/offload-proxy/pp pre-commit run --files docs/03-logs/validation-log.md` (post-log append lint check)
+- Result: PASS (offload id `a14610af47c3e4b9eec575ab86acd484875c77b56a66c47b19b12c598ec83d00`)
+- Command: `tools/offload-proxy/pp make lint` (elevated permissions)
+- Result: PASS (no stdout/stderr; confirms quiet-green behavior for the full lint target)

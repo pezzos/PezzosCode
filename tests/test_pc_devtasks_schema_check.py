@@ -1,7 +1,9 @@
 import importlib.machinery
 import importlib.util
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,6 +73,38 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
             errors = self.checker.run_check(root)
 
             self.assertEqual(errors, [])
+
+    def test_main_is_quiet_on_success_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            valid = "## Execution Log\n"
+            self._seed_template(root, valid)
+            self._seed_feature(root, "01-sample", valid)
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                status = self.checker.main(["--root", str(root)])
+
+            self.assertEqual(status, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertEqual(stderr.getvalue(), "")
+
+    def test_main_verbose_prints_success_summary(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            valid = "## Execution Log\n"
+            self._seed_template(root, valid)
+            self._seed_feature(root, "01-sample", valid)
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                status = self.checker.main(["--root", str(root), "--verbose"])
+
+            self.assertEqual(status, 0)
+            self.assertIn("pc-devtasks-schema-check: ok (2 files)", stdout.getvalue())
+            self.assertEqual(stderr.getvalue(), "")
 
 
 if __name__ == "__main__":

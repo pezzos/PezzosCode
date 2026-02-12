@@ -5910,3 +5910,60 @@ Track when debt is paid down:
 - **Breaking changes:** No
 - **Performance:** Negligible
 - **Dependencies:** None
+
+### 2026-02-12 - Quiet lint/formatter output with concise failure logs
+
+**Feature/Bug:** Reduce lint/formatter noise while keeping failure output actionable.
+
+**Changed Files:**
+
+- `tools/pc-hooks-run`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `.pre-commit-config.yaml`
+- `tools/templates/root/.pre-commit-config.yaml`
+- `tools/markdown-lint`
+- `tools/pc-devtasks-schema-check`
+- `tests/test_pc_hooks_run.py`
+- `tests/test_markdown_lint.py`
+- `tests/test_pc_devtasks_schema_check.py`
+
+**What Changed:**
+
+- Added `tools/pc-hooks-run`, a pre-commit runner that:
+  - emits no output on success,
+  - captures full failing output to `.offload/<sha>.txt`,
+  - appends an index entry to `.offload/index.jsonl`,
+  - prints only concise failure lines plus an offload id/path reference.
+- Updated `make lint` and `make fmt` to call the new runner; added `lint-verbose` and `fmt-verbose` for full raw output when needed.
+- Removed routine success `echo` lines from `docs-check`, `check`, and `ci` targets in root/template `Makefile` files to reduce non-actionable noise.
+- Tuned pre-commit config (root + template):
+  - set `default_stages: [pre-commit]` so manual runs stay formatter-focused,
+  - added quieter output flags for Ruff/Black/Prettier.
+- Updated local checks for quiet-success behavior:
+  - `tools/markdown-lint` now defaults to silent success and supports `--verbose`.
+  - `tools/pc-devtasks-schema-check` now defaults to silent success and supports `--verbose`.
+- Added regression tests covering:
+  - `pc-hooks-run` summary filtering and offload behavior,
+  - quiet/verbose behavior for markdown lint and devtasks schema check.
+
+**Why:**
+
+- `pre-commit` prints per-hook `Passed/Skipped` lines by default, which obscures real issues during normal runs.
+- The workflow objective is quiet-green, loud-red: no output when healthy, concise and actionable output when broken, with full raw logs available by pointer.
+
+**Impact:**
+
+- **Breaking changes:** Low (new default is less output; verbose fallbacks are available).
+- **Performance:** Minimal overhead from capturing output and writing failure logs only on non-zero exits.
+- **Dependencies:** None.
+
+**Testing:**
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_hooks_run.py"` (PASS, offload id `1f2a80ee431a938177aa3d87b706572be68a7b4d039f263b63fc396b7e1bae19`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_markdown_lint.py"` (PASS, offload id `5279d1fc9a1ced44f9c96da1414ef59e4676f963fbad52e7a1a2903538819b0d`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_devtasks_schema_check.py"` (PASS, offload id `4c979c0d06f0e9e2109df48cae7f69ac5d403754045b4cfe404fe744e7390b47`)
+- `tools/pc-hooks-run --hook-stage pre-commit --files .pre-commit-config.yaml Makefile tests/test_pc_hooks_run.py tools/pc-hooks-run` (PASS, expected no output)
+- `tools/offload-proxy/pp pre-commit run --files .pre-commit-config.yaml Makefile tests/test_pc_devtasks_schema_check.py tools/markdown-lint tools/pc-devtasks-schema-check tools/templates/root/.pre-commit-config.yaml tools/templates/root/Makefile tests/test_markdown_lint.py tests/test_pc_hooks_run.py tools/pc-hooks-run` (PASS, offload id `b93bd152e7e73a9496a95d0054a65d983a017bc4739052add876f486fc163ed9`)
+- `tools/offload-proxy/pp make lint` (PASS with elevated permissions; no stdout/stderr due quiet-green behavior)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS, offload id `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`)

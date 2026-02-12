@@ -1,10 +1,16 @@
-.PHONY: fmt lint test check docs-check skills-check feature feature-status ci
+.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check feature feature-status ci
 
 fmt:
-	@pre-commit run --all-files --hook-stage manual
+	@tools/pc-hooks-run --hook-stage manual --all-files
+
+fmt-verbose:
+	@tools/pc-hooks-run --hook-stage manual --all-files --verbose
 
 lint:
-	@pre-commit run --all-files --hook-stage pre-commit
+	@tools/pc-hooks-run --hook-stage pre-commit --all-files
+
+lint-verbose:
+	@tools/pc-hooks-run --hook-stage pre-commit --all-files --verbose
 
 test:
 	@python -m unittest discover -s tests -p "test_*.py"
@@ -76,10 +82,7 @@ skills-check:
 
 docs-check:
 	@tools/pc-devtasks-schema-check
-	@echo "docs-check: ok"
 
 check: lint test
-	@echo "check: ok"
 
 ci: check
-	@echo "ci: ok"

@@ -1,5 +1,6 @@
 default_language_version:
   python: python3
+default_stages: [pre-commit]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -18,12 +19,19 @@ repos:
     rev: v0.4.10
     hooks:
       - id: ruff
-        args: ["--fix", "--exit-non-zero-on-fix"]
+        args:
+          [
+            "--fix",
+            "--exit-non-zero-on-fix",
+            "--quiet",
+            "--output-format=concise",
+          ]
 
   - repo: https://github.com/psf/black
     rev: 24.4.2
     hooks:
       - id: black
+        args: ["--quiet"]
         stages: [pre-commit, manual]
 
   - repo: local
@@ -84,7 +92,7 @@ repos:
 
       - id: prettier
         name: prettier
-        entry: bash -c 'command -v prettier >/dev/null 2>&1 || exit 0; prettier --write "$@"' --
+        entry: bash -c 'command -v prettier >/dev/null 2>&1 || exit 0; prettier --log-level error --write "$@"' --
         language: system
         types_or: [javascript, jsx, ts, tsx, json, css, html, yaml, markdown]
         stages: [pre-commit, manual]

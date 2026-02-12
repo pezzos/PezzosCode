@@ -31,6 +31,11 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         default=str(DEFAULT_ROOT),
         help="Repository root (defaults to detected root).",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print success summary.",
+    )
     return parser.parse_args(argv)
 
 
@@ -95,8 +100,9 @@ def main(argv: List[str] | None = None) -> int:
         )
         return 1
 
-    checked_count = 1 + sum(1 for _ in feature_dirs(root / FEATURES_DIR))
-    print(f"pc-devtasks-schema-check: ok ({checked_count} files)")
+    if args.verbose:
+        checked_count = 1 + sum(1 for _ in feature_dirs(root / FEATURES_DIR))
+        print(f"pc-devtasks-schema-check: ok ({checked_count} files)")
     return 0
 
 

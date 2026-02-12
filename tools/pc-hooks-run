@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""Run pre-commit with silent-success and concise failure output."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import shlex
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Sequence, Tuple
+
+DEFAULT_AGENT_NAME = "pc-hooks-run"
+MAX_SUMMARY_LINES = 120
+
+
+def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run pre-commit quietly on success and concise on failure."
+    )
+    parser.add_argument(
+        "--hook-stage",
+        required=True,
+        help="Hook stage to run (for example: pre-commit, manual).",
+    )
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument(
+        "--all-files",
+        action="store_true",
+        help="Run on all files.",
+    )
+    scope.add_argument(
+        "--files",
+        nargs="+",
+        help="Run on selected files.",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print raw pre-commit output.",
+    )
+    parser.add_argument(
+        "--pre-commit-bin",
+        default="pre-commit",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "extra_args",
+        nargs=argparse.REMAINDER,
+        help="Extra arguments passed to pre-commit run.",
+    )
+    args = parser.parse_args(argv)
+    if args.extra_args and args.extra_args[0] == "--":
+        args.extra_args = args.extra_args[1:]
+    return args
+
+
+def command_to_string(command: Sequence[str]) -> str:
+    return shlex.join(command)
+
+
+def build_command(args: argparse.Namespace) -> List[str]:
+    command = [
+        args.pre_commit_bin,
+        "run",
+        "--hook-stage",
+        args.hook_stage,
+        "--color",
+        "never",
+    ]
+    if args.all_files:
+        command.append("--all-files")
+    elif args.files:
+        command.extend(["--files", *args.files])
+    command.extend(args.extra_args)
+    return command
+
+
+def current_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def write_offload_log(output: str, command: str, cwd: Path) -> Tuple[str, Path, Path]:
+    pointer_id = hashlib.sha256(output.encode("utf-8")).hexdigest()
+    offload_dir = cwd / ".offload"
+    offload_dir.mkdir(parents=True, exist_ok=True)
+
+    log_path = offload_dir / f"{pointer_id}.txt"
+    log_path.write_text(output, encoding="utf-8")
+
+    index_path = offload_dir / "index.jsonl"
+    try:
+        path_value = str(log_path.relative_to(cwd))
+    except ValueError:
+        path_value = str(log_path)
+
+    entry = {
+        "id": pointer_id,
+        "command": command,
+        "work_item_id": os.environ.get("PC_WORK_ITEM_ID")
+        or os.environ.get("PP_WORK_ITEM_ID")
+        or "",
+        "agent_name": os.environ.get("PC_AGENT_NAME")
+        or os.environ.get("PP_AGENT_NAME")
+        or DEFAULT_AGENT_NAME,
+        "timestamp": current_timestamp(),
+        "size_bytes": log_path.stat().st_size,
+        "path": path_value,
+    }
+    with index_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, sort_keys=True))
+        handle.write("\n")
+
+    return pointer_id, log_path, index_path
+
+
+def is_success_status_line(line: str) -> bool:
+    stripped = line.rstrip()
+    return stripped.endswith("Passed") or stripped.endswith("Skipped")
+
+
+def summarize_output(
+    output: str, max_lines: int = MAX_SUMMARY_LINES
+) -> Tuple[List[str], int]:
+    summary_lines: List[str] = []
+    for raw_line in output.splitlines():
+        line = raw_line.rstrip()
+        if not line:
+            continue
+        if is_success_status_line(line):
+            continue
+        summary_lines.append(line)
+
+    if len(summary_lines) <= max_lines:
+        return summary_lines, 0
+    omitted = len(summary_lines) - max_lines
+    return summary_lines[:max_lines], omitted
+
+
+def run_quiet(command: Sequence[str]) -> int:
+    completed = subprocess.run(
+        command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
+    output = completed.stdout or ""
+    if completed.returncode == 0:
+        return 0
+
+    cwd = Path.cwd()
+    command_str = command_to_string(command)
+    pointer_id, log_path, _ = write_offload_log(output, command_str, cwd)
+    summary_lines, omitted = summarize_output(output)
+
+    print("pre-commit: checks failed.", file=sys.stderr)
+    if summary_lines:
+        for line in summary_lines:
+            print(line, file=sys.stderr)
+    else:
+        print(
+            "pre-commit: no concise summary lines captured; inspect full log.",
+            file=sys.stderr,
+        )
+    if omitted > 0:
+        print(
+            f"... ({omitted} additional summary lines in full log)",
+            file=sys.stderr,
+        )
+    try:
+        relative_log_path = log_path.relative_to(cwd)
+        log_reference = str(relative_log_path)
+    except ValueError:
+        log_reference = str(log_path)
+    print(f"pre-commit: full log: {log_reference}", file=sys.stderr)
+    print(f"pre-commit: offload id: {pointer_id}", file=sys.stderr)
+    return completed.returncode
+
+
+def run_verbose(command: Sequence[str]) -> int:
+    completed = subprocess.run(command)
+    return completed.returncode
+
+
+def main(argv: List[str] | None = None) -> int:
+    args = parse_args(argv)
+    command = build_command(args)
+    try:
+        if args.verbose:
+            return run_verbose(command)
+        return run_quiet(command)
+    except FileNotFoundError:
+        print(f"{args.pre_commit_bin} not found.", file=sys.stderr)
+        return 127
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
