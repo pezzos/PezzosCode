@@ -86,23 +86,60 @@
 
 #### Plan
 
-I updated the planner content for `WI-20260212-03` in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`:
+Plan Contract v1
+Approach:
 
-- Filled `#### Allowed Tests` with exact commands.
-- Replaced `#### Plan` placeholder with a full `Plan Contract v1` body.
-- Ensured all in-plan test commands are verbatim from Allowed Tests.
-- Added explicit anti-hardcode coverage (fixtures, deterministic seed strategy, invariants, contract boundaries).
-- Added the required ownership handoff note that non-compacted `docs/03-logs/*` is reporter/orchestrator-owned.
-- Updated `Systematic review` with executed command evidence.
+1. Implement deterministic resume-state detection and safe step routing for single-feature execution, including fail-closed handling for contradictory artifact state and explicit remediation messaging.
+   Files to change:
 
-I have not committed yet because I detected an unexpected untracked path in the worktree:
+- `tools/pc-feature`
+  Risks:
+- Misclassifying partially complete runs could skip required work or re-run wrong roles.
+- Contradictory artifacts may be silently tolerated unless fail-closed checks are enforced first.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: add scenarios for completed planner+reviewer, failed tester, completed reporter, contradictory role artifacts, and missing critical artifacts.
+- Deterministic seed strategy: use fixed fixture directory structures and fixed identifiers/timestamps in test artifacts so resume classification is stable across runs.
+- Invariant checks: enforce that `auto`, `prompt`, and `fresh` preserve policy guarantees, never bypass required gates, and never advance on contradictory state.
+- Contract boundary coverage: validate resume decision boundaries at role transitions and error boundaries between recoverable and blocking states.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
 
-- `logs/WI-20260212-03/`
+2. Add and update automated tests that lock behavior for resume policies, artifact-aware routing, fail-closed contradictions, regression on non-resume flows, and mandatory gate re-runs.
+   Files to change:
 
-Per repo instructions, I need your direction before proceeding. Should I:
+- `tests/test_pc_feature.py`
+- `tests/test_docs_logs.py`
+  Risks:
+- Tests may overfit current output text instead of behavior contracts.
+- Missing edge fixtures can leave contradictory-state or missing-artifact branches unverified.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: include explicit artifacts for each role state and mixed/invalid combinations.
+- Deterministic seed strategy: use stable fixture names and controlled environment inputs to avoid flaky ordering.
+- Invariant checks: assert blocked-on-contradiction, no unsafe skip, and required final gates remain mandatory on resumed runs.
+- Contract boundary coverage: assert CLI-visible outcomes at policy boundaries (`auto` vs `prompt` vs `fresh`) and artifact-presence boundaries.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
 
-1. Commit only `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` and ignore `logs/WI-20260212-03/`, or
-2. Include `logs/WI-20260212-03/` in this step?
+3. Record compacted implementation/validation evidence for this work item and keep non-compacted project logs out of patcher scope.
+   Files to change:
+
+- `docs/03-logs/compacted/WI-20260212-03-patcher-evidence.md`
+  Risks:
+- Evidence can drift from implemented behavior if test outcomes and decisions are not summarized precisely.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: document which resume fixtures and contradiction fixtures were executed.
+- Deterministic seed strategy: document fixed fixture/seeding choices used to keep outcomes reproducible.
+- Invariant checks: document verified invariants (fail-closed contradiction, mandatory gate rerun, no unsafe step skip).
+- Contract boundary coverage: document validated transition boundaries and blocking boundaries.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required note: non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit those files.
+
+Work Item ID: WI-20260212-03
 
 #### Patch
 
@@ -134,7 +171,7 @@ Per repo instructions, I need your direction before proceeding. Should I:
 
 #### Iteration Log
 
--
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
 
 #### Commit
 

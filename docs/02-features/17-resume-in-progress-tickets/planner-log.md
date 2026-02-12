@@ -321,3 +321,9 @@ Per repo instructions, I need your direction before proceeding. Should I:
 
 1. Commit only `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` and ignore `logs/WI-20260212-03/`, or
 2. Include `logs/WI-20260212-03/` in this step?
+
+### WI-20260212-03 - 2026-02-12
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
