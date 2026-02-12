@@ -1448,6 +1448,22 @@ class TestPcFeature(unittest.TestCase):
         with mock.patch.dict(self.pc_feature.os.environ, {}, clear=True):
             self.assertEqual(self.pc_feature.parse_resume_mode(), "auto")
 
+    def test_parse_args_help_flag_exits_zero_and_prints_resume_modes(self):
+        stdout_capture = io.StringIO()
+        with self.assertRaises(SystemExit) as raised:
+            with contextlib.redirect_stdout(stdout_capture):
+                self.pc_feature.parse_args(["--help"])
+        self.assertEqual(raised.exception.code, 0)
+        help_text = stdout_capture.getvalue()
+        self.assertIn("Usage:", help_text)
+        self.assertIn("RESUME_MODE", help_text)
+        self.assertIn("sync", help_text)
+
+    def test_parse_args_short_help_flag_exits_zero(self):
+        with self.assertRaises(SystemExit) as raised:
+            self.pc_feature.parse_args(["-h"])
+        self.assertEqual(raised.exception.code, 0)
+
     def test_parse_resume_mode_normalizes_supported_values(self):
         cases = [
             ({}, "auto"),
@@ -1455,6 +1471,7 @@ class TestPcFeature(unittest.TestCase):
             ({"RESUME_MODE": "AUTO"}, "auto"),
             ({"RESUME_MODE": " Prompt "}, "prompt"),
             ({"RESUME_MODE": "fresh"}, "fresh"),
+            ({"RESUME_MODE": "SYNC"}, "sync"),
         ]
         for env_updates, expected in cases:
             with self.subTest(env=env_updates, expected=expected):
@@ -3161,6 +3178,236 @@ class TestPcFeature(unittest.TestCase):
                     for call in print_mock.call_args_list
                 )
             )
+
+    def test_main_stale_existing_worktree_auto_mode_fails(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            (patcher_path / ".git").write_text("gitdir: /tmp/fake\n", encoding="utf-8")
+            work_item_id = "WI-20260212-01"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            stderr_capture = io.StringIO()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_resume_mode",
+                        return_value="auto",
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "branch_behind_count",
+                        return_value=1,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "existing patcher worktree is stale (behind main)",
+                stderr_capture.getvalue(),
+            )
+
+    def test_main_stale_existing_worktree_sync_mode_merges_and_continues(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            (patcher_path / ".git").write_text("gitdir: /tmp/fake\n", encoding="utf-8")
+            work_item_id = "WI-20260212-02"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            checkpoint_mock = mock.Mock(
+                return_value=[
+                    "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                ]
+            )
+            merge_mock = mock.Mock(return_value=(True, "merge ok"))
+
+            behind_values = iter([1, 0])
+
+            def behind_side_effect(*args, **kwargs):
+                try:
+                    return next(behind_values)
+                except StopIteration:
+                    return 0
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_resume_mode",
+                        return_value="sync",
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "branch_behind_count",
+                        side_effect=behind_side_effect,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "checkpoint_resume_state",
+                        checkpoint_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "merge_main_into_worktree",
+                        merge_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_allowed_tests_section",
+                        side_effect=StopMain,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            checkpoint_mock.assert_called_once_with(
+                str(patcher_path),
+                None,
+                feature_slug="01-workflow-hardening",
+            )
+            merge_mock.assert_called_once_with(str(patcher_path), "refs/heads/main")
+
+    def test_main_stale_existing_worktree_sync_mode_merge_failure_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            (patcher_path / ".git").write_text("gitdir: /tmp/fake\n", encoding="utf-8")
+            work_item_id = "WI-20260212-04"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            stderr_capture = io.StringIO()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_resume_mode",
+                        return_value="sync",
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "branch_behind_count",
+                        return_value=1,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "merge_main_into_worktree",
+                        return_value=(False, "conflict"),
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "failed to sync stale patcher worktree with main",
+                stderr_capture.getvalue(),
+            )
+
+    def test_main_sync_mode_refreshes_locked_main_head_after_stale_sync(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            (patcher_path / ".git").write_text("gitdir: /tmp/fake\n", encoding="utf-8")
+            work_item_id = "WI-20260212-03"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.update_entry_field(
+                content,
+                work_item_id,
+                "Notes",
+                f"Main head locked: {'a' * 40}",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+
+            behind_values = iter([1, 0])
+
+            def behind_side_effect(*args, **kwargs):
+                try:
+                    return next(behind_values)
+                except StopIteration:
+                    return 0
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_resume_mode",
+                        return_value="sync",
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "branch_behind_count",
+                        side_effect=behind_side_effect,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "merge_main_into_worktree",
+                        return_value=(True, "merge ok"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "git_ref_sha",
+                        return_value="b" * 40,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_root_start_scope",
+                        side_effect=StopMain,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("Main head locked: " + ("b" * 40), dev_tasks)
+            self.assertNotIn("Main head locked: " + ("a" * 40), dev_tasks)
 
     def test_main_existing_worktree_non_runtime_dirty_is_checkpointed(self):
         class StopMain(RuntimeError):

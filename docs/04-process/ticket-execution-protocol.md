@@ -21,6 +21,7 @@
    - Run `make feature F=<feature-id>` to bootstrap and execute the work item.
    - Command authority: only the human PO/user runs `make feature` / `pc-feature`; agents must not execute either command without explicit per-run user approval.
    - Manual mode (no autonomous TDD/implementation): `make feature MANUAL=1 F=<feature-id>`.
+   - Help: `make feature-help` or `make feature HELP=1` (GNU Make consumes `--help`, so `make feature --help` prints Make help, not feature help).
    - Example (one command): `make feature F=01`.
    - Validate feature doc schema with `tools/pc-devtasks-schema-check` when creating/updating feature folders.
    - `make feature` is orchestration/bootstrap only; do not include it in Planner Plan steps or Allowed Tests.
@@ -44,10 +45,11 @@
      - `auto` (default): resume in-progress work and preserve existing feature-worktree WIP.
      - `prompt`: ask before continuing/recreating an existing feature worktree.
      - `fresh`: recreate the feature patcher worktree and start from a clean baseline.
+     - `sync`: preserve feature-worktree WIP, checkpoint dirty startup state, and merge `main` into a stale patcher worktree before resuming.
    - Only one feature can be actively in progress at a time; runs fail fast if another feature patcher worktree is ahead/dirty.
    - Existing dirty state in the active feature worktree is treated as work-in-progress and checkpointed at startup.
    - Startup must not discard dirty files in the active feature worktree unless `RESUME_MODE=fresh` is explicitly requested.
-   - If an existing feature worktree is behind `main`, auto-resume fails (policy: `main` must stay unchanged while a feature is running).
+   - If an existing feature worktree is behind `main`, `auto` fails fast; `sync` attempts `git merge --no-edit refs/heads/main` and fails with manual conflict resolution instructions when merge cannot be completed cleanly.
    - Startup contradiction handling is controlled by `RESUME_CONTRADICTION_POLICY`:
      - `repair` (default): try a deterministic planner-owned repair of pending `Patch`/`Test Results`/`Reporter Review` sections from role artifacts before blocking.
      - `block`: keep strict fail-closed behavior with no auto-repair.

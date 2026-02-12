@@ -5967,3 +5967,78 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp pre-commit run --files .pre-commit-config.yaml Makefile tests/test_pc_devtasks_schema_check.py tools/markdown-lint tools/pc-devtasks-schema-check tools/templates/root/.pre-commit-config.yaml tools/templates/root/Makefile tests/test_markdown_lint.py tests/test_pc_hooks_run.py tools/pc-hooks-run` (PASS, offload id `b93bd152e7e73a9496a95d0054a65d983a017bc4739052add876f486fc163ed9`)
 - `tools/offload-proxy/pp make lint` (PASS with elevated permissions; no stdout/stderr due quiet-green behavior)
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS, offload id `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`)
+
+### 2026-02-12 - Add opt-in stale worktree sync mode for feature resume
+
+**Feature/Bug:** Preserve in-progress feature work while allowing restart when patcher worktree is behind `main`.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added `RESUME_MODE=sync` as an opt-in startup policy in `pc-feature`.
+- In stale existing patcher worktrees (`behind main`), `sync` mode now:
+  - checkpoints dirty startup state with `checkpoint_resume_state`,
+  - runs `git merge --no-edit refs/heads/main` in the patcher worktree,
+  - aborts with a clear manual-resolution message if merge fails,
+  - verifies the patcher branch is no longer behind before continuing.
+- Kept default `RESUME_MODE=auto` semantics unchanged (still fails fast when stale).
+- Added lock-note refresh behavior after successful stale sync resume so `Main head locked:` is updated instead of failing on expected lock mismatch.
+- Added regression tests for:
+  - resume-mode parser support for `sync`,
+  - stale auto-mode fail-fast behavior,
+  - stale sync-mode merge-and-continue path,
+  - lock-note refresh after stale sync resume.
+
+**Why:**
+
+- Users restarting a long-running feature branch currently hit a hard stop if `main` advanced, even when they want to keep WIP and continue.
+- `sync` provides a deterministic, opt-in continuation path without weakening strict default behavior.
+
+**Impact:**
+
+- **Breaking changes:** None (default remains `auto`).
+- **Performance:** Small startup overhead only when `RESUME_MODE=sync` and stale branch detected.
+- **Dependencies:** None.
+
+### 2026-02-12 - Add explicit feature command help entrypoints
+
+**Feature/Bug:** Improve discoverability of `make feature` options as resume behavior grows.
+
+**Changed Files:**
+
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added `tools/pc-feature --help` / `-h` support with a concise usage block covering:
+  - required args (`F=<feature-id>`, `MANUAL=1`),
+  - all `RESUME_MODE` values (`auto`, `prompt`, `fresh`, `sync`),
+  - related env vars (`RESUME_CONTRADICTION_POLICY`, `RESUME_REPAIR_DRY_RUN`).
+- Updated `make` entrypoints:
+  - new `feature-help` target,
+  - `feature` target now supports `HELP=1|true|yes` to print feature help instead of executing orchestration.
+- Synced root template Makefile behavior with the live Makefile.
+- Added parser tests validating help output and zero-exit behavior for `--help`/`-h`.
+- Documented operator guidance in process docs, including the GNU Make limitation where `make feature --help` invokes Make’s own help.
+
+**Why:**
+
+- `make feature` gained multiple policy and resume controls and needed a first-class, local help surface.
+- GNU Make reserves `--help`, so equivalent explicit entrypoints are required for reliable operator help.
+
+**Impact:**
+
+- **Breaking changes:** None.
+- **Performance:** None.
+- **Dependencies:** None.

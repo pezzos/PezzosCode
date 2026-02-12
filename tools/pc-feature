@@ -34,10 +34,12 @@ RESUME_MODE_ENV = "RESUME_MODE"
 RESUME_MODE_AUTO = "auto"
 RESUME_MODE_PROMPT = "prompt"
 RESUME_MODE_FRESH = "fresh"
+RESUME_MODE_SYNC = "sync"
 RESUME_MODE_VALUES = {
     RESUME_MODE_AUTO,
     RESUME_MODE_PROMPT,
     RESUME_MODE_FRESH,
+    RESUME_MODE_SYNC,
 }
 RESUME_CONTRADICTION_POLICY_ENV = "RESUME_CONTRADICTION_POLICY"
 RESUME_CONTRADICTION_POLICY_REPAIR = "repair"
@@ -210,16 +212,51 @@ def render_prompt_template(template: str, values: Dict[str, str]) -> str:
     return template.format_map(StrictMap(values))
 
 
+def feature_help_text() -> str:
+    return "\n".join(
+        [
+            "Usage:",
+            "  tools/pc-feature F=<feature-id> [MANUAL=1]",
+            "",
+            "Options:",
+            "  F=<feature-id>       Required feature folder id (for example 12).",
+            "  MANUAL=1             Pause for interactive confirmations where supported.",
+            "  -h, --help           Show this help and exit.",
+            "",
+            "Resume modes (environment variable RESUME_MODE):",
+            "  auto  (default)  Keep WIP and resume; fail fast if patcher worktree is behind main.",
+            "  prompt            Ask before continuing/recreating existing patcher worktree.",
+            "  fresh             Recreate patcher worktree from main.",
+            "  sync              Keep WIP, checkpoint startup changes, merge main into stale patcher worktree, then resume.",
+            "",
+            "Related environment variables:",
+            "  RESUME_CONTRADICTION_POLICY=repair|block|rewind",
+            "  RESUME_REPAIR_DRY_RUN=1",
+            "",
+            "Make shortcuts:",
+            "  make feature-help",
+            "  make feature HELP=1",
+        ]
+    )
+
+
 def parse_args(argv: List[str]) -> Tuple[str, bool]:
     feature_id = ""
     manual = False
+    show_help = False
     for arg in argv:
+        if arg in {"-h", "--help"}:
+            show_help = True
+            continue
         if arg.startswith("F="):
             feature_id = arg[len("F=") :].strip()
         elif arg.startswith("MANUAL="):
             manual = arg.split("=", 1)[1].strip() == "1"
         else:
             die(f"pc-feature: unknown argument '{arg}'")
+    if show_help:
+        print(feature_help_text())
+        raise SystemExit(0)
     if not feature_id:
         die("pc-feature: missing required F=<feature-id>")
     return feature_id, manual
@@ -1516,6 +1553,35 @@ def branch_behind_count(root: str, branch: str, base_ref: str) -> int:
             f"pc-feature: failed to compare {branch} behind {base_ref}\n{result.stderr}"
         )
     return int(result.stdout.strip() or "0")
+
+
+def merge_main_into_worktree(worktree_path: str, main_ref: str) -> Tuple[bool, str]:
+    merge_result = subprocess.run(
+        ["git", "merge", "--no-edit", main_ref],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=worktree_path,
+    )
+    detail = ((merge_result.stdout or "") + (merge_result.stderr or "")).strip()
+    if merge_result.returncode == 0:
+        return True, detail
+    abort_result = subprocess.run(
+        ["git", "merge", "--abort"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=worktree_path,
+    )
+    if abort_result.returncode != 0:
+        abort_detail = (
+            (abort_result.stdout or "") + (abort_result.stderr or "")
+        ).strip()
+        if abort_detail:
+            detail = f"{detail}\nmerge --abort failed: {abort_detail}".strip()
+    return False, detail or "git merge failed"
 
 
 def apply_branch_diff(
@@ -3946,6 +4012,7 @@ def main() -> None:
     resume_mode = parse_resume_mode()
     patcher_path = build_worktree_path(root, feature_slug, "patcher")
     patcher_branch = build_worktree_branch(feature_slug, "patcher")
+    stale_sync_completed = False
     enforce_single_active_feature(root, feature_slug, patcher_path)
     existing_patcher_worktree = os.path.exists(patcher_path) and os.path.exists(
         os.path.join(patcher_path, ".git")
@@ -3986,6 +4053,42 @@ def main() -> None:
                 existing_patcher_worktree = False
                 dirty = False
                 ahead = False
+                behind = False
+            elif resume_mode == RESUME_MODE_SYNC:
+                checkpointed_paths = checkpoint_resume_state(
+                    patcher_path,
+                    None,
+                    feature_slug=feature_slug,
+                )
+                if checkpointed_paths:
+                    print(
+                        "pc-feature: startup checkpoint commit created for paths: "
+                        + ", ".join(checkpointed_paths)
+                    )
+                merged, merge_detail = merge_main_into_worktree(
+                    patcher_path, "refs/heads/main"
+                )
+                if not merged:
+                    die(
+                        "pc-feature: failed to sync stale patcher worktree with main; "
+                        f"resolve conflicts manually in {patcher_path}.\n"
+                        + merge_detail
+                    )
+                dirty = bool(filter_ignored_paths(get_status_paths(patcher_path)))
+                ahead = branch_ahead_count(root, "refs/heads/main", existing_branch) > 0
+                behind = (
+                    branch_behind_count(root, existing_branch, "refs/heads/main") > 0
+                )
+                if behind:
+                    die(
+                        "pc-feature: stale patcher worktree sync completed but branch is still behind main. "
+                        f"Path: {patcher_path}"
+                    )
+                stale_sync_completed = True
+                print(
+                    "pc-feature: RESUME_MODE=sync merged main into stale patcher worktree: "
+                    f"{patcher_path}"
+                )
             else:
                 die(
                     "pc-feature: existing patcher worktree is stale (behind main); "
@@ -4167,11 +4270,22 @@ def main() -> None:
     locked_main_head = parse_locked_main_head(notes_value)
     if locked_main_head:
         if locked_main_head != current_main_head:
-            die(
-                "pc-feature: main branch moved during feature execution; "
-                f"locked={locked_main_head} current={current_main_head}. "
-                "Workflow policy requires main to stay unchanged while a feature is running."
-            )
+            if stale_sync_completed and resume_mode == RESUME_MODE_SYNC:
+                notes_value = set_locked_main_head_note(notes_value, current_main_head)
+                content = update_entry_field(
+                    content, work_item_id, "Notes", notes_value
+                )
+                locked_main_head = current_main_head
+                print(
+                    "pc-feature: refreshed locked main head after sync resume: "
+                    f"{current_main_head}"
+                )
+            else:
+                die(
+                    "pc-feature: main branch moved during feature execution; "
+                    f"locked={locked_main_head} current={current_main_head}. "
+                    "Workflow policy requires main to stay unchanged while a feature is in progress."
+                )
     else:
         notes_value = set_locked_main_head_note(notes_value, current_main_head)
         content = update_entry_field(content, work_item_id, "Notes", notes_value)

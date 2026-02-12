@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check feature feature-status ci
+.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check feature feature-help feature-status ci
 
 fmt:
 	@tools/pc-hooks-run --hook-stage manual --all-files
@@ -18,7 +18,14 @@ test:
 	@$(MAKE) docs-check
 
 feature:
-	@tools/pc-feature F=$(F) MANUAL=$(MANUAL)
+	@if [[ "$(HELP)" == "1" || "$(HELP)" == "true" || "$(HELP)" == "yes" ]]; then \
+		tools/pc-feature --help; \
+	else \
+		tools/pc-feature F=$(F) MANUAL=$(MANUAL); \
+	fi
+
+feature-help:
+	@tools/pc-feature --help
 
 feature-status:
 	@args=""; \

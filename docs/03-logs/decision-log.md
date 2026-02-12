@@ -2095,3 +2095,31 @@ When a decision is reversed or replaced, document it here:
   - Prevents non-actionable reporter retry loops from consuming attempt budget.
   - Preserves deterministic fail-closed checks for real handoff completeness defects.
   - Keeps role boundaries unchanged while removing a self-inflicted reset path in reporter retries.
+
+### DEC-050 - Add opt-in stale-worktree sync resume mode
+
+- **Date:** 2026-02-12
+- **Status:** Accepted
+- **Context:** `make feature` in `RESUME_MODE=auto` fails if an existing patcher worktree is behind `main`. This protects strict main-freeze policy but blocks users who intentionally want to keep in-progress feature work and continue after main moved.
+- **Decision:**
+  - Add `RESUME_MODE=sync` as an explicit opt-in startup mode.
+  - For stale existing patcher worktrees, `sync` checkpoints dirty startup state and runs `git merge --no-edit refs/heads/main` in the patcher worktree before resume.
+  - If merge fails, stop with manual conflict-resolution instructions.
+  - Keep `RESUME_MODE=auto` and `RESUME_MODE=prompt` stale behavior unchanged.
+  - Refresh `Main head locked:` after successful stale sync so resume can proceed deterministically.
+- **Consequences:**
+  - Users can continue in-progress features after main advances without recreating worktrees.
+  - Default strict behavior remains fail-closed unless sync mode is explicitly selected.
+  - Conflict resolution remains human-owned when automatic merge cannot be completed.
+
+### DEC-051 - Provide explicit feature-help entrypoints instead of relying on `make feature --help`
+
+- **Date:** 2026-02-12
+- **Status:** Accepted
+- **Context:** Operators requested inline help for an increasingly complex `make feature` command, especially around `RESUME_MODE` policies. GNU Make consumes `--help` itself, so `make feature --help` cannot be routed to feature orchestration help text.
+- **Decision:**
+  - Add explicit help entrypoints: `make feature-help`, `make feature HELP=1`, and `tools/pc-feature --help`.
+  - Keep GNU Make semantics unchanged and document why `make feature --help` is not interceptable.
+- **Consequences:**
+  - Help is now local, deterministic, and does not depend on guessing env vars.
+  - Operator UX improves without introducing non-standard Make behavior.
