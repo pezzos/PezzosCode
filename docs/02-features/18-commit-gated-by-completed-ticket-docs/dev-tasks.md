@@ -26,6 +26,167 @@
 
 ## Execution Log
 
+### WI-20260212-02 - Work item execution
+
+- Date: 2026-02-12
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher: Codex
+- Tester: Codex
+- Reporter: Codex
+- Outcome:
+- Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`; `python3 -m unittest tests.test_docs_logs`
+- Offload ids (if any):
+- Docs/logs updated: Updated `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` with a WI-20260212-02 entry in required gate format.
+- Notes: Main head locked: 2e29a09372301f9276c6f9084207be00b739025d
+
+#### Preflight Report
+
+- Work Item: WI-20260212-02
+- PRD ref: docs/01-product/prd.md (Feature F-18)
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: Commit-stage precheck for work-item documentation completeness; deterministic missing-section diagnostics; hard-block commit when required evidence is missing; log gate pass/fail outcomes.
+- Scope out: No new git workflow beyond existing tools/pc-commit contract; no remote/git host integration changes; no auto-authoring of narrative tester/reporter evidence; no commit message policy changes.
+- Non-goals reminder: Do not fabricate human-authored report/test evidence and do not expand workflow model beyond current pc-feature/pc-commit contract.
+- Files to change: tools/pc-feature, tools/pc-commit, tests/test_pc_feature.py, docs/04-process/ticket-execution-protocol.md, docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md, docs/03-logs/
+- TDD plan: TC-18-001: Missing `Tests Run` section blocks commit with remediation., TC-18-002: Missing final report fields block commit with remediation., TC-18-003: Complete docs allow commit flow to continue., TC-18-101: Duplicate section headings are interpreted deterministically., TC-18-102: Empty section body is treated as missing evidence., TC-18-201: Malformed markdown fails closed with path+section guidance., TC-18-301: Existing successful final-gate flow remains unchanged., python3 -m unittest tests.test_pc_feature.TestPcFeature, python3 -m unittest tests.test_docs_logs
+- Systematic review:
+
+#### TDD Plan
+
+- Tests to write first:
+  - TC-18-001: Missing `Tests Run` section blocks commit with remediation.
+  - TC-18-002: Missing final report fields block commit with remediation.
+  - TC-18-003: Complete docs allow commit flow to continue.
+  - TC-18-101: Duplicate section headings are interpreted deterministically.
+  - TC-18-102: Empty section body is treated as missing evidence.
+  - TC-18-201: Malformed markdown fails closed with path+section guidance.
+  - TC-18-301: Existing successful final-gate flow remains unchanged.
+  - python3 -m unittest tests.test_pc_feature.TestPcFeature
+  - python3 -m unittest tests.test_docs_logs
+
+#### Allowed Tests
+
+- `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
+
+#### Files to Change
+
+- Files: tools/pc-feature, tools/pc-commit, tests/test_pc_feature.py, docs/04-process/ticket-execution-protocol.md, docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md
+
+#### Docs Updated
+
+- docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md (WI-20260212-02 preflight, plan/patch/test/report sections)
+- docs/04-process/ticket-execution-protocol.md (only if commit-gate semantics wording changes)
+- docs/03-logs/implementation\*.md (implementation notes)
+- docs/03-logs/validation\*.md (test evidence and outcomes)
+- docs/03-logs/decision\*.md (only if design/behavior decisions are introduced)
+- docs/03-logs/bug\*.md (only if defects are discovered during execution)
+
+#### Plan
+
+Plan Contract v1
+Approach:
+
+1. Add deterministic commit-gate checks for required work-item documentation evidence before allowing commit continuation, including explicit missing-section diagnostics and fail-closed behavior for malformed/empty required sections.
+   Files to change:
+
+- `tools/pc-commit`
+- `tools/pc-feature`
+  Risks:
+- Markdown parsing edge cases (duplicate headings, blank bodies, malformed sections) could produce false pass/fail outcomes if selector precedence is ambiguous.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Add fixtures for missing `Tests run`, missing final report fields, complete-pass case, duplicate headings, empty bodies, and malformed markdown.
+- Deterministic seed strategy: Use fixed synthetic markdown fixtures with stable ordering; no randomness.
+- Invariant checks: Commit must be blocked when required evidence is missing/empty/malformed; commit flow must continue when all required evidence is present.
+- Contract boundary coverage: Preserve existing `pc-feature`/`pc-commit` contract boundaries; no workflow expansion, no auto-authoring of human report/test narratives.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Extend and adjust focused unit coverage to prove new gate behavior and non-regression of existing successful flow.
+   Files to change:
+
+- `tests/test_pc_feature.py`
+  Risks:
+- Overly broad assertions may couple tests to incidental output formatting rather than contract behavior.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Assert each required scenario maps to a specific pass/fail expectation and remediation guidance.
+- Deterministic seed strategy: Reuse static fixture content and exact command expectations from Allowed Tests.
+- Invariant checks: Existing successful final-gate path remains green; new failures are deterministic and actionable.
+- Contract boundary coverage: Tests validate gate semantics only; no assumptions about unrelated orchestration internals.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Update process wording only if needed to align documented commit-gate semantics with implemented behavior, and emit compacted execution evidence.
+   Files to change:
+
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/03-logs/compacted/WI-20260212-02-*.md`
+  Risks:
+- Documentation drift if semantics are changed in code without corresponding protocol wording updates.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A (docs-only alignment and compacted evidence output).
+- Deterministic seed strategy: N/A.
+- Invariant checks: Protocol text must match enforced gate behavior; compacted evidence reflects executed Allowed Tests and outcomes.
+- Contract boundary coverage: Required non-compacted `docs/03-logs` updates are owned by reporter/orchestrator; patcher will not edit non-compacted `docs/03-logs/*`.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Work Item ID: WI-20260212-02
+
+#### Patch
+
+- Runtime reconciliation: patch step completed in this execution loop.
+- Source artifacts: patcher role commit and scoped diff.
+
+#### Test Results
+
+- Runtime reconciliation: derived from tester feedback in this execution loop.
+- Outcome: PASS
+- Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`; `python3 -m unittest tests.test_docs_logs`
+- Notes: Results: `python3 -m unittest tests.test_pc_feature.TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0
+
+#### Reporter Review
+
+- Runtime reconciliation: derived from reporter feedback in this execution loop.
+- Outcome: PASS
+- Docs/logs updated: Updated `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` with a WI-20260212-02 entry in required gate format.
+- Notes: Systematic review commands executed: `git status --short`, `git diff --stat refs/heads/main..HEAD`, `git diff --stat HEAD~1..HEAD`, plus targeted file inspections with `nl -ba ... | sed -n ...`. Reporter log was updat...
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_cycle=1).
+- Runtime reconciliation updated execution record after reporter step: Patch, field:Patcher, Test Results, field:Tester, field:Tests run, field:Reporter, field:Docs/logs updated, Reporter Review.
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 ### WI-20260212-01 - Work item execution
 
 - Date: 2026-02-12

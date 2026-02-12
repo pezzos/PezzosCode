@@ -6144,3 +6144,37 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_tools_python_compat.py"` (PASS, offload id `92b391eabf11e0e952252fb6ee05522765579df0b6b0a838ff1f3e4150550b42`)
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k scoped_autofix` (PASS, offload id `f2f7f20b09268ff1a5a9edf399b32bb047568b9780fc65a6c38dee4a6be91892`)
 - `tools/offload-proxy/pp pre-commit run --files tools/markdown-lint tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_feature.py tests/test_tools_python_compat.py` (PASS, offload id `5be5793f628b9d4ee932bfdfe3d69d9de33c933369d362c2f433acbc61914036`)
+
+- WI-20260212-02: Implemented and integrated the completed feature changes across the intended scope with docs/process alignment.
+
+### 2026-02-12 - Fix final commit pathspec failures for absent runtime allow prefixes
+
+**Feature/Bug:** `make feature` could fail during final commit with `fatal: pathspec '.tmp' did not match any files` when runtime allow prefixes were passed to `tools/pc-commit` but were not present in the worktree.
+
+**Changed Files:**
+
+- `tools/pc-commit`
+- `tools/pc-feature`
+- `tests/test_pc_commit.py`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Updated `tools/pc-commit` to stage only currently changed paths that match `--allow` rules, instead of running `git add` directly on raw allow values.
+- Normalized allow entries by trimming trailing `/` before path matching.
+- Hardened shell helpers for Bash 3 + `set -u` compatibility when allowed/disallowed path arrays are empty.
+- Updated final commit execution in `tools/pc-feature` to use `run_command_with_step_log_capture`, and to include first-line `pc-commit` failure detail in workflow failure reasons.
+- Added regression coverage for:
+  - missing allow path (`--allow .tmp`) not causing commit failure,
+  - prefix allow path behavior (`--allow logs/`),
+  - surfaced `pc-commit` failure detail in `pc-feature` commit failure events.
+
+**Why:**
+
+- `--allow` values represent policy scope, not guaranteed filesystem pathspecs. Coupling those values directly to `git add` introduced a deterministic late-failure path in finalization.
+
+**Impact:**
+
+- **Breaking changes:** None.
+- **Performance:** Negligible (single status scan before staging).
+- **Dependencies:** None.

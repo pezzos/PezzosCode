@@ -2150,3 +2150,18 @@ When a decision is reversed or replaced, document it here:
   - Pre-commit markdown checks no longer crash under Python 3.9 environments.
   - Final-gate scoped autofix no longer false-fails on pre-existing out-of-scope dirty files.
   - Real out-of-scope mutations during autofix still fail deterministically.
+
+### DEC-054 - Decouple `--allow` policy scope from literal git staging pathspecs in `pc-commit`
+
+- **Date:** 2026-02-12
+- **Status:** Accepted
+- **Context:** Final feature commits could fail with `fatal: pathspec '.tmp' did not match any files` because `pc-feature` passes runtime allow prefixes (for scope checks) and `pc-commit` previously reused those raw allow values as literal `git add` pathspecs.
+- **Decision:**
+  - Keep `--allow` as the policy boundary for changed-path validation.
+  - Stage only changed paths discovered from `git status --porcelain` that satisfy allow rules.
+  - Do not stage raw allow values directly.
+  - Surface concise `pc-commit` failure detail in final workflow event reasons for faster diagnosis.
+- **Consequences:**
+  - Missing runtime prefixes (like `.tmp`) no longer cause false-negative final commit failures.
+  - Commit scope enforcement remains fail-closed via allow-rule validation.
+  - Future debugging of commit-step failures becomes deterministic from workflow status/history output.

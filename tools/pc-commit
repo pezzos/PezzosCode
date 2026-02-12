@@ -93,16 +93,42 @@ fi
 is_allowed_path() {
   local path="$1"
   local allowed_path
+  local normalized_allowed
   for allowed_path in "${allow_paths[@]}"; do
-    if [[ "$path" == "$allowed_path" || "$path" == "$allowed_path/"* ]]; then
+    normalized_allowed="${allowed_path%/}"
+    if [[ "$path" == "$normalized_allowed" || "$path" == "$normalized_allowed/"* ]]; then
       return 0
     fi
   done
   return 1
 }
 
+collect_allowed_changed_paths() {
+  local allowed_changed_local
+  allowed_changed_local=()
+  local line
+  local path
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    path="${line:3}"
+    if [[ "$path" == *" -> "* ]]; then
+      path="${path##* -> }"
+    fi
+    if is_allowed_path "$path"; then
+      allowed_changed_local+=("$path")
+    fi
+  done < <(git status --porcelain)
+
+  if [[ ${#allowed_changed_local[@]} -gt 0 ]]; then
+    printf '%s\n' "${allowed_changed_local[@]}"
+  fi
+}
+
 collect_disallowed_paths() {
-  local disallowed_local=()
+  local disallowed_local
+  disallowed_local=()
+  local line
+  local path
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     path="${line:3}"
@@ -113,7 +139,9 @@ collect_disallowed_paths() {
       disallowed_local+=("$path")
     fi
   done < <(git status --porcelain)
-  printf '%s\n' "${disallowed_local[@]}"
+  if [[ ${#disallowed_local[@]} -gt 0 ]]; then
+    printf '%s\n' "${disallowed_local[@]}"
+  fi
 }
 
 disallowed=()
@@ -141,6 +169,147 @@ contains_path() {
     fi
   done
   return 1
+}
+
+validate_commit_evidence_gate() {
+  local dev_tasks_paths=()
+  if command -v mapfile >/dev/null 2>&1; then
+    mapfile -t dev_tasks_paths < <(
+      git diff --cached --name-only -- "docs/02-features/*/dev-tasks.md"
+    )
+  else
+    while IFS= read -r line; do
+      dev_tasks_paths+=("$line")
+    done < <(git diff --cached --name-only -- "docs/02-features/*/dev-tasks.md")
+  fi
+
+  [[ ${#dev_tasks_paths[@]} -eq 0 ]] && return 0
+
+  local validation_output
+  if ! validation_output="$(
+    python3 - "${dev_tasks_paths[@]}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+REQUIRED_SECTIONS = ("Test Results", "Commit", "Final Report")
+REQUIRED_FINAL_REPORT_FIELDS = (
+    "What changed (files)",
+    "Tests written (names) + results",
+    "Docs/logs updated checklist",
+    "make ci results",
+    "Commands run (use pp for noisy output)",
+    "Commit message",
+)
+ENTRY_PATTERN = re.compile(r"^###\s+(WI-\d{8}-\d{2})\b.*$", re.MULTILINE)
+SECTION_PATTERN = re.compile(r"^####\s+(.+?)\s*$", re.MULTILINE)
+OUTCOME_PATTERN = re.compile(
+    r"Outcome:\s*(PASS|FAIL|NEEDS REPLAN|SKIPPED)",
+    re.IGNORECASE,
+)
+
+
+def parse_label(text: str, label: str) -> str:
+    pattern = re.compile(
+        rf"^(?:-\s*)?{re.escape(label)}\s*:\s*(.+)$",
+        re.MULTILINE | re.IGNORECASE,
+    )
+    match = pattern.search(text)
+    return match.group(1).strip() if match else ""
+
+
+def latest_entry_block(content: str):
+    matches = list(ENTRY_PATTERN.finditer(content))
+    if not matches:
+        return "", ""
+    start = matches[-1].start()
+    end = len(content)
+    for marker in matches:
+      if marker.start() > start:
+        end = marker.start()
+        break
+    block = content[start:end]
+    work_item = matches[-1].group(1)
+    return work_item, block
+
+
+def parse_sections(block: str):
+    sections = {}
+    duplicates = set()
+    matches = list(SECTION_PATTERN.finditer(block))
+    for idx, match in enumerate(matches):
+        title = match.group(1).strip()
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(block)
+        body = block[start:end].strip()
+        if title in sections:
+            duplicates.add(title)
+        else:
+            sections[title] = body
+    return sections, duplicates
+
+
+def validate(path: Path):
+    content = path.read_text(encoding="utf-8")
+    work_item_id, block = latest_entry_block(content)
+    if not block:
+        return [f"{path}: missing work-item execution entry header (expected `### WI-YYYYMMDD-NN`)"]
+    issues = []
+    sections, duplicates = parse_sections(block)
+    tests_run_field = parse_label(block, "Tests run")
+    if not tests_run_field:
+        issues.append("missing top execution field: Tests run")
+
+    for section in REQUIRED_SECTIONS:
+        if section in duplicates:
+            issues.append(f"duplicate required section heading: {section}")
+        body = sections.get(section, "").strip()
+        if section not in sections:
+            issues.append(f"missing required section: {section}")
+            continue
+        if not body:
+            issues.append(f"required section is empty: {section}")
+            continue
+        if "(pending)" in body.lower():
+            issues.append(f"required section still pending: {section}")
+
+    test_results = sections.get("Test Results", "")
+    if test_results:
+        if not OUTCOME_PATTERN.search(test_results):
+            issues.append("Test Results is missing Outcome")
+
+    commit_section = sections.get("Commit", "")
+    if commit_section and not parse_label(commit_section, "Commit message"):
+        issues.append("Commit section is missing Commit message")
+
+    final_report = sections.get("Final Report", "")
+    if final_report:
+        for field in REQUIRED_FINAL_REPORT_FIELDS:
+            if not parse_label(final_report, field):
+                issues.append(f"Final Report is missing required field: {field}")
+
+    if issues:
+        label = work_item_id or "unknown-work-item"
+        return [f"{path} [{label}]: {issue}" for issue in issues]
+    return []
+
+
+all_issues = []
+for arg in sys.argv[1:]:
+    all_issues.extend(validate(Path(arg)))
+
+if all_issues:
+    print("\n".join(all_issues))
+    raise SystemExit(1)
+PY
+  )"; then
+    echo "Commit evidence gate failed:" >&2
+    echo "$validation_output" >&2
+    echo "Remediation: complete required `Test Results`, `Commit`, and `Final Report` evidence before commit." >&2
+    return 1
+  fi
+
+  return 0
 }
 
 auto_restage_linted() {
@@ -211,7 +380,17 @@ else
       exit "$status"
     fi
   fi
-  git add -- "${allow_paths[@]}"
+  allowed_changed_paths=()
+  if command -v mapfile >/dev/null 2>&1; then
+    mapfile -t allowed_changed_paths < <(collect_allowed_changed_paths)
+  else
+    while IFS= read -r line; do
+      allowed_changed_paths+=("$line")
+    done < <(collect_allowed_changed_paths)
+  fi
+  if [[ ${#allowed_changed_paths[@]} -gt 0 ]]; then
+    git add -- "${allowed_changed_paths[@]}"
+  fi
   disallowed=()
   if command -v mapfile >/dev/null 2>&1; then
     mapfile -t disallowed < <(collect_disallowed_paths)
@@ -226,6 +405,10 @@ else
     echo "Use --allow <path> to permit expected files." >&2
     exit 1
   fi
+fi
+
+if ! validate_commit_evidence_gate; then
+  exit 1
 fi
 
 allowed_types=("feat" "fix" "docs" "chore")

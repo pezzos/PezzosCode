@@ -1500,3 +1500,20 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - Tooling scripts with union annotations now execute under system Python 3.9.
   - Scoped autofix now blocks only out-of-scope files touched during autofix, not pre-existing untouched dirty files.
+
+- WI-20260212-02: All planned validations passed, confirming expected behavior with no blocking regressions.
+
+## 2026-02-12 - Validate `.tmp` pathspec final-commit fix and failure observability
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_commit.py tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_commit.py"`
+- Result: PASS (`2` tests, offload id `a186d6e19506e91d5dd043d5ca967980ab8c7c37198d48aab37add05a4baca6e`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "main_avoids_git_add_all_for_final_staging"`
+- Result: PASS (`1` test, offload id `ffd3efb826012fe03b95553030383ac3010652de53116d1fa02b58800ab91388`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "main_commit_failure_surfaces_pc_commit_detail"`
+- Result: PASS (`1` test, offload id `961e6a8ef800622b54a68897f159af84129fed1463c28234e0790b1e1b67e4f5`)
+- Verified:
+  - `tools/pc-commit` no longer fails when allowed runtime prefixes (e.g. `.tmp`) are absent.
+  - Prefix allow rules (e.g. `logs/`) still stage nested changed files correctly.
+  - Final `pc-feature` commit failures now include concise `pc-commit` detail in workflow event reason text.

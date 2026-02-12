@@ -95,6 +95,44 @@ class TestPcFeature(unittest.TestCase):
             / "dev-tasks.md"
         )
 
+    def _build_commit_gate_ready_content(self, work_item_id: str) -> str:
+        content = self._build_entry_content(work_item_id)
+        tests_run_cmd = "`python3 -m unittest tests.test_pc_feature.TestPcFeature`"
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Test Results",
+            (
+                "- Runtime reconciliation: derived from tester feedback.\n"
+                "- Outcome: PASS\n"
+                f"- Tests run: {tests_run_cmd}\n"
+                "- Notes: baseline pass"
+            ),
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tests run", tests_run_cmd
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Commit",
+            "- Commit message: chore(workflow): finalize documentation gate",
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Final Report",
+            (
+                "What changed (files): docs and tooling updated\n"
+                "Tests written (names) + results: TestPcFeature commit gate fixtures pass\n"
+                "Docs/logs updated checklist: docs/04-process updated\n"
+                "make ci results: PASS\n"
+                "Commands run (use pp for noisy output): python3 -m unittest tests.test_pc_feature.TestPcFeature\n"
+                "Commit message: chore(workflow): finalize documentation gate"
+            ),
+        )
+        return content
+
     def _patch_main_base(self, root: Path, feature_dir: Path, patcher_path: Path):
         return [
             mock.patch.object(
@@ -4529,6 +4567,75 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("required compacted output missing", dev_tasks)
 
+    def test_commit_evidence_gate_passes_when_required_evidence_present(self):
+        work_item_id = "WI-20260212-40"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertEqual(issues, [])
+
+    def test_commit_evidence_gate_fails_when_tests_run_field_missing(self):
+        work_item_id = "WI-20260212-41"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tests run", ""
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn("missing top execution field: Tests run", issues)
+
+    def test_commit_evidence_gate_fails_when_final_report_fields_missing(self):
+        work_item_id = "WI-20260212-42"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Final Report",
+            (
+                "What changed (files): docs and tooling updated\n"
+                "make ci results: PASS\n"
+                "Commit message: chore(workflow): finalize documentation gate"
+            ),
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn(
+            "Final Report is missing required field: Tests written (names) + results",
+            issues,
+        )
+        self.assertIn(
+            "Final Report is missing required field: Docs/logs updated checklist",
+            issues,
+        )
+        self.assertIn(
+            "Final Report is missing required field: Commands run (use pp for noisy output)",
+            issues,
+        )
+
+    def test_commit_evidence_gate_fails_on_duplicate_headings(self):
+        work_item_id = "WI-20260212-43"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = content.replace(
+            "#### Final Report\n\n",
+            "#### Final Report\n\n- duplicate body\n\n#### Final Report\n\n",
+            1,
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn("duplicate required section heading: Final Report", issues)
+
+    def test_commit_evidence_gate_fails_on_empty_required_body(self):
+        work_item_id = "WI-20260212-44"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", ""
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn("required section is empty: Test Results", issues)
+
+    def test_commit_evidence_gate_fails_closed_on_malformed_required_section(self):
+        work_item_id = "WI-20260212-45"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = content.replace("#### Final Report", "### Final Report", 1)
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn("missing required section: Final Report", issues)
+
     def test_main_does_not_write_feature_worktree_manifest(self):
         class StopMain(RuntimeError):
             pass
@@ -4638,9 +4745,10 @@ class TestPcFeature(unittest.TestCase):
                     return "workflow: finalize scoped changes"
                 return "ok"
 
-            def fake_subprocess_run(cmd, **kwargs):
+            def fake_run_command_with_step_log_capture(*args, **kwargs):
+                cmd = args[0] if args else []
                 git_commands.append(list(cmd))
-                return SimpleNamespace(returncode=0, stdout="", stderr="")
+                return (0, "")
 
             with contextlib.ExitStack() as stack:
                 for patcher in self._patch_main_base(root, feature_dir, patcher_path):
@@ -4696,9 +4804,9 @@ class TestPcFeature(unittest.TestCase):
                 )
                 stack.enter_context(
                     mock.patch.object(
-                        self.pc_feature.subprocess,
-                        "run",
-                        side_effect=fake_subprocess_run,
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        side_effect=fake_run_command_with_step_log_capture,
                     )
                 )
                 self.pc_feature.main()
@@ -4721,6 +4829,120 @@ class TestPcFeature(unittest.TestCase):
                 if token == "--allow"
             ]
             self.assertIn("logs", allow_values)
+
+    def test_main_commit_failure_surfaces_pc_commit_detail(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260206-05"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            stdout_capture = io.StringIO()
+            stderr_capture = io.StringIO()
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "Review changes for scope and completeness" in prompt:
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: ok"
+                if "Provide short, single-line summaries for global logs" in prompt:
+                    return (
+                        '{"implementation_log":"none","validation_log":"none",'
+                        '"decision_log":"none"}'
+                    )
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "generating a concise, scoped commit message" in prompt:
+                    return "workflow: finalize scoped changes"
+                return "ok"
+
+            def fake_run_command_with_step_log_capture(*args, **kwargs):
+                cmd = args[0] if args else []
+                if cmd and cmd[0] == "tools/pc-commit":
+                    return (1, "fatal: pathspec '.tmp' did not match any files\n")
+                return (0, "")
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        return_value=0,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_allowed_final_stage_paths",
+                        return_value=[
+                            "docs/02-features/01-workflow-hardening/dev-tasks.md"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "stage_scoped_final_paths",
+                        return_value=[
+                            "docs/02-features/01-workflow-hardening/dev-tasks.md"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        side_effect=fake_run_command_with_step_log_capture,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stdout(stdout_capture):
+                        with contextlib.redirect_stderr(stderr_capture):
+                            self.pc_feature.main()
+
+            self.assertIn("COMMIT FAIL", stdout_capture.getvalue())
+            self.assertIn(
+                "detail=fatal: pathspec '.tmp' did not match any files",
+                stdout_capture.getvalue(),
+            )
+            self.assertIn(
+                (
+                    "pc-feature: failed to commit collected changes via tools/pc-commit; "
+                    "detail=fatal: pathspec '.tmp' did not match any files"
+                ),
+                stderr_capture.getvalue(),
+            )
 
     def test_main_skips_commit_generation_if_commit_section_already_filled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
