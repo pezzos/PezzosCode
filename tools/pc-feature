@@ -7,7 +7,7 @@ import shlex
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -123,6 +123,7 @@ RISK_PATH_TRIGGERS = (
     ("git_ops/", "touches git_ops/ path"),
     ("metadata/", "touches metadata/ path"),
 )
+LAST_DIE_MESSAGE: Optional[str] = None
 
 
 SECTION_ORDER = [
@@ -150,6 +151,8 @@ SECTION_ALIASES = {
 
 
 def die(message: str) -> None:
+    global LAST_DIE_MESSAGE
+    LAST_DIE_MESSAGE = message
     print(message, file=sys.stderr)
     sys.exit(1)
 
@@ -3864,6 +3867,8 @@ def append_log_line(path: str, line: str) -> None:
 
 
 def main() -> None:
+    global LAST_DIE_MESSAGE
+    LAST_DIE_MESSAGE = None
     feature_id, manual = parse_args(sys.argv[1:])
     root = os.getcwd()
     current_branch = git_current_branch(root)
@@ -4124,6 +4129,72 @@ def main() -> None:
 
     runner_metadata = pc_runner.build_metadata(work_item_id, "pc-feature")
     runner_root = Path(patcher_path)
+    workflow_tracking_enabled = all(
+        hasattr(runner_metadata, attr)
+        for attr in ("work_item_id", "agent_name", "run_id")
+    )
+    if workflow_tracking_enabled:
+        workflow_status_path, workflow_history_path = pc_runner.init_workflow_tracking(
+            runner_metadata,
+            root=runner_root,
+            feature_id=feature_id,
+            feature_slug=feature_slug,
+            mode=resume_mode,
+        )
+        print(f"pc-feature: workflow status path: {workflow_status_path}")
+        print(f"pc-feature: workflow history path: {workflow_history_path}")
+        print(
+            "pc-feature: monitor with "
+            f"`make feature-status WI={work_item_id} FOLLOW=1`"
+        )
+        print(
+            "pc-feature: snapshot with "
+            f"`make feature-status WI={work_item_id} HISTORY=1 LIMIT=30`"
+        )
+    else:
+        print(
+            "pc-feature: workflow tracking disabled (runner metadata stubbed by tests)."
+        )
+
+    def emit_workflow_event(
+        step: str,
+        event: str,
+        *,
+        attempt: Optional[int] = None,
+        outcome: str = "",
+        reason: str = "",
+        state: Optional[str] = None,
+    ) -> None:
+        clean_reason = " ".join(reason.strip().split())
+        if len(clean_reason) > 220:
+            clean_reason = clean_reason[:217] + "..."
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        duration = None
+        if workflow_tracking_enabled:
+            payload = pc_runner.record_workflow_event(
+                runner_metadata,
+                step=step,
+                event=event,
+                attempt=attempt,
+                outcome=outcome,
+                reason=clean_reason,
+                state=state,
+                root=runner_root,
+            )
+            timestamp = str(payload.get("timestamp", timestamp))
+            duration = payload.get("duration_ms")
+        banner = f"{timestamp} [{work_item_id}]"
+        if attempt is not None:
+            banner += f"[attempt {attempt}]"
+        banner += f" {step.upper()} {str(event).upper()}"
+        if outcome:
+            banner += f" outcome={outcome}"
+        if clean_reason:
+            banner += f" reason={clean_reason}"
+        if isinstance(duration, int):
+            banner += f" duration={duration / 1000:.2f}s"
+        print(f"pc-feature: {banner}")
+
     pc_runner.log_message(
         runner_metadata, "feature", "start pc-feature", root=runner_root
     )
@@ -4133,10 +4204,24 @@ def main() -> None:
         f"feature-id requested={feature_id} resolved={feature_slug}",
         root=runner_root,
     )
+    emit_workflow_event(
+        "feature",
+        "START",
+        outcome="RUNNING",
+        reason=f"feature={feature_slug} mode={resume_mode}",
+        state="RUNNING",
+    )
 
     if manual:
         pc_runner.log_message(
             runner_metadata, "feature", "manual mode enabled; exit", root=runner_root
+        )
+        emit_workflow_event(
+            "feature",
+            "DONE",
+            outcome="MANUAL",
+            reason="manual mode enabled",
+            state="COMPLETED",
         )
         print("pc-feature: manual mode enabled; execution log entry ready")
         return
@@ -4168,6 +4253,7 @@ def main() -> None:
 
     review_items: List[str] = []
 
+    emit_workflow_event("preflight", "START")
     content = read_file(dev_tasks_path)
     preflight_complete = entry_section_complete(
         content, work_item_id, "Preflight Report"
@@ -4245,6 +4331,20 @@ def main() -> None:
                     content, work_item_id, "Notes", "Awaiting PO Approval"
                 )
                 write_file(dev_tasks_path, content)
+                emit_workflow_event(
+                    "preflight",
+                    "FAIL",
+                    outcome="AWAITING_APPROVAL",
+                    reason="high-risk work item requires PO approval",
+                    state="FAILED",
+                )
+                emit_workflow_event(
+                    "feature",
+                    "FAIL",
+                    outcome="FAIL",
+                    reason="high-risk work item requires PO approval",
+                    state="FAILED",
+                )
                 die("pc-feature: high-risk work item requires PO approval")
             content = update_entry_field(
                 content, work_item_id, "Notes", HIGH_RISK_APPROVAL_NOTE
@@ -4263,11 +4363,26 @@ def main() -> None:
                 content, work_item_id, "Notes", "Awaiting PO Approval"
             )
             write_file(dev_tasks_path, content)
+            emit_workflow_event(
+                "preflight",
+                "FAIL",
+                outcome="AWAITING_APPROVAL",
+                reason="high-risk work item requires PO approval",
+                state="FAILED",
+            )
+            emit_workflow_event(
+                "feature",
+                "FAIL",
+                outcome="FAIL",
+                reason="high-risk work item requires PO approval",
+                state="FAILED",
+            )
             die("pc-feature: high-risk work item requires PO approval")
         content = update_entry_field(
             content, work_item_id, "Notes", HIGH_RISK_APPROVAL_NOTE
         )
         write_file(dev_tasks_path, content)
+    emit_workflow_event("preflight", "DONE", outcome="READY")
 
     requires_global_logs = False
     reviewer_blocks = 0
@@ -4497,11 +4612,19 @@ def main() -> None:
                 f"locked={locked_main_head}, current={current_main_head}.",
             )
             write_file(dev_tasks_path, content)
+            emit_workflow_event(
+                "feature",
+                "FAIL",
+                outcome="FAIL",
+                reason="main branch changed during execution",
+                state="FAILED",
+            )
             die(
                 "pc-feature: main branch changed during execution; "
                 "stop and restart the feature from a clean baseline."
             )
         attempt = execution_attempt + 1
+        emit_workflow_event("planner", "START", attempt=attempt)
         planner_changed = False
         content = read_file(dev_tasks_path)
         if not extract_field(content, "Planner"):
@@ -4646,8 +4769,24 @@ def main() -> None:
                 work_item_id,
                 feature_dir,
             )
+            emit_workflow_event("planner", "DONE", attempt=attempt, outcome="UPDATED")
+        else:
+            emit_workflow_event("planner", "DONE", attempt=attempt, outcome="NO_CHANGE")
 
         if not allowed_tests or forbidden or missing:
+            emit_workflow_event(
+                "plan-reviewer",
+                "SKIP",
+                attempt=attempt,
+                reason="blocked by invalid allowed tests",
+            )
+            emit_workflow_event(
+                "patcher",
+                "SKIP",
+                attempt=attempt,
+                reason="blocked by invalid allowed tests",
+            )
+            emit_workflow_event("tester", "START", attempt=attempt)
             issues: List[str] = []
             if not allowed_tests:
                 issues.append("no allowed tests listed")
@@ -4685,6 +4824,19 @@ def main() -> None:
                 "tester",
                 work_item_id,
                 feature_dir,
+            )
+            emit_workflow_event(
+                "tester",
+                "FAIL",
+                attempt=attempt,
+                outcome="FAIL",
+                reason=issue_summary,
+            )
+            emit_workflow_event(
+                "reporter",
+                "SKIP",
+                attempt=attempt,
+                reason="blocked by invalid allowed tests",
             )
             tester_failures += 1
             execution_attempt += 1
@@ -4761,6 +4913,7 @@ def main() -> None:
                 )
             continue
 
+        emit_workflow_event("plan-reviewer", "START", attempt=attempt)
         content = read_file(dev_tasks_path)
         current_plan = get_entry_section(content, work_item_id, "Plan")
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
@@ -4779,6 +4932,14 @@ def main() -> None:
                 if path not in allowed_preexisting
             )
             if unexpected_preexisting:
+                emit_workflow_event(
+                    "plan-reviewer",
+                    "FAIL",
+                    attempt=attempt,
+                    outcome="FAIL",
+                    reason="pre-review hygiene found unexpected dirty paths",
+                    state="FAILED",
+                )
                 die(
                     "pc-feature: pre-review hygiene found unexpected dirty paths: "
                     + ", ".join(unexpected_preexisting)
@@ -4822,6 +4983,14 @@ def main() -> None:
             reviewer_decision = parse_plan_reviewer_decision(reviewer_feedback)
         if reviewer_dirty_delta:
             delta_text = ", ".join(reviewer_dirty_delta)
+            emit_workflow_event(
+                "plan-reviewer",
+                "FAIL",
+                attempt=attempt,
+                outcome="FAIL",
+                reason="plan reviewer modified files in writable worktree",
+                state="FAILED",
+            )
             die(
                 "pc-feature: plan reviewer modified files in writable worktree: "
                 + delta_text
@@ -4847,6 +5016,14 @@ def main() -> None:
         )
 
         if reviewer_decision == "CONFLICT":
+            emit_workflow_event(
+                "plan-reviewer",
+                "FAIL",
+                attempt=attempt,
+                outcome="CONFLICT",
+                reason="plan reviewer conflict",
+                state="FAILED",
+            )
             content = read_file(dev_tasks_path)
             content = update_entry_field(
                 content, work_item_id, "Outcome", "needs replan"
@@ -4870,6 +5047,13 @@ def main() -> None:
             )
 
         if reviewer_decision == "BLOCK":
+            emit_workflow_event(
+                "plan-reviewer",
+                "BLOCK",
+                attempt=attempt,
+                outcome="BLOCK",
+                reason=summarize_feedback(reviewer_feedback),
+            )
             reviewer_blocks += 1
             if reviewer_blocks >= MAX_REVIEWER_BLOCKS:
                 content = read_file(dev_tasks_path)
@@ -4909,6 +5093,12 @@ def main() -> None:
             )
             continue
 
+        emit_workflow_event(
+            "plan-reviewer",
+            "DONE",
+            attempt=attempt,
+            outcome="APPROVE",
+        )
         reviewer_blocks = 0
         stagnation_count = 0
         last_stagnation_signature = ""
@@ -4928,6 +5118,12 @@ def main() -> None:
             allowed_tests=allowed_tests,
         )
         if prepatch_policy_issues:
+            emit_workflow_event(
+                "patcher",
+                "SKIP",
+                attempt=attempt,
+                reason="blocked by pre-patch policy recheck",
+            )
             prepatch_feedback = plan_policy_block_feedback(prepatch_policy_issues)
             revise_plan_from_feedback(
                 attempt=attempt,
@@ -4945,6 +5141,7 @@ def main() -> None:
             continue
 
         if not entry_section_complete(content, work_item_id, "Patch"):
+            emit_workflow_event("patcher", "START", attempt=attempt)
             patch_prompt = render_prompt_template(
                 load_prompt_template("patcher", "apply"),
                 {
@@ -4966,8 +5163,15 @@ def main() -> None:
                 tdd_section=tdd_section,
                 source_label="patcher role-scope violation",
             ):
+                emit_workflow_event(
+                    "patcher",
+                    "BLOCK",
+                    attempt=attempt,
+                    outcome="BLOCK",
+                    reason="patcher role-scope violation",
+                )
                 continue
-            commit_role_step(
+            patcher_committed = commit_role_step(
                 root,
                 patcher_path,
                 patcher_branch,
@@ -4975,10 +5179,22 @@ def main() -> None:
                 work_item_id,
                 feature_dir,
             )
+            emit_workflow_event(
+                "patcher",
+                "DONE",
+                attempt=attempt,
+                outcome="CHANGED" if patcher_committed else "NO_CHANGE",
+            )
             requires_global_logs = requires_global_logs or process_docs_changed(
                 commit_paths(patcher_path)
             )
         else:
+            emit_workflow_event(
+                "patcher",
+                "SKIP",
+                attempt=attempt,
+                reason="patch already present",
+            )
             content = append_noop_step_note(
                 content,
                 work_item_id,
@@ -4988,6 +5204,7 @@ def main() -> None:
             )
             write_file(dev_tasks_path, content)
 
+        emit_workflow_event("tester", "START", attempt=attempt)
         reset_dev_tasks_if_dirty(tester_path, dev_tasks_path)
         content = read_file(dev_tasks_path)
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
@@ -5026,6 +5243,14 @@ def main() -> None:
                 "tester",
                 work_item_id,
                 feature_dir,
+            )
+            emit_workflow_event(
+                "tester",
+                "FAIL",
+                attempt=attempt,
+                outcome="FAIL",
+                reason=note,
+                state="FAILED",
             )
             queue_failure_proposal(
                 build_failure_outcome_payload(
@@ -5108,6 +5333,21 @@ def main() -> None:
             work_item_id,
             feature_dir,
         )
+        if tester_outcome == "PASS":
+            emit_workflow_event(
+                "tester",
+                "DONE",
+                attempt=attempt,
+                outcome="PASS",
+            )
+        else:
+            emit_workflow_event(
+                "tester",
+                "FAIL",
+                attempt=attempt,
+                outcome="FAIL",
+                reason=failure_evidence or "non-zero exit detected",
+            )
         content = read_file(dev_tasks_path)
         content, runtime_updates = reconcile_runtime_execution_record(
             content,
@@ -5128,6 +5368,12 @@ def main() -> None:
         write_file(dev_tasks_path, content)
 
         if tester_outcome != "PASS":
+            emit_workflow_event(
+                "reporter",
+                "SKIP",
+                attempt=attempt,
+                reason="tester failed",
+            )
             reporter_feedback = (
                 "Outcome: SKIPPED\n"
                 "Docs/logs updated: reporter deferred\n"
@@ -5152,6 +5398,28 @@ def main() -> None:
                 work_item_id,
                 feature_dir,
             )
+            if reporter_outcome == "PASS":
+                emit_workflow_event(
+                    "reporter",
+                    "DONE",
+                    attempt=attempt,
+                    outcome="PASS",
+                )
+            elif reporter_outcome == "FAIL":
+                emit_workflow_event(
+                    "reporter",
+                    "FAIL",
+                    attempt=attempt,
+                    outcome="FAIL",
+                    reason=summarize_feedback(reporter_feedback),
+                )
+            else:
+                emit_workflow_event(
+                    "reporter",
+                    "DONE",
+                    attempt=attempt,
+                    outcome=reporter_outcome or "UNKNOWN",
+                )
             content = read_file(dev_tasks_path)
             content, runtime_updates = reconcile_runtime_execution_record(
                 content,
@@ -5178,6 +5446,7 @@ def main() -> None:
             )
             write_file(dev_tasks_path, content)
         else:
+            emit_workflow_event("reporter", "START", attempt=attempt)
             pre_reporter_issues = execution_handoff_completeness_issues(
                 content, work_item_id, require_reporter_review=False
             )
@@ -5338,6 +5607,7 @@ def main() -> None:
                     "failure_feedback": feedback_blob.strip(),
                 },
             )
+            emit_workflow_event("planner-feedback", "START", attempt=attempt)
             planner_feedback = codex_exec(
                 planner_feedback_prompt,
                 cwd=planner_path,
@@ -5444,6 +5714,12 @@ def main() -> None:
                 work_item_id,
                 feature_dir,
             )
+            emit_workflow_event(
+                "planner-feedback",
+                "DONE",
+                attempt=attempt,
+                outcome=planner_decision,
+            )
 
             patcher_feedback_prompt = render_prompt_template(
                 load_prompt_template("patcher", "update_from_feedback"),
@@ -5457,6 +5733,7 @@ def main() -> None:
                     "planner_rationale": planner_rationale,
                 },
             )
+            emit_workflow_event("patcher-feedback", "START", attempt=attempt)
             codex_exec(
                 patcher_feedback_prompt,
                 capture_output=True,
@@ -5473,14 +5750,27 @@ def main() -> None:
                 tdd_section=feedback_tdd_section,
                 source_label="patcher feedback role-scope violation",
             ):
+                emit_workflow_event(
+                    "patcher-feedback",
+                    "BLOCK",
+                    attempt=attempt,
+                    outcome="BLOCK",
+                    reason="patcher feedback role-scope violation",
+                )
                 continue
-            commit_role_step(
+            patcher_feedback_committed = commit_role_step(
                 root,
                 patcher_path,
                 patcher_branch,
                 "patcher",
                 work_item_id,
                 feature_dir,
+            )
+            emit_workflow_event(
+                "patcher-feedback",
+                "DONE",
+                attempt=attempt,
+                outcome="CHANGED" if patcher_feedback_committed else "NO_CHANGE",
             )
             requires_global_logs = requires_global_logs or process_docs_changed(
                 commit_paths(patcher_path)
@@ -5500,6 +5790,7 @@ def main() -> None:
     gate_status = "FAIL"
     autofix_notes: List[str] = []
     ci_cmd = ["tools/offload-proxy/pp", "make", "ci"]
+    emit_workflow_event("ci", "START", attempt=execution_attempt)
     first_ci_exit = run_command_with_step_log(
         ci_cmd,
         runner_metadata,
@@ -5550,6 +5841,17 @@ def main() -> None:
         )
         if second_ci_exit == 0:
             gate_status = "PASS"
+    if gate_status == "PASS":
+        emit_workflow_event("ci", "DONE", attempt=execution_attempt, outcome="PASS")
+    else:
+        emit_workflow_event(
+            "ci",
+            "FAIL",
+            attempt=execution_attempt,
+            outcome="FAIL",
+            reason=f"make ci failed after {MAX_CI_ATTEMPTS} attempts",
+            state="FAILED",
+        )
     content = read_file(dev_tasks_path)
     content = replace_entry_section(
         content, work_item_id, "Gates", build_gates_block("make ci", gate_status)
@@ -5565,6 +5867,13 @@ def main() -> None:
         content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
         write_file(dev_tasks_path, content)
         flush_pending_failure_proposals("final gate failure")
+        emit_workflow_event(
+            "feature",
+            "FAIL",
+            outcome="FAIL",
+            reason="make ci failed after final gate retry",
+            state="FAILED",
+        )
         die(
             "pc-feature: make ci failed after final gate retry "
             f"(max attempts: {MAX_CI_ATTEMPTS})"
@@ -5622,6 +5931,8 @@ def main() -> None:
 
     base_ref = "HEAD"
     role_branches = [patcher_branch]
+    collected_any = False
+    emit_workflow_event("collect", "START")
     for branch in role_branches:
         if branch_ahead_count(root, base_ref, branch) == 0:
             continue
@@ -5638,6 +5949,8 @@ def main() -> None:
             branch,
             merge_paths,
         )
+        if merge_paths:
+            collected_any = True
         skipped_paths = collection_summary["skipped_paths"]
         if skipped_paths:
             skipped_text = ", ".join(skipped_paths)
@@ -5674,6 +5987,11 @@ def main() -> None:
             review_items.append(
                 format_review_item("collect patcher branch into main", 0)
             )
+    emit_workflow_event(
+        "collect",
+        "DONE",
+        outcome="CHANGED" if collected_any else "NO_CHANGES",
+    )
 
     allowed_stage_paths = collect_allowed_final_stage_paths(
         root, "refs/heads/main", patcher_branch, dev_tasks_repo_path, feature_dir
@@ -5681,6 +5999,14 @@ def main() -> None:
 
     content = read_file(dev_tasks_path)
     commit_already_done = entry_section_complete(content, work_item_id, "Commit")
+    if commit_already_done:
+        emit_workflow_event(
+            "commit",
+            "SKIP",
+            reason="commit section already completed",
+        )
+    else:
+        emit_workflow_event("commit", "START")
     commit_message = ""
     if commit_already_done:
         commit_message = parse_commit_message(
@@ -5733,9 +6059,25 @@ def main() -> None:
             cwd=root,
         )
         if commit_result.returncode != 0:
+            emit_workflow_event(
+                "commit",
+                "FAIL",
+                outcome="FAIL",
+                reason="failed to commit collected changes via tools/pc-commit",
+                state="FAILED",
+            )
+            emit_workflow_event(
+                "feature",
+                "FAIL",
+                outcome="FAIL",
+                reason="failed to commit collected changes via tools/pc-commit",
+                state="FAILED",
+            )
             die("pc-feature: failed to commit collected changes via tools/pc-commit")
+        emit_workflow_event("commit", "DONE", outcome="CREATED")
     remove_worktree(root, patcher_path, patcher_branch)
 
+    emit_workflow_event("feature", "DONE", outcome="PASS", state="COMPLETED")
     pc_runner.log_message(runner_metadata, "feature", "complete", root=runner_root)
     print("pc-feature: complete")
 

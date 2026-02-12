@@ -1285,3 +1285,62 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Result: PASS (offload id `6e78771e190c8b1bc9cf98356d3145947b03420d105141a03f1903845313e3ae`)
 - Command: `tools/offload-proxy/pp make ci` (final rerun)
 - Result: PASS (offload id `391e8d1301850e473a248c6d651f1d850b2ad6c7fb6cbecb14b1b45d0d8c852f`)
+
+## 2026-02-12 - Validate workflow visibility instrumentation (Milestone A)
+
+- Command: `python3 -m py_compile tools/pc-feature lib/pc_runner.py tests/test_pc_runner.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_runner.py'`
+- Result: PASS (`4` tests, offload id `4a160235c0add54f7a5997815d0e01a072210439de4899c702c94dd3cd814662`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (`147` tests, offload id `a947a5d4741195ea0d28566d69353961d4bbd84ae48821b42931bdabcb50ef78`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: FAIL first attempt in sandbox due `end-of-file-fixer` permission error on `.codex/skills/*` (offload id `d61fc2f6d5f3186a85e219fe4d3a559f5dc8910fc077dfa69a985d5fe9d8175f`)
+- Command: `tools/offload-proxy/pp make ci` (elevated permissions)
+- Result: PASS (offload id `b88f77275dba6b70b58f0d55f079f73712cdd8a830668c342cc762a8a1eb1bba`)
+- Command: `tools/offload-proxy/pp make ci` (post-doc/log update rerun)
+- Result: PASS (offload id `5eb834d7b6ba82210dd53b5b76b0f40281ca18acce6a10e815e0a077027d495e`)
+- Command: `tools/offload-proxy/pp make ci` (final confirmation rerun)
+- Result: PASS (offload id `93da6eaa2be7d177089c192f4e1dafbca6ac270c5537569438d5ea5ee9702f83`)
+- Notes:
+  - Workflow events now emit clear runtime banners with step, attempt, event type, timestamp, and duration.
+  - Workflow state/history artifacts are created per work item under `logs/<WI>/`.
+
+## 2026-02-12 - Validate `pc-feature-status` workflow inspector (Milestone B)
+
+- Command: `python3 -m py_compile tools/pc-feature-status tests/test_pc_feature_status.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature_status.py'`
+- Result: PASS (`5` tests, offload id `0f7e4b97443e54aca647179972594d13bb587afcbf151fab8228148587ea844a`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: FAIL first attempt in sandbox due `end-of-file-fixer` permission error on `.codex/skills/*` (offload id `0b7cce23c8081d5523e16c9b7af5604af9ae9432dbcbe53af8152bea431d5c71`)
+- Command: `tools/offload-proxy/pp make ci` (elevated permissions)
+- Result: PASS (offload id `e69d854cfc627113acbde6f73426d4311f4aef893ca9d4079909bf2944963900`)
+- Command: `tools/offload-proxy/pp make ci` (final rerun after docs/log updates, elevated permissions)
+- Result: PASS (offload id `c7d38aaaf677a46099189d9bb7c958199ccc839dbd7be869902792f78a876c79`)
+- Verified:
+  - New CLI reports current workflow snapshot and event history from `logs/<WI>/workflow-status.json` and `logs/<WI>/workflow-history.ndjson`.
+  - History limit and summary/slowest-step reporting paths are covered by focused tests.
+
+## 2026-02-12 - Validate Milestone C (worktree discovery + `make feature-status`)
+
+- Command: `python3 -m py_compile tools/pc-feature tools/pc-feature-status tests/test_pc_feature.py tests/test_pc_feature_status.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature_status.py'`
+- Result: PASS (`8` tests, offload id `316558a93ba028238bcd514bbec8a07c6b5122f2fa8e4ce8499b5d85bc6111f8`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k main_manual_mode_prints_feature_status_hints_when_tracking_enabled`
+- Result: PASS (`1` test, offload id `9f75add94930d82f86f40553d972627172fa9fcad2415eaa9947d6de3d460011`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `b1a60c5bd49fb80d1d50b484854fd22beb4abdc318002de6eef7b586bcce4e14`)
+- Command: `make feature-status WI=WI-20260209-01 HISTORY=1 LIMIT=1`
+- Result: PASS (status command executes via Make target and reports discovered worktree logs root)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: FAIL first pass due `black` reformat on `tools/pc-feature-status` (offload id `21ed6f48a29469bc75bdd3cd205dcd99b5739c01bbfc0d567ff64f2c5b00c9a1`)
+- Command: `tools/offload-proxy/pp make ci` (elevated permissions)
+- Result: PASS (offload id `518bd6e5fd3f606fc05a56e0d75a27d2cb2ae6740f1945c65d8517f84a48b4dc`)
+- Command: `tools/offload-proxy/pp make ci` (final rerun after docs/log updates, elevated permissions)
+- Result: PASS (offload id `5b1851bcdff27b3a1a416547c44aaf017d5e598556036ebb3c25bbdaa34a47df`)
+- Verified:
+  - `pc-feature-status` now resolves runs created in sibling patcher worktrees, so status is visible from the main repo without manual `--root` patcher path lookup.
+  - `pc-feature` now prints copy-paste monitor commands at run startup.
+  - `make feature-status` provides a simple canonical operator entrypoint for snapshot and follow mode.

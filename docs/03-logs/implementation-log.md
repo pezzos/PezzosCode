@@ -5700,3 +5700,140 @@ Track when debt is paid down:
   - `tests/test_pc_allowed_tests_check.py`
   - `tests/test_pc_feature.py`
 - Cleaned `docs/possible-improvements.md` by removing implemented proposals and keeping unresolved proposals only.
+
+### 2026-02-12 - Workflow visibility status/history + live step banners
+
+**Feature/Bug:** `pc-feature` runtime observability during `make feature`
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `lib/pc_runner.py`
+- `tests/test_pc_runner.py`
+
+**What Changed:**
+
+- Added workflow run artifacts under `logs/<WI>/`:
+  - `workflow-status.json` (current state + latest per-step status)
+  - `workflow-history.ndjson` (append-only timestamped step events)
+- Added workflow tracking APIs to `lib/pc_runner.py`:
+  - `init_workflow_tracking(...)`
+  - `record_workflow_event(...)`
+- Instrumented `tools/pc-feature` with explicit step transitions and live terminal banners for:
+  - `feature`, `preflight`, `planner`, `plan-reviewer`, `patcher`, `tester`, `reporter`
+  - `planner-feedback`, `patcher-feedback`, `ci`, `collect`, `commit`
+- Step banners now include UTC timestamp, work item id, attempt (when relevant), event (`START`/`DONE`/`SKIP`/`BLOCK`/`FAIL`), and duration when available.
+- Added a safe fallback for tests that stub runner metadata so workflow-event printing remains available without requiring real metadata objects.
+
+**Why:**
+
+- Make it immediately clear which step is running, which steps have already run/skipped, and where time is spent during long workflow executions.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal additional filesystem writes under `logs/<WI>/`
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature lib/pc_runner.py tests/test_pc_runner.py`
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_runner.py'` (PASS, offload id `4a160235c0add54f7a5997815d0e01a072210439de4899c702c94dd3cd814662`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'` (PASS, offload id `a947a5d4741195ea0d28566d69353961d4bbd84ae48821b42931bdabcb50ef78`)
+- `tools/offload-proxy/pp make ci` (initial FAIL in sandbox due `end-of-file-fixer` permission on `.codex/skills/*`, offload id `d61fc2f6d5f3186a85e219fe4d3a559f5dc8910fc077dfa69a985d5fe9d8175f`)
+- `tools/offload-proxy/pp make ci` (PASS with elevated permissions, offload id `b88f77275dba6b70b58f0d55f079f73712cdd8a830668c342cc762a8a1eb1bba`)
+- `tools/offload-proxy/pp make ci` (PASS after docs/log updates, offload id `5eb834d7b6ba82210dd53b5b76b0f40281ca18acce6a10e815e0a077027d495e`)
+- `tools/offload-proxy/pp make ci` (final PASS confirmation, offload id `93da6eaa2be7d177089c192f4e1dafbca6ac270c5537569438d5ea5ee9702f83`)
+
+### 2026-02-12 - Add `pc-feature-status` CLI for workflow status/history (Milestone B)
+
+**Feature/Bug:** runtime observability follow-up for `make feature`
+
+**Changed Files:**
+
+- `tools/pc-feature-status`
+- `tests/test_pc_feature_status.py`
+
+**What Changed:**
+
+- Added a new CLI (`tools/pc-feature-status`) that reads workflow artifacts from `logs/<WI>/`:
+  - `workflow-status.json` for current step/state snapshot
+  - `workflow-history.ndjson` for timestamped execution events
+- Implemented summary output with:
+  - current step and attempt
+  - last event details
+  - per-step state snapshot
+  - slowest-step ranking from recorded durations
+- Implemented history output controls:
+  - `--history` to print event timeline
+  - `--limit` to bound timeline output
+  - `--follow` with `--interval` for live tailing
+  - `--wi` and `--root` for explicit run/workspace targeting
+- Added focused unit tests validating summary formatting, history limiting, work-item resolution, invalid history-line handling, and CLI main-path output behavior.
+
+**Why:**
+
+- Provide a simple, stable way to answer:
+  - which workflow step is currently running
+  - whether steps like patcher have run
+  - which steps are consuming the most time
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal read-only file I/O on demand
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature-status tests/test_pc_feature_status.py`
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature_status.py'` (PASS, offload id `0f7e4b97443e54aca647179972594d13bb587afcbf151fab8228148587ea844a`)
+- `tools/offload-proxy/pp make ci` (initial FAIL in sandbox due `end-of-file-fixer` permission on `.codex/skills/*`, offload id `0b7cce23c8081d5523e16c9b7af5604af9ae9432dbcbe53af8152bea431d5c71`)
+- `tools/offload-proxy/pp make ci` (PASS with elevated permissions, offload id `e69d854cfc627113acbde6f73426d4311f4aef893ca9d4079909bf2944963900`)
+- `tools/offload-proxy/pp make ci` (final PASS after docs/log updates, offload id `c7d38aaaf677a46099189d9bb7c958199ccc839dbd7be869902792f78a876c79`)
+
+### 2026-02-12 - Milestone C: simple status entrypoint + cross-worktree discovery
+
+**Feature/Bug:** workflow observability usability when `make feature` runs in a patcher worktree
+
+**Changed Files:**
+
+- `tools/pc-feature-status`
+- `tools/pc-feature`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `tests/test_pc_feature_status.py`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Upgraded `tools/pc-feature-status` to discover workflow logs across git worktrees (via `git worktree list --porcelain`) instead of checking only the current repo `logs/` directory.
+- Added work-item resolution across discovered log roots so `--wi` and latest-run selection pick the most recent matching work item even when it lives in a sibling patcher worktree.
+- Added `logs root:` to status output to make the artifact source explicit.
+- Added `feature-status` make target as a thin wrapper over `tools/pc-feature-status`:
+  - supports `WI`, `ROOT`, `HISTORY`, `FOLLOW`, `LIMIT`, `INTERVAL`.
+- Added runtime usage hints in `tools/pc-feature` at workflow start:
+  - `make feature-status WI=<id> FOLLOW=1`
+  - `make feature-status WI=<id> HISTORY=1 LIMIT=30`
+- Added regression tests for worktree discovery and for runtime monitor-hint printing.
+
+**Why:**
+
+- Milestone B provided a status CLI, but workflow artifacts are created in patcher worktrees during `make feature`; Milestone C makes status lookup simple from the main repo without requiring manual path hunting.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Minimal overhead from one local `git worktree list` subprocess on status command startup
+- **Dependencies:** None
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature tools/pc-feature-status tests/test_pc_feature.py tests/test_pc_feature_status.py`
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature_status.py'` (PASS, offload id `316558a93ba028238bcd514bbec8a07c6b5122f2fa8e4ce8499b5d85bc6111f8`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k main_manual_mode_prints_feature_status_hints_when_tracking_enabled` (PASS, offload id `9f75add94930d82f86f40553d972627172fa9fcad2415eaa9947d6de3d460011`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'` (PASS, offload id `b1a60c5bd49fb80d1d50b484854fd22beb4abdc318002de6eef7b586bcce4e14`)
+- `make feature-status WI=WI-20260209-01 HISTORY=1 LIMIT=1` (PASS; command executes and resolves logs root across worktrees)
+- `tools/offload-proxy/pp make ci` (initial FAIL due auto-format by `black`, offload id `21ed6f48a29469bc75bdd3cd205dcd99b5739c01bbfc0d567ff64f2c5b00c9a1`)
+- `tools/offload-proxy/pp make ci` (PASS after formatting, offload id `518bd6e5fd3f606fc05a56e0d75a27d2cb2ae6740f1945c65d8517f84a48b4dc`)
+- `tools/offload-proxy/pp make ci` (final PASS after docs/log updates, offload id `5b1851bcdff27b3a1a416547c44aaf017d5e598556036ebb3c25bbdaa34a47df`)

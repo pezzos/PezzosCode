@@ -2902,6 +2902,46 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("README.md", stderr_capture.getvalue())
 
+    def test_main_manual_mode_prints_feature_status_hints_when_tracking_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260212-15"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            stdout_capture = io.StringIO()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "parse_args", return_value=("01", True)
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "build_metadata",
+                        return_value=self.pc_feature.pc_runner.RunMetadata(
+                            work_item_id, "pc-feature", "run123"
+                        ),
+                    )
+                )
+                with contextlib.redirect_stdout(stdout_capture):
+                    self.pc_feature.main()
+
+            output = stdout_capture.getvalue()
+            self.assertIn(
+                f"`make feature-status WI={work_item_id} FOLLOW=1`",
+                output,
+            )
+            self.assertIn(
+                f"`make feature-status WI={work_item_id} HISTORY=1 LIMIT=30`",
+                output,
+            )
+
     def test_main_resumes_newest_in_progress_work_item(self):
         class StopMain(RuntimeError):
             pass

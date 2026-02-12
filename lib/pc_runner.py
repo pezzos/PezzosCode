@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 WORK_ITEM_RE = re.compile(r"^WI-\d{8}-\d{2}$")
 PROPOSAL_SECTION_HEADER = "## Entries"
@@ -14,6 +15,8 @@ PROPOSAL_ENTRY_SEPARATOR = "---"
 PROPOSAL_STATUS_PROPOSED = "Proposed"
 PROPOSAL_PLACEHOLDER_UNKNOWN = "Unknown"
 PROPOSAL_PLACEHOLDER_TBD = "TBD"
+WORKFLOW_STATUS_FILENAME = "workflow-status.json"
+WORKFLOW_HISTORY_FILENAME = "workflow-history.ndjson"
 
 
 @dataclass(frozen=True)
@@ -108,6 +111,211 @@ def log_message(
     except OSError as exc:
         raise RuntimeError(f"pc_runner: failed to write log {path}: {exc}") from exc
     return path
+
+
+def workflow_status_path(root: Path, work_item_id: str) -> Path:
+    return log_dir(root, work_item_id) / WORKFLOW_STATUS_FILENAME
+
+
+def workflow_history_path(root: Path, work_item_id: str) -> Path:
+    return log_dir(root, work_item_id) / WORKFLOW_HISTORY_FILENAME
+
+
+def _utc_timestamp(timestamp: Optional[str] = None) -> str:
+    if timestamp:
+        return timestamp
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _default_workflow_status(
+    metadata: RunMetadata,
+    *,
+    feature_id: str = "",
+    feature_slug: str = "",
+    mode: str = "",
+    timestamp: Optional[str] = None,
+) -> Dict[str, Any]:
+    ts = _utc_timestamp(timestamp)
+    return {
+        "work_item_id": metadata.work_item_id,
+        "agent_name": metadata.agent_name,
+        "run_id": metadata.run_id,
+        "feature_id": feature_id,
+        "feature_slug": feature_slug,
+        "mode": mode,
+        "started_at": ts,
+        "updated_at": ts,
+        "state": "RUNNING",
+        "current_step": None,
+        "current_attempt": None,
+        "last_event": {},
+        "steps": {},
+        "open_steps": {},
+    }
+
+
+def _read_json_object(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"pc_runner: failed to read status {path}: {exc}") from exc
+    if not raw.strip():
+        return {}
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _write_json_object(path: Path, payload: Mapping[str, Any]) -> None:
+    serialized = json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n"
+    try:
+        path.write_text(serialized, encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"pc_runner: failed to write status {path}: {exc}") from exc
+
+
+def _parse_utc_timestamp(timestamp: str) -> Optional[datetime]:
+    try:
+        parsed = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return parsed.replace(tzinfo=timezone.utc)
+
+
+def _duration_ms(start_ts: str, end_ts: str) -> Optional[int]:
+    start = _parse_utc_timestamp(start_ts)
+    end = _parse_utc_timestamp(end_ts)
+    if not start or not end:
+        return None
+    delta = int((end - start).total_seconds() * 1000)
+    return max(delta, 0)
+
+
+def init_workflow_tracking(
+    metadata: RunMetadata,
+    *,
+    root: Optional[Path] = None,
+    feature_id: str = "",
+    feature_slug: str = "",
+    mode: str = "",
+    timestamp: Optional[str] = None,
+) -> Tuple[Path, Path]:
+    root_path = Path(root or Path(os.getcwd()))
+    status_path = workflow_status_path(root_path, metadata.work_item_id)
+    history_path = workflow_history_path(root_path, metadata.work_item_id)
+    status_payload = _default_workflow_status(
+        metadata,
+        feature_id=feature_id,
+        feature_slug=feature_slug,
+        mode=mode,
+        timestamp=timestamp,
+    )
+    _write_json_object(status_path, status_payload)
+    if not history_path.exists():
+        try:
+            history_path.touch()
+        except OSError as exc:
+            raise RuntimeError(
+                f"pc_runner: failed to create history {history_path}: {exc}"
+            ) from exc
+    return status_path, history_path
+
+
+def record_workflow_event(
+    metadata: RunMetadata,
+    *,
+    step: str,
+    event: str,
+    attempt: Optional[int] = None,
+    outcome: str = "",
+    reason: str = "",
+    state: Optional[str] = None,
+    root: Optional[Path] = None,
+    timestamp: Optional[str] = None,
+) -> Mapping[str, Any]:
+    root_path = Path(root or Path(os.getcwd()))
+    ts = _utc_timestamp(timestamp)
+    status_path = workflow_status_path(root_path, metadata.work_item_id)
+    history_path = workflow_history_path(root_path, metadata.work_item_id)
+    status = _read_json_object(status_path)
+    if not status:
+        status = _default_workflow_status(metadata, timestamp=ts)
+    steps = status.setdefault("steps", {})
+    if not isinstance(steps, dict):
+        steps = {}
+        status["steps"] = steps
+    open_steps = status.setdefault("open_steps", {})
+    if not isinstance(open_steps, dict):
+        open_steps = {}
+        status["open_steps"] = open_steps
+
+    step_key = (step or "unknown").strip()
+    step_state = steps.setdefault(step_key, {})
+    if not isinstance(step_state, dict):
+        step_state = {}
+        steps[step_key] = step_state
+    event_name = (event or "").strip().upper() or "INFO"
+
+    duration = None
+    if event_name == "START":
+        step_state["runs"] = int(step_state.get("runs", 0)) + 1
+        step_state["last_started_at"] = ts
+        open_steps[step_key] = ts
+        status["current_step"] = step_key
+        status["current_attempt"] = attempt
+        status["state"] = "RUNNING"
+    else:
+        start_ts = str(open_steps.pop(step_key, "")).strip()
+        if start_ts:
+            duration = _duration_ms(start_ts, ts)
+        step_state["last_ended_at"] = ts
+        if duration is not None:
+            step_state["last_duration_ms"] = duration
+        if status.get("current_step") == step_key:
+            status["current_step"] = None
+            status["current_attempt"] = None
+        if state:
+            status["state"] = state
+
+    if attempt is not None:
+        step_state["last_attempt"] = attempt
+    step_state["last_event"] = event_name
+    if outcome:
+        step_state["last_outcome"] = outcome
+    if reason:
+        step_state["last_reason"] = reason
+
+    event_payload: Dict[str, Any] = {
+        "timestamp": ts,
+        "work_item_id": metadata.work_item_id,
+        "agent_name": metadata.agent_name,
+        "run_id": metadata.run_id,
+        "step": step_key,
+        "event": event_name,
+    }
+    if attempt is not None:
+        event_payload["attempt"] = attempt
+    if outcome:
+        event_payload["outcome"] = outcome
+    if reason:
+        event_payload["reason"] = reason
+    if duration is not None:
+        event_payload["duration_ms"] = duration
+
+    status["updated_at"] = ts
+    status["last_event"] = event_payload
+    _write_json_object(status_path, status)
+    try:
+        with history_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event_payload, ensure_ascii=True, sort_keys=True))
+            handle.write("\n")
+    except OSError as exc:
+        raise RuntimeError(f"pc_runner: failed to write history {history_path}: {exc}")
+    return event_payload
 
 
 OUTCOME_FAIL = {"FAIL", "FAILED", "ERROR"}

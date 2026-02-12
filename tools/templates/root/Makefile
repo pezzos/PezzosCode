@@ -1,4 +1,4 @@
-.PHONY: fmt lint test check docs-check skills-check feature ci
+.PHONY: fmt lint test check docs-check skills-check feature feature-status ci
 
 fmt:
 	@pre-commit run --all-files --hook-stage manual
@@ -13,6 +13,16 @@ test:
 
 feature:
 	@tools/pc-feature F=$(F) MANUAL=$(MANUAL)
+
+feature-status:
+	@args=""; \
+	if [ -n "$(WI)" ]; then args="$$args --wi $(WI)"; fi; \
+	if [ -n "$(ROOT)" ]; then args="$$args --root $(ROOT)"; fi; \
+	if [ "$(HISTORY)" = "1" ] || [ "$(HISTORY)" = "true" ]; then args="$$args --history"; fi; \
+	if [ "$(FOLLOW)" = "1" ] || [ "$(FOLLOW)" = "true" ]; then args="$$args --follow"; fi; \
+	if [ -n "$(LIMIT)" ]; then args="$$args --limit $(LIMIT)"; fi; \
+	if [ -n "$(INTERVAL)" ]; then args="$$args --interval $(INTERVAL)"; fi; \
+	tools/pc-feature-status $$args
 
 skills-check:
 	@bash -euo pipefail -c '\

@@ -1,0 +1,455 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+
+WORK_ITEM_RE = re.compile(r"^WI-\d{8}-\d{2}$")
+WORKFLOW_STATUS_FILENAME = "workflow-status.json"
+WORKFLOW_HISTORY_FILENAME = "workflow-history.ndjson"
+MAX_REASON_LEN = 140
+
+
+def normalize_reason(value: Any) -> str:
+    reason = " ".join(str(value or "").strip().split())
+    if len(reason) > MAX_REASON_LEN:
+        return reason[: MAX_REASON_LEN - 3] + "..."
+    return reason
+
+
+def format_duration(duration_ms: Any) -> str:
+    if isinstance(duration_ms, bool):
+        return ""
+    if isinstance(duration_ms, (int, float)):
+        value = float(duration_ms)
+        if value < 0:
+            value = 0.0
+        return f"{value / 1000.0:.2f}s"
+    return ""
+
+
+def work_item_directories(logs_root: Path) -> List[Path]:
+    if not logs_root.exists():
+        return []
+    items: List[Path] = []
+    for entry in logs_root.iterdir():
+        if entry.is_dir() and WORK_ITEM_RE.match(entry.name):
+            items.append(entry)
+    items.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    return items
+
+
+def parse_git_worktree_list(output: str) -> List[Path]:
+    paths: List[Path] = []
+    for raw in output.splitlines():
+        line = raw.strip()
+        if not line.startswith("worktree "):
+            continue
+        path_value = line[len("worktree ") :].strip()
+        if path_value:
+            paths.append(Path(path_value))
+    return paths
+
+
+def git_worktree_paths(root: Path) -> List[Path]:
+    root_path = root.resolve()
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(root_path),
+                "worktree",
+                "list",
+                "--porcelain",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return [root_path]
+    if result.returncode != 0:
+        return [root_path]
+
+    ordered: List[Path] = [root_path]
+    ordered.extend(path.resolve() for path in parse_git_worktree_list(result.stdout))
+    unique: List[Path] = []
+    seen = set()
+    for path in ordered:
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(path)
+    return unique
+
+
+def discover_logs_roots(root: Path) -> List[Path]:
+    roots: List[Path] = []
+    seen = set()
+    for worktree_path in git_worktree_paths(root):
+        logs_root = worktree_path / "logs"
+        key = str(logs_root.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        roots.append(logs_root)
+    if roots:
+        return roots
+    return [root.resolve() / "logs"]
+
+
+def resolve_work_item(logs_root: Path, work_item: Optional[str]) -> str:
+    if work_item:
+        candidate = work_item.strip()
+        if not WORK_ITEM_RE.match(candidate):
+            raise ValueError(
+                "pc-feature-status: invalid work item id; expected WI-YYYYMMDD-XX"
+            )
+        return candidate
+    items = work_item_directories(logs_root)
+    if not items:
+        raise ValueError(f"pc-feature-status: no work item logs found in {logs_root}")
+    return items[0].name
+
+
+def resolve_work_item_location(
+    logs_roots: Sequence[Path], work_item: Optional[str]
+) -> Tuple[str, Path]:
+    candidates = list(logs_roots)
+    if not candidates:
+        raise ValueError("pc-feature-status: logs roots are required")
+
+    if work_item:
+        normalized = resolve_work_item(candidates[0], work_item)
+        matches: List[Path] = []
+        for logs_root in candidates:
+            candidate = logs_root / normalized
+            if candidate.is_dir():
+                matches.append(candidate)
+        if matches:
+            matches.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+            selected = matches[0]
+            return selected.name, selected.parent
+        return normalized, candidates[0]
+
+    all_items: List[Path] = []
+    for logs_root in candidates:
+        all_items.extend(work_item_directories(logs_root))
+    if not all_items:
+        joined = ", ".join(str(path) for path in candidates)
+        raise ValueError(f"pc-feature-status: no work item logs found in {joined}")
+    all_items.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    selected = all_items[0]
+    return selected.name, selected.parent
+
+
+def read_json_object(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"pc-feature-status: invalid JSON in {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"pc-feature-status: expected JSON object in {path}")
+    return payload
+
+
+def parse_history_lines(lines: Sequence[str]) -> List[Dict[str, Any]]:
+    events: List[Dict[str, Any]] = []
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            events.append(payload)
+    return events
+
+
+def read_history(path: Path) -> List[Dict[str, Any]]:
+    if not path.exists():
+        return []
+    return parse_history_lines(path.read_text(encoding="utf-8").splitlines())
+
+
+def event_line(event: Mapping[str, Any]) -> str:
+    timestamp = str(event.get("timestamp", "")).strip() or "(unknown-ts)"
+    step = str(event.get("step", "unknown")).strip().upper()
+    action = str(event.get("event", "INFO")).strip().upper()
+    parts = [f"{timestamp} {step} {action}"]
+    attempt = event.get("attempt")
+    if isinstance(attempt, int):
+        parts.append(f"attempt={attempt}")
+    outcome = str(event.get("outcome", "")).strip()
+    if outcome:
+        parts.append(f"outcome={outcome}")
+    reason = normalize_reason(event.get("reason", ""))
+    if reason:
+        parts.append(f"reason={reason}")
+    duration = format_duration(event.get("duration_ms"))
+    if duration:
+        parts.append(f"duration={duration}")
+    return " ".join(parts)
+
+
+def slowest_steps(
+    status: Mapping[str, Any], history: Sequence[Mapping[str, Any]]
+) -> List[Tuple[str, int]]:
+    by_step: Dict[str, int] = {}
+    for event in history:
+        step = str(event.get("step", "")).strip()
+        duration = event.get("duration_ms")
+        if not step or not isinstance(duration, (int, float)):
+            continue
+        current = by_step.get(step)
+        normalized = int(max(float(duration), 0.0))
+        if current is None or normalized > current:
+            by_step[step] = normalized
+    if by_step:
+        return sorted(by_step.items(), key=lambda item: item[1], reverse=True)
+
+    steps = status.get("steps")
+    if not isinstance(steps, dict):
+        return []
+    fallback: List[Tuple[str, int]] = []
+    for step, entry in steps.items():
+        if not isinstance(entry, dict):
+            continue
+        duration = entry.get("last_duration_ms")
+        if isinstance(duration, (int, float)):
+            fallback.append((str(step), int(max(float(duration), 0.0))))
+    fallback.sort(key=lambda item: item[1], reverse=True)
+    return fallback
+
+
+def format_summary_lines(
+    work_item_id: str,
+    status: Mapping[str, Any],
+    history: Sequence[Mapping[str, Any]],
+    *,
+    logs_root: Optional[Path] = None,
+) -> List[str]:
+    lines = [f"work item: {work_item_id}"]
+    if logs_root is not None:
+        lines.append(f"logs root: {logs_root}")
+    if not status:
+        lines.append("state: unknown (workflow status not found)")
+    else:
+        state = str(status.get("state", "unknown")).strip() or "unknown"
+        lines.append(f"state: {state}")
+        feature_slug = str(status.get("feature_slug", "")).strip()
+        feature_id = str(status.get("feature_id", "")).strip()
+        mode = str(status.get("mode", "")).strip()
+        if feature_slug:
+            lines.append(f"feature: {feature_slug}")
+        if feature_id:
+            lines.append(f"feature-id: {feature_id}")
+        if mode:
+            lines.append(f"mode: {mode}")
+        started_at = str(status.get("started_at", "")).strip()
+        updated_at = str(status.get("updated_at", "")).strip()
+        if started_at:
+            lines.append(f"started: {started_at}")
+        if updated_at:
+            lines.append(f"updated: {updated_at}")
+
+    current_step = str(status.get("current_step", "")).strip() if status else ""
+    current_attempt = status.get("current_attempt") if status else None
+    if current_step:
+        current = f"current step: {current_step}"
+        if isinstance(current_attempt, int):
+            current += f" (attempt {current_attempt})"
+        lines.append(current)
+    else:
+        lines.append("current step: (idle)")
+
+    last_event = status.get("last_event") if isinstance(status, dict) else None
+    if isinstance(last_event, dict) and last_event:
+        lines.append("last event: " + event_line(last_event))
+    elif history:
+        lines.append("last event: " + event_line(history[-1]))
+    else:
+        lines.append("last event: (none)")
+
+    steps = status.get("steps") if isinstance(status, dict) else None
+    if isinstance(steps, dict) and steps:
+        lines.append("steps:")
+        for step in sorted(steps):
+            entry = steps[step]
+            if not isinstance(entry, dict):
+                continue
+            event = str(entry.get("last_event", "unknown")).strip() or "unknown"
+            row = f"- {step}: {event}"
+            attempt = entry.get("last_attempt")
+            if isinstance(attempt, int):
+                row += f", attempt={attempt}"
+            runs = entry.get("runs")
+            if isinstance(runs, int):
+                row += f", runs={runs}"
+            outcome = str(entry.get("last_outcome", "")).strip()
+            if outcome:
+                row += f", outcome={outcome}"
+            duration = format_duration(entry.get("last_duration_ms"))
+            if duration:
+                row += f", duration={duration}"
+            reason = normalize_reason(entry.get("last_reason", ""))
+            if reason:
+                row += f", reason={reason}"
+            lines.append(row)
+
+    ranking = slowest_steps(status, history)
+    if ranking:
+        lines.append("slowest steps:")
+        for idx, (step, duration_ms) in enumerate(ranking[:5], start=1):
+            lines.append(f"{idx}. {step} - {format_duration(duration_ms)}")
+
+    return lines
+
+
+def format_history_lines(
+    events: Sequence[Mapping[str, Any]], *, limit: Optional[int] = 20
+) -> List[str]:
+    if not events:
+        return ["history: (none)"]
+    visible = list(events)
+    if limit and limit > 0:
+        visible = visible[-limit:]
+    lines = [f"history: showing {len(visible)} of {len(events)} event(s)"]
+    lines.extend("- " + event_line(event) for event in visible)
+    return lines
+
+
+def load_new_history_events(
+    history_path: Path, seen_count: int
+) -> Tuple[List[Dict[str, Any]], int]:
+    events = read_history(history_path)
+    if seen_count < 0:
+        seen_count = 0
+    if seen_count >= len(events):
+        return [], len(events)
+    return events[seen_count:], len(events)
+
+
+def follow_history(
+    history_path: Path,
+    *,
+    seen_count: int,
+    interval: float,
+) -> int:
+    print(
+        f"pc-feature-status: following {history_path} (Ctrl-C to stop)",
+        flush=True,
+    )
+    try:
+        while True:
+            time.sleep(interval)
+            new_events, seen_count = load_new_history_events(history_path, seen_count)
+            for event in new_events:
+                print(event_line(event), flush=True)
+    except KeyboardInterrupt:
+        print("pc-feature-status: stopped")
+        return 0
+
+
+def parse_args(argv: Sequence[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Show current and historical state for pc-feature workflow runs."
+    )
+    parser.add_argument(
+        "--wi",
+        dest="work_item_id",
+        help="Work item id (WI-YYYYMMDD-XX). Defaults to latest work item under logs/.",
+    )
+    parser.add_argument(
+        "--root",
+        dest="root",
+        default=str(Path(__file__).resolve().parents[1]),
+        help="Repository root (defaults to current script repo).",
+    )
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="Print workflow history events.",
+    )
+    parser.add_argument(
+        "--follow",
+        action="store_true",
+        help="Continuously follow workflow history events.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Maximum number of history events to show.",
+    )
+    parser.add_argument(
+        "--interval",
+        type=float,
+        default=1.0,
+        help="Polling interval in seconds for --follow.",
+    )
+    args = parser.parse_args(list(argv))
+    if args.limit < 1:
+        parser.error("--limit must be >= 1")
+    if args.interval <= 0:
+        parser.error("--interval must be > 0")
+    return args
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv or sys.argv[1:])
+    root = Path(args.root).resolve()
+    logs_roots = discover_logs_roots(root)
+    try:
+        work_item_id, logs_root = resolve_work_item_location(
+            logs_roots, args.work_item_id
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    work_item_dir = logs_root / work_item_id
+    status_path = work_item_dir / WORKFLOW_STATUS_FILENAME
+    history_path = work_item_dir / WORKFLOW_HISTORY_FILENAME
+    try:
+        status = read_json_object(status_path)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    history = read_history(history_path)
+
+    for line in format_summary_lines(
+        work_item_id, status, history, logs_root=logs_root
+    ):
+        print(line)
+
+    if args.history or args.follow:
+        print("")
+        history_lines = format_history_lines(history, limit=args.limit)
+        for line in history_lines:
+            print(line)
+
+    if args.follow:
+        return follow_history(
+            history_path,
+            seen_count=len(history),
+            interval=args.interval,
+        )
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
