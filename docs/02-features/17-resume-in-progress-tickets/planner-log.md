@@ -388,3 +388,26 @@ Approach:
 Required note: non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit those files.
 
 Work Item ID: WI-20260212-03
+
+### WI-20260212-04 - 2026-02-12
+
+Updated `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260212-04` with:
+
+- Filled `#### Allowed Tests` using exact commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+- Replaced `#### Plan` placeholder with a `Plan Contract v1` block in the exact required structure.
+- Included explicit anti-hardcode coverage in every approach step:
+  - fixture coverage (`>=2 fixtures per critical path`)
+  - deterministic seed strategy
+  - invariant checks
+  - contract boundary coverage
+- Ensured all concrete test commands in the plan are verbatim from Allowed Tests.
+- Added explicit handoff note: non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned and patcher will not edit them.
+- Added `Systematic review` command log entries in the WI preflight block.
+
+Could not commit due sandbox restrictions on git metadata path:
+
+- `fatal: Unable to create .../.git/worktrees/.../index.lock: Operation not permitted`
+
+So the change is present locally but uncommitted.
