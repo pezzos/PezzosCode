@@ -37,3 +37,9 @@
 ## Ownership Note
 
 - Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator and were not edited by patcher.
+
+## Reporter/Orchestrator Handoff Requirement
+
+- Release-readiness remains pending until reporter/orchestrator completes `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260212-03` execution metadata and the `Patch`, `Test Results`, and `Reporter Review` sections.
+- This patcher step intentionally did not edit `dev-tasks.md` per role/file ownership constraints in the current prompt.
+- Required next action before final reporter re-review: reporter/orchestrator updates `dev-tasks.md` execution record fields from `(pending)` to concrete evidence and reruns reporter review checks.
