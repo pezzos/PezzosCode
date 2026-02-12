@@ -466,3 +466,9 @@ If you want, I can proceed with a non-committing handoff only, or adjust around 
 Step Planner revise after Plan Reviewer BLOCK at attempt 1.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260212-05 - 2026-02-12
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - plan test commands must be listed in Allowed Tests: `python3 -m unittest tests.test_pc_feature.TestPcFeature` Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
