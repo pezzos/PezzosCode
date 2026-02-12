@@ -69,7 +69,6 @@
 
 #### Allowed Tests
 
-- `pytest tests/test_pc_feature.py::TestPcFeature`
 - `python -m unittest tests.test_pc_feature.TestPcFeature`
 
 #### Files to Change
@@ -156,6 +155,10 @@ Commit status:
 - Attempt 1: plan-reviewer no-op; reason=blocked by invalid allowed tests.
 - Attempt 1: patcher no-op; reason=blocked by invalid allowed tests.
 - Attempt 1: reporter no-op; reason=blocked by invalid allowed tests.
+- Attempt 2: allowed-tests validation failed; routed back to planner (tester_retry=2/3). Issues: missing targets: tests.test_pc_feature.TestPcFeature.
+- Attempt 2: plan-reviewer no-op; reason=blocked by invalid allowed tests.
+- Attempt 2: patcher no-op; reason=blocked by invalid allowed tests.
+- Attempt 2: reporter no-op; reason=blocked by invalid allowed tests.
 
 #### Commit
 
