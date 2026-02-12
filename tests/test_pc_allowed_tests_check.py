@@ -96,6 +96,28 @@ class TestPcAllowedTestsCheck(unittest.TestCase):
                 )
             self.assertEqual(missing, ["tests/test_missing.py"])
 
+    def test_check_command_rejects_bare_unittest_command(self):
+        missing = self.pc_allowed_tests_check.check_command("python -m unittest")
+        self.assertEqual(missing, ["unittest requires explicit test target"])
+
+    def test_check_command_rejects_discover_without_explicit_start_dir(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tests_dir = root / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_sample.py").write_text(
+                "import unittest\n", encoding="utf-8"
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "python -m unittest discover"
+                )
+        self.assertEqual(missing, ["discover requires explicit start directory"])
+
+    def test_check_command_rejects_pytest_without_explicit_target(self):
+        missing = self.pc_allowed_tests_check.check_command("python -m pytest -q")
+        self.assertEqual(missing, ["pytest requires explicit test target"])
+
     def test_check_command_rejects_make_ci(self):
         missing = self.pc_allowed_tests_check.check_command("make ci")
         self.assertEqual(missing, ["forbidden command: make ci"])

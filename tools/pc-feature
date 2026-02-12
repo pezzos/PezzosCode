@@ -3230,6 +3230,243 @@ def parse_labeled_line(text: str, label: str) -> str:
     return ""
 
 
+def entry_block_text(content: str, work_item_id: str) -> str:
+    lines = content.splitlines()
+    start, end = find_entry_block(lines, work_item_id)
+    return "\n".join(lines[start:end])
+
+
+def build_runtime_patch_reconciliation_body() -> str:
+    return (
+        "- Runtime reconciliation: patch step completed in this execution loop.\n"
+        "- Source artifacts: patcher role commit and scoped diff."
+    )
+
+
+def build_runtime_test_results_body(tester_feedback: str) -> str:
+    lines = [
+        "- Runtime reconciliation: derived from tester feedback in this execution loop."
+    ]
+    outcome = parse_section_outcome(tester_feedback)
+    tests_run = parse_labeled_line(tester_feedback, "Tests run")
+    notes = parse_labeled_line(tester_feedback, "Notes")
+    if outcome:
+        lines.append(f"- Outcome: {outcome}")
+    if tests_run:
+        lines.append(f"- Tests run: {tests_run}")
+    if notes:
+        lines.append(f"- Notes: {summarize_feedback(notes, max_chars=220)}")
+    return "\n".join(lines)
+
+
+def build_runtime_reporter_review_body(reporter_feedback: str) -> str:
+    lines = [
+        "- Runtime reconciliation: derived from reporter feedback in this execution loop."
+    ]
+    outcome = parse_section_outcome(reporter_feedback)
+    docs_updated = parse_labeled_line(reporter_feedback, "Docs/logs updated")
+    notes = parse_labeled_line(reporter_feedback, "Notes")
+    if outcome:
+        lines.append(f"- Outcome: {outcome}")
+    if docs_updated:
+        lines.append(f"- Docs/logs updated: {docs_updated}")
+    if notes:
+        lines.append(f"- Notes: {summarize_feedback(notes, max_chars=220)}")
+    return "\n".join(lines)
+
+
+def ensure_entry_field_if_missing(
+    content: str, work_item_id: str, field: str, value: str
+) -> Tuple[str, bool]:
+    candidate = value.strip()
+    if not candidate:
+        return content, False
+    if get_entry_field(content, work_item_id, field).strip():
+        return content, False
+    return update_entry_field(content, work_item_id, field, candidate), True
+
+
+def reconcile_runtime_execution_record(
+    content: str,
+    work_item_id: str,
+    *,
+    patch_completed: bool,
+    tester_feedback: str,
+    reporter_feedback: str,
+    reporter_outcome: str,
+) -> Tuple[str, List[str]]:
+    updated = content
+    repaired: List[str] = []
+
+    if patch_completed:
+        if resume_section_is_pending(updated, work_item_id, "Patch"):
+            updated = replace_entry_section(
+                updated,
+                work_item_id,
+                "Patch",
+                build_runtime_patch_reconciliation_body(),
+            )
+            repaired.append("Patch")
+        updated, field_changed = ensure_entry_field_if_missing(
+            updated, work_item_id, "Patcher", "Codex"
+        )
+        if field_changed:
+            repaired.append("field:Patcher")
+
+    if tester_feedback.strip():
+        if resume_section_is_pending(updated, work_item_id, "Test Results"):
+            updated = replace_entry_section(
+                updated,
+                work_item_id,
+                "Test Results",
+                build_runtime_test_results_body(tester_feedback),
+            )
+            repaired.append("Test Results")
+        updated, field_changed = ensure_entry_field_if_missing(
+            updated, work_item_id, "Tester", "Codex"
+        )
+        if field_changed:
+            repaired.append("field:Tester")
+        tests_run = parse_labeled_line(tester_feedback, "Tests run")
+        updated, field_changed = ensure_entry_field_if_missing(
+            updated, work_item_id, "Tests run", tests_run
+        )
+        if field_changed:
+            repaired.append("field:Tests run")
+
+    if reporter_feedback.strip():
+        updated, field_changed = ensure_entry_field_if_missing(
+            updated, work_item_id, "Reporter", "Codex"
+        )
+        if field_changed:
+            repaired.append("field:Reporter")
+        docs_updated = parse_labeled_line(reporter_feedback, "Docs/logs updated")
+        updated, field_changed = ensure_entry_field_if_missing(
+            updated, work_item_id, "Docs/logs updated", docs_updated
+        )
+        if field_changed:
+            repaired.append("field:Docs/logs updated")
+        if reporter_outcome != "SKIPPED" and resume_section_is_pending(
+            updated, work_item_id, "Reporter Review"
+        ):
+            updated = replace_entry_section(
+                updated,
+                work_item_id,
+                "Reporter Review",
+                build_runtime_reporter_review_body(reporter_feedback),
+            )
+            repaired.append("Reporter Review")
+
+    return updated, repaired
+
+
+def execution_handoff_completeness_issues(
+    content: str, work_item_id: str, *, require_reporter_review: bool
+) -> List[str]:
+    issues: List[str] = []
+    sections = ["Patch", "Test Results"]
+    if require_reporter_review:
+        sections.append("Reporter Review")
+    for section in sections:
+        body = get_entry_section(content, work_item_id, section)
+        if not body.strip() or "(pending)" in body:
+            issues.append(f"{section} section still contains pending placeholders")
+            continue
+        if section in {"Test Results", "Reporter Review"} and not parse_section_outcome(
+            body
+        ):
+            issues.append(f"{section} section is missing an Outcome line")
+
+    fields = ["Patcher", "Tester", "Tests run"]
+    if require_reporter_review:
+        fields.extend(["Reporter", "Docs/logs updated"])
+    for field in fields:
+        if not get_entry_field(content, work_item_id, field).strip():
+            issues.append(f"top execution field is blank: {field}")
+    return issues
+
+
+def required_compacted_output_paths(content: str, work_item_id: str) -> List[str]:
+    raw_text = entry_block_text(content, work_item_id)
+    entry_text = raw_text.lower()
+    required: Set[str] = set()
+    for path in compacted_log_output_paths().values():
+        normalized = normalize_repo_rel(path)
+        basename = os.path.basename(normalized)
+        if normalized.lower() in entry_text or basename.lower() in entry_text:
+            required.add(normalized)
+    for match in re.findall(r"docs/03-logs/compacted/[^\s,`]+", raw_text):
+        normalized = normalize_repo_rel(match)
+        basename = os.path.basename(normalized).lower()
+        if (
+            "decision-log-compact" in basename
+            or "implementation-log-compact" in basename
+            or "validation-log-compact" in basename
+        ):
+            required.add(normalized)
+    if "docs/03-logs/compacted/*" in entry_text:
+        required.update(
+            normalize_repo_rel(path) for path in compacted_log_output_paths().values()
+        )
+    return sorted(required)
+
+
+def missing_compacted_output_paths(
+    worktree_path: str, required_paths: List[str]
+) -> List[str]:
+    missing: List[str] = []
+    for path in required_paths:
+        absolute = os.path.join(worktree_path, normalize_repo_rel(path))
+        if not os.path.exists(absolute):
+            missing.append(normalize_repo_rel(path))
+    return sorted(set(missing))
+
+
+def reporter_traceability_issues(
+    reporter_feedback: str, required_compacted_paths: List[str]
+) -> List[str]:
+    if not required_compacted_paths:
+        return []
+    docs_updated = parse_labeled_line(reporter_feedback, "Docs/logs updated")
+    if not docs_updated:
+        return ["reporter feedback is missing Docs/logs updated summary"]
+    lowered = docs_updated.lower()
+    markers = (
+        "compacted",
+        "docs/03-logs",
+        "implementation-log",
+        "validation-log",
+        "decision-log",
+    )
+    if any(marker in lowered for marker in markers):
+        return []
+    return ["reporter Docs/logs updated summary lacks compacted/traceability evidence"]
+
+
+def build_reporter_handoff_block_feedback(
+    *,
+    work_item_id: str,
+    dev_tasks_repo_path: str,
+    issues: List[str],
+    prefix_note: str,
+) -> str:
+    issue_summary = "; ".join(sorted(set(issues))) if issues else "(none)"
+    expected_fix = (
+        "Populate execution metadata (`Patch`, `Test Results`, `Reporter Review`, top fields) "
+        "and ensure required compacted outputs plus traceability evidence are present."
+    )
+    return (
+        "Outcome: FAIL\n"
+        "Docs/logs updated: reporter deferred\n"
+        f"Notes: {prefix_note} ({issue_summary}).\n"
+        f"File/Path: {dev_tasks_repo_path}\n"
+        "Check: Work-item execution record completeness and reporter handoff readiness.\n"
+        f"Evidence: {issue_summary}\n"
+        f"Expected fix: {expected_fix}\n"
+        f"Work Item ID: {work_item_id}\n"
+    )
+
+
 def read_role_log_artifact(
     log_path: Optional[str], work_item_id: str
 ) -> Dict[str, Any]:
@@ -4871,6 +5108,24 @@ def main() -> None:
             work_item_id,
             feature_dir,
         )
+        content = read_file(dev_tasks_path)
+        content, runtime_updates = reconcile_runtime_execution_record(
+            content,
+            work_item_id,
+            patch_completed=True,
+            tester_feedback=tester_feedback,
+            reporter_feedback="",
+            reporter_outcome="",
+        )
+        if runtime_updates:
+            content = append_iteration_log_note(
+                content,
+                work_item_id,
+                "Runtime reconciliation updated execution record after tester step: "
+                + ", ".join(runtime_updates)
+                + ".",
+            )
+        write_file(dev_tasks_path, content)
 
         if tester_outcome != "PASS":
             reporter_feedback = (
@@ -4879,6 +5134,7 @@ def main() -> None:
                 "Notes: Reporter skipped because tester failed; planner must replan before review.\n"
                 f"Work Item ID: {work_item_id}\n"
             )
+            reporter_outcome = "SKIPPED"
             ensure_role_log(
                 os.path.join(reporter_path, role_paths["reporter"]), "reporter"
             )
@@ -4897,6 +5153,22 @@ def main() -> None:
                 feature_dir,
             )
             content = read_file(dev_tasks_path)
+            content, runtime_updates = reconcile_runtime_execution_record(
+                content,
+                work_item_id,
+                patch_completed=True,
+                tester_feedback=tester_feedback,
+                reporter_feedback=reporter_feedback,
+                reporter_outcome=reporter_outcome,
+            )
+            if runtime_updates:
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Runtime reconciliation updated execution record after reporter skip: "
+                    + ", ".join(runtime_updates)
+                    + ".",
+                )
             content = append_noop_step_note(
                 content,
                 work_item_id,
@@ -4905,34 +5177,102 @@ def main() -> None:
                 reason="tester failed",
             )
             write_file(dev_tasks_path, content)
-            reporter_outcome = "SKIPPED"
         else:
-            reporter_note = ""
-            if requires_global_logs:
-                reporter_note = (
-                    "Global logs will be auto-appended after gates when process docs change. "
-                    "Do not fail solely due to missing docs/03-logs updates; note any gaps."
+            pre_reporter_issues = execution_handoff_completeness_issues(
+                content, work_item_id, require_reporter_review=False
+            )
+            if pre_reporter_issues:
+                reporter_feedback = build_reporter_handoff_block_feedback(
+                    work_item_id=work_item_id,
+                    dev_tasks_repo_path=dev_tasks_repo_path,
+                    issues=pre_reporter_issues,
+                    prefix_note=("Reporter blocked by pre-handoff completeness gate"),
                 )
-            reporter_prompt = render_prompt_template(
-                load_prompt_template("reporter", "review"),
-                {
-                    "work_item_id": work_item_id,
-                    "reporter_note": reporter_note,
-                    "feature_dir": feature_dir,
-                    "dev_tasks_path": dev_tasks_repo_path,
-                },
+                reporter_outcome = "FAIL"
+            else:
+                reporter_note = ""
+                if requires_global_logs:
+                    reporter_note = (
+                        "Global logs will be auto-appended after gates when process docs change. "
+                        "Do not fail solely due to missing docs/03-logs updates; note any gaps."
+                    )
+                reporter_prompt = render_prompt_template(
+                    load_prompt_template("reporter", "review"),
+                    {
+                        "work_item_id": work_item_id,
+                        "reporter_note": reporter_note,
+                        "feature_dir": feature_dir,
+                        "dev_tasks_path": dev_tasks_repo_path,
+                    },
+                )
+                reporter_feedback = codex_exec(
+                    reporter_prompt,
+                    cwd=reporter_path,
+                    profile="Reporter",
+                    runner_metadata=runner_metadata,
+                    root=str(runner_root),
+                ).strip()
+                reporter_feedback = with_failure_context_guard(
+                    reporter_feedback, role="reporter"
+                )
+                reporter_outcome = parse_outcome(reporter_feedback)
+            content = read_file(dev_tasks_path)
+            content, runtime_updates = reconcile_runtime_execution_record(
+                content,
+                work_item_id,
+                patch_completed=True,
+                tester_feedback=tester_feedback,
+                reporter_feedback=reporter_feedback,
+                reporter_outcome=reporter_outcome,
             )
-            reporter_feedback = codex_exec(
-                reporter_prompt,
-                cwd=reporter_path,
-                profile="Reporter",
-                runner_metadata=runner_metadata,
-                root=str(runner_root),
-            ).strip()
-            reporter_feedback = with_failure_context_guard(
-                reporter_feedback, role="reporter"
-            )
-            reporter_outcome = parse_outcome(reporter_feedback)
+            if runtime_updates:
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Runtime reconciliation updated execution record after reporter step: "
+                    + ", ".join(runtime_updates)
+                    + ".",
+                )
+            post_reporter_issues: List[str] = []
+            if reporter_outcome == "PASS":
+                post_reporter_issues.extend(
+                    execution_handoff_completeness_issues(
+                        content, work_item_id, require_reporter_review=True
+                    )
+                )
+                required_compacted_paths = required_compacted_output_paths(
+                    content, work_item_id
+                )
+                missing_compacted = missing_compacted_output_paths(
+                    patcher_path, required_compacted_paths
+                )
+                post_reporter_issues.extend(
+                    f"required compacted output missing: {path}"
+                    for path in missing_compacted
+                )
+                post_reporter_issues.extend(
+                    reporter_traceability_issues(
+                        reporter_feedback, required_compacted_paths
+                    )
+                )
+            if post_reporter_issues:
+                reporter_feedback = build_reporter_handoff_block_feedback(
+                    work_item_id=work_item_id,
+                    dev_tasks_repo_path=dev_tasks_repo_path,
+                    issues=post_reporter_issues,
+                    prefix_note=(
+                        "Reporter PASS blocked by post-review completeness gate"
+                    ),
+                )
+                reporter_outcome = "FAIL"
+                content = replace_entry_section(
+                    content,
+                    work_item_id,
+                    "Reporter Review",
+                    build_runtime_reporter_review_body(reporter_feedback),
+                )
+            write_file(dev_tasks_path, content)
+
             ensure_role_log(
                 os.path.join(reporter_path, role_paths["reporter"]), "reporter"
             )

@@ -1269,3 +1269,19 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Final gate CI attempts execute in patcher worktree context.
   - Collection into `main` is deferred until after final gates pass.
   - Proposal generation/dedupe tests no longer depend on mutable `docs/possible-improvements.md` content.
+
+## 2026-02-12 - Validate allowed-tests hardening and reporter handoff gates
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_allowed_tests_check.py'`
+- Result: PASS (offload id `1607edbfae007ff56d6138df5d24d28abfe4b1ef27902563e1bb9ad258e5c4ec`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `ed8566fcb99b33bcb51ef34ad3e4ce9179d0dcc969be9df49d9b9f23404adf64`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload id `e06b9f39ffa6a37eb7e0ddbf888a877bfb95b2d9a1bfebf05e67a0a6785adc45`)
+- Notes:
+  - An initial in-sandbox `make ci` attempt failed with a permissions error while running `end-of-file-fixer` against `.codex/skills/*` (offload id `ec926e1f6404a00b70e4ebad800daff078dfb8f234bfab0d03e6bfe277448419`).
+  - Re-running `make ci` with elevated permissions completed successfully.
+- Command: `tools/offload-proxy/pp make ci` (post-doc/log update rerun)
+- Result: PASS (offload id `6e78771e190c8b1bc9cf98356d3145947b03420d105141a03f1903845313e3ae`)
+- Command: `tools/offload-proxy/pp make ci` (final rerun)
+- Result: PASS (offload id `391e8d1301850e473a248c6d651f1d850b2ad6c7fb6cbecb14b1b45d0d8c852f`)

@@ -5682,3 +5682,21 @@ Track when debt is paid down:
 
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS, offload id `17a8ec41f09e37973a3a896ec4b15c325638f8da2cfc2f65a704f751c97ea614`)
 - `tools/offload-proxy/pp make ci` (PASS, offload id `ba175e3a0d04c6934e3fb6a78a4d31209981be22425e6717288083c253dbc2bf`)
+
+## 2026-02-12 - Harden reporter handoff gating and allowed-tests strictness
+
+- Tightened `tools/pc-allowed-tests-check` so Allowed Tests must be explicit, existing unittest/pytest targets:
+  - reject bare `python -m unittest`
+  - reject `python -m unittest discover` without explicit `-s/--start-directory` (or positional start dir)
+  - reject bare `pytest` / `python -m pytest` without explicit test targets
+- Added runtime execution-record reconciliation in `tools/pc-feature` to remove placeholder drift during execution by auto-filling:
+  - `Patch`, `Test Results`, `Reporter Review`
+  - top fields: `Patcher`, `Tester`, `Reporter`, `Tests run`, `Docs/logs updated`
+- Added deterministic reporter handoff gates in `tools/pc-feature`:
+  - pre-reporter completeness gate blocks reporter review when pending placeholders or blank execution metadata remain
+  - post-reporter gate blocks `PASS` when required compacted outputs are missing or reporter traceability evidence is absent
+- Added compacted output requirement detection in `tools/pc-feature` that reads WI entry content (explicit paths and `docs/03-logs/compacted/*`) and validates required artifacts from a centralized resolver.
+- Updated tests in:
+  - `tests/test_pc_allowed_tests_check.py`
+  - `tests/test_pc_feature.py`
+- Cleaned `docs/possible-improvements.md` by removing implemented proposals and keeping unresolved proposals only.

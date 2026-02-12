@@ -38,6 +38,7 @@ def check_unittest_discover(args: list[str]) -> list[str]:
     start_dir: str | None = None
     pattern: str | None = None
     top_level_dir: str | None = None
+    explicit_start_dir = False
     positional: list[str] = []
     idx = 0
     while idx < len(args):
@@ -56,6 +57,7 @@ def check_unittest_discover(args: list[str]) -> list[str]:
             value = args[idx + 1]
             if arg in {"-s", "--start-directory"}:
                 start_dir = value
+                explicit_start_dir = True
             elif arg in {"-p", "--pattern"}:
                 pattern = value
             else:
@@ -71,6 +73,7 @@ def check_unittest_discover(args: list[str]) -> list[str]:
     if positional:
         if start_dir is None:
             start_dir = positional[0]
+            explicit_start_dir = True
         if len(positional) > 1 and pattern is None:
             pattern = positional[1]
         if len(positional) > 2 and top_level_dir is None:
@@ -80,6 +83,9 @@ def check_unittest_discover(args: list[str]) -> list[str]:
         start_dir = "."
     if pattern is None:
         pattern = "test*.py"
+    if not explicit_start_dir:
+        missing.append("discover requires explicit start directory")
+        return missing
 
     start = Path(start_dir)
     if not start.exists() or not start.is_dir():
@@ -99,7 +105,7 @@ def check_unittest_discover(args: list[str]) -> list[str]:
 
 def check_unittest(parts: list[str]) -> list[str]:
     if len(parts) <= 3:
-        return []
+        return ["unittest requires explicit test target"]
     if parts[3] == "discover":
         return check_unittest_discover(parts[4:])
     return check_unittest_targets(parts[3:])
@@ -107,6 +113,7 @@ def check_unittest(parts: list[str]) -> list[str]:
 
 def check_pytest(parts: list[str], start_idx: int) -> list[str]:
     missing: list[str] = []
+    has_target = False
     options_with_value = {
         "-k",
         "-m",
@@ -127,9 +134,12 @@ def check_pytest(parts: list[str], start_idx: int) -> list[str]:
             idx += 1
             continue
         target = arg.split("::", 1)[0]
+        has_target = True
         if not os.path.exists(target):
             missing.append(arg)
         idx += 1
+    if not has_target:
+        missing.append("pytest requires explicit test target")
     return missing
 
 

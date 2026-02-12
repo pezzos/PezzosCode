@@ -47,50 +47,6 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 
 ---
 
-### Proposal: WI-20260212-04 - Report
-
-**Date:** 2026-02-12
-**Work Item:** WI-20260212-04
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 130 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: Updated `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` with `### WI-20260212-04 (rerun 2) - 2026-02-12`. File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`. Evidence: Primary scope view from this run shows in-scope WI artifacts but incomplete ex...
-**Proposed Improvement:** Add a post-tester handoff checklist item that blocks reporter PASS when WI execution placeholders remain.
-**Proposed Patch Location:** `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` (WI-20260212-04 block), `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
-**Risks / Trade-offs:** Keeping FAIL blocks closure despite passing tests, but preserves traceability and prevents incomplete orchestration records.
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
-### Proposal: WI-20260212-04 - Report
-
-**Date:** 2026-02-12
-**Work Item:** WI-20260212-04
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 130 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: Updated `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` with `### WI-20260212-04 (rerun) - 2026-02-12`. File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`. Evidence: Primary scope view from this run (`git status --short`, `git diff --stat refs/he...
-**Proposed Improvement:** Populate `WI-20260212-04`execution metadata and sections in`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`(top role fields plus`Patch`, `Test Results`, `Reporter Review`), then rerun reporter review.
-**Proposed Patch Location:** `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`**Risks / Trade-offs:** Reporter: Work-item execution record completeness and reporter handoff readiness for`WI-20260212-04`.; Primary scope view from this run (`git status --short`, `git diff --stat refs/heads...
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
-### Proposal: WI-20260212-04 - Report
-
-**Date:** 2026-02-12
-**Work Item:** WI-20260212-04
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 130 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: Updated `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` with the WI-20260212-04 reporter entry. File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`. Evidence: Primary scope checks (`git status --short`, `git diff --stat refs/heads/main..HEAD`) sho...
-**Proposed Improvement:** Populate WI-20260212-04 execution metadata and sections in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` (including `Patch`, `Test Results`, `Reporter Review`, and top execution fields), then rerun reporter review.
-**Proposed Patch Location:** `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
-**Risks / Trade-offs:** Reporter: Work-item execution record completeness and reporter handoff readiness for `WI-20260212-04`.; Primary scope checks (`git status --short`, `git diff --stat refs/heads/main..HEAD`...
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
 ### Proposal: WI-20260211-03 - Orchestration
 
 **Date:** 2026-02-11
@@ -101,50 +57,6 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 **Proposed Improvement:** TBD - investigate failure and propose remediation.
 **Proposed Patch Location:** TBD
 **Risks / Trade-offs:** None noted.
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
-### Proposal: WI-20260211-03 - Report
-
-**Date:** 2026-02-11
-**Work Item:** WI-20260211-03
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 124 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` (added `### WI-20260211-03 - 2026-02-11 (rerun-2)` entry). File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: WI-20260211-03 execution record completeness and consistency with current scope. Evidence: Primary scope checks: `git status --short` shows reporter-log modified and untracked `log...
-**Proposed Improvement:** Add a pre-reporter completeness gate that blocks reporter review when active WI sections still contain `(pending)`.
-**Proposed Patch Location:** `tools/pc-feature`(reporter handoff gate) and`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`(WI-03 closeout fields).,`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
-**Risks / Trade-offs:** Stricter gating may increase retry frequency but prevents false-positive completion/review states.
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
-### Proposal: WI-20260211-03 - Report
-
-**Date:** 2026-02-11
-**Work Item:** WI-20260211-03
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 120 items; `python3 -m unittest tests.test_docs_logs` => Ran 9 tests Work Ite...; reporter_feedback=Outcome: FAIL Docs/logs updated: `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` (added `### WI-20260211-03 - 2026-02-11 (rerun)` entry). File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: WI-20260211-03 execution record completeness and consistency with current scope. Evidence: `git status --short` shows `?? logs/WI-20260211-03/` and reporter-log modification only; `g...
-**Proposed Improvement:** Add an orchestrator guard that blocks reporter PASS when WI sections in `dev-tasks.md`still contain`(pending)`markers.
-**Proposed Patch Location:**`tools/pc-feature`(pre-reporter completeness gate) and/or orchestration step checks.,`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
-**Risks / Trade-offs:** Stricter gating may increase retries for partial docs updates but prevents false-positive completion states.
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
-### Proposal: WI-20260211-03 - Report
-
-**Date:** 2026-02-11
-**Work Item:** WI-20260211-03
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 120 items; `python3 -m unittest tests.test_docs_logs` => Ran 9 tests Work Ite...; reporter_feedback=Outcome: FAIL Docs/logs updated: `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` (added WI-20260211-03 review entry) File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: WI-20260211-03 execution record completeness and consistency with current artifacts/scope. Evidence: `git diff --stat refs/heads/main..HEAD` shows implementation/test/docs scope for WI-03 (`tools/pc-feat...
-**Proposed Improvement:** Update WI-20260211-03 in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`so execution fields reflect actual patch/test/reporter state and set a consistent work-item outcome.
-**Proposed Patch Location:**`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`**Risks / Trade-offs:** Reporter: WI-20260211-03 execution record completeness and consistency with current artifacts/scope.;`git diff --stat refs/heads/main..HEAD` shows implementation/test/docs scope for WI-0...
 **Status:** Proposed
 **Decision Log Ref:** DEC-TBD
 
@@ -190,50 +102,6 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 **Proposed Improvement:** TBD - investigate failure and propose remediation.
 **Proposed Patch Location:** TBD
 **Risks / Trade-offs:** None noted.
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
-### Proposal: WI-20260209-01 - Report
-
-**Date:** 2026-02-09
-**Work Item:** WI-20260209-01
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester*feedback=Outcome: PASS Tests run: `python -m unittest discover -s tests -p 'test*\_.py'`Notes: Results:`python -m unittest discover -s tests -p 'test\_\_.py'`-> 0 Discovery: no explicit discovery summary found in command output. Work Item ID: WI-20260209-01; reporter_feedback=Outcome: FAIL Docs/logs updated:`docs/02-features/15-offload-audit-and-log-compaction/reporter-log.md`File/Path:`docs/03-logs/compacted/`Check: Compacted outputs must be written to the derived location defined in the feature spec and dev tasks. Evidence:`docs/03-logs/compacted/`is missing; compacted outputs are present under`docs/02-features/WI-20260209-01/compacted`. Feature spec and dev tasks require `doc...
-**Proposed Improvement:** Centralize the compaction output path in a single constant/config to avoid drift.
-**Proposed Patch Location:** `tools/pc-feature` or the compaction skill implementation (path resolver)., `docs/03-logs/compacted/`
-**Risks / Trade-offs:** None beyond re-running compaction.
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
-### Proposal: WI-20260209-01 - Report
-
-**Date:** 2026-02-09
-**Work Item:** WI-20260209-01
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester*feedback=Outcome: PASS Tests run: `python -m unittest discover -s tests -p 'test*\_.py'`Notes: Results:`python -m unittest discover -s tests -p 'test\_\_.py'`-> 0 Discovery: no explicit discovery summary found in command output. Work Item ID: WI-20260209-01; reporter_feedback=Outcome: FAIL Docs/logs updated:`docs/02-features/15-offload-audit-and-log-compaction/reporter-log.md`File/Path:`docs/03-logs/compacted/`Check: Compacted outputs must be written to the derived location defined in the feature spec. Evidence:`docs/03-logs/compacted/`is missing; compacted outputs are present under`docs/02-features/WI-20260209-01/compacted`. Feature spec requires `docs/03-logs/compacted/`. Expe...
-**Proposed Improvement:** Proposed Patch Location:
-**Proposed Patch Location:** Risks / Trade-offs:, `docs/03-logs/compacted/`**Risks / Trade-offs:** Notes: Tests not run in this step. Existing test logs show`python -m unittest discover -s tests -p 'test\__.py'`exit=0. Global logs in`docs/03-logs/_.md`not updated here due to reporter scope and post-gate guidance.`git add`failed due to`index.lock` permission (worktree git dir outside writable roots), so no commit created.
-**Status:** Proposed
-**Decision Log Ref:** DEC-TBD
-
----
-
-### Proposal: WI-20260209-01 - Report
-
-**Date:** 2026-02-09
-**Work Item:** WI-20260209-01
-**Agent:** Reporter
-**Step:** Report
-**Failure Summary:** tester=PASS; reporter=FAIL; tester*feedback=Outcome: PASS Tests run: `python -m unittest discover -s tests -p 'test*\_.py'`Notes: Results:`python -m unittest discover -s tests -p 'test\_\_.py'`-> 0 Discovery: no explicit discovery summary found in command output. Work Item ID: WI-20260209-01; reporter_feedback=Outcome: FAIL Docs/logs updated:`docs/02-features/15-offload-audit-and-log-compaction/reporter-log.md`File/Path:`docs/03-logs/compacted/`Check: Required compacted outputs exist for decision/implementation/validation logs. Evidence:`ls -la docs/03-logs`shows no`compacted`directory. Expected fix: Generate compacted outputs under`docs/03-logs/compacted/`and append required traceability entries in`docs/03-l...
-**Proposed Improvement:** Generate compacted outputs under `docs/03-logs/compacted/` and append required traceability entries in `docs/03-logs/*`.
-**Proposed Patch Location:** `docs/03-logs/compacted/`
-**Risks / Trade-offs:** Reporter: Required compacted outputs exist for decision/implementation/validation logs.; `ls -la docs/03-logs` shows no `compacted` directory.
 **Status:** Proposed
 **Decision Log Ref:** DEC-TBD
 

@@ -2063,3 +2063,19 @@ When a decision is reversed or replaced, document it here:
   - Final gate failures no longer write partial collection side effects to `main`.
   - Final gate behavior remains deterministic with the same two-attempt CI policy.
   - Patcher autofix output is validated and versioned before collection.
+
+### DEC-048 - Enforce fail-closed reporter handoff completeness and compacted-output gates
+
+- **Date:** 2026-02-12
+- **Status:** Accepted
+- **Context:** Recent WI retries showed passing tests could still lead to reporter failures because execution-record placeholders remained (`Patch`, `Test Results`, `Reporter Review`, top execution fields), and compacted output expectations drifted from actual artifact paths.
+- **Decision:**
+  - Enforce strict Allowed Tests commands as explicit, existing unittest/pytest targets.
+  - Add pre-reporter completeness checks that block reporter review when execution placeholders or required metadata are still incomplete.
+  - Add post-reporter checks that block reporter `PASS` when required compacted outputs are missing or traceability evidence is absent.
+  - Keep compacted-output path resolution centralized via the shared compaction resolver and apply it consistently in handoff checks.
+  - Remove implemented items from `docs/possible-improvements.md` and keep unresolved proposals only.
+- **Consequences:**
+  - Reporter outcomes are now fail-closed on incomplete execution records.
+  - Retry loops shift from late/manual corrections to deterministic, earlier feedback.
+  - Compaction/output expectations are validated directly against declared WI scope.

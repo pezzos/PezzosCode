@@ -457,6 +457,117 @@ class TestPcFeature(unittest.TestCase):
             "- `pytest tests/test_pc_feature.py -q`",
         )
 
+    def test_reconcile_runtime_execution_record_populates_sections_and_fields(self):
+        work_item_id = "WI-20260212-10"
+        content = self._build_entry_content(work_item_id)
+        tester_feedback = (
+            "Outcome: PASS\n"
+            "Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`\n"
+            "Notes: all checks passed\n"
+            f"Work Item ID: {work_item_id}\n"
+        )
+        reporter_feedback = (
+            "Outcome: PASS\n"
+            "Docs/logs updated: docs/03-logs/implementation-log.md\n"
+            "Notes: review approved\n"
+            f"Work Item ID: {work_item_id}\n"
+        )
+        updated, repaired = self.pc_feature.reconcile_runtime_execution_record(
+            content,
+            work_item_id,
+            patch_completed=True,
+            tester_feedback=tester_feedback,
+            reporter_feedback=reporter_feedback,
+            reporter_outcome="PASS",
+        )
+        self.assertIn("Patch", repaired)
+        self.assertIn("Test Results", repaired)
+        self.assertIn("Reporter Review", repaired)
+        self.assertNotIn(
+            "(pending)",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Patch"),
+        )
+        self.assertNotIn(
+            "(pending)",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Test Results"),
+        )
+        self.assertNotIn(
+            "(pending)",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Reporter Review"),
+        )
+        self.assertEqual(
+            self.pc_feature.get_entry_field(updated, work_item_id, "Patcher"), "Codex"
+        )
+        self.assertEqual(
+            self.pc_feature.get_entry_field(updated, work_item_id, "Tester"), "Codex"
+        )
+        self.assertEqual(
+            self.pc_feature.get_entry_field(updated, work_item_id, "Reporter"), "Codex"
+        )
+        self.assertIn(
+            "python -m pytest",
+            self.pc_feature.get_entry_field(updated, work_item_id, "Tests run"),
+        )
+        self.assertIn(
+            "implementation-log",
+            self.pc_feature.get_entry_field(updated, work_item_id, "Docs/logs updated"),
+        )
+
+    def test_execution_handoff_completeness_issues_detects_pending_placeholders(self):
+        work_item_id = "WI-20260212-11"
+        content = self._build_entry_content(work_item_id)
+        issues = self.pc_feature.execution_handoff_completeness_issues(
+            content, work_item_id, require_reporter_review=True
+        )
+        self.assertTrue(
+            any(
+                "Patch section still contains pending placeholders" in issue
+                for issue in issues
+            )
+        )
+        self.assertTrue(
+            any("top execution field is blank: Reporter" in issue for issue in issues)
+        )
+
+    def test_required_compacted_output_paths_detects_explicit_and_wildcard_contract(
+        self,
+    ):
+        work_item_id = "WI-20260212-12"
+        content = self._build_entry_content(work_item_id)
+        explicit_path = self.pc_feature.compacted_log_output_paths()["decision"]
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Files to Change", f"- Files: {explicit_path}"
+        )
+        required = self.pc_feature.required_compacted_output_paths(
+            content, work_item_id
+        )
+        self.assertIn(explicit_path, required)
+
+        legacy_path = "docs/03-logs/compacted/decision-log-compact.md"
+        content_legacy = self._build_entry_content(work_item_id)
+        content_legacy = self.pc_feature.replace_entry_section(
+            content_legacy, work_item_id, "Files to Change", f"- Files: {legacy_path}"
+        )
+        required_legacy = self.pc_feature.required_compacted_output_paths(
+            content_legacy, work_item_id
+        )
+        self.assertIn(legacy_path, required_legacy)
+
+        content_wildcard = self._build_entry_content(work_item_id)
+        content_wildcard = self.pc_feature.replace_entry_section(
+            content_wildcard,
+            work_item_id,
+            "Files to Change",
+            "- Files: docs/03-logs/compacted/*",
+        )
+        required_wildcard = self.pc_feature.required_compacted_output_paths(
+            content_wildcard, work_item_id
+        )
+        self.assertEqual(
+            sorted(required_wildcard),
+            sorted(self.pc_feature.compacted_log_output_paths().values()),
+        )
+
     def test_replace_entry_section_accepts_legacy_files_section_alias(self):
         work_item_id = "WI-20260204-02"
         content = "## Execution Log\n\n" + self.pc_feature.build_execution_entry(
@@ -3519,6 +3630,226 @@ class TestPcFeature(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn("reporter no-op; reason=tester failed", dev_tasks)
+
+    def test_pre_reporter_completeness_gate_blocks_reporter_prompt(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260212-20"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reporter_prompt_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_handoff_issues(
+                content: str, wi_id: str, *, require_reporter_review: bool
+            ):
+                if require_reporter_review:
+                    return []
+                return ["Patch section still contains pending placeholders"]
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    reporter_prompt_calls["count"] += 1
+                    return "Outcome: PASS\nDocs/logs updated: ok\nNotes: should not run"
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    raise StopMain()
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "execution_handoff_completeness_issues",
+                        side_effect=fake_handoff_issues,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(reporter_prompt_calls["count"], 0)
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "Reporter blocked by pre-handoff completeness gate", dev_tasks
+            )
+
+    def test_post_reporter_gate_blocks_pass_when_compacted_outputs_missing(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260212-21"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reporter_prompt_calls = {"count": 0}
+            missing_path = "docs/03-logs/compacted/decision-log-compact.md"
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    reporter_prompt_calls["count"] += 1
+                    return "Outcome: PASS\nDocs/logs updated: docs/03-logs/implementation-log.md\nNotes: approved"
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    raise StopMain()
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "execution_handoff_completeness_issues",
+                        return_value=[],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "required_compacted_output_paths",
+                        return_value=[missing_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "missing_compacted_output_paths",
+                        return_value=[missing_path],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "reporter_traceability_issues",
+                        return_value=[],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(reporter_prompt_calls["count"], 1)
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "Reporter PASS blocked by post-review completeness gate", dev_tasks
+            )
+            self.assertIn("required compacted output missing", dev_tasks)
 
     def test_main_does_not_write_feature_worktree_manifest(self):
         class StopMain(RuntimeError):
