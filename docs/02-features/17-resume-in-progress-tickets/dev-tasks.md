@@ -88,30 +88,30 @@
 Plan Contract v1
 Approach:
 
-1. Implement deterministic resume-state reconstruction and policy routing (`auto`, `prompt`, `fresh`) in CLI flow, including fail-closed contradiction blocking and explicit remediation messaging.
+1. Implement deterministic resume-state reconstruction and policy routing (`auto`, `prompt`, `fresh`) in CLI flow, with fail-closed contradiction blocking and explicit remediation messaging.
    Files to change:
 
 - `tools/pc-feature`
   Risks:
-- Resume inference can misclassify partial artifacts and route to the wrong next role.
+- Resume-state inference can misclassify partial artifacts and route to the wrong role.
 - Contradiction detection can over-block valid reruns if artifact normalization is incomplete.
   Tests (anti-hardcode coverage required):
 - Fixture coverage: Add/extend fixtures for planner+reviewer complete -> patcher start, tester-fail -> planner route-back, reporter-pass -> final-gate path, contradictory artifacts -> block, dirty worktree auto-resume behavior, and missing critical artifacts -> deterministic error.
 - Deterministic seed strategy: Use fixed artifact inputs, fixed role ordering, and stable parsing order for execution markers.
-- Invariant checks: Assert no path marks tester/reporter complete without required artifacts, contradictory states never proceed, and mandatory rerun flags remain enforced.
+- Invariant checks: Assert tester/reporter are never treated complete without required artifacts, contradictory states never proceed, and mandatory rerun flags remain enforced.
 - Contract boundary coverage: Cover unknown/missing mode values, empty/partial role outputs, and malformed execution-state markers with fail-closed handling.
 - Allowed test commands:
   - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
 
-2. Add regression tests proving non-resume behavior remains unchanged while resume logic is artifact-aware and deterministic.
+2. Add regression tests to prove non-resume behavior remains unchanged while resume logic is artifact-aware and deterministic.
    Files to change:
 
 - `tests/test_pc_feature.py`
   Risks:
-- Assertions may overfit internal implementation details rather than CLI behavior contracts.
+- Assertions may overfit internal implementation details instead of CLI behavior contracts.
 - Boundary regressions can be missed if fixtures over-focus on happy paths.
   Tests (anti-hardcode coverage required):
-- Fixture coverage: Include legacy non-resume invocation fixtures plus resumed-run fixtures that share base artifacts to detect drift.
+- Fixture coverage: Include legacy non-resume invocation fixtures plus resumed-run fixtures sharing base artifacts to detect drift.
 - Deterministic seed strategy: Reuse fixed synthetic workspace states and explicit fixture IDs instead of time-derived values.
 - Invariant checks: Verify legacy outputs remain stable and resume-only guards trigger only when resume artifacts exist.
 - Contract boundary coverage: Validate planner/reviewer/patcher/tester/reporter transition boundaries and expected route decisions for each boundary state.
