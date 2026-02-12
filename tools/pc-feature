@@ -4035,6 +4035,8 @@ def main() -> None:
     requires_global_logs = False
     reviewer_blocks = 0
     planner_revision_attempts = 0
+    tester_failures = 0
+    reporter_failures = 0
     last_stagnation_signature = ""
     stagnation_count = 0
     execution_attempt = 0
@@ -4174,7 +4176,7 @@ def main() -> None:
             f"Attempt {attempt}: {iteration_reason}; planner updated plan "
             f"(reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}, "
             f"planner_revision={planner_revision_attempts}/{MAX_PLANNER_REVISIONS}, "
-            f"execution_attempt={attempt}/{MAX_LOOPS}).",
+            f"execution_cycle={attempt}).",
         )
         write_file(dev_tasks_path, content)
         ensure_role_log(os.path.join(planner_path, role_paths["planner"]), "planner")
@@ -4244,7 +4246,7 @@ def main() -> None:
         )
         return True
 
-    while execution_attempt < MAX_LOOPS:
+    while True:
         current_main_head = git_ref_sha(root, "refs/heads/main")
         if current_main_head != locked_main_head:
             content = read_file(dev_tasks_path)
@@ -4447,6 +4449,7 @@ def main() -> None:
                 work_item_id,
                 feature_dir,
             )
+            tester_failures += 1
             execution_attempt += 1
             last_failure_context = (
                 "allowed tests validation failed: "
@@ -4461,7 +4464,8 @@ def main() -> None:
             content = append_iteration_log_note(
                 content,
                 work_item_id,
-                f"Attempt {attempt}: allowed-tests validation failed; routed back to planner. Issues: {issue_summary}.",
+                f"Attempt {attempt}: allowed-tests validation failed; routed back to planner "
+                f"(tester_retry={tester_failures}/{MAX_LOOPS}). Issues: {issue_summary}.",
             )
             content = append_noop_step_note(
                 content,
@@ -4485,6 +4489,39 @@ def main() -> None:
                 reason="blocked by invalid allowed tests",
             )
             write_file(dev_tasks_path, content)
+            if tester_failures >= MAX_LOOPS:
+                queue_failure_proposal(
+                    build_failure_outcome_payload(
+                        work_item_id=work_item_id,
+                        tester_outcome="FAIL",
+                        reporter_outcome="SKIPPED",
+                        tester_feedback=tester_feedback,
+                        reporter_feedback=(
+                            "Outcome: SKIPPED\n"
+                            "Docs/logs updated: reporter deferred\n"
+                            "Notes: Reporter skipped because tester failed during allowed-tests validation.\n"
+                            f"Work Item ID: {work_item_id}\n"
+                        ),
+                    ),
+                    pending_failure_proposals,
+                    runner_metadata=runner_metadata,
+                    root=runner_root,
+                )
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = update_entry_field(
+                    content,
+                    work_item_id,
+                    "Notes",
+                    "Tester retry limit reached; unresolved Allowed Tests validation failures require manual intervention.",
+                )
+                write_file(dev_tasks_path, content)
+                flush_pending_failure_proposals("tester retry limit reached")
+                die(
+                    "pc-feature: max tester retry attempts reached; "
+                    "resolve Allowed Tests failures before retrying"
+                )
             continue
 
         content = read_file(dev_tasks_path)
@@ -4607,7 +4644,7 @@ def main() -> None:
                     work_item_id,
                     "Plan reviewer block limit reached; "
                     f"reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}; "
-                    f"execution_attempt={attempt}/{MAX_LOOPS}; "
+                    f"execution_cycle={attempt}; "
                     f"feedback={summarize_feedback(reviewer_feedback)}",
                 )
                 content = update_entry_field(
@@ -4635,6 +4672,7 @@ def main() -> None:
             )
             continue
 
+        reviewer_blocks = 0
         stagnation_count = 0
         last_stagnation_signature = ""
         execution_attempt += 1
@@ -4913,6 +4951,16 @@ def main() -> None:
                 feature_dir,
             )
 
+        if tester_outcome == "PASS":
+            tester_failures = 0
+        else:
+            tester_failures += 1
+
+        if reporter_outcome == "PASS":
+            reporter_failures = 0
+        elif reporter_outcome == "FAIL":
+            reporter_failures += 1
+
         if tester_outcome != "PASS" or reporter_outcome != "PASS":
             outcome_payload = build_failure_outcome_payload(
                 work_item_id=work_item_id,
@@ -5001,10 +5049,44 @@ def main() -> None:
                 content,
                 work_item_id,
                 f"Attempt {attempt}: tester={tester_outcome}, reporter={reporter_outcome}; "
+                f"tester_retry={tester_failures}/{MAX_LOOPS}; "
+                f"reporter_retry={reporter_failures}/{MAX_LOOPS}; "
                 f"planner decision={planner_decision}; rationale={rationale}; "
                 "patcher feedback pending.",
             )
             write_file(dev_tasks_path, content)
+            if tester_outcome != "PASS" and tester_failures >= MAX_LOOPS:
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = update_entry_field(
+                    content,
+                    work_item_id,
+                    "Notes",
+                    "Tester retry limit reached; unresolved test failures require manual intervention.",
+                )
+                write_file(dev_tasks_path, content)
+                flush_pending_failure_proposals("tester retry limit reached")
+                die(
+                    "pc-feature: max tester retry attempts reached; "
+                    "check tester feedback for unresolved failures"
+                )
+            if reporter_outcome == "FAIL" and reporter_failures >= MAX_LOOPS:
+                content = update_entry_field(
+                    content, work_item_id, "Outcome", "needs replan"
+                )
+                content = update_entry_field(
+                    content,
+                    work_item_id,
+                    "Notes",
+                    "Reporter retry limit reached; unresolved reporting failures require manual intervention.",
+                )
+                write_file(dev_tasks_path, content)
+                flush_pending_failure_proposals("reporter retry limit reached")
+                die(
+                    "pc-feature: max reporter retry attempts reached; "
+                    "check reporter feedback for unresolved scope gaps"
+                )
             ensure_role_log(
                 os.path.join(planner_path, role_paths["planner"]), "planner"
             )
@@ -5066,39 +5148,6 @@ def main() -> None:
             continue
 
         break
-    else:
-        stall_summary = "Loop exhausted at MAX_LOOPS."
-        if last_failure_context:
-            stall_summary = f"{stall_summary} {last_failure_context}"
-        queue_failure_proposal(
-            {
-                "outcome": "STALL",
-                "work_item_id": work_item_id,
-                "agent_name": "pc-feature",
-                "step": "Orchestration",
-                "failure_summary": stall_summary,
-            },
-            pending_failure_proposals,
-            runner_metadata=runner_metadata,
-            root=runner_root,
-        )
-        content = read_file(dev_tasks_path)
-        content = update_entry_field(content, work_item_id, "Outcome", "needs replan")
-        content = append_iteration_log_note(
-            content,
-            work_item_id,
-            "Loop exhausted at MAX_LOOPS; "
-            f"last failure context: {last_failure_context}",
-        )
-        content = update_entry_field(
-            content,
-            work_item_id,
-            "Notes",
-            "Loop exhausted; review Iteration Log for actionable remediation.",
-        )
-        write_file(dev_tasks_path, content)
-        flush_pending_failure_proposals("max iteration attempts reached")
-        die("pc-feature: max iteration attempts reached; check execution log")
 
     flush_pending_failure_proposals("post-loop before final gates")
     candidate_autofix_paths = collect_branch_merge_paths(
