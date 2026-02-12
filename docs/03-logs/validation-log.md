@@ -27,6 +27,17 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-12 - Dedicated Plan Reviewer profile validation
+
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_reviewer_uses_plan_reviewer_profile` (FAIL: direct module import path mismatch in this environment; offload id `3612bc7bd9c1bcbd31fa2fdb650dd4a09d7d1a5a0e35059f603d3722bc331d5e`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k plan_reviewer_uses_plan_reviewer_profile` (PASS; offload id `9a3b8d71ac97f9c597321b771689664d1c25c4ccb86511e452f4011735b98969`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k plan_reviewer` (PASS; offload id `d6a53073ad640b2cd4fd106c92f8c0699363930eced4a8c79f2c5f6ccf8367f9`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 12 tests; offload id `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`)
+- `python3 -c "import tomllib, pathlib; [tomllib.loads(pathlib.Path(p).read_text()) for p in ['.codex.toml','tools/templates/root/.codex.toml']]; print('ok')"` (PASS)
+- Verified:
+  - Plan reviewer gate now invokes Codex with `profile="PlanReviewer"`.
+  - Live and template `.codex.toml` files both define the `PlanReviewer` profile.
+
 ### 2026-02-12 - Template-sync precommit autofix validation
 
 - `python3 -m py_compile tools/pc-template-sync` (PASS)

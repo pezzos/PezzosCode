@@ -27,6 +27,32 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-12 - Dedicated Plan Reviewer Codex profile
+
+**Feature/Bug:** Orchestrator role profile isolation
+
+**Changed Files:**
+
+- `.codex.toml`
+- `tools/templates/root/.codex.toml`
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added a dedicated `PlanReviewer` profile to both live and template Codex config files.
+- Matched the profile tuning to planner-grade review depth (`high` reasoning, `medium` verbosity).
+- Routed the plan-reviewer gate in `tools/pc-feature` to execute with `profile="PlanReviewer"` instead of `Planner`.
+- Added a regression test that captures `codex_exec` arguments and asserts the Plan Reviewer prompt uses the `PlanReviewer` profile.
+
+**Why:**
+
+- Make role-to-profile mapping explicit for all first-class workflow roles.
+- Avoid accidental coupling between Planner tuning and Plan Reviewer behavior.
+- Keep bootstrap/template defaults aligned with the live repo config.
+
 ### 2026-02-12 - Precommit template-sync autofix policy update
 
 **Feature/Bug:** Deterministic template/living sync in precommit

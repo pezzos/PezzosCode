@@ -1,16 +1,16 @@
 # Codex per-project overrides mirror ~/.codex/config.toml.
 # See: https://developers.openai.com/codex/config-sample/
 
-# Primary model used by Codex. Default: "gpt-5.2-codex" on all platforms.
-model = "gpt-5.2-codex"
+# Primary model used by Codex. Default: "gpt-5.3-codex" on all platforms.
+model = "gpt-5.3-codex"
 
-# Model used by the /review feature (code reviews). Default: "gpt-5.2-codex".
-review_model = "gpt-5.2-codex"
+# Model used by the /review feature (code reviews). Default: "gpt-5.3-codex".
+review_model = "gpt-5.3-codex"
 
 # Provider id selected from [model_providers]. Default: "openai".
 model_provider = "openai"
 
-# Reasoning effort: minimal | low | medium | high | xhigh (default: medium; xhigh on gpt-5.2-codex and gpt-5.2)
+# Reasoning effort: minimal | low | medium | high | xhigh (default: medium; xhigh on gpt-5.3-codex and gpt-5.2)
 model_reasoning_effort = "low"
 
 # Reasoning summary: auto | concise | detailed | none (default: auto)
@@ -45,32 +45,38 @@ file_opener = "cursor"
 notify=[ ]
 
 [profiles.Default]
-model = "gpt-5.2-codex"
+model = "gpt-5.3-codex"
 model_reasoning_effort = "low"
 model_reasoning_summary = "none"
 model_verbosity = "low"
 
 [profiles.Planner]
-model = "gpt-5.2-codex"
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+model_reasoning_summary = "none"
+model_verbosity = "medium"
+
+[profiles.PlanReviewer]
+model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 model_reasoning_summary = "none"
 model_verbosity = "medium"
 
 [profiles.Patcher]
-model = "gpt-5.2-codex"
-model_reasoning_effort = "low"
+model = "gpt-5.3-codex"
+model_reasoning_effort = "medium"
 model_reasoning_summary = "none"
 model_verbosity = "low"
 
 [profiles.Tester]
-model = "gpt-5.2-codex"
+model = "gpt-5.3-codex"
 model_reasoning_effort = "low"
 model_reasoning_summary = "none"
 model_verbosity = "low"
 
 [profiles.Reporter]
-model = "gpt-5.2-codex"
-model_reasoning_effort = "low"
+model = "gpt-5.3-codex"
+model_reasoning_effort = "medium"
 model_reasoning_summary = "none"
 model_verbosity = "low"
 
