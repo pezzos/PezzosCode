@@ -35,11 +35,11 @@
 - Patcher:
 - Tester:
 - Reporter:
-- Outcome:
+- Outcome: needs replan
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
-- Notes: Main head locked: e2eedb6614ea6ada6db0161c2ccde845476241d7
+- Notes: Planner/reviewer stagnation detected; manual intervention required.
 
 #### Preflight Report
 
@@ -154,6 +154,7 @@ Work Item ID: WI-20260212-05
 
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_cycle=1).
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_cycle=1).
+- Planner/reviewer loop stagnation detected; repeat_count=3/3; issues=plan test commands must be listed in Allowed Tests: `python3 -m unittest tests.test_pc_feature.TestPcFeature`
 
 #### Commit
 
