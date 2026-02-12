@@ -1344,3 +1344,16 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `pc-feature-status` now resolves runs created in sibling patcher worktrees, so status is visible from the main repo without manual `--root` patcher path lookup.
   - `pc-feature` now prints copy-paste monitor commands at run startup.
   - `make feature-status` provides a simple canonical operator entrypoint for snapshot and follow mode.
+
+## 2026-02-12 - Validate Allowed Tests dotted-selector handling for feature-18 retry loop
+
+- Command: `tools/pc-allowed-tests-check --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature' --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_reviewer_approve_allows_patch'`
+- Result: PASS
+- Command: `tools/pc-allowed-tests-check --cmd 'python3 -m unittest tests.test_missing.SampleTests'`
+- Result: FAIL as expected (`tests.test_missing.SampleTests`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests/test_pc_allowed_tests_check.py`
+- Result: PASS (`14` tests, offload id `f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4`)
+- Verified:
+  - Dotted unittest selectors now pass static Allowed Tests existence checks when their module prefix exists.
+  - Missing dotted selectors still fail deterministically.
+  - Planner remediation prompt now includes stronger guidance toward file-path/discover commands to reduce repeat invalid-target loops.

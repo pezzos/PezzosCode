@@ -5837,3 +5837,43 @@ Track when debt is paid down:
 - `tools/offload-proxy/pp make ci` (initial FAIL due auto-format by `black`, offload id `21ed6f48a29469bc75bdd3cd205dcd99b5739c01bbfc0d567ff64f2c5b00c9a1`)
 - `tools/offload-proxy/pp make ci` (PASS after formatting, offload id `518bd6e5fd3f606fc05a56e0d75a27d2cb2ae6740f1945c65d8517f84a48b4dc`)
 - `tools/offload-proxy/pp make ci` (final PASS after docs/log updates, offload id `5b1851bcdff27b3a1a416547c44aaf017d5e598556036ebb3c25bbdaa34a47df`)
+
+### 2026-02-12 - Fix Allowed Tests checker for dotted unittest selectors
+
+**Feature/Bug:** `pc-feature` Allowed Tests retry loop (`make feature F=18`)
+
+**Changed Files:**
+
+- `tools/pc-allowed-tests-check`
+- `tests/test_pc_allowed_tests_check.py`
+- `prompts/planner-update-allowed-tests.md`
+- `tools/templates/prompts/planner-update-allowed-tests.md`
+
+**What Changed:**
+
+- Extended `pc-allowed-tests-check` unittest target validation to accept dotted selectors such as:
+  - `module.Class`
+  - `module.Class.test_method`
+    by resolving the longest existing module/package prefix.
+- Added regression tests to cover:
+  - accepted dotted class target
+  - accepted dotted method target
+  - rejected missing dotted prefix target
+- Hardened planner Allowed Tests remediation prompt and template with explicit robust command shapes (file-path/discover examples) and rewrite guidance when dotted targets are flagged missing.
+
+**Why:**
+
+- Feature-18 reruns repeatedly failed with `blocked by invalid allowed tests` because `tests.test_pc_feature.TestPcFeature` was treated as missing by static checker logic.
+- The checker needed to match valid unittest selector syntax to avoid wasting retry budget on false negatives.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Negligible
+- **Dependencies:** None
+
+**Testing:**
+
+- `tools/pc-allowed-tests-check --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature' --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_reviewer_approve_allows_patch'` (PASS)
+- `tools/pc-allowed-tests-check --cmd 'python3 -m unittest tests.test_missing.SampleTests'` (FAIL as expected)
+- `tools/offload-proxy/pp python3 -m unittest tests/test_pc_allowed_tests_check.py` (PASS, offload id `f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4`)
