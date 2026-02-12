@@ -3773,6 +3773,245 @@ class TestPcFeature(unittest.TestCase):
                 "Reporter blocked by pre-handoff completeness gate", dev_tasks
             )
 
+    def test_reporter_commit_happens_before_runtime_reconciliation_write(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260212-34"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reporter_commit_calls = {"count": 0}
+            reporter_review_pending_at_commit = {"value": None}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    return (
+                        "Outcome: PASS\n"
+                        "Docs/logs updated: docs/02-features/01-workflow-hardening/reporter-log.md\n"
+                        "Notes: approved\n"
+                    )
+                return "ok"
+
+            def fake_commit_role_step(
+                root_path: str,
+                worktree_path: str,
+                branch: str,
+                role: str,
+                work_item: str,
+                feature_path: str,
+                *,
+                allow_empty: bool = False,
+            ) -> bool:
+                if role == "reporter":
+                    reporter_commit_calls["count"] += 1
+                    reporter_text = self._worktree_dev_tasks(patcher_path).read_text(
+                        encoding="utf-8"
+                    )
+                    reporter_review_pending_at_commit["value"] = (
+                        "#### Reporter Review\n\n- (pending)" in reporter_text
+                    )
+                    raise StopMain()
+                return False
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "commit_role_step",
+                        side_effect=fake_commit_role_step,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(reporter_commit_calls["count"], 1)
+            self.assertTrue(reporter_review_pending_at_commit["value"])
+
+    def test_finalization_only_reporter_fail_is_normalized_before_retry_loop(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260212-35"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            planner_feedback_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    return (
+                        "Outcome: FAIL\n"
+                        "Docs/logs updated: docs/02-features/01-workflow-hardening/reporter-log.md\n"
+                        "File/Path: docs/02-features/01-workflow-hardening/dev-tasks.md\n"
+                        "Check: Final execution summary completeness.\n"
+                        "Evidence: Commit message is empty and Final Report still says No runs yet.\n"
+                        "Expected fix: Fill Commit message and Final Report after final gates.\n"
+                        "Notes: finalization placeholders only.\n"
+                    )
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    planner_feedback_calls["count"] += 1
+                    return "Decision: PLAN_STILL_VALID\nRationale: should not trigger\n"
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        side_effect=StopMain(),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(planner_feedback_calls["count"], 0)
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "Reporter finalization-only FAIL normalized to PASS",
+                dev_tasks,
+            )
+
+    def test_is_finalization_only_reporter_failure_classifier(self):
+        finalization_only_feedback = (
+            "Outcome: FAIL\n"
+            "Docs/logs updated: reporter-log.md\n"
+            "Check: Final execution summary completeness.\n"
+            "Evidence: Commit message is empty and Final Report still says No runs yet.\n"
+            "Expected fix: Fill Commit message and Final Report after final gates.\n"
+        )
+        self.assertTrue(
+            self.pc_feature.is_finalization_only_reporter_failure(
+                finalization_only_feedback
+            )
+        )
+
+        handoff_feedback = (
+            "Outcome: FAIL\n"
+            "Docs/logs updated: reporter-log.md\n"
+            "Check: Reporter handoff completeness.\n"
+            "Evidence: Reporter Review is still pending.\n"
+            "Expected fix: Populate Reporter Review section.\n"
+        )
+        self.assertFalse(
+            self.pc_feature.is_finalization_only_reporter_failure(handoff_feedback)
+        )
+
     def test_post_reporter_gate_blocks_pass_when_compacted_outputs_missing(self):
         class StopMain(RuntimeError):
             pass

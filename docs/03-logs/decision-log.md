@@ -2079,3 +2079,19 @@ When a decision is reversed or replaced, document it here:
   - Reporter outcomes are now fail-closed on incomplete execution records.
   - Retry loops shift from late/manual corrections to deterministic, earlier feedback.
   - Compaction/output expectations are validated directly against declared WI scope.
+
+### DEC-049 - Treat finalization-owned reporter findings as non-blocking and preserve runtime reconciliation
+
+- **Date:** 2026-02-12
+- **Status:** Accepted
+- **Context:** Feature-18 runs hit `max reporter retry attempts reached` while tester was PASS because reporter commits reset planner-owned `dev-tasks.md` before scope check, discarding runtime reconciliation. Reporter also flagged `Commit`/`Final Report` placeholders that are only completed after final gates.
+- **Decision:**
+  - Keep planner ownership of `dev-tasks.md` intact, but reorder reporter-step writes so reporter role-log commits occur before runtime reconciliation writes to `dev-tasks.md`.
+  - Add a strict classifier for reporter `FAIL` outputs:
+    - normalize to non-blocking `PASS` only when failure evidence is finalization-owned (`Commit`, `Final Report`, final `Gates` placeholders),
+    - preserve fail-closed behavior for handoff issues (`Reporter Review`, `Test Results`, traceability/completed-output gaps).
+  - Update reporter prompt guidance to explicitly state that `Commit`/`Final Report`/final `Gates` completion is post-reporter.
+- **Consequences:**
+  - Prevents non-actionable reporter retry loops from consuming attempt budget.
+  - Preserves deterministic fail-closed checks for real handoff completeness defects.
+  - Keeps role boundaries unchanged while removing a self-inflicted reset path in reporter retries.

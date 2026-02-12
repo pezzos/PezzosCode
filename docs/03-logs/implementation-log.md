@@ -5877,3 +5877,36 @@ Track when debt is paid down:
 - `tools/pc-allowed-tests-check --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature' --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_reviewer_approve_allows_patch'` (PASS)
 - `tools/pc-allowed-tests-check --cmd 'python3 -m unittest tests.test_missing.SampleTests'` (FAIL as expected)
 - `tools/offload-proxy/pp python3 -m unittest tests/test_pc_allowed_tests_check.py` (PASS, offload id `f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4`)
+
+### 2026-02-12 - Prevent reporter retry loops from planner-owned `dev-tasks.md` resets
+
+**Feature/Bug:** `pc-feature` reporter retries exhausted on closure-only failures (`make feature F=18`)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/templates/prompts/reporter-review.md`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Reworked reporter-step sequencing in `tools/pc-feature` so reporter role-log commits happen before runtime reconciliation writes to planner-owned `dev-tasks.md`.
+- Added finalization-only reporter failure normalization:
+  - if reporter returns `FAIL` for only `Commit`/`Final Report`/final-gate placeholders, normalize to non-blocking `PASS` and continue.
+  - if reporter feedback references real handoff gaps (`Reporter Review`, `Test Results`, compacted-output traceability), keep fail-closed behavior.
+- Added regression coverage for:
+  - reporter commit ordering relative to `dev-tasks.md` runtime reconciliation
+  - finalization-only reporter `FAIL` normalization (no planner-feedback retry loop)
+  - finalization-only classifier true/false fixture cases
+- Updated reporter prompt guidance to explicitly mark `Commit` / `Final Report` / final `Gates` completion as post-reporter ownership.
+
+**Why:**
+
+- Reporter commits were auto-resetting dirty planner-owned `dev-tasks.md` and discarding runtime reconciliation, causing repeated reporter failures with no net progress.
+- Some reporter failures were non-actionable (finalization-owned placeholders) and should not consume retry budget.
+
+**Impact:**
+
+- **Breaking changes:** No
+- **Performance:** Negligible
+- **Dependencies:** None

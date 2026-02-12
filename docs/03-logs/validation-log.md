@@ -1357,3 +1357,22 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Dotted unittest selectors now pass static Allowed Tests existence checks when their module prefix exists.
   - Missing dotted selectors still fail deterministically.
   - Planner remediation prompt now includes stronger guidance toward file-path/discover commands to reduce repeat invalid-target loops.
+
+## 2026-02-12 - Validate reporter retry-loop hardening for planner-owned `dev-tasks.md` updates
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_reporter_commit_happens_before_runtime_reconciliation_write tests.test_pc_feature.TestPcFeature.test_finalization_only_reporter_fail_is_normalized_before_retry_loop tests.test_pc_feature.TestPcFeature.test_is_finalization_only_reporter_failure_classifier`
+- Result: PASS (`3` tests, offload id `978bf08d008e94e18164c5791bba5acf337ed7483b46b54399fa1c855ba12183`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_pre_reporter_completeness_gate_blocks_reporter_prompt tests.test_pc_feature.TestPcFeature.test_post_reporter_gate_blocks_pass_when_compacted_outputs_missing tests.test_pc_feature.TestPcFeature.test_reporter_is_skipped_when_tester_fails tests.test_pc_feature.TestPcFeature.test_role_retry_counters_reset_after_successful_gate`
+- Result: PASS (`4` tests, offload id `ad465fa9f6511db75a711fd9870f978cc59853dfecbebf55b3b0e2bfc7054bde`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: PASS (offload id `e04f7df58408aec3ed10fd8c1692e64ff6c333b25ca96c5558384c41c6209279`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: FAIL first attempt in sandbox due `end-of-file-fixer` permissions on `.codex/skills/*` (offload id `bc2d155ff69e98e489c06c89cd98ca53730b3cc837620a27be96d03181e59513`)
+- Command: `tools/offload-proxy/pp make ci` (elevated permissions)
+- Result: PASS (offload id `8550bc5ccefd5716c91bb3c92f0a481917eb3fc4ba82de698cc4721c46b41b54`)
+- Verified:
+  - Reporter role-log commit no longer relies on dirty planner-owned `dev-tasks.md`.
+  - Runtime reconciliation survives reporter commits and remains present for subsequent checks.
+  - Reporter `FAIL` feedback limited to finalization-owned placeholders is normalized and no longer consumes planner-feedback retry loops.
