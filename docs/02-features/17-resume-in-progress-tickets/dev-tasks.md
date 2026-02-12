@@ -26,6 +26,144 @@
 
 ## Execution Log
 
+### WI-20260212-05 - Work item execution
+
+- Date: 2026-02-12
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome: needs replan
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes: Planner/reviewer stagnation detected; manual intervention required.; Main head locked: e2eedb6614ea6ada6db0161c2ccde845476241d7
+
+#### Preflight Report
+
+- Work Item: WI-20260212-05
+- PRD ref: docs/01-product/prd.md
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: ['Deterministic resume-state detection from existing work-item artifacts and role logs', 'Resume policy enforcement for `auto`, `prompt`, and `fresh` modes', 'Fail-closed blocking on contradictory artifact state with explicit remediation', 'Artifact-aware step routing that skips only safely completed steps', 'Mandatory re-run of tests and final CI gate on resumed runs', 'Traceable resume/checkpoint decisions in workflow logs']
+- Scope out: ['Multi-feature concurrent resume orchestration', 'Background/daemon resume automation', 'Non-CLI surfaces (TUI/API/Web)']
+- Non-goals reminder: Do not change the single-feature-worktree operating model, do not add scheduler/daemon behavior, and do not weaken mandatory rerun of tests and final CI gates on resume.
+- Files to change: tools/pc-feature, tests/test_pc_feature.py, tests/test_docs_logs.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260212-05-patcher-evidence.md
+- TDD plan: TC-17-001 Resume from completed planner+reviewer and continue at patcher, TC-17-002 Resume after tester fail routes back to planner, TC-17-003 Resume after reporter pass proceeds to final gates, TC-17-101 Contradictory step state blocks with remediation, TC-17-102 Dirty worktree preserved in auto mode, TC-17-201 Missing critical artifacts returns deterministic block/error, TC-17-301 Existing non-resume execution path remains unchanged (regression), python -m pytest tests/test_pc_feature.py::TestPcFeature, python3 -m unittest tests.test_docs_logs
+- Systematic review:
+- `mcp__serena__search_for_pattern` on `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` with pattern `### WI-20260212-05 - Work item execution[\\s\\S]*?### WI-20260212-04 - Work item execution` -> extracted only WI-20260212-05 section and confirmed placeholders in `Allowed Tests` and `Plan`.
+- `mcp__serena__search_for_pattern` on `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` with pattern `#### Allowed Tests[\\s\\S]*?Work Item ID: WI-20260212-05` -> verified exact Allowed Test commands, Plan Contract v1 structure, anti-hardcode coverage bullets, and required reporter/orchestrator handoff note.
+
+#### TDD Plan
+
+- Tests to write first:
+  - TC-17-001 Resume from completed planner+reviewer and continue at patcher
+  - TC-17-002 Resume after tester fail routes back to planner
+  - TC-17-003 Resume after reporter pass proceeds to final gates
+  - TC-17-101 Contradictory step state blocks with remediation
+  - TC-17-102 Dirty worktree preserved in auto mode
+  - TC-17-201 Missing critical artifacts returns deterministic block/error
+  - TC-17-301 Existing non-resume execution path remains unchanged (regression)
+  - python -m pytest tests/test_pc_feature.py::TestPcFeature
+  - python3 -m unittest tests.test_docs_logs
+
+#### Allowed Tests
+
+- `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
+
+#### Files to Change
+
+- Files: tools/pc-feature, tests/test_pc_feature.py, tests/test_docs_logs.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260212-05-patcher-evidence.md
+
+#### Docs Updated
+
+- docs/02-features/17-resume-in-progress-tickets/dev-tasks.md
+- docs/03-logs/compacted/WI-20260212-05-patcher-evidence.md
+
+#### Plan
+
+Plan Contract v1
+Approach:
+
+1. Implement deterministic resume-state reconstruction and policy routing (`auto`, `prompt`, `fresh`) in CLI flow, with fail-closed contradiction blocking and explicit remediation messaging.
+   Files to change:
+
+- `tools/pc-feature`
+  Risks:
+- Resume-state inference can misclassify partial artifacts and route to the wrong role.
+- Contradiction detection can over-block valid reruns if artifact normalization is incomplete.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Add/extend fixtures for planner+reviewer complete -> patcher start, tester-fail -> planner route-back, reporter-pass -> final-gate path, contradictory artifacts -> block, dirty worktree auto-resume behavior, and missing critical artifacts -> deterministic error.
+- Deterministic seed strategy: Use fixed artifact inputs, fixed role ordering, and stable parsing order for execution markers.
+- Invariant checks: Assert tester/reporter are never treated complete without required artifacts, contradictory states never proceed, and mandatory rerun flags remain enforced.
+- Contract boundary coverage: Cover unknown/missing mode values, empty/partial role outputs, and malformed execution-state markers with fail-closed handling.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+
+2. Add regression tests to prove non-resume behavior remains unchanged while resume logic is artifact-aware and deterministic.
+   Files to change:
+
+- `tests/test_pc_feature.py`
+  Risks:
+- Assertions may overfit internal implementation details instead of CLI behavior contracts.
+- Boundary regressions can be missed if fixtures over-focus on happy paths.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Include legacy non-resume invocation fixtures plus resumed-run fixtures sharing base artifacts to detect drift.
+- Deterministic seed strategy: Reuse fixed synthetic workspace states and explicit fixture IDs instead of time-derived values.
+- Invariant checks: Verify legacy outputs remain stable and resume-only guards trigger only when resume artifacts exist.
+- Contract boundary coverage: Validate planner/reviewer/patcher/tester/reporter transition boundaries and expected route decisions for each boundary state.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+
+Required ownership note: Required non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit non-compacted `docs/03-logs` files.
+
+Work Item ID: WI-20260212-05
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_cycle=1).
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=2/12, planner_revision=2/12, execution_cycle=1).
+- Planner/reviewer loop stagnation detected; repeat_count=3/3; issues=plan test commands must be listed in Allowed Tests: `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 ### WI-20260212-04 - Work item execution
 
 - Date: 2026-02-12
