@@ -35,7 +35,7 @@
 - Patcher:
 - Tester:
 - Reporter:
-- Outcome:
+- Outcome: needs replan
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
@@ -170,6 +170,7 @@ Work Item ID: WI-20260212-04
 #### Iteration Log
 
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
+- Attempt 1: tester=PASS, reporter=FAIL; planner decision=PLAN_STILL_VALID; rationale=Tester validations passed and the only failure is missing role-scoped execution metadata in `dev-tasks.md`, which is a reporter/orchestrator handoff artifact rather than a patcher-plan gap.; patcher feedback pending.
 
 #### Commit
 
