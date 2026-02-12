@@ -3975,6 +3975,7 @@ def run_scoped_autofix_paths(root: str, scoped_paths: List[str]) -> int:
     scoped_paths = sorted(set(filter_ignored_paths(scoped_paths)))
     if not scoped_paths:
         die("pc-feature: no scoped files available for scoped autofix")
+    before_snapshot = collect_dirty_snapshot(root)
     autofix_cmd = [
         "tools/offload-proxy/pp",
         "pre-commit",
@@ -3982,9 +3983,13 @@ def run_scoped_autofix_paths(root: str, scoped_paths: List[str]) -> int:
         "--files",
     ] + scoped_paths
     autofix_exit = run_command(autofix_cmd, cwd=root)
-    status_paths = set(filter_ignored_paths(get_status_paths(root)))
+    after_snapshot = collect_dirty_snapshot(root)
     scoped_set = set(scoped_paths)
-    unexpected = sorted(path for path in status_paths if path not in scoped_set)
+    touched_paths = set(dirty_delta_paths(before_snapshot, after_snapshot))
+    for path in before_snapshot:
+        if path not in after_snapshot:
+            touched_paths.add(path)
+    unexpected = sorted(path for path in touched_paths if path not in scoped_set)
     if unexpected:
         die(
             "pc-feature: scoped autofix touched out-of-scope files: "

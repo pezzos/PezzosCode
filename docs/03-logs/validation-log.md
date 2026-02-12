@@ -1478,3 +1478,25 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Final-gate autofix candidate selection excludes patcher-forbidden role-scoped files (`dev-tasks.md`, role logs).
   - Mixed candidate sets still run scoped autofix for patcher-safe files.
   - All-forbidden candidate sets skip scoped autofix cleanly without triggering a patcher scope abort.
+
+## 2026-02-12 - Validate Python 3.9 hook compatibility and scoped-autofix delta enforcement
+
+- Command: `python3 -m py_compile tools/markdown-lint tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_feature.py tests/test_tools_python_compat.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_markdown_lint.py"`
+- Result: PASS (offload id `5279d1fc9a1ced44f9c96da1414ef59e4676f963fbad52e7a1a2903538819b0d`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_tools_python_compat.py"`
+- Result: PASS (offload id `92b391eabf11e0e952252fb6ee05522765579df0b6b0a838ff1f3e4150550b42`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k scoped_autofix`
+- Result: PASS (offload id `f2f7f20b09268ff1a5a9edf399b32bb047568b9780fc65a6c38dee4a6be91892`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/markdown-lint tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_feature.py tests/test_tools_python_compat.py`
+- Result: FAIL first pass due `black` autoformat (offload id `262292da2517cff66098c6ef42781ed440149e1b8170117fac97e30e260823b6`); PASS rerun (offload id `5be5793f628b9d4ee932bfdfe3d69d9de33c933369d362c2f433acbc61914036`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload id `9dfdca2bd539b5f78eaafab9567eac63b4dca1b61bd60502f0d40ae85e79c700`)
+- Command: `/usr/bin/python3 tools/pc-allowed-tests-check --cmd "python -m unittest discover -s tests -p test_markdown_lint.py"`
+- Result: PASS
+- Command: `/usr/bin/python3 tools/markdown-lint <temp-markdown-file>`
+- Result: PASS
+- Verified:
+  - Tooling scripts with union annotations now execute under system Python 3.9.
+  - Scoped autofix now blocks only out-of-scope files touched during autofix, not pre-existing untouched dirty files.

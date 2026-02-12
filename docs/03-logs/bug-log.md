@@ -696,3 +696,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Final CI autofix could receive planner-owned feature files (for example `dev-tasks.md`) because candidate selection reused collection-path logic; when pre-commit touched those files, patcher commit aborted with `patcher edited role-scoped files`.
 - **Fix:** Added dedicated `collect_patcher_autofix_paths(...)` filtering for final-gate autofix candidates, skipped forbidden candidate paths with explicit diagnostics, and retained existing collection-path behavior for final branch collection.
 - **Validation:** `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py` (PASS); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS, offload id `90f84f11268b4fd5850cf20d292ecf3468a0f987819ec31265777f598530980f`).
+
+## 2026-02-12 - Python 3.9 annotation crash and scoped-autofix false positive in feature-18 runs
+
+- **ID:** BUG-20260212-03
+- **Status:** Fixed
+- **Source:** User report (`make feature F=18`)
+- **Summary:** `markdown-lint` crashed under Python 3.9 (`TypeError` at `list[str] | None`), and final-gate scoped autofix reported out-of-scope changes for planner-owned `dev-tasks.md` even when that path was pre-existing dirty and untouched by autofix.
+- **Fix:** Added `from __future__ import annotations` in `tools/markdown-lint` and `tools/pc-allowed-tests-check`; changed `run_scoped_autofix_paths(...)` to enforce scope via pre/post dirty snapshot deltas instead of all current dirty paths; added regression tests for both behaviors.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_tools_python_compat.py"` (PASS, offload id `92b391eabf11e0e952252fb6ee05522765579df0b6b0a838ff1f3e4150550b42`); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k scoped_autofix` (PASS, offload id `f2f7f20b09268ff1a5a9edf399b32bb047568b9780fc65a6c38dee4a6be91892`); `tools/offload-proxy/pp pre-commit run --files tools/markdown-lint tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_feature.py tests/test_tools_python_compat.py` (PASS, offload id `5be5793f628b9d4ee932bfdfe3d69d9de33c933369d362c2f433acbc61914036`).

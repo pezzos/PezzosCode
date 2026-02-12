@@ -2136,3 +2136,17 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Prevents recurring late patcher scope aborts caused by planner-owned docs entering autofix.
   - Preserves existing branch collection behavior and avoids side effects on final commit content.
+
+### DEC-053 - Keep Python tooling 3.9-safe and scope final autofix checks to touched deltas
+
+- **Date:** 2026-02-12
+- **Status:** Accepted
+- **Context:** Feature-18 runs failed in two ways: local/system Python 3.9 crashed on `tools/markdown-lint` annotations (`list[str] | None`), and final-gate scoped autofix falsely aborted because pre-existing planner-owned dirty files (`dev-tasks.md`) were treated as new out-of-scope mutations.
+- **Decision:**
+  - Add `from __future__ import annotations` to Python tool scripts that use `| None` annotations (`tools/markdown-lint`, `tools/pc-allowed-tests-check`).
+  - Keep scoped-autofix fail-closed semantics, but evaluate out-of-scope changes by pre/post dirty snapshot delta so only files touched during autofix are considered violations.
+  - Add regression coverage for both compatibility and autofix-delta behavior, including a system-Python-3.9 execution check for `tools/markdown-lint`.
+- **Consequences:**
+  - Pre-commit markdown checks no longer crash under Python 3.9 environments.
+  - Final-gate scoped autofix no longer false-fails on pre-existing out-of-scope dirty files.
+  - Real out-of-scope mutations during autofix still fail deterministically.

@@ -2946,17 +2946,22 @@ class TestPcFeature(unittest.TestCase):
             paths,
         )
 
-    def test_run_scoped_autofix_blocks_out_of_scope_files(self):
+    def test_run_scoped_autofix_blocks_new_out_of_scope_touches(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             stderr_capture = io.StringIO()
             with mock.patch.object(self.pc_feature, "run_command", return_value=0):
                 with mock.patch.object(
                     self.pc_feature,
-                    "get_status_paths",
-                    return_value=[
-                        "docs/02-features/01-workflow-hardening/dev-tasks.md",
-                        "README.md",
+                    "collect_dirty_snapshot",
+                    side_effect=[
+                        {
+                            "docs/02-features/01-workflow-hardening/dev-tasks.md": "before"
+                        },
+                        {
+                            "docs/02-features/01-workflow-hardening/dev-tasks.md": "after",
+                            "README.md": "new",
+                        },
                     ],
                 ):
                     with self.assertRaises(SystemExit):
@@ -2969,6 +2974,32 @@ class TestPcFeature(unittest.TestCase):
                 "scoped autofix touched out-of-scope files", stderr_capture.getvalue()
             )
             self.assertIn("README.md", stderr_capture.getvalue())
+
+    def test_run_scoped_autofix_allows_preexisting_out_of_scope_dirty_paths(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            scoped_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            with mock.patch.object(self.pc_feature, "run_command", return_value=0):
+                with mock.patch.object(
+                    self.pc_feature,
+                    "collect_dirty_snapshot",
+                    side_effect=[
+                        {scoped_path: "before", "README.md": "steady"},
+                        {scoped_path: "after", "README.md": "steady"},
+                    ],
+                ):
+                    with mock.patch.object(
+                        self.pc_feature.subprocess,
+                        "run",
+                        return_value=SimpleNamespace(
+                            returncode=0, stdout="", stderr=""
+                        ),
+                    ) as add_mock:
+                        status = self.pc_feature.run_scoped_autofix(
+                            str(root), [scoped_path]
+                        )
+        self.assertEqual(status, 0)
+        add_mock.assert_called_once()
 
     def test_main_manual_mode_prints_feature_status_hints_when_tracking_enabled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

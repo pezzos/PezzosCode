@@ -6103,3 +6103,44 @@ Track when debt is paid down:
 
 - `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py` (PASS)
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS, offload id `90f84f11268b4fd5850cf20d292ecf3468a0f987819ec31265777f598530980f`)
+
+### 2026-02-12 - Fix Python-3.9 hook compatibility and scoped-autofix false positives
+
+**Feature/Bug:** Feature-18 execution failed on `markdown-lint` import under Python 3.9 and raised false final-gate scoped-autofix out-of-scope errors for pre-existing dirty `dev-tasks.md`.
+
+**Changed Files:**
+
+- `tools/markdown-lint`
+- `tools/pc-allowed-tests-check`
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `tests/test_tools_python_compat.py`
+
+**What Changed:**
+
+- Added `from __future__ import annotations` to Python tool scripts using `| None` annotations so they load safely on Python 3.9.
+- Updated `run_scoped_autofix_paths(...)` in `tools/pc-feature` to compare pre/post dirty snapshots and fail only when out-of-scope files are touched during autofix.
+- Added regression coverage for:
+  - blocking new out-of-scope touched files during scoped autofix,
+  - allowing pre-existing out-of-scope dirty files when untouched,
+  - static guard that Python tools using `| None` require `__future__.annotations`,
+  - runtime check that `tools/markdown-lint` executes under system Python 3.9.
+
+**Why:**
+
+- Execution environments can resolve `python3` to 3.9 in feature worktrees, and 3.10+ union syntax without postponed annotations causes immediate hook crashes.
+- Final-gate scoped-autofix guard must distinguish newly touched files from pre-existing dirty state to avoid false aborts.
+
+**Impact:**
+
+- **Breaking changes:** None.
+- **Performance:** Minimal (two dirty snapshots around scoped autofix).
+- **Dependencies:** None.
+
+**Testing:**
+
+- `python3 -m py_compile tools/markdown-lint tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_feature.py tests/test_tools_python_compat.py` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_markdown_lint.py"` (PASS, offload id `5279d1fc9a1ced44f9c96da1414ef59e4676f963fbad52e7a1a2903538819b0d`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_tools_python_compat.py"` (PASS, offload id `92b391eabf11e0e952252fb6ee05522765579df0b6b0a838ff1f3e4150550b42`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k scoped_autofix` (PASS, offload id `f2f7f20b09268ff1a5a9edf399b32bb047568b9780fc65a6c38dee4a6be91892`)
+- `tools/offload-proxy/pp pre-commit run --files tools/markdown-lint tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_feature.py tests/test_tools_python_compat.py` (PASS, offload id `5be5793f628b9d4ee932bfdfe3d69d9de33c933369d362c2f433acbc61914036`)
