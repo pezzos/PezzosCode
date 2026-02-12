@@ -85,25 +85,59 @@
 
 #### Plan
 
-Updated `WI-20260212-05` in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:29` with:
+Plan Contract v1
+Approach:
 
-- Exact `Allowed Tests` commands at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:71`.
-- Full `Plan Contract v1` content (including required anti-hardcode coverage bullets and exact allowed test commands) at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:87`.
-- Explicit handoff note that non-compacted `docs/03-logs/*` is reporter/orchestrator-owned and patcher will not edit those files at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:139`.
-- Systematic review command/result entries at `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md:55`.
+1. Implement deterministic resume-state reconstruction and policy routing (`auto`, `prompt`, `fresh`) in CLI flow, including fail-closed blocking for contradictory artifact/step state and explicit remediation messaging.
+   Files to change:
 
-Systematic review commands executed and outcomes:
+- `tools/pc-feature`
+  Risks:
+- Resume inference can misclassify partial artifacts and skip required roles.
+- Contradiction detection can over-block valid reruns if edge states are not normalized first.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Add/extend fixtures for planner+reviewer complete -> patcher start, tester-fail -> planner route-back, reporter-pass -> final-gate path, contradictory artifacts -> block, dirty worktree auto-resume behavior, and missing critical artifacts -> deterministic error.
+- Deterministic seed strategy: Use fixed artifact inputs and stable ordering for parsed sections/log markers so route outcomes are deterministic across runs.
+- Invariant checks: Assert no resume path marks tester/reporter as complete without required artifacts, no contradictory state proceeds, and mandatory test/final-gate rerun flags stay enforced.
+- Contract boundary coverage: Cover unknown/missing mode values, empty or partially written role outputs, and malformed execution-state markers with fail-closed handling.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
 
-1. `mcp__serena__search_for_pattern` for the WI block -> found placeholders and target scope.
-2. `mcp__serena__search_for_pattern` for `Allowed Tests` through `Work Item ID` -> verified final structure and required fields.
+2. Add regression tests that prove non-resume behavior is unchanged while new resume logic remains artifact-aware and deterministic.
+   Files to change:
 
-Commit status:
+- `tests/test_pc_feature.py`
+  Risks:
+- Overfitted assertions may validate implementation details instead of behavior contracts.
+- New tests can miss CLI boundary behavior if only happy paths are exercised.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Include legacy non-resume invocation fixtures plus resumed-run fixtures sharing the same base artifacts to catch behavior drift.
+- Deterministic seed strategy: Reuse fixed synthetic workspace states and explicit fixture IDs rather than generated timestamps.
+- Invariant checks: Verify legacy path outputs remain stable and resume-only guards trigger exclusively when resume artifacts are present.
+- Contract boundary coverage: Validate transitions at planner/reviewer/patcher/tester/reporter boundaries and ensure route decisions match contract for each boundary state.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
 
-- Commit could not be created due sandbox permission error writing worktree git lock:
-  - `fatal: Unable to create .../.git/worktrees/.../index.lock: Operation not permitted`
+3. Preserve docs-log ownership boundaries while validating traceability expectations via existing docs tests.
+   Files to change:
 
-Also detected an unexpected untracked path: `logs/WI-20260212-05/` (not modified by me).
-If you want, I can proceed with a non-committing handoff only, or adjust around that path per your direction.
+- `tests/test_docs_logs.py`
+  Risks:
+- Traceability checks may fail if they depend on automation-owned files outside patcher scope.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Validate required compacted-output expectations without coupling to non-compacted reporter/orchestrator-managed logs.
+- Deterministic seed strategy: Use fixed expected markers/strings and stable parsing order for docs assertions.
+- Invariant checks: Ensure docs tests enforce required evidence structure without requiring patcher edits to role-scoped or non-compacted logs.
+- Contract boundary coverage: Cover missing compacted evidence and malformed compacted content as deterministic test failures.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required ownership note: Required non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit non-compacted `docs/03-logs` files.
+
+Work Item ID: WI-20260212-05
 
 #### Patch
 
@@ -135,7 +169,7 @@ If you want, I can proceed with a non-committing handoff only, or adjust around 
 
 #### Iteration Log
 
--
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_cycle=1).
 
 #### Commit
 
