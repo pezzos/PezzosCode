@@ -27,6 +27,34 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-12 - Resume contradiction auto-repair for pending execution sections
+
+**Feature/Bug:** F-17 resume auto-repair (contradictory resume state remediation)
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added startup policy parsing for contradiction handling (`repair|block|rewind`) and a dry-run switch for repair simulation.
+- Implemented role-artifact parsing helpers to read the latest WI entry from `validation-log.md` / `reporter-log.md`.
+- Added deterministic startup reconciliation that backfills pending `Patch`, `Test Results`, and `Reporter Review` sections when artifacts prove those phases already ran.
+- Updated resume-route detection to fall back to role artifact outcomes when feedback sections are blank, preserving correct planner restart on tester failures.
+- Preserved fail-closed behavior when candidate repair still leaves contradictions.
+- Added unit coverage for policy parsing, artifact-outcome fallback routing, reporter-skip handling, and reconciliation behavior.
+
+**Why:**
+
+- Prevent restart failures where role artifacts exist but `dev-tasks.md` sections are still pending, while keeping resume safety deterministic and auditable.
+
+**How:**
+
+- Added in-memory repair planning + route validation before writing `dev-tasks.md`.
+- Wrote only when repair unblocks routing (unless dry-run is enabled).
+- Extended `TestPcFeature` unit scenarios to lock the new safety and routing invariants.
+
 ### 2026-02-11 - Sync docs templates with updated live process/docs files
 
 **Feature/Bug:** Template/living parity (docs template sync)

@@ -32,6 +32,65 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 
 ## Entries
 
+### Proposal: WI-20260211-03 - Orchestration
+
+**Date:** 2026-02-11
+**Work Item:** WI-20260211-03
+**Agent:** pc-feature
+**Step:** Orchestration
+**Failure Summary:** Loop exhausted at MAX_LOOPS. tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 124 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` (added `### WI-20260211-03 - 2026-02-11 (rerun-2)` entry). File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: WI-20260211-03 execution record completeness and consistency with current scope. Evidence: Primary scope checks: `git status --short` shows reporter-log modified and untracked `log...
+**Proposed Improvement:** TBD - investigate failure and propose remediation.
+**Proposed Patch Location:** TBD
+**Risks / Trade-offs:** None noted.
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
+### Proposal: WI-20260211-03 - Report
+
+**Date:** 2026-02-11
+**Work Item:** WI-20260211-03
+**Agent:** Reporter
+**Step:** Report
+**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 124 items; `python3 -m unittest tests.test_docs_logs` => Ran 12 tests Work It...; reporter_feedback=Outcome: FAIL Docs/logs updated: `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` (added `### WI-20260211-03 - 2026-02-11 (rerun-2)` entry). File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: WI-20260211-03 execution record completeness and consistency with current scope. Evidence: Primary scope checks: `git status --short` shows reporter-log modified and untracked `log...
+**Proposed Improvement:** Add a pre-reporter completeness gate that blocks reporter review when active WI sections still contain `(pending)`.
+**Proposed Patch Location:** `tools/pc-feature`(reporter handoff gate) and`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`(WI-03 closeout fields).,`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
+**Risks / Trade-offs:** Stricter gating may increase retry frequency but prevents false-positive completion/review states.
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
+### Proposal: WI-20260211-03 - Report
+
+**Date:** 2026-02-11
+**Work Item:** WI-20260211-03
+**Agent:** Reporter
+**Step:** Report
+**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 120 items; `python3 -m unittest tests.test_docs_logs` => Ran 9 tests Work Ite...; reporter_feedback=Outcome: FAIL Docs/logs updated: `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` (added `### WI-20260211-03 - 2026-02-11 (rerun)` entry). File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: WI-20260211-03 execution record completeness and consistency with current scope. Evidence: `git status --short` shows `?? logs/WI-20260211-03/` and reporter-log modification only; `g...
+**Proposed Improvement:** Add an orchestrator guard that blocks reporter PASS when WI sections in `dev-tasks.md`still contain`(pending)`markers.
+**Proposed Patch Location:**`tools/pc-feature`(pre-reporter completeness gate) and/or orchestration step checks.,`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
+**Risks / Trade-offs:** Stricter gating may increase retries for partial docs updates but prevents false-positive completion states.
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
+### Proposal: WI-20260211-03 - Report
+
+**Date:** 2026-02-11
+**Work Item:** WI-20260211-03
+**Agent:** Reporter
+**Step:** Report
+**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python -m pytest tests/test_pc_feature.py::TestPcFeature` => collected 120 items; `python3 -m unittest tests.test_docs_logs` => Ran 9 tests Work Ite...; reporter_feedback=Outcome: FAIL Docs/logs updated: `docs/02-features/17-resume-in-progress-tickets/reporter-log.md` (added WI-20260211-03 review entry) File/Path: `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` Check: WI-20260211-03 execution record completeness and consistency with current artifacts/scope. Evidence: `git diff --stat refs/heads/main..HEAD` shows implementation/test/docs scope for WI-03 (`tools/pc-feat...
+**Proposed Improvement:** Update WI-20260211-03 in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`so execution fields reflect actual patch/test/reporter state and set a consistent work-item outcome.
+**Proposed Patch Location:**`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`**Risks / Trade-offs:** Reporter: WI-20260211-03 execution record completeness and consistency with current artifacts/scope.;`git diff --stat refs/heads/main..HEAD` shows implementation/test/docs scope for WI-0...
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
 ### Proposal: WI-20260211-02 - Orchestration
 
 **Date:** 2026-02-11

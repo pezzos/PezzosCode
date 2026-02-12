@@ -92,10 +92,10 @@ The design uses artifact-state inspection, explicit resume policy modes, and fai
 
 ## Technical Decisions
 
-### Decision 1: Fail closed on contradictory artifact state
+### Decision 1: Repair pending planner-owned sections before fail-closed blocking
 
-- Reason: inconsistent artifacts can produce unsafe skips.
-- Outcome: block with explicit remediation instead of guessing.
+- Reason: stale pending placeholders can contradict valid role artifacts and cause avoidable resume failures.
+- Outcome: attempt deterministic startup repair of pending execution sections from role artifacts, then fail closed if contradictions remain.
 
 ### Decision 2: Always rerun tests and final CI after resume
 

@@ -27,6 +27,12 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-12 - Resume contradiction auto-repair validation
+
+- `tools/offload-proxy/pp python -m pytest tests/test_pc_feature.py::TestPcFeature` (PASS: 126 passed, 0 failed)
+- `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs` (FAIL: import path mismatch in this environment; offload id `37baa2056bc8da9207724d21558cf33e017d28468a86b33d30b2b3f2afdfe287`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 8 tests; offload id `698d16d7b93c4bd9707d3cfacda6fb1e0fea99ed0cda6e69bedc42772940540a`)
+
 ### 2026-02-11 - Docs template/living parity validation
 
 - `tools/offload-proxy/pp tools/pc-template-sync` (PASS: no template/living mismatch reported)

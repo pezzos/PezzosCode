@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-043] - Repair pending resume sections from role artifacts before blocking
+
+**Date:** 2026-02-12
+
+**Status:** Implemented
+
+**Decision:**
+On resume startup, attempt deterministic reconciliation of pending execution sections (`Patch`, `Test Results`, `Reporter Review`) from existing tester/reporter role artifacts before raising a contradictory-state block.
+
+**Rationale:**
+Observed restarts could fail even when valid role artifacts existed, due to stale pending placeholders in `dev-tasks.md`. Repair-first removes avoidable manual cleanup while retaining fail-closed behavior when evidence remains inconsistent.
+
+**Implications:**
+
+- Resume now supports policy gating via `RESUME_CONTRADICTION_POLICY` with a kill-switch back to strict block mode.
+- Repair writes are constrained to planner-owned execution sections and only when placeholders are pending.
+- Tester/reporter outcomes can be inferred from role artifacts when feedback sections are empty, preserving correct planner restart routing.
+
 ### [DEC-042] - Enforce explicit role-loop control-flow contract
 
 **Date:** 2026-02-11

@@ -1362,6 +1362,46 @@ class TestPcFeature(unittest.TestCase):
                     self.pc_feature.parse_resume_mode()
         self.assertIn("invalid RESUME_MODE value", stderr_capture.getvalue())
 
+    def test_parse_resume_contradiction_policy_defaults_to_repair(self):
+        with mock.patch.dict(self.pc_feature.os.environ, {}, clear=True):
+            self.assertEqual(
+                self.pc_feature.parse_resume_contradiction_policy(),
+                "repair",
+            )
+
+    def test_parse_resume_contradiction_policy_normalizes_supported_values(self):
+        cases = [
+            ({}, "repair"),
+            ({"RESUME_CONTRADICTION_POLICY": "  "}, "repair"),
+            ({"RESUME_CONTRADICTION_POLICY": "REPAIR"}, "repair"),
+            ({"RESUME_CONTRADICTION_POLICY": " block "}, "block"),
+            ({"RESUME_CONTRADICTION_POLICY": "rewind"}, "rewind"),
+        ]
+        for env_updates, expected in cases:
+            with self.subTest(env=env_updates, expected=expected):
+                with mock.patch.dict(
+                    self.pc_feature.os.environ, env_updates, clear=True
+                ):
+                    self.assertEqual(
+                        self.pc_feature.parse_resume_contradiction_policy(),
+                        expected,
+                    )
+
+    def test_parse_resume_contradiction_policy_invalid_value_exits(self):
+        stderr_capture = io.StringIO()
+        with mock.patch.dict(
+            self.pc_feature.os.environ,
+            {"RESUME_CONTRADICTION_POLICY": "invalid"},
+            clear=False,
+        ):
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stderr(stderr_capture):
+                    self.pc_feature.parse_resume_contradiction_policy()
+        self.assertIn(
+            "invalid RESUME_CONTRADICTION_POLICY value",
+            stderr_capture.getvalue(),
+        )
+
     def test_detect_resume_route_planner_and_reviewer_complete_routes_to_patcher(self):
         work_item_id = "WI-20260210-01"
         content = self._build_entry_content(work_item_id)
@@ -1555,6 +1595,182 @@ class TestPcFeature(unittest.TestCase):
             )
         self.assertEqual(first, second)
         self.assertEqual(first, ("tester", None))
+
+    def test_detect_resume_route_uses_role_artifact_outcomes_when_feedback_missing(
+        self,
+    ):
+        work_item_id = "WI-20260210-08"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Patch", "- patch complete"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", "- pytest -> 1"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tester_log = Path(tmpdir) / "validation-log.md"
+            tester_log.write_text(
+                (
+                    "# Validation Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-12\n\n"
+                    "Outcome: FAIL\n"
+                    "Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`\n"
+                ),
+                encoding="utf-8",
+            )
+            route, reason = self.pc_feature.detect_resume_route(
+                content,
+                work_item_id,
+                tester_log_path=str(tester_log),
+            )
+        self.assertEqual(route, "planner")
+        self.assertIsNone(reason)
+
+    def test_detect_resume_route_allows_reporter_skipped_without_reporter_review(self):
+        work_item_id = "WI-20260210-09"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Patch", "- patch complete"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", "- pytest -> 1"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Reporter Feedback",
+            "Outcome: SKIPPED\nNotes: deferred",
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tester_log = Path(tmpdir) / "validation-log.md"
+            reporter_log = Path(tmpdir) / "reporter-log.md"
+            tester_log.write_text(
+                (
+                    "# Validation Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-12\n\nOutcome: FAIL\n"
+                ),
+                encoding="utf-8",
+            )
+            reporter_log.write_text(
+                (
+                    "# Reporter Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-12\n\nOutcome: SKIPPED\n"
+                    "Docs/logs updated: reporter deferred\n"
+                    "Notes: Reporter skipped because tester failed.\n"
+                ),
+                encoding="utf-8",
+            )
+            route, reason = self.pc_feature.detect_resume_route(
+                content,
+                work_item_id,
+                tester_log_path=str(tester_log),
+                reporter_log_path=str(reporter_log),
+            )
+        self.assertEqual(route, "planner")
+        self.assertIsNone(reason)
+
+    def test_reconcile_resume_pending_sections_backfills_pending_sections_only(self):
+        work_item_id = "WI-20260210-10"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tester_log = Path(tmpdir) / "validation-log.md"
+            reporter_log = Path(tmpdir) / "reporter-log.md"
+            tester_log.write_text(
+                (
+                    "# Validation Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-12\n\n"
+                    "Outcome: PASS\n"
+                    "Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`\n"
+                    "Notes: all checks passed\n"
+                ),
+                encoding="utf-8",
+            )
+            reporter_log.write_text(
+                (
+                    "# Reporter Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-12\n\n"
+                    "Outcome: PASS\n"
+                    "Docs/logs updated: reporter complete\n"
+                    "Notes: scope approved\n"
+                ),
+                encoding="utf-8",
+            )
+            updated, repaired_sections = (
+                self.pc_feature.reconcile_resume_pending_sections(
+                    content,
+                    work_item_id,
+                    tester_log_path=str(tester_log),
+                    reporter_log_path=str(reporter_log),
+                )
+            )
+        self.assertEqual(
+            repaired_sections,
+            ["Patch", "Test Results", "Reporter Review"],
+        )
+        self.assertNotIn(
+            "(pending)",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Patch"),
+        )
+        self.assertNotIn(
+            "(pending)",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Test Results"),
+        )
+        self.assertNotIn(
+            "(pending)",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Reporter Review"),
+        )
+        self.assertIn(
+            "Startup auto-repair aligned pending sections",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Iteration Log"),
+        )
+
+    def test_reconcile_resume_pending_sections_skips_reporter_review_for_skipped(self):
+        work_item_id = "WI-20260210-11"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Plan", "Plan Contract v1\n\nApproach:\n- done"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tester_log = Path(tmpdir) / "validation-log.md"
+            reporter_log = Path(tmpdir) / "reporter-log.md"
+            tester_log.write_text(
+                (
+                    "# Validation Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-12\n\nOutcome: FAIL\n"
+                    "Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`\n"
+                ),
+                encoding="utf-8",
+            )
+            reporter_log.write_text(
+                (
+                    "# Reporter Log\n\n## Entries\n\n"
+                    f"### {work_item_id} - 2026-02-12\n\nOutcome: SKIPPED\n"
+                    "Docs/logs updated: reporter deferred\n"
+                ),
+                encoding="utf-8",
+            )
+            updated, repaired_sections = (
+                self.pc_feature.reconcile_resume_pending_sections(
+                    content,
+                    work_item_id,
+                    tester_log_path=str(tester_log),
+                    reporter_log_path=str(reporter_log),
+                )
+            )
+        self.assertEqual(repaired_sections, ["Patch", "Test Results"])
+        self.assertIn(
+            "(pending)",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Reporter Review"),
+        )
 
     def test_detect_resume_route_fixture_matrix_is_deterministic(self):
         def with_plan(content: str, work_item_id: str) -> str:

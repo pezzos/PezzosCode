@@ -39,6 +39,16 @@ RESUME_MODE_VALUES = {
     RESUME_MODE_PROMPT,
     RESUME_MODE_FRESH,
 }
+RESUME_CONTRADICTION_POLICY_ENV = "RESUME_CONTRADICTION_POLICY"
+RESUME_CONTRADICTION_POLICY_REPAIR = "repair"
+RESUME_CONTRADICTION_POLICY_BLOCK = "block"
+RESUME_CONTRADICTION_POLICY_REWIND = "rewind"
+RESUME_CONTRADICTION_POLICY_VALUES = {
+    RESUME_CONTRADICTION_POLICY_REPAIR,
+    RESUME_CONTRADICTION_POLICY_BLOCK,
+    RESUME_CONTRADICTION_POLICY_REWIND,
+}
+RESUME_REPAIR_DRY_RUN_ENV = "RESUME_REPAIR_DRY_RUN"
 IGNORED_PATH_PREFIXES = (
     ".tmp/",
     ".codex_subagent/",
@@ -2831,6 +2841,22 @@ def parse_resume_mode() -> str:
     return value
 
 
+def parse_resume_contradiction_policy() -> str:
+    raw = os.environ.get(
+        RESUME_CONTRADICTION_POLICY_ENV,
+        RESUME_CONTRADICTION_POLICY_REPAIR,
+    )
+    value = raw.strip().lower()
+    if not value:
+        return RESUME_CONTRADICTION_POLICY_REPAIR
+    if value not in RESUME_CONTRADICTION_POLICY_VALUES:
+        die(
+            f"pc-feature: invalid {RESUME_CONTRADICTION_POLICY_ENV} value '{raw}'; "
+            "expected one of: " + ", ".join(sorted(RESUME_CONTRADICTION_POLICY_VALUES))
+        )
+    return value
+
+
 def classify_resume_dirty_paths(
     dirty_paths: List[str], feature_dir: str, dev_tasks_path: str
 ) -> Tuple[List[str], List[str]]:
@@ -3176,6 +3202,177 @@ def select_resume_work_item_id(content: str) -> Optional[str]:
     return newest_id
 
 
+def latest_role_log_entry(content: str, work_item_id: str) -> Optional[str]:
+    header_prefix = f"### {work_item_id} "
+    lines = content.splitlines()
+    entry_start_indices = [
+        idx for idx, line in enumerate(lines) if line.startswith(header_prefix)
+    ]
+    if not entry_start_indices:
+        return None
+    start = entry_start_indices[-1]
+    end = len(lines)
+    for idx in range(start + 1, len(lines)):
+        if lines[idx].startswith("### "):
+            end = idx
+            break
+    return "\n".join(lines[start:end]).strip()
+
+
+def parse_labeled_line(text: str, label: str) -> str:
+    prefix = f"{label}:"
+    target = prefix.lower()
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line.lower().startswith(target):
+            continue
+        return line.split(":", 1)[1].strip()
+    return ""
+
+
+def read_role_log_artifact(
+    log_path: Optional[str], work_item_id: str
+) -> Dict[str, Any]:
+    artifact: Dict[str, Any] = {
+        "exists": False,
+        "entry": "",
+        "outcome": None,
+        "tests_run": "",
+        "docs_updated": "",
+        "notes": "",
+    }
+    if not log_path or not os.path.exists(log_path):
+        return artifact
+    try:
+        log_content = read_file(log_path)
+    except OSError:
+        return artifact
+    entry = latest_role_log_entry(log_content, work_item_id)
+    if not entry:
+        return artifact
+    artifact["exists"] = True
+    artifact["entry"] = entry
+    artifact["outcome"] = parse_section_outcome(entry)
+    artifact["tests_run"] = parse_labeled_line(entry, "Tests run")
+    artifact["docs_updated"] = parse_labeled_line(entry, "Docs/logs updated")
+    artifact["notes"] = parse_labeled_line(entry, "Notes")
+    return artifact
+
+
+def resume_section_is_pending(content: str, work_item_id: str, section: str) -> bool:
+    body = get_entry_section(content, work_item_id, section)
+    if not body.strip():
+        return True
+    return "(pending)" in body
+
+
+def build_resume_patch_repair_body(
+    tester_artifact: Dict[str, Any], reporter_artifact: Dict[str, Any]
+) -> str:
+    sources: List[str] = []
+    if tester_artifact.get("exists"):
+        sources.append("validation-log.md")
+    if reporter_artifact.get("exists"):
+        sources.append("reporter-log.md")
+    source_text = ", ".join(sources) if sources else "role logs"
+    return (
+        "- Resume reconciliation: role artifacts indicate patch work completed "
+        "before interruption.\n"
+        f"- Source artifacts: {source_text}."
+    )
+
+
+def build_resume_test_results_repair_body(tester_artifact: Dict[str, Any]) -> str:
+    lines = [
+        "- Resume reconciliation: derived from tester artifact in validation-log.md."
+    ]
+    outcome = str(tester_artifact.get("outcome") or "").strip()
+    tests_run = str(tester_artifact.get("tests_run") or "").strip()
+    notes = str(tester_artifact.get("notes") or "").strip()
+    if outcome:
+        lines.append(f"- Outcome: {outcome}")
+    if tests_run:
+        lines.append(f"- Tests run: {tests_run}")
+    if notes:
+        lines.append(f"- Notes: {summarize_feedback(notes, max_chars=220)}")
+    return "\n".join(lines)
+
+
+def build_resume_reporter_review_repair_body(reporter_artifact: Dict[str, Any]) -> str:
+    lines = [
+        "- Resume reconciliation: derived from reporter artifact in reporter-log.md."
+    ]
+    outcome = str(reporter_artifact.get("outcome") or "").strip()
+    docs_updated = str(reporter_artifact.get("docs_updated") or "").strip()
+    notes = str(reporter_artifact.get("notes") or "").strip()
+    if outcome:
+        lines.append(f"- Outcome: {outcome}")
+    if docs_updated:
+        lines.append(f"- Docs/logs updated: {docs_updated}")
+    if notes:
+        lines.append(f"- Notes: {summarize_feedback(notes, max_chars=220)}")
+    return "\n".join(lines)
+
+
+def reconcile_resume_pending_sections(
+    content: str,
+    work_item_id: str,
+    *,
+    tester_log_path: Optional[str] = None,
+    reporter_log_path: Optional[str] = None,
+) -> Tuple[str, List[str]]:
+    tester_artifact = read_role_log_artifact(tester_log_path, work_item_id)
+    reporter_artifact = read_role_log_artifact(reporter_log_path, work_item_id)
+    repaired_sections: List[str] = []
+    updated = content
+
+    if resume_section_is_pending(updated, work_item_id, "Patch") and (
+        tester_artifact.get("exists") or reporter_artifact.get("exists")
+    ):
+        updated = replace_entry_section(
+            updated,
+            work_item_id,
+            "Patch",
+            build_resume_patch_repair_body(tester_artifact, reporter_artifact),
+        )
+        repaired_sections.append("Patch")
+
+    if resume_section_is_pending(
+        updated, work_item_id, "Test Results"
+    ) and tester_artifact.get("exists"):
+        updated = replace_entry_section(
+            updated,
+            work_item_id,
+            "Test Results",
+            build_resume_test_results_repair_body(tester_artifact),
+        )
+        repaired_sections.append("Test Results")
+
+    reporter_requires_review = bool(reporter_artifact.get("exists")) and (
+        reporter_artifact.get("outcome") != "SKIPPED"
+    )
+    if resume_section_is_pending(updated, work_item_id, "Reporter Review") and (
+        reporter_requires_review
+    ):
+        updated = replace_entry_section(
+            updated,
+            work_item_id,
+            "Reporter Review",
+            build_resume_reporter_review_repair_body(reporter_artifact),
+        )
+        repaired_sections.append("Reporter Review")
+
+    if repaired_sections:
+        updated = append_iteration_log_note(
+            updated,
+            work_item_id,
+            "Startup auto-repair aligned pending sections from role artifacts: "
+            + ", ".join(repaired_sections)
+            + ".",
+        )
+    return updated, repaired_sections
+
+
 def detect_resume_route(
     content: str,
     work_item_id: str,
@@ -3183,15 +3380,6 @@ def detect_resume_route(
     tester_log_path: Optional[str] = None,
     reporter_log_path: Optional[str] = None,
 ) -> Tuple[str, Optional[str]]:
-    def role_log_has_work_item(log_path: Optional[str]) -> bool:
-        if not log_path or not os.path.exists(log_path):
-            return False
-        try:
-            log_content = read_file(log_path)
-        except OSError:
-            return False
-        return f"### {work_item_id} " in log_content
-
     def is_complete(section: str) -> bool:
         body = get_entry_section(content, work_item_id, section)
         if not body or "(pending)" in body:
@@ -3204,10 +3392,19 @@ def detect_resume_route(
     reporter_review_complete = is_complete("Reporter Review")
     tester_feedback = get_entry_section(content, work_item_id, "Tester Feedback")
     reporter_feedback = get_entry_section(content, work_item_id, "Reporter Feedback")
-    tester_outcome = parse_section_outcome(tester_feedback)
-    reporter_outcome = parse_section_outcome(reporter_feedback)
-    tester_log_has_artifact = role_log_has_work_item(tester_log_path)
-    reporter_log_has_artifact = role_log_has_work_item(reporter_log_path)
+    tester_artifact = read_role_log_artifact(tester_log_path, work_item_id)
+    reporter_artifact = read_role_log_artifact(reporter_log_path, work_item_id)
+    tester_outcome = parse_section_outcome(tester_feedback) or tester_artifact.get(
+        "outcome"
+    )
+    reporter_outcome = parse_section_outcome(
+        reporter_feedback
+    ) or reporter_artifact.get("outcome")
+    tester_log_has_artifact = bool(tester_artifact.get("exists"))
+    reporter_log_has_artifact = bool(reporter_artifact.get("exists"))
+    reporter_requires_review = reporter_log_has_artifact and (
+        reporter_outcome != "SKIPPED"
+    )
 
     contradictions: List[str] = []
     if tester_log_has_artifact and not patch_complete:
@@ -3222,11 +3419,16 @@ def detect_resume_route(
         contradictions.append(
             "reporter artifact exists while test results section is pending"
         )
-    if reporter_log_has_artifact and not reporter_review_complete:
+    if reporter_requires_review and not reporter_review_complete:
         contradictions.append(
             "reporter artifact exists while reporter review section is pending"
         )
-    if reporter_outcome and test_results_complete and not reporter_review_complete:
+    if (
+        reporter_outcome
+        and reporter_outcome != "SKIPPED"
+        and test_results_complete
+        and not reporter_review_complete
+    ):
         contradictions.append(
             "reporter feedback exists while reporter review section is pending"
         )
@@ -3238,7 +3440,11 @@ def detect_resume_route(
         contradictions.append("reporter review exists without test results")
     if tester_outcome == "FAIL" and reporter_outcome == "PASS":
         contradictions.append("tester failed but reporter is pass")
-    if tester_outcome == "FAIL" and reporter_review_complete:
+    if (
+        tester_outcome == "FAIL"
+        and reporter_review_complete
+        and reporter_outcome != "SKIPPED"
+    ):
         contradictions.append("tester failed but reporter review is complete")
     if contradictions:
         return (
@@ -3248,7 +3454,7 @@ def detect_resume_route(
             + "; remediation: align pending sections and role artifacts before resume",
         )
 
-    if reporter_outcome and not test_results_complete:
+    if reporter_outcome and reporter_outcome != "SKIPPED" and not test_results_complete:
         return (
             "block",
             "missing critical artifact: reporter feedback exists without test results",
@@ -3555,7 +3761,49 @@ def main() -> None:
     content = ensure_allowed_tests_section(content, work_item_id)
     resume_start_step = "planner"
     force_planner_on_resume = False
+    resume_contradiction_policy = parse_resume_contradiction_policy()
+    resume_repair_dry_run = parse_bool_env(RESUME_REPAIR_DRY_RUN_ENV)
+    if resume_repair_dry_run is None:
+        resume_repair_dry_run = False
     if resuming_existing_work_item:
+        if resume_contradiction_policy == RESUME_CONTRADICTION_POLICY_REPAIR:
+            repaired_content, repaired_sections = reconcile_resume_pending_sections(
+                content,
+                work_item_id,
+                tester_log_path=role_paths_abs["tester"],
+                reporter_log_path=role_paths_abs["reporter"],
+            )
+            if repaired_sections:
+                candidate_start_step, candidate_block_reason = detect_resume_route(
+                    repaired_content,
+                    work_item_id,
+                    tester_log_path=role_paths_abs["tester"],
+                    reporter_log_path=role_paths_abs["reporter"],
+                )
+                sections_text = ", ".join(repaired_sections)
+                if resume_repair_dry_run:
+                    status = (
+                        f"would route to {candidate_start_step}"
+                        if not candidate_block_reason
+                        else "would remain blocked"
+                    )
+                    print(
+                        "pc-feature: startup auto-repair dry-run sections: "
+                        + sections_text
+                        + f"; {status}"
+                    )
+                elif candidate_block_reason:
+                    print(
+                        "pc-feature: startup auto-repair skipped; candidate remains blocked: "
+                        + candidate_block_reason
+                    )
+                else:
+                    content = repaired_content
+                    write_file(dev_tasks_path, content)
+                    print(
+                        "pc-feature: startup auto-repair aligned pending sections: "
+                        + sections_text
+                    )
         resume_start_step, resume_block_reason = detect_resume_route(
             content,
             work_item_id,
@@ -3572,7 +3820,13 @@ def main() -> None:
             tester_feedback = get_entry_section(
                 content, work_item_id, "Tester Feedback"
             )
-            force_planner_on_resume = parse_section_outcome(tester_feedback) == "FAIL"
+            tester_outcome = parse_section_outcome(tester_feedback)
+            if tester_outcome is None:
+                tester_artifact = read_role_log_artifact(
+                    role_paths_abs["tester"], work_item_id
+                )
+                tester_outcome = tester_artifact.get("outcome")
+            force_planner_on_resume = tester_outcome == "FAIL"
         print(f"pc-feature: resume route selected: {resume_start_step}")
     current_main_head = git_ref_sha(root, "refs/heads/main")
     notes_value = get_entry_field(content, work_item_id, "Notes")
