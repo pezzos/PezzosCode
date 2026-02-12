@@ -85,26 +85,59 @@
 
 #### Plan
 
-Updated `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260212-04` with:
+Plan Contract v1
+Approach:
 
-- Filled `#### Allowed Tests` using exact commands:
+1. Implement deterministic resume-state detection and policy enforcement in the CLI flow so `auto`, `prompt`, and `fresh` consistently resolve to the correct next step, fail closed on contradictory artifact state, and preserve non-resume behavior.
+   Files to change:
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+  Risks:
+- Resume-state heuristics can overfit to current artifacts and misroute future valid states.
+- Fail-closed checks can become too aggressive and block legitimate resumes.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: At least 2 fixtures per critical resume path (`planner+reviewer complete`, `tester failed`, `reporter complete`) plus contradictory-state fixtures.
+- Deterministic seed strategy: Use fixed fixture inputs and stable artifact timestamps/order in test data; no random data generation.
+- Invariant checks: Assert single next-step selection, mandatory test/CI rerun gates after resume, and unchanged behavior when no resume artifacts are present.
+- Contract boundary coverage: Validate handling for missing artifacts, partial artifacts, contradictory step markers, and dirty worktree preservation in `auto`.
+- Allowed test commands:
   - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
   - `python3 -m unittest tests.test_docs_logs`
-- Replaced `#### Plan` placeholder with a `Plan Contract v1` block in the exact required structure.
-- Included explicit anti-hardcode coverage in every approach step:
-  - fixture coverage (`>=2 fixtures per critical path`)
-  - deterministic seed strategy
-  - invariant checks
-  - contract boundary coverage
-- Ensured all concrete test commands in the plan are verbatim from Allowed Tests.
-- Added explicit handoff note: non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned and patcher will not edit them.
-- Added `Systematic review` command log entries in the WI preflight block.
 
-Could not commit due sandbox restrictions on git metadata path:
+2. Add/adjust documentation-log contract tests so resume/checkpoint outputs and compacted evidence expectations remain enforced without touching automation-owned role/global logs.
+   Files to change:
 
-- `fatal: Unable to create .../.git/worktrees/.../index.lock: Operation not permitted`
+- `tests/test_docs_logs.py`
+- `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md`
+  Risks:
+- Tests may couple to volatile formatting instead of stable contract markers.
+- Compacted evidence may drift from actual executed validations if not updated with exact command outcomes.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Include at least 2 fixtures for compacted-log validation (`resume success`, `resume blocked`) using stable expected markers.
+- Deterministic seed strategy: Use fixed expected strings and fixed work item id references; avoid dynamic date parsing in assertions.
+- Invariant checks: Ensure required evidence keys are present and role-scoped/global non-compacted log files are not required for patcher completion.
+- Contract boundary coverage: Verify acceptance of compacted outputs only under `docs/03-logs/compacted/` and rejection expectations for missing required compacted evidence.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
 
-So the change is present locally but uncommitted.
+3. Perform focused validation and record compacted patcher evidence for traceability.
+   Files to change:
+
+- `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md`
+  Risks:
+- Validation may miss integration regressions if only one command path is exercised.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Evidence must include both command executions and pass/fail outcomes for each allowed command.
+- Deterministic seed strategy: Record exact executed commands verbatim and stable result summaries.
+- Invariant checks: Confirm no forbidden files are listed in Files to change and no role-scoped logs are edited by patcher.
+- Contract boundary coverage: Confirm required non-compacted `docs/03-logs` updates are owned by reporter/orchestrator; patcher will not edit those files.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Work Item ID: WI-20260212-04
 
 #### Patch
 
@@ -136,7 +169,7 @@ So the change is present locally but uncommitted.
 
 #### Iteration Log
 
--
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
 
 #### Commit
 

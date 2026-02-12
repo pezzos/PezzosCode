@@ -411,3 +411,9 @@ Could not commit due sandbox restrictions on git metadata path:
 - `fatal: Unable to create .../.git/worktrees/.../index.lock: Operation not permitted`
 
 So the change is present locally but uncommitted.
+
+### WI-20260212-04 - 2026-02-12
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
