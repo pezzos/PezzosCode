@@ -69,3 +69,50 @@ Per your repo rules, I need your direction before proceeding to commit. Choose o
 Step Planner revise after Plan Reviewer BLOCK at attempt 1.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260212-03 - 2026-02-12
+
+Updated `docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md` for `WI-20260212-03` with:
+
+- `#### Allowed Tests` populated with exact commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+- `#### Files to Change` and preflight `Files to change` cleaned to exclude forbidden non-compacted `docs/03-logs/*`.
+- `#### Docs Updated` updated with explicit ownership note for non-compacted logs.
+- `#### Plan` replaced with the required **Plan Contract v1** structure, including:
+  - fixture coverage (`>=2 fixtures per critical path`)
+  - deterministic seed strategy
+  - invariant checks
+  - contract boundary coverage
+  - explicit handoff note that non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned and patcher will not edit them
+  - only Allowed Tests commands used verbatim in plan steps
+
+File changed:
+
+- `docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md`
+
+Systematic review (commands and results):
+
+1. `mcp__serena__search_for_pattern` (WI-20260212-03 block extraction)
+   Result: located pending `Allowed Tests` and `Plan` sections.
+2. `apply_patch` (main planner patch)
+   Result: updated `Allowed Tests`, file scopes, docs ownership note, and full Plan Contract v1 body.
+3. `mcp__serena__search_for_pattern` (post-patch validation)
+   Result: confirmed required structure and content are present.
+4. `git diff -- .../dev-tasks.md`
+   Result: verified only intended WI-20260212-03 content changes.
+5. `git status --short`
+   Result: confirmed only one modified tracked file for this step (plus unrelated untracked `logs/` dirs).
+6. `git add ... && git commit ...` (single end-of-step commit attempt)
+   Result: failed due sandbox/worktree permission error:
+   `Unable to create .../.git/worktrees/.../index.lock: Operation not permitted`
+
+Commit status:
+
+- Not committed due filesystem permission restriction on git worktree metadata.
+
+### WI-20260212-03 - 2026-02-12
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.

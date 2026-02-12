@@ -1,45 +1,39 @@
 # WI-20260212-03 Patcher Evidence (Compacted)
 
-- Date: 2026-02-12
-- Scope: deterministic resume-state detection, fail-closed contradictions, and resume-policy boundary coverage.
+## Summary
+
+Implemented commit-gate status enforcement so the latest work-item ticket status must be completed (`Outcome: pass` or `Outcome: completed`) before commit is allowed. Added deterministic normalization/completion helpers and table-driven status boundary tests.
 
 ## Commands Executed
 
-- `tools/offload-proxy/pp python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`123 passed`, `0 failed`).
-- `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs` -> PASS (`Ran 9 tests`, `OK`).
+- `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
 
-## Fixture Coverage (Executed)
+## Fixture Outcomes
 
-- Completed planner+reviewer artifacts: routes to `patcher` when plan is complete.
-- Failed tester state: routes to `planner`.
-- Completed reporter state: routes to `tester` so validation gates are re-run.
-- Contradictory role artifacts: blocked when planner/reviewer artifacts exist while plan is pending.
-- Missing critical artifacts: blocked when test results exist without tester feedback.
+### Fixture: completed-pass
 
-## Deterministic Seed Strategy
+- Expected route: allow
+- Outcome status accepted as completed.
+- Evidence: normalized `Outcome` values `pass` and `completed` are accepted.
 
-- Fixed work item identifiers in fixtures (for example, `WI-20260211-11` through `WI-20260211-21`).
-- Stable, fully controlled fixture directory structures via `tempfile.TemporaryDirectory()`.
-- Fixed artifact timestamps/content in seeded role logs to avoid ordering or clock dependence.
+### Fixture: non-completed-status
 
-## Verified Invariants
+- Expected route: block
+- Gate rejected non-completed status values (for example `Ongoing`, `Awaiting PO Approval`).
 
-- Fail-closed contradiction handling: contradictory resume states block execution with remediation text.
-- No unsafe step advancement on contradictory state for `auto` and `prompt` policies.
-- Mandatory validation re-run contract preserved: reporter-complete state routes to tester path.
+### Fixture: missing-status
 
-## Contract Boundaries Validated
+- Expected route: block
+- Gate failed closed for missing/invalid status.
 
-- Policy boundaries: `auto`, `prompt`, `fresh` semantics remain documented and tested.
-- Role-artifact boundaries: planner/reviewer/tester/reporter artifact presence is evaluated at resume.
-- Error boundaries: recoverable resume routes (`planner`/`patcher`/`tester`) vs blocking states (`block`) are deterministic.
+## Contract Boundaries
+
+- Only completed ticket statuses are accepted at commit gate.
+- Gate remains fail-closed for missing, malformed, or non-completed status values.
+- Existing required evidence sections (`Test Results`, `Commit`, `Final Report`) remain required.
+- Compacted evidence is accepted only under `docs/03-logs/compacted/`.
 
 ## Ownership Note
 
-- Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator and were not edited by patcher.
-
-## Reporter/Orchestrator Handoff Requirement
-
-- Release-readiness remains pending until reporter/orchestrator completes `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260212-03` execution metadata and the `Patch`, `Test Results`, and `Reporter Review` sections.
-- This patcher step intentionally did not edit `dev-tasks.md` per role/file ownership constraints in the current prompt.
-- Required next action before final reporter re-review: reporter/orchestrator updates `dev-tasks.md` execution record fields from `(pending)` to concrete evidence and reruns reporter review checks.
+Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher did not edit those files.

@@ -26,6 +26,158 @@
 
 ## Execution Log
 
+### WI-20260212-03 - Work item execution
+
+- Date: 2026-02-12
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome:
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes: Main head locked: 3efc2c66c1fbad1d1edd61452b3df0a85b1efb0f
+
+#### Preflight Report
+
+- Work Item: WI-20260212-03
+- PRD ref: docs/01-product/prd.md (Feature F-18)
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: Commit-stage precheck for work-item documentation completeness; deterministic missing-section diagnostics; hard-block commit when required evidence is missing; logging of commit-gate outcomes.
+- Scope out: No new git workflow beyond existing tools/pc-commit contract; no auto-authoring of narrative report content/evidence; no remote/git host integration changes; no commit message policy changes.
+- Non-goals reminder: Do not fabricate tester/reporter evidence and do not expand the workflow model beyond current pc-feature/pc-commit contracts.
+- Files to change: tools/pc-feature, tools/pc-commit, tests/test_pc_feature.py, docs/04-process/ticket-execution-protocol.md, docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md
+- TDD plan: TC-18-001 Missing `Tests Run` section blocks commit with remediation, TC-18-002 Missing final report fields block commit with remediation, TC-18-003 Complete docs allow commit flow to continue, TC-18-101 Duplicate section headings use deterministic interpretation, TC-18-102 Empty section body counts as missing evidence, TC-18-201 Malformed markdown returns remediation guidance, TC-18-301 Existing successful final-gate flows remain unchanged
+- Systematic review:
+
+#### TDD Plan
+
+- Tests to write first:
+  - TC-18-001 Missing `Tests Run` section blocks commit with remediation
+  - TC-18-002 Missing final report fields block commit with remediation
+  - TC-18-003 Complete docs allow commit flow to continue
+  - TC-18-101 Duplicate section headings use deterministic interpretation
+  - TC-18-102 Empty section body counts as missing evidence
+  - TC-18-201 Malformed markdown returns remediation guidance
+  - TC-18-301 Existing successful final-gate flows remain unchanged
+
+#### Allowed Tests
+
+- `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
+
+#### Files to Change
+
+- Files: tools/pc-feature, tools/pc-commit, tests/test_pc_feature.py, docs/04-process/ticket-execution-protocol.md, docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md
+
+#### Docs Updated
+
+- docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md (WI-20260212-03 preflight/plan/patch/test/report sections)
+- docs/04-process/ticket-execution-protocol.md (only if semantics wording changes)
+- Non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned and out of patcher scope for this work item.
+
+#### Plan
+
+Plan Contract v1
+Approach:
+
+1. Implement the commit-gate behavior so commit execution is blocked unless the active ticket is explicitly marked completed, while preserving existing gate conditions and error semantics.
+   Files to change:
+
+- `tools/pc-commit`
+- `tools/pc-feature-status`
+  Risks:
+- Regressing existing gate checks and allowing false positives/negatives for completion state.
+- Parsing drift if ticket metadata variants are not handled deterministically.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: At least 2 fixtures per critical path (completed ticket allowed, non-completed ticket blocked, malformed/missing status blocked).
+- Deterministic seed strategy: Use fixed fixture content and stable temp paths/names; no time-based or randomized expectations.
+- Invariant checks: Gate must fail closed on unreadable/invalid ticket state; existing non-status gate behavior must remain unchanged.
+- Contract boundary coverage: Verify only documented completion states pass and all other states fail with expected message shape.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Expand and tighten automated tests around the ticket-status gate and docs/log policy checks to prevent hardcoded single-case behavior.
+   Files to change:
+
+- `tests/test_pc_feature.py`
+- `tests/test_docs_logs.py`
+  Risks:
+- Brittle assertions tied to incidental formatting rather than contract-level behavior.
+- Gaps in negative-path coverage that permit regressions.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Table-driven fixtures covering valid completed, invalid status, absent status, and mixed-case/whitespace variants.
+- Deterministic seed strategy: Fully deterministic fixture matrix with explicit expected outputs per row.
+- Invariant checks: Ensure pass/fail outcomes are consistent across repeated runs and independent of environment ordering.
+- Contract boundary coverage: Enforce exact boundary between accepted completion state(s) and rejected non-completion state(s).
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Record compacted implementation evidence for this work item without editing non-compacted global logs.
+   Files to change:
+
+- `docs/03-logs/compacted/WI-20260212-03-patcher-evidence.md`
+  Risks:
+- Missing traceability if compacted evidence omits command/result summaries.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: N/A for evidence-only update; reference executed test fixtures from steps 1-2.
+- Deterministic seed strategy: N/A for evidence-only update.
+- Invariant checks: Evidence must include exact commands run and concise outcomes.
+- Contract boundary coverage: Confirm no edits are made to forbidden non-compacted `docs/03-logs/*` files.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Work Item ID: WI-20260212-03
+
+Required ownership note: Non-compacted `docs/03-logs` updates are owned by reporter/orchestrator; patcher will not edit those files.
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_cycle=1).
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 ### WI-20260212-02 - Work item execution
 
 - Date: 2026-02-12
@@ -35,7 +187,7 @@
 - Patcher: Codex
 - Tester: Codex
 - Reporter: Codex
-- Outcome:
+- Outcome: pass
 - Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`; `python3 -m unittest tests.test_docs_logs`
 - Offload ids (if any):
 - Docs/logs updated: Updated `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` with a WI-20260212-02 entry in required gate format.
@@ -160,7 +312,7 @@ Work Item ID: WI-20260212-02
 
 #### Gates
 
-- make ci:
+- make ci: PASS
 
 #### Autofix Attempts
 
@@ -181,11 +333,16 @@ Work Item ID: WI-20260212-02
 
 #### Commit
 
-- Commit message:
+- Commit message: feat(commit-gate): require completed ticket docs before commit (WI-20260212-02)
 
 #### Final Report
 
--
+What changed (files): (see git diff)
+Tests written (names) + results: (see feature validation-log.md)
+Docs/logs updated checklist: (see Docs Updated)
+make ci results: PASS
+Commands run (use pp for noisy output): prepatch smoke python3 -m unittest tests.test_pc_feature.TestPcFeature: ok; tools/offload-proxy/pp make ci: ok; collect patcher branch into main: ok
+Commit message: feat(commit-gate): require completed ticket docs before commit (WI-20260212-02)
 
 ### WI-20260212-01 - Work item execution
 

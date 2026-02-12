@@ -6178,3 +6178,5 @@ Track when debt is paid down:
 - **Breaking changes:** None.
 - **Performance:** Negligible (single status scan before staging).
 - **Dependencies:** None.
+
+- WI-20260212-03 completed: documentation patching flow now enforces commit gating on completed ticket state across the targeted workflow.

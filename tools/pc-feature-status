@@ -14,6 +14,7 @@ WORK_ITEM_RE = re.compile(r"^WI-\d{8}-\d{2}$")
 WORKFLOW_STATUS_FILENAME = "workflow-status.json"
 WORKFLOW_HISTORY_FILENAME = "workflow-history.ndjson"
 MAX_REASON_LEN = 140
+COMPLETED_TICKET_STATUSES = {"completed", "pass"}
 
 
 def normalize_reason(value: Any) -> str:
@@ -32,6 +33,14 @@ def format_duration(duration_ms: Any) -> str:
             value = 0.0
         return f"{value / 1000.0:.2f}s"
     return ""
+
+
+def normalize_ticket_status(value: Any) -> str:
+    return " ".join(str(value or "").strip().split()).lower()
+
+
+def ticket_status_is_completed(value: Any) -> bool:
+    return normalize_ticket_status(value) in COMPLETED_TICKET_STATUSES
 
 
 def work_item_directories(logs_root: Path) -> List[Path]:
@@ -400,7 +409,20 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         default=1.0,
         help="Polling interval in seconds for --follow.",
     )
+    parser.add_argument(
+        "--ticket-status",
+        dest="ticket_status",
+        default="",
+        help="Ticket status value to evaluate against completion states.",
+    )
+    parser.add_argument(
+        "--require-ticket-completed",
+        action="store_true",
+        help="Validate --ticket-status is an allowed completed value and exit.",
+    )
     args = parser.parse_args(list(argv))
+    if args.require_ticket_completed and not str(args.ticket_status).strip():
+        parser.error("--require-ticket-completed requires --ticket-status")
     if args.limit < 1:
         parser.error("--limit must be >= 1")
     if args.interval <= 0:
@@ -410,6 +432,19 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv or sys.argv[1:])
+    if args.require_ticket_completed:
+        normalized = normalize_ticket_status(args.ticket_status)
+        if ticket_status_is_completed(normalized):
+            print(f"ticket status: {normalized} (completed)")
+            return 0
+        print(
+            "pc-feature-status: ticket status is not completed "
+            f"(expected one of: {sorted(COMPLETED_TICKET_STATUSES)}; got: "
+            f"{args.ticket_status.strip() or '(empty)'})",
+            file=sys.stderr,
+        )
+        return 1
+
     root = Path(args.root).resolve()
     logs_roots = discover_logs_roots(root)
     try:

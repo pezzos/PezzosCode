@@ -1517,3 +1517,5 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `tools/pc-commit` no longer fails when allowed runtime prefixes (e.g. `.tmp`) are absent.
   - Prefix allow rules (e.g. `logs/`) still stage nested changed files correctly.
   - Final `pc-feature` commit failures now include concise `pc-commit` detail in workflow event reason text.
+
+- Validated WI-20260212-03 by running the feature’s checks and confirming gate behavior passes for completed tickets and blocks incomplete ones.

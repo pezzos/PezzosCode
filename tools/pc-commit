@@ -207,6 +207,7 @@ OUTCOME_PATTERN = re.compile(
     r"Outcome:\s*(PASS|FAIL|NEEDS REPLAN|SKIPPED)",
     re.IGNORECASE,
 )
+COMPLETED_TICKET_STATUSES = {"completed", "pass"}
 
 
 def parse_label(text: str, label: str) -> str:
@@ -216,6 +217,10 @@ def parse_label(text: str, label: str) -> str:
     )
     match = pattern.search(text)
     return match.group(1).strip() if match else ""
+
+
+def normalize_ticket_status(value: str) -> str:
+    return " ".join(str(value or "").strip().split()).lower()
 
 
 def latest_entry_block(content: str):
@@ -259,6 +264,15 @@ def validate(path: Path):
     tests_run_field = parse_label(block, "Tests run")
     if not tests_run_field:
         issues.append("missing top execution field: Tests run")
+    ticket_status_field = parse_label(block, "Outcome")
+    normalized_ticket_status = normalize_ticket_status(ticket_status_field)
+    if not normalized_ticket_status:
+        issues.append("missing top execution field: Outcome")
+    elif normalized_ticket_status not in COMPLETED_TICKET_STATUSES:
+        issues.append(
+            "active ticket status is not completed: "
+            f"Outcome={ticket_status_field or '(empty)'}"
+        )
 
     for section in REQUIRED_SECTIONS:
         if section in duplicates:

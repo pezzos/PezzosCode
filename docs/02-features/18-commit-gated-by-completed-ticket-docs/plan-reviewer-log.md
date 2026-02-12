@@ -50,3 +50,33 @@ Reasons:
 - None.
   Optional suggestions:
 - In step 3, explicitly state the condition for editing `docs/04-process/ticket-execution-protocol.md` (e.g., “edit only if gate behavior text is currently inconsistent”) to reduce discretionary drift.
+
+### WI-20260212-03 - 2026-02-12
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260212-03 - 2026-02-12
+
+Step Plan Reviewer APPROVE at attempt 1.
+
+Decision: Approve
+Reasons:
+
+- Plan Contract v1 sections are present and explicit for `Approach`, `Files to change`, `Risks`, and `Tests (anti-hardcode coverage required)` across all work steps.
+- No forbidden command usage appears in command context (`make feature`, `pc-feature`, `tools/pc-feature` are not instructed to run).
+- File scope respects policy: role-scoped logs and forbidden non-compacted global logs are not assigned to patcher; only compacted output under `docs/03-logs/compacted/` is included.
+- The ownership note correctly assigns non-compacted `docs/03-logs` updates to reporter/orchestrator and explicitly states patcher will not edit those files.
+- Test plan includes multi-fixture/negative-path coverage, deterministic expectations, fail-closed invariants, and boundary checks, which satisfies anti-hardcode review criteria.
+  Required changes:
+- None.
+  Optional suggestions:
+- In step 1/2, explicitly name the accepted completion token(s) (for example exact normalized value) in plan text to reduce ambiguity during implementation/review.

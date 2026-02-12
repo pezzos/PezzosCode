@@ -19,6 +19,7 @@ from lib.pc_runner import (
 
 ROOT = Path(__file__).resolve().parents[1]
 PC_FEATURE_PATH = ROOT / "tools" / "pc-feature"
+PC_FEATURE_STATUS_PATH = ROOT / "tools" / "pc-feature-status"
 
 
 def load_pc_feature():
@@ -29,9 +30,20 @@ def load_pc_feature():
     return module
 
 
+def load_pc_feature_status():
+    loader = importlib.machinery.SourceFileLoader(
+        "pc_feature_status", str(PC_FEATURE_STATUS_PATH)
+    )
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
 class TestPcFeature(unittest.TestCase):
     def setUp(self):
         self.pc_feature = load_pc_feature()
+        self.pc_feature_status = load_pc_feature_status()
 
     def _build_entry_content(
         self,
@@ -4628,6 +4640,46 @@ class TestPcFeature(unittest.TestCase):
         )
         issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
         self.assertIn("required section is empty: Test Results", issues)
+
+    def test_ticket_status_completion_matrix_is_deterministic(self):
+        fixtures = [
+            ("completed-lower", "completed", True),
+            ("completed-upper-whitespace", "  COMPLETED  ", True),
+            ("pass-mixed-case", " PaSs ", True),
+            ("non-completed-ongoing", "Ongoing", False),
+            ("non-completed-awaiting-approval", "Awaiting PO Approval", False),
+            ("missing", "", False),
+            ("whitespace-only", "   ", False),
+        ]
+        first_pass = []
+        second_pass = []
+        for fixture_name, raw_status, expected in fixtures:
+            with self.subTest(fixture=fixture_name):
+                result = self.pc_feature_status.ticket_status_is_completed(raw_status)
+                self.assertEqual(result, expected)
+                first_pass.append((fixture_name, result))
+        for fixture_name, raw_status, expected in fixtures:
+            with self.subTest(fixture=f"{fixture_name}-rerun"):
+                result = self.pc_feature_status.ticket_status_is_completed(raw_status)
+                self.assertEqual(result, expected)
+                second_pass.append((fixture_name, result))
+        self.assertEqual(first_pass, second_pass)
+
+    def test_ticket_status_normalization_contract_boundaries(self):
+        fixtures = [
+            (
+                "collapsed_whitespace",
+                "  Awaiting   PO   Approval ",
+                "awaiting po approval",
+            ),
+            ("simple_completed", "Completed", "completed"),
+            ("empty", "", ""),
+        ]
+        for fixture_name, raw_status, expected in fixtures:
+            with self.subTest(fixture=fixture_name):
+                self.assertEqual(
+                    self.pc_feature_status.normalize_ticket_status(raw_status), expected
+                )
 
     def test_commit_evidence_gate_fails_closed_on_malformed_required_section(self):
         work_item_id = "WI-20260212-45"

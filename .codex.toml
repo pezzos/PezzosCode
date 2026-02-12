@@ -69,7 +69,7 @@ model_reasoning_summary = "none"
 model_verbosity = "low"
 
 [profiles.Tester]
-model = "gpt-5.3-codex"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "low"
 model_reasoning_summary = "none"
 model_verbosity = "low"
