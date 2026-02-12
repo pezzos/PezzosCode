@@ -171,6 +171,7 @@ Work Item ID: WI-20260212-04
 
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
 - Attempt 1: tester=PASS, reporter=FAIL; planner decision=PLAN_STILL_VALID; rationale=Tester validations passed and the only failure is missing role-scoped execution metadata in `dev-tasks.md`, which is a reporter/orchestrator handoff artifact rather than a patcher-plan gap.; patcher feedback pending.
+- Attempt 2: tester=PASS, reporter=FAIL; planner decision=PLAN_STILL_VALID; rationale=Tester coverage passed and the only remaining failure is reporter-owned execution-record completion in `dev-tasks.md`, which is outside the patcher plan scope.; patcher feedback pending.
 
 #### Commit
 
