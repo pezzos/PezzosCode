@@ -39,7 +39,7 @@
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
-- Notes: Main head locked: 739817736d198be9d4605ba1b248f141dd2af200
+- Notes: Tester retry limit reached; unresolved Allowed Tests validation failures require manual intervention.
 
 #### Preflight Report
 
@@ -159,6 +159,10 @@ Commit status:
 - Attempt 2: plan-reviewer no-op; reason=blocked by invalid allowed tests.
 - Attempt 2: patcher no-op; reason=blocked by invalid allowed tests.
 - Attempt 2: reporter no-op; reason=blocked by invalid allowed tests.
+- Attempt 3: allowed-tests validation failed; routed back to planner (tester_retry=3/3). Issues: missing targets: tests.test_pc_feature.TestPcFeature.
+- Attempt 3: plan-reviewer no-op; reason=blocked by invalid allowed tests.
+- Attempt 3: patcher no-op; reason=blocked by invalid allowed tests.
+- Attempt 3: reporter no-op; reason=blocked by invalid allowed tests.
 
 #### Commit
 

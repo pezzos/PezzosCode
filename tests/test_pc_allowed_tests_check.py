@@ -75,6 +75,53 @@ class TestPcAllowedTestsCheck(unittest.TestCase):
                 any("no tests match pattern" in entry for entry in missing), missing
             )
 
+    def test_check_command_accepts_unittest_dotted_class_target(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tests_dir = root / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_sample.py").write_text(
+                "import unittest\n\n"
+                "class SampleTests(unittest.TestCase):\n"
+                "    def test_ok(self):\n"
+                "        self.assertTrue(True)\n",
+                encoding="utf-8",
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "python -m unittest tests.test_sample.SampleTests"
+                )
+            self.assertEqual(missing, [])
+
+    def test_check_command_accepts_unittest_dotted_method_target(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tests_dir = root / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_sample.py").write_text(
+                "import unittest\n\n"
+                "class SampleTests(unittest.TestCase):\n"
+                "    def test_ok(self):\n"
+                "        self.assertTrue(True)\n",
+                encoding="utf-8",
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "python -m unittest tests.test_sample.SampleTests.test_ok"
+                )
+            self.assertEqual(missing, [])
+
+    def test_check_command_rejects_unittest_missing_dotted_target_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tests_dir = root / "tests"
+            tests_dir.mkdir()
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "python -m unittest tests.test_missing.SampleTests"
+                )
+            self.assertEqual(missing, ["tests.test_missing.SampleTests"])
+
     def test_check_command_accepts_pytest_tests_dir_target(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

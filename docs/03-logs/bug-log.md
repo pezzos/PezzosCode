@@ -678,3 +678,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Final gate `make ci` could fail after patcher branch collection into `main`, leaving partial staged/dirty `main` updates despite workflow failure.
 - **Fix:** Run final CI and scoped autofix in the patcher worktree first, then collect into `main` only after gates pass; add regression coverage asserting no collection on gate failure and hermetic proposal-dedup tests.
 - **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (offload id `17a8ec41f09e37973a3a896ec4b15c325638f8da2cfc2f65a704f751c97ea614`); `tools/offload-proxy/pp make ci` (offload id `ba175e3a0d04c6934e3fb6a78a4d31209981be22425e6717288083c253dbc2bf`).
+
+## 2026-02-12 - Invalid Allowed Tests loop on dotted unittest selectors
+
+- **ID:** BUG-20260212-01
+- **Status:** Fixed
+- **Source:** User report (`make feature F=18`)
+- **Summary:** `pc-feature` retried three times and aborted with `blocked by invalid allowed tests` because `python -m unittest tests.test_pc_feature.TestPcFeature` was flagged as a missing target by the checker.
+- **Fix:** Updated `tools/pc-allowed-tests-check` to accept dotted unittest class/method selectors when a valid module/package prefix exists; added regression tests and strengthened planner Allowed Tests remediation prompt/examples.
+- **Validation:** `tools/pc-allowed-tests-check --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature' --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_reviewer_approve_allows_patch'` (PASS); `tools/offload-proxy/pp python3 -m unittest tests/test_pc_allowed_tests_check.py` (offload id `f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4`).

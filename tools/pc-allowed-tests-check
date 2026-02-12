@@ -9,6 +9,26 @@ def module_to_path(module: str) -> str:
     return os.path.join(*module.split(".")) + ".py"
 
 
+def module_exists(module: str) -> bool:
+    file_path = module_to_path(module)
+    if os.path.exists(file_path):
+        return True
+    pkg_path = os.path.join(*module.split("."))
+    return os.path.isdir(pkg_path) and os.path.exists(
+        os.path.join(pkg_path, "__init__.py")
+    )
+
+
+def resolve_unittest_target_prefix(target: str) -> bool:
+    parts = target.split(".")
+    # Support unittest dotted selectors such as module.Class and module.Class.test_method
+    # by finding the longest existing module/package prefix.
+    for idx in range(len(parts), 0, -1):
+        if module_exists(".".join(parts[:idx])):
+            return True
+    return False
+
+
 def check_unittest_targets(targets: list[str]) -> list[str]:
     missing: list[str] = []
     for arg in targets:
@@ -21,13 +41,7 @@ def check_unittest_targets(targets: list[str]) -> list[str]:
             if not os.path.exists(target):
                 missing.append(arg)
             continue
-        file_path = module_to_path(target)
-        if os.path.exists(file_path):
-            continue
-        pkg_path = os.path.join(*target.split("."))
-        if os.path.isdir(pkg_path) and os.path.exists(
-            os.path.join(pkg_path, "__init__.py")
-        ):
+        if resolve_unittest_target_prefix(target):
             continue
         missing.append(arg)
     return missing
