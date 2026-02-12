@@ -2123,3 +2123,16 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Help is now local, deterministic, and does not depend on guessing env vars.
   - Operator UX improves without introducing non-standard Make behavior.
+
+### DEC-052 - Use patcher-safe candidate filtering for final-gate scoped autofix
+
+- **Date:** 2026-02-12
+- **Status:** Accepted
+- **Context:** Final-gate scoped autofix reused collection candidate paths (`collect_branch_merge_paths`), which intentionally include runtime feature docs (`dev-tasks.md`, role logs). When those paths were passed to patcher autofix and mutated by pre-commit, `commit_role_step` failed with `patcher edited role-scoped files`.
+- **Decision:**
+  - Add a dedicated helper for final-gate autofix candidate selection that filters patcher-forbidden paths using existing scope rules.
+  - Emit explicit diagnostics whenever role-scoped/global-log candidates are skipped from autofix input.
+  - Keep final collection into `main` on the existing candidate selector so workflow collection semantics remain unchanged.
+- **Consequences:**
+  - Prevents recurring late patcher scope aborts caused by planner-owned docs entering autofix.
+  - Preserves existing branch collection behavior and avoids side effects on final commit content.

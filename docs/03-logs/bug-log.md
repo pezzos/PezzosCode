@@ -687,3 +687,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** `pc-feature` retried three times and aborted with `blocked by invalid allowed tests` because `python -m unittest tests.test_pc_feature.TestPcFeature` was flagged as a missing target by the checker.
 - **Fix:** Updated `tools/pc-allowed-tests-check` to accept dotted unittest class/method selectors when a valid module/package prefix exists; added regression tests and strengthened planner Allowed Tests remediation prompt/examples.
 - **Validation:** `tools/pc-allowed-tests-check --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature' --cmd 'python3 -m unittest tests.test_pc_feature.TestPcFeature.test_plan_reviewer_approve_allows_patch'` (PASS); `tools/offload-proxy/pp python3 -m unittest tests/test_pc_allowed_tests_check.py` (offload id `f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4`).
+
+## 2026-02-12 - Final-gate autofix candidate list included patcher-forbidden role files
+
+- **ID:** BUG-20260212-02
+- **Status:** Fixed
+- **Source:** User report (`make feature F=18`)
+- **Summary:** Final CI autofix could receive planner-owned feature files (for example `dev-tasks.md`) because candidate selection reused collection-path logic; when pre-commit touched those files, patcher commit aborted with `patcher edited role-scoped files`.
+- **Fix:** Added dedicated `collect_patcher_autofix_paths(...)` filtering for final-gate autofix candidates, skipped forbidden candidate paths with explicit diagnostics, and retained existing collection-path behavior for final branch collection.
+- **Validation:** `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py` (PASS); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS, offload id `90f84f11268b4fd5850cf20d292ecf3468a0f987819ec31265777f598530980f`).

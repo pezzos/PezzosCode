@@ -1751,6 +1751,30 @@ def collect_branch_merge_paths(
     return sorted(set(merged))
 
 
+def collect_patcher_autofix_paths(
+    root: str,
+    base_ref: str,
+    branch: str,
+    dev_tasks_path: str,
+    feature_dir: str,
+) -> Tuple[List[str], List[str]]:
+    candidates = collect_branch_merge_paths(
+        root,
+        base_ref,
+        branch,
+        dev_tasks_path=dev_tasks_path,
+        feature_dir=feature_dir,
+    )
+    allowed: List[str] = []
+    skipped_forbidden: List[str] = []
+    for path in candidates:
+        if role_scoped_path_forbidden_for_patcher(path):
+            skipped_forbidden.append(path)
+            continue
+        allowed.append(path)
+    return sorted(set(allowed)), sorted(set(skipped_forbidden))
+
+
 def merge_collection_conflict_paths(diagnostics: Optional[Dict[str, Any]]) -> List[str]:
     if not diagnostics:
         return []
@@ -5982,13 +6006,18 @@ def main() -> None:
         break
 
     flush_pending_failure_proposals("post-loop before final gates")
-    candidate_autofix_paths = collect_branch_merge_paths(
+    candidate_autofix_paths, skipped_autofix_paths = collect_patcher_autofix_paths(
         root,
         "refs/heads/main",
         patcher_branch,
         dev_tasks_path=dev_tasks_repo_path,
         feature_dir=feature_dir,
     )
+    if skipped_autofix_paths:
+        print(
+            "pc-feature: scoped autofix skipped patcher-forbidden paths: "
+            + ", ".join(skipped_autofix_paths)
+        )
     gate_status = "FAIL"
     autofix_notes: List[str] = []
     ci_cmd = ["tools/offload-proxy/pp", "make", "ci"]
@@ -6027,9 +6056,15 @@ def main() -> None:
                     feature_dir,
                 )
         else:
-            autofix_notes.append(
-                "tools/offload-proxy/pp pre-commit run --files <scoped>: skipped (no candidate paths)"
-            )
+            if skipped_autofix_paths:
+                autofix_notes.append(
+                    "tools/offload-proxy/pp pre-commit run --files <scoped>: skipped "
+                    "(no patcher-safe candidate paths)"
+                )
+            else:
+                autofix_notes.append(
+                    "tools/offload-proxy/pp pre-commit run --files <scoped>: skipped (no candidate paths)"
+                )
         second_ci_exit = run_command_with_step_log(
             ci_cmd,
             runner_metadata,

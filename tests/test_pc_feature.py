@@ -314,6 +314,57 @@ class TestPcFeature(unittest.TestCase):
             ],
         )
 
+    def test_collect_patcher_autofix_paths_skips_role_scoped_docs(self):
+        with mock.patch.object(
+            self.pc_feature,
+            "collect_branch_merge_paths",
+            return_value=[
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening/planner-log.md",
+                "tools/pc-feature",
+            ],
+        ):
+            allowed, skipped = self.pc_feature.collect_patcher_autofix_paths(
+                str(ROOT),
+                "HEAD",
+                "feature-branch",
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening",
+            )
+        self.assertEqual(allowed, ["tools/pc-feature"])
+        self.assertEqual(
+            skipped,
+            [
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening/planner-log.md",
+            ],
+        )
+
+    def test_collect_patcher_autofix_paths_returns_empty_when_all_forbidden(self):
+        with mock.patch.object(
+            self.pc_feature,
+            "collect_branch_merge_paths",
+            return_value=[
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening/reporter-log.md",
+            ],
+        ):
+            allowed, skipped = self.pc_feature.collect_patcher_autofix_paths(
+                str(ROOT),
+                "HEAD",
+                "feature-branch",
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening",
+            )
+        self.assertEqual(allowed, [])
+        self.assertEqual(
+            skipped,
+            [
+                "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "docs/02-features/01-workflow-hardening/reporter-log.md",
+            ],
+        )
+
     def test_collect_branch_into_main_auto_skips_conflicting_paths(self):
         include_paths = ["src/a.py", "src/b.py", "src/c.py"]
         calls = []
@@ -5089,7 +5140,10 @@ class TestPcFeature(unittest.TestCase):
             ci_attempts = {"count": 0}
             autofix_calls = {"count": 0}
             ci_cwds = []
-            scoped_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            scoped_path = "tools/pc-feature"
+            forbidden_autofix_path = (
+                "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            )
 
             def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
                 if section in {"Preflight Report", "Plan", "Patch"}:
@@ -5112,6 +5166,7 @@ class TestPcFeature(unittest.TestCase):
                 ]:
                     self.assertNotIn("--all-files", cmd)
                     self.assertIn(scoped_path, cmd)
+                    self.assertNotIn(forbidden_autofix_path, cmd)
                     autofix_calls["count"] += 1
                 return 0
 
@@ -5186,7 +5241,7 @@ class TestPcFeature(unittest.TestCase):
                     mock.patch.object(
                         self.pc_feature,
                         "collect_branch_merge_paths",
-                        return_value=[scoped_path],
+                        return_value=[forbidden_autofix_path, scoped_path],
                     )
                 )
                 stack.enter_context(

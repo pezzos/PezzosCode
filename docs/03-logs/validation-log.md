@@ -1461,3 +1461,20 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - Feature help is available via deterministic command paths (`make feature-help`, `make feature HELP=1`, `tools/pc-feature --help`).
   - Resume-mode options are now discoverable directly from local command help.
+
+## 2026-02-12 - Validate patcher-safe final-gate autofix candidate filtering
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (offload id `90f84f11268b4fd5850cf20d292ecf3468a0f987819ec31265777f598530980f`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (offload id `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`)
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `479411a9d7dbb9245213ef127a5997682b1e121894adc0fc42b20361ca09e62b`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload id `568334644ea77df890d80781d0a3f16d98d01cb0128938ddd56eadb691683bf8`)
+- Verified:
+  - Final-gate autofix candidate selection excludes patcher-forbidden role-scoped files (`dev-tasks.md`, role logs).
+  - Mixed candidate sets still run scoped autofix for patcher-safe files.
+  - All-forbidden candidate sets skip scoped autofix cleanly without triggering a patcher scope abort.

@@ -6068,3 +6068,38 @@ Track when debt is paid down:
 - **Breaking changes:** None.
 - **Performance:** None.
 - **Dependencies:** None.
+
+### 2026-02-12 - Split final-gate autofix candidates from collection scope
+
+**Feature/Bug:** Recurring `patcher edited role-scoped files` abort during final CI autofix (`make feature F=18`).
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added `collect_patcher_autofix_paths(...)` to derive final-gate autofix candidates from branch diffs while filtering patcher-forbidden role-scoped/global-log files.
+- Switched final-gate autofix candidate selection to the new helper so scoped pre-commit never receives planner-owned files like `dev-tasks.md`.
+- Added explicit runtime diagnostics when forbidden paths are skipped from autofix candidate lists.
+- Preserved final collection semantics by leaving `collect_branch_merge_paths(...)` behavior unchanged for branch collection into `main`.
+- Added regression coverage for:
+  - role-scoped filtering in autofix candidate selection,
+  - mixed safe/forbidden candidate lists (safe paths still autofixed),
+  - all-forbidden candidate lists (autofix skipped, no patcher scope crash).
+
+**Why:**
+
+- Final-gate autofix previously reused collection path selection, which intentionally included runtime feature docs; this allowed role-scoped files into patcher autofix and caused recurring late scope aborts.
+
+**Impact:**
+
+- **Breaking changes:** None.
+- **Performance:** Negligible (single in-memory filter over candidate path list).
+- **Dependencies:** None.
+
+**Testing:**
+
+- `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS, offload id `90f84f11268b4fd5850cf20d292ecf3468a0f987819ec31265777f598530980f`)
