@@ -1882,6 +1882,7 @@ class TestPcFeature(unittest.TestCase):
                 "name": "valid-routes-to-patcher",
                 "work_item_id": "WI-20260211-11",
                 "path": "valid",
+                "critical_path": "planner-reviewer-complete",
                 "build": lambda content, work_item_id: with_plan(content, work_item_id),
                 "expected_route": "patcher",
                 "reason_contains": None,
@@ -1890,6 +1891,7 @@ class TestPcFeature(unittest.TestCase):
                 "name": "valid-routes-to-tester",
                 "work_item_id": "WI-20260211-12",
                 "path": "valid",
+                "critical_path": "reporter-complete",
                 "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
                     self.pc_feature.replace_entry_section(
                         self.pc_feature.replace_entry_section(
@@ -1923,6 +1925,7 @@ class TestPcFeature(unittest.TestCase):
                 "name": "missing-critical-test-results-without-tester-feedback",
                 "work_item_id": "WI-20260211-18",
                 "path": "missing-critical",
+                "critical_path": None,
                 "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
                     self.pc_feature.replace_entry_section(
                         with_plan(content, work_item_id),
@@ -1941,6 +1944,7 @@ class TestPcFeature(unittest.TestCase):
                 "name": "contradiction-pending-plan-with-planner-artifacts",
                 "work_item_id": "WI-20260211-19",
                 "path": "contradictory",
+                "critical_path": None,
                 "build": lambda content, _work_item_id: content,
                 "with_artifacts": "planner-reviewer",
                 "expected_route": "block",
@@ -1950,15 +1954,91 @@ class TestPcFeature(unittest.TestCase):
                 "name": "valid-planner-reviewer-artifacts-route-to-patcher",
                 "work_item_id": "WI-20260211-20",
                 "path": "valid",
+                "critical_path": "planner-reviewer-complete",
                 "build": lambda content, work_item_id: with_plan(content, work_item_id),
                 "with_artifacts": "planner-reviewer",
                 "expected_route": "patcher",
                 "reason_contains": None,
             },
             {
+                "name": "valid-tester-failed-routes-to-planner",
+                "work_item_id": "WI-20260211-22",
+                "path": "valid",
+                "critical_path": "tester-failed",
+                "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
+                    self.pc_feature.replace_entry_section(
+                        self.pc_feature.replace_entry_section(
+                            with_plan(content, work_item_id),
+                            work_item_id,
+                            "Patch",
+                            "- patch complete",
+                        ),
+                        work_item_id,
+                        "Tester Feedback",
+                        "Outcome: FAIL\nNotes: failed",
+                    ),
+                    work_item_id,
+                    "Test Results",
+                    "- python -m pytest ... -> 1",
+                ),
+                "expected_route": "planner",
+                "reason_contains": None,
+            },
+            {
+                "name": "valid-reporter-complete-via-role-artifacts-routes-to-tester",
+                "work_item_id": "WI-20260211-23",
+                "path": "valid",
+                "critical_path": "reporter-complete",
+                "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
+                    self.pc_feature.replace_entry_section(
+                        self.pc_feature.replace_entry_section(
+                            self.pc_feature.replace_entry_section(
+                                with_plan(content, work_item_id),
+                                work_item_id,
+                                "Patch",
+                                "- patch complete",
+                            ),
+                            work_item_id,
+                            "Test Results",
+                            "- python -m pytest ... -> 0",
+                        ),
+                        work_item_id,
+                        "Reporter Review",
+                        "Outcome: PASS\nNotes: approved",
+                    ),
+                    work_item_id,
+                    "Tester Feedback",
+                    "Outcome: PASS\nNotes: clean",
+                ),
+                "with_artifacts": "tester-reporter-pass",
+                "expected_route": "tester",
+                "reason_contains": None,
+            },
+            {
+                "name": "valid-tester-failed-via-role-artifacts-routes-to-planner",
+                "work_item_id": "WI-20260211-24",
+                "path": "valid",
+                "critical_path": "tester-failed",
+                "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
+                    self.pc_feature.replace_entry_section(
+                        with_plan(content, work_item_id),
+                        work_item_id,
+                        "Patch",
+                        "- patch complete",
+                    ),
+                    work_item_id,
+                    "Test Results",
+                    "- python -m pytest ... -> 1",
+                ),
+                "with_artifacts": "tester-fail-reporter-skipped",
+                "expected_route": "planner",
+                "reason_contains": None,
+            },
+            {
                 "name": "contradiction-tester-fail-vs-reporter-pass",
                 "work_item_id": "WI-20260211-13",
                 "path": "contradictory",
+                "critical_path": None,
                 "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
                     self.pc_feature.replace_entry_section(
                         self.pc_feature.replace_entry_section(
@@ -1992,6 +2072,7 @@ class TestPcFeature(unittest.TestCase):
                 "name": "contradiction-reporter-feedback-before-review",
                 "work_item_id": "WI-20260211-14",
                 "path": "contradictory",
+                "critical_path": None,
                 "build": lambda content, work_item_id: self.pc_feature.replace_entry_section(
                     self.pc_feature.replace_entry_section(
                         self.pc_feature.replace_entry_section(
@@ -2015,6 +2096,7 @@ class TestPcFeature(unittest.TestCase):
                 "name": "baseline-no-plan-routes-to-planner",
                 "work_item_id": "WI-20260211-15",
                 "path": "baseline",
+                "critical_path": None,
                 "build": lambda content, _work_item_id: content,
                 "expected_route": "planner",
                 "reason_contains": None,
@@ -2023,6 +2105,7 @@ class TestPcFeature(unittest.TestCase):
                 "name": "baseline-plan-and-patchout-routes-to-patcher",
                 "work_item_id": "WI-20260211-16",
                 "path": "baseline",
+                "critical_path": None,
                 "build": lambda content, work_item_id: with_plan(content, work_item_id),
                 "expected_route": "patcher",
                 "reason_contains": None,
@@ -2036,6 +2119,15 @@ class TestPcFeature(unittest.TestCase):
         self.assertGreaterEqual(path_counts.get("contradictory", 0), 2)
         self.assertGreaterEqual(path_counts.get("baseline", 0), 2)
         self.assertGreaterEqual(path_counts.get("missing-critical", 0), 1)
+        critical_counts = {}
+        for fixture in fixtures:
+            critical_path = fixture.get("critical_path")
+            if not critical_path:
+                continue
+            critical_counts[critical_path] = critical_counts.get(critical_path, 0) + 1
+        self.assertGreaterEqual(critical_counts.get("planner-reviewer-complete", 0), 2)
+        self.assertGreaterEqual(critical_counts.get("tester-failed", 0), 2)
+        self.assertGreaterEqual(critical_counts.get("reporter-complete", 0), 2)
 
         for fixture in fixtures:
             with self.subTest(fixture=fixture["name"]):
@@ -2063,6 +2155,66 @@ class TestPcFeature(unittest.TestCase):
                         kwargs = {
                             "planner_log_path": str(planner_log),
                             "reviewer_log_path": str(reviewer_log),
+                        }
+                        first = self.pc_feature.detect_resume_route(
+                            content, fixture["work_item_id"], **kwargs
+                        )
+                        second = self.pc_feature.detect_resume_route(
+                            content, fixture["work_item_id"], **kwargs
+                        )
+                elif fixture.get("with_artifacts") == "tester-reporter-pass":
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        tester_log = Path(tmpdir) / "validation-log.md"
+                        reporter_log = Path(tmpdir) / "reporter-log.md"
+                        tester_log.write_text(
+                            (
+                                "# Validation Log\n\n## Entries\n\n"
+                                f"### {fixture['work_item_id']} - 2026-02-11\n\nOutcome: PASS\n"
+                                "Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`\n"
+                            ),
+                            encoding="utf-8",
+                        )
+                        reporter_log.write_text(
+                            (
+                                "# Reporter Log\n\n## Entries\n\n"
+                                f"### {fixture['work_item_id']} - 2026-02-11\n\nOutcome: PASS\n"
+                                "Docs/logs updated: reporter complete\n"
+                            ),
+                            encoding="utf-8",
+                        )
+                        kwargs = {
+                            "tester_log_path": str(tester_log),
+                            "reporter_log_path": str(reporter_log),
+                        }
+                        first = self.pc_feature.detect_resume_route(
+                            content, fixture["work_item_id"], **kwargs
+                        )
+                        second = self.pc_feature.detect_resume_route(
+                            content, fixture["work_item_id"], **kwargs
+                        )
+                elif fixture.get("with_artifacts") == "tester-fail-reporter-skipped":
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        tester_log = Path(tmpdir) / "validation-log.md"
+                        reporter_log = Path(tmpdir) / "reporter-log.md"
+                        tester_log.write_text(
+                            (
+                                "# Validation Log\n\n## Entries\n\n"
+                                f"### {fixture['work_item_id']} - 2026-02-11\n\nOutcome: FAIL\n"
+                                "Tests run: `python -m pytest tests/test_pc_feature.py::TestPcFeature`\n"
+                            ),
+                            encoding="utf-8",
+                        )
+                        reporter_log.write_text(
+                            (
+                                "# Reporter Log\n\n## Entries\n\n"
+                                f"### {fixture['work_item_id']} - 2026-02-11\n\nOutcome: SKIPPED\n"
+                                "Docs/logs updated: reporter deferred\n"
+                            ),
+                            encoding="utf-8",
+                        )
+                        kwargs = {
+                            "tester_log_path": str(tester_log),
+                            "reporter_log_path": str(reporter_log),
                         }
                         first = self.pc_feature.detect_resume_route(
                             content, fixture["work_item_id"], **kwargs

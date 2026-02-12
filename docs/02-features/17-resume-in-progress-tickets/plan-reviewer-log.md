@@ -147,3 +147,65 @@ Reasons:
 - None.
   Optional suggestions:
 - In step 1, clarify whether `tools/pc-feature` changes are expected or “only if tests prove required,” to reduce unnecessary patch churn.
+
+### WI-20260212-04 - 2026-02-12
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260212-04 - 2026-02-12
+
+Step Plan Reviewer APPROVE at attempt 1.
+
+Decision: Approve
+Reasons:
+
+- The plan explicitly covers all Plan Contract v1 sections (`Approach`, `Files to change`, `Risks`, `Tests`), keeps patcher edits within allowed paths (including only compacted logs under `docs/03-logs/compacted/`), avoids forbidden command usage, and includes anti-hardcode and boundary coverage with clear ownership language that patcher will not edit non-compacted global logs.
+  Required changes:
+- None.
+  Optional suggestions:
+- Consider merging steps 2 and 3 (both edit `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md`) to reduce duplication while keeping the same validation intent.
+
+### WI-20260212-04 - 2026-02-12
+
+Step Plan Reviewer APPROVE at attempt 2.
+
+Decision: Approve
+Reasons:
+
+- Plan Contract v1 sections are present and explicit for each scope area: `Approach`, `Files to change`, `Risks`, and `Tests (anti-hardcode coverage required)`.
+- No forbidden command usage appears in command context (`make feature`, `pc-feature`, `tools/pc-feature` are not proposed as commands).
+- File scope complies with policy: only code/tests plus compacted evidence under `docs/03-logs/compacted/`; no role-scoped logs or forbidden global log paths are assigned to patcher edits.
+- Test strategy is actionable and includes anti-hardcode expectations (multi-fixture coverage, deterministic inputs, invariants, boundary conditions) with allowed commands listed.
+
+Required changes:
+
+- None.
+
+Optional suggestions:
+
+- Add one explicit line in the plan stating: “Patcher will not edit non-compacted files under `docs/03-logs/`; those updates are reporter/orchestrator-owned.”
+
+### WI-20260212-04 - 2026-02-12
+
+Step Plan Reviewer APPROVE at attempt 3.
+
+Decision: Approve
+Reasons:
+
+- Plan Contract v1 sections are present for each step (`Approach`, `Files to change`, `Risks`, `Tests`) and include anti-hardcode coverage requirements with concrete boundary/invariant checks.
+- No forbidden orchestration commands are included in command context (`make feature`, `pc-feature`, `tools/pc-feature` are absent from allowed commands).
+- `Files to change` avoids forbidden role-scoped logs and avoids non-compacted `docs/03-logs/` paths; only `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md` is listed, which is permitted.
+- The plan explicitly assigns non-compacted global log ownership to reporter/orchestrator and states patcher will not edit those files, satisfying process-boundary policy.
+  Required changes:
+- None.
+  Optional suggestions:
+- In step 1 tests, explicitly name at least one concrete contradictory-state fixture example (for example, `reporter complete` + `tester failed`) to reduce interpretation drift during implementation.

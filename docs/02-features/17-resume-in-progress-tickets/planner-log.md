@@ -388,3 +388,53 @@ Approach:
 Required note: non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit those files.
 
 Work Item ID: WI-20260212-03
+
+### WI-20260212-04 - 2026-02-12
+
+Updated `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` for `WI-20260212-04` with:
+
+- Filled `#### Allowed Tests` using exact commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+- Replaced `#### Plan` placeholder with a `Plan Contract v1` block in the exact required structure.
+- Included explicit anti-hardcode coverage in every approach step:
+  - fixture coverage (`>=2 fixtures per critical path`)
+  - deterministic seed strategy
+  - invariant checks
+  - contract boundary coverage
+- Ensured all concrete test commands in the plan are verbatim from Allowed Tests.
+- Added explicit handoff note: non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned and patcher will not edit them.
+- Added `Systematic review` command log entries in the WI preflight block.
+
+Could not commit due sandbox restrictions on git metadata path:
+
+- `fatal: Unable to create .../.git/worktrees/.../index.lock: Operation not permitted`
+
+So the change is present locally but uncommitted.
+
+### WI-20260212-04 - 2026-02-12
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/17-resume-in-progress-tickets/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260212-04 - 2026-02-12
+
+Decision: PLAN_STILL_VALID
+Rationale: Tester validations passed and the only failure is missing role-scoped execution metadata in `dev-tasks.md`, which is a reporter/orchestrator handoff artifact rather than a patcher-plan gap.
+Revised Plan:
+(none)
+
+### WI-20260212-04 - 2026-02-12
+
+Decision: PLAN_STILL_VALID
+Rationale: Tester coverage passed and the only remaining failure is reporter-owned execution-record completion in `dev-tasks.md`, which is outside the patcher plan scope.
+Revised Plan:
+(none)
+
+### WI-20260212-04 - 2026-02-12
+
+Decision: PLAN_STILL_VALID
+Rationale: Tester feedback shows all planned implementation and allowed validations passed, and the reporter FAIL is limited to execution-record completion in role-scoped docs outside this plan’s patch scope.
+Revised Plan:
+(none)

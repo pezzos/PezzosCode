@@ -85,5 +85,88 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
         )
 
 
+class TestCompactedPatcherEvidence(unittest.TestCase):
+    WI_ID = "WI-20260212-04"
+
+    def _compacted_path(self) -> Path:
+        return (
+            ROOT
+            / "docs"
+            / "03-logs"
+            / "compacted"
+            / f"{self.WI_ID}-patcher-evidence.md"
+        )
+
+    def _missing_markers(self, content: str, required_markers) -> list:
+        return [marker for marker in required_markers if marker not in content]
+
+    def test_compacted_resume_fixtures_include_required_markers(self):
+        path = self._compacted_path()
+        content = path.read_text(encoding="utf-8")
+        shared_markers = [
+            "# WI-20260212-04 Patcher Evidence (Compacted)",
+            "## Commands Executed",
+            "`python -m pytest tests/test_pc_feature.py::TestPcFeature`",
+            "`python3 -m unittest tests.test_docs_logs`",
+            "## Ownership Note",
+            "Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator",
+        ]
+        fixture_markers = [
+            (
+                "resume-success",
+                [
+                    "### Fixture: resume-success",
+                    "Expected route: tester",
+                    "Resume gate reruns required tester/CI checks.",
+                ],
+            ),
+            (
+                "resume-blocked",
+                [
+                    "### Fixture: resume-blocked",
+                    "Expected route: block",
+                    "Fail-closed contradiction handling preserved.",
+                ],
+            ),
+        ]
+        for marker in shared_markers:
+            self.assertIn(marker, content)
+        for fixture_name, markers in fixture_markers:
+            with self.subTest(fixture=fixture_name):
+                missing = self._missing_markers(content, markers)
+                self.assertEqual(missing, [])
+
+    def test_compacted_evidence_contract_boundaries(self):
+        path = self._compacted_path()
+        relative = path.relative_to(ROOT).as_posix()
+        self.assertTrue(relative.startswith("docs/03-logs/compacted/"))
+        self.assertFalse(relative.endswith("implementation-log.md"))
+        self.assertFalse(relative.endswith("validation-log.md"))
+        content = path.read_text(encoding="utf-8")
+        self.assertIn("## Contract Boundaries", content)
+        self.assertIn(
+            "Compacted evidence is accepted only under `docs/03-logs/compacted/`.",
+            content,
+        )
+
+    def test_compacted_evidence_rejects_missing_required_markers(self):
+        required = [
+            "### Fixture: resume-success",
+            "Expected route: tester",
+            "### Fixture: resume-blocked",
+            "Expected route: block",
+        ]
+        incomplete_fixture = "\n".join(
+            [
+                "# WI-20260212-04 Patcher Evidence (Compacted)",
+                "### Fixture: resume-success",
+                "Expected route: tester",
+            ]
+        )
+        missing = self._missing_markers(incomplete_fixture, required)
+        self.assertIn("### Fixture: resume-blocked", missing)
+        self.assertIn("Expected route: block", missing)
+
+
 if __name__ == "__main__":
     unittest.main()

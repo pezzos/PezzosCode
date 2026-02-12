@@ -26,6 +26,162 @@
 
 ## Execution Log
 
+### WI-20260212-04 - Work item execution
+
+- Date: 2026-02-12
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome: needs replan
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes: Main head locked: fbe3cf3b523897633454414c09df52a2b02e549e
+
+#### Preflight Report
+
+- Work Item: WI-20260212-04
+- PRD ref: docs/01-product/prd.md
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: ['Deterministic resume-state detection from existing work-item artifacts and role logs', 'Resume policy enforcement for `auto`, `prompt`, and `fresh`', 'Fail-closed blocking on contradictory artifact state with explicit remediation', 'Artifact-aware step routing that skips only safe completed steps', 'Mandatory re-run of tests and final CI gate on resumed runs', 'Traceable resume/checkpoint decisions in workflow logs']
+- Scope out: ['Multi-feature concurrent resume orchestration', 'Background/daemon resume automation', 'Non-CLI surfaces (TUI/API/Web)']
+- Non-goals reminder: Do not change the single-feature-worktree operating model, do not add scheduler/daemon behavior, and do not weaken mandatory rerun of tests and final CI on resume.
+- Files to change: tools/pc-feature, tests/test_pc_feature.py, tests/test_docs_logs.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md
+- TDD plan: TC-17-001 resume from completed planner+reviewer continues at patcher, TC-17-002 resume after tester fail routes back to planner, TC-17-003 resume after reporter pass proceeds to final gates, TC-17-101 contradictory step state blocks with remediation, TC-17-102 dirty worktree preserved in auto mode, TC-17-201 missing critical artifacts deterministically blocks/errors, TC-17-301 non-resume execution path remains unchanged (regression), python -m pytest tests/test_pc_feature.py::TestPcFeature, python3 -m unittest tests.test_docs_logs
+- Systematic review:
+  - `tools/offload-proxy/pp rg -n "WI-20260212-04|#### Allowed Tests|#### Plan|#### Docs Updated|#### Files to Change" docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` -> confirmed target WI section anchors and captured offload id `e8b65522ea9d5aaa26d54c5c41131f5303bdebed064aa7d290825863caf5ea41`.
+  - `tools/offload-proxy/pp awk '/### WI-20260212-04 - Work item execution/{flag=1} /### WI-20260212-03 - Work item execution/{if(flag){exit}} flag' docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` -> extracted only WI-20260212-04 block for focused planner-only edits.
+
+#### TDD Plan
+
+- Tests to write first:
+  - TC-17-001 resume from completed planner+reviewer continues at patcher
+  - TC-17-002 resume after tester fail routes back to planner
+  - TC-17-003 resume after reporter pass proceeds to final gates
+  - TC-17-101 contradictory step state blocks with remediation
+  - TC-17-102 dirty worktree preserved in auto mode
+  - TC-17-201 missing critical artifacts deterministically blocks/errors
+  - TC-17-301 non-resume execution path remains unchanged (regression)
+  - python -m pytest tests/test_pc_feature.py::TestPcFeature
+  - python3 -m unittest tests.test_docs_logs
+
+#### Allowed Tests
+
+- `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
+
+#### Files to Change
+
+- Files: tools/pc-feature, tests/test_pc_feature.py, tests/test_docs_logs.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md
+
+#### Docs Updated
+
+- docs/02-features/17-resume-in-progress-tickets/dev-tasks.md
+- docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md
+
+#### Plan
+
+Plan Contract v1
+Approach:
+
+1. Implement deterministic resume-state detection and policy enforcement in the CLI flow so `auto`, `prompt`, and `fresh` consistently resolve to the correct next step, fail closed on contradictory artifact state, and preserve non-resume behavior.
+   Files to change:
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+  Risks:
+- Resume-state heuristics can overfit to current artifacts and misroute future valid states.
+- Fail-closed checks can become too aggressive and block legitimate resumes.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: At least 2 fixtures per critical resume path (`planner+reviewer complete`, `tester failed`, `reporter complete`) plus contradictory-state fixtures.
+- Deterministic seed strategy: Use fixed fixture inputs and stable artifact timestamps/order in test data; no random data generation.
+- Invariant checks: Assert single next-step selection, mandatory test/CI rerun gates after resume, and unchanged behavior when no resume artifacts are present.
+- Contract boundary coverage: Validate handling for missing artifacts, partial artifacts, contradictory step markers, and dirty worktree preservation in `auto`.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Add/adjust documentation-log contract tests so resume/checkpoint outputs and compacted evidence expectations remain enforced without touching automation-owned role/global logs.
+   Files to change:
+
+- `tests/test_docs_logs.py`
+- `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md`
+  Risks:
+- Tests may couple to volatile formatting instead of stable contract markers.
+- Compacted evidence may drift from actual executed validations if not updated with exact command outcomes.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Include at least 2 fixtures for compacted-log validation (`resume success`, `resume blocked`) using stable expected markers.
+- Deterministic seed strategy: Use fixed expected strings and fixed work item id references; avoid dynamic date parsing in assertions.
+- Invariant checks: Ensure required evidence keys are present and role-scoped/global non-compacted log files are not required for patcher completion.
+- Contract boundary coverage: Verify acceptance of compacted outputs only under `docs/03-logs/compacted/` and rejection expectations for missing required compacted evidence.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Perform focused validation and record compacted patcher evidence for traceability.
+   Files to change:
+
+- `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md`
+  Risks:
+- Validation may miss integration regressions if only one command path is exercised.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Evidence must include both command executions and pass/fail outcomes for each allowed command.
+- Deterministic seed strategy: Record exact executed commands verbatim and stable result summaries.
+- Invariant checks: Confirm no forbidden files are listed in Files to change and no role-scoped logs are edited by patcher.
+- Contract boundary coverage: Confirm required non-compacted `docs/03-logs` updates are owned by reporter/orchestrator; patcher will not edit those files.
+- Allowed test commands:
+  - `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Work Item ID: WI-20260212-04
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_attempt=1/3).
+- Attempt 1: tester=PASS, reporter=FAIL; planner decision=PLAN_STILL_VALID; rationale=Tester validations passed and the only failure is missing role-scoped execution metadata in `dev-tasks.md`, which is a reporter/orchestrator handoff artifact rather than a patcher-plan gap.; patcher feedback pending.
+- Attempt 2: tester=PASS, reporter=FAIL; planner decision=PLAN_STILL_VALID; rationale=Tester coverage passed and the only remaining failure is reporter-owned execution-record completion in `dev-tasks.md`, which is outside the patcher plan scope.; patcher feedback pending.
+- Attempt 3: tester=PASS, reporter=FAIL; planner decision=PLAN_STILL_VALID; rationale=Tester feedback shows all planned implementation and allowed validations passed, and the reporter FAIL is limited to execution-record completion in role-scoped docs outside this plan’s patch scope.; patcher feedback pending.
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 ### WI-20260212-03 - Work item execution
 
 - Date: 2026-02-12
