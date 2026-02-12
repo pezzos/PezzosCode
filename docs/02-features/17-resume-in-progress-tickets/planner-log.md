@@ -301,3 +301,23 @@ Approach:
 Required ownership note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator, and patcher will not edit non-compacted `docs/03-logs` files.
 
 Work Item ID: WI-20260211-02
+
+### WI-20260212-03 - 2026-02-12
+
+I updated the planner content for `WI-20260212-03` in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`:
+
+- Filled `#### Allowed Tests` with exact commands.
+- Replaced `#### Plan` placeholder with a full `Plan Contract v1` body.
+- Ensured all in-plan test commands are verbatim from Allowed Tests.
+- Added explicit anti-hardcode coverage (fixtures, deterministic seed strategy, invariants, contract boundaries).
+- Added the required ownership handoff note that non-compacted `docs/03-logs/*` is reporter/orchestrator-owned.
+- Updated `Systematic review` with executed command evidence.
+
+I have not committed yet because I detected an unexpected untracked path in the worktree:
+
+- `logs/WI-20260212-03/`
+
+Per repo instructions, I need your direction before proceeding. Should I:
+
+1. Commit only `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` and ignore `logs/WI-20260212-03/`, or
+2. Include `logs/WI-20260212-03/` in this step?

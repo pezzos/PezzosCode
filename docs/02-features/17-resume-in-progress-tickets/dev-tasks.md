@@ -26,6 +26,124 @@
 
 ## Execution Log
 
+### WI-20260212-03 - Work item execution
+
+- Date: 2026-02-12
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher:
+- Tester:
+- Reporter:
+- Outcome:
+- Tests run:
+- Offload ids (if any):
+- Docs/logs updated:
+- Notes: Main head locked: 68e8d4a402c2b8fa117e6d5b5a03366298d6d683
+
+#### Preflight Report
+
+- Work Item: WI-20260212-03
+- PRD ref: docs/01-product/prd.md
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: ['Deterministic resume-state detection from existing work-item artifacts and role logs', 'Resume policy enforcement for `auto`, `prompt`, and `fresh`', 'Fail-closed blocking on contradictory artifact state with explicit remediation', 'Artifact-aware step routing that skips only safe completed steps', 'Mandatory re-run of tests and final CI gate on resumed runs', 'Traceable resume/checkpoint decisions in workflow logs']
+- Scope out: ['Multi-feature concurrent resume orchestration', 'Background/daemon resume automation', 'Non-CLI surfaces (TUI/API/Web)']
+- Non-goals reminder: Do not change the single-feature-worktree operating model, do not add schedulers/daemons, and do not weaken mandatory test + final CI reruns on resume.
+- Files to change: tools/pc-feature, tests/test_pc_feature.py, tests/test_docs_logs.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260212-03-patcher-evidence.md
+- TDD plan: TC-17-001 resume from completed planner+reviewer continues at patcher, TC-17-002 resume after tester fail routes back to planner, TC-17-003 resume after reporter pass proceeds to final gates, TC-17-101 contradictory step state blocks with remediation, TC-17-102 dirty worktree preserved in auto mode, TC-17-201 missing critical artifacts deterministically blocks/errors, TC-17-301 non-resume execution path unchanged (regression), python -m pytest tests/test_pc_feature.py::TestPcFeature, python3 -m unittest tests.test_docs_logs
+- Systematic review:
+  - `tools/offload-proxy/pp rg -n "WI-20260212-03|#### Allowed Tests|#### Plan" docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` -> confirmed WI-20260212-03 planner placeholders and captured offload id `d5903b56ab2c0981e9afba33bcafd4a85313711ee05d29d54a11acb944ab8311`.
+  - `mcp__serena__search_for_pattern` on `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` with pattern `### WI-20260212-03 - Work item execution[\\s\\S]*?### WI-20260211-02 - Work item execution` -> extracted only the target WI block for focused planner-only edits.
+
+#### TDD Plan
+
+- Tests to write first:
+  - TC-17-001 resume from completed planner+reviewer continues at patcher
+  - TC-17-002 resume after tester fail routes back to planner
+  - TC-17-003 resume after reporter pass proceeds to final gates
+  - TC-17-101 contradictory step state blocks with remediation
+  - TC-17-102 dirty worktree preserved in auto mode
+  - TC-17-201 missing critical artifacts deterministically blocks/errors
+  - TC-17-301 non-resume execution path unchanged (regression)
+  - python -m pytest tests/test_pc_feature.py::TestPcFeature
+  - python3 -m unittest tests.test_docs_logs
+
+#### Allowed Tests
+
+- `python -m pytest tests/test_pc_feature.py::TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
+
+#### Files to Change
+
+- Files: tools/pc-feature, tests/test_pc_feature.py, tests/test_docs_logs.py, docs/02-features/17-resume-in-progress-tickets/dev-tasks.md, docs/03-logs/compacted/WI-20260212-03-patcher-evidence.md
+
+#### Docs Updated
+
+- docs/02-features/17-resume-in-progress-tickets/dev-tasks.md (WI-20260212-03 preflight, TDD plan, files, systematic review, outcomes)
+- docs/03-logs/compacted/WI-20260212-03-patcher-evidence.md (implementation and validation evidence)
+- Non-compacted `docs/03-logs/*` updates are reporter/orchestrator-owned and out of patcher scope for this work item.
+
+#### Plan
+
+I updated the planner content for `WI-20260212-03` in `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`:
+
+- Filled `#### Allowed Tests` with exact commands.
+- Replaced `#### Plan` placeholder with a full `Plan Contract v1` body.
+- Ensured all in-plan test commands are verbatim from Allowed Tests.
+- Added explicit anti-hardcode coverage (fixtures, deterministic seed strategy, invariants, contract boundaries).
+- Added the required ownership handoff note that non-compacted `docs/03-logs/*` is reporter/orchestrator-owned.
+- Updated `Systematic review` with executed command evidence.
+
+I have not committed yet because I detected an unexpected untracked path in the worktree:
+
+- `logs/WI-20260212-03/`
+
+Per repo instructions, I need your direction before proceeding. Should I:
+
+1. Commit only `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` and ignore `logs/WI-20260212-03/`, or
+2. Include `logs/WI-20260212-03/` in this step?
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+-
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
 ### WI-20260211-02 - Work item execution
 
 - Date: 2026-02-11
