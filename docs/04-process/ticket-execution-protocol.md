@@ -124,6 +124,8 @@
      - `MAX_PLANNER_REVISIONS` (planner revisions in reviewer-block loop)
    - If the same unresolved reviewer-policy issue repeats, stop early via stagnation guard instead of consuming all caps.
    - When reviewer-policy issues repeat with the same signature, tooling applies deterministic plan-policy auto-rewrite/recovery before counting toward stagnation termination.
+   - If the active `Plan` section is malformed (non-contract), deterministic policy recovery rehydrates it to `Plan Contract v1` before stagnation termination.
+   - On resume after a tester `FAIL`, keep and revise the existing plan from feedback; do not regenerate a new plan when `Plan` is already complete.
    - If a step has nothing to do during a retry, record a no-op entry in the iteration log and continue.
    - Repeat until feedback is resolved.
 
@@ -134,6 +136,7 @@
 - Plan Reviewer `BLOCK` restarts from **Planner**. Patcher and downstream steps must not run until the reviewer approves.
 - Plan Reviewer `APPROVE` proceeds directly to **Patcher**.
 - Tester `FAIL` restarts from **Planner** (plan and patch must be revisited before retesting).
+- Command-policy parsing treats backticked `tools/pc-feature` path references as file paths unless explicit command intent is present (for example `run`, `execute`, CLI args).
 - Tester `PASS` proceeds directly to **Reporter**.
 - Reporter `FAIL` restarts from **Planner**.
 - Reporter `PASS` marks the role loop successful and returns control to **Orchestrator** for final gates and collection.

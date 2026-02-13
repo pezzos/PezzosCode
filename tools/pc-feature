@@ -26,6 +26,10 @@ MAX_PLANNER_REVISIONS = 12
 MAX_STAGNANT_REVIEWER_BLOCKS = 3
 MAX_CI_ATTEMPTS = 2
 MAX_ESCALATION_ROUNDS = 2
+EXPLICIT_COMMAND_CONTEXT_PATTERN = re.compile(
+    r"(?<![-_/])\b(run|execute|executed|invok(?:e|es|ed|ing)|command|shell|cli)\b(?![-_/])",
+    re.IGNORECASE,
+)
 HIGH_RISK_APPROVAL_NOTE = "High-risk gate approved interactively."
 MAIN_FREEZE_NOTE_PREFIX = "Main head locked:"
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
@@ -229,6 +233,17 @@ def prompt_template_candidates(role: str, task: Optional[str] = None) -> List[Pa
     candidates: List[Path] = []
     if task:
         candidates.append(PROMPTS_DIR / f"{role}-{task}.md")
+        alternate_task = (
+            task.replace("_", "-")
+            if "_" in task
+            else task.replace("-", "_") if "-" in task else task
+        )
+        if alternate_task != task:
+            primary_path = PROMPTS_DIR / f"{role}-{task}.md"
+            alternate_path = PROMPTS_DIR / f"{role}-{alternate_task}.md"
+            # Keep exact task names authoritative when both variants exist.
+            if not (primary_path.exists() and alternate_path.exists()):
+                candidates.append(alternate_path)
     candidates.append(PROMPTS_DIR / f"{role}.md")
     return candidates
 
@@ -2683,6 +2698,16 @@ def is_negated_command_reference(text: str) -> bool:
     )
 
 
+def command_context_near_token(text: str, token_pattern: str) -> bool:
+    return bool(
+        re.search(
+            rf"(?<![-_/])\b(run|execute|executed|invok(?:e|es|ed|ing)|command|shell|cli)\b(?![-_/])[^\n]{{0,24}}(?:`)?{token_pattern}",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
 def plan_command_violations(plan_text: str, sections: Dict[str, str]) -> List[str]:
     violations: List[str] = []
     has_contract = any(value.strip() for value in sections.values())
@@ -2702,12 +2727,7 @@ def plan_command_violations(plan_text: str, sections: Dict[str, str]) -> List[st
         lowered = normalized.lower()
         if is_negated_command_reference(lowered):
             continue
-        explicit_context = bool(
-            re.search(
-                r"\b(run|execute|executed|invok(?:e|es|ed|ing)|command|shell|cli)\b",
-                lowered,
-            )
-        )
+        explicit_context = bool(EXPLICIT_COMMAND_CONTEXT_PATTERN.search(lowered))
 
         if re.search(r"^make\s+feature(?:\s|$)", lowered):
             if "forbidden command in plan: make feature" not in violations:
@@ -2716,7 +2736,9 @@ def plan_command_violations(plan_text: str, sections: Dict[str, str]) -> List[st
 
         if re.search(r"^(?:\./)?tools/pc-feature\b", lowered):
             has_args = bool(re.search(r"^(?:\./)?tools/pc-feature\b\s+\S+", lowered))
-            if has_args or explicit_context:
+            if has_args or command_context_near_token(
+                lowered, r"(?:\./)?tools/pc-feature\b"
+            ):
                 if "forbidden command in plan: tools/pc-feature" not in violations:
                     violations.append("forbidden command in plan: tools/pc-feature")
                 if "forbidden command in plan: pc-feature" not in violations:
@@ -2725,20 +2747,29 @@ def plan_command_violations(plan_text: str, sections: Dict[str, str]) -> List[st
 
         if re.search(r"^pc-feature\b", lowered):
             has_args = bool(re.search(r"^pc-feature\b\s+\S+", lowered))
-            if has_args or explicit_context:
+            if has_args or command_context_near_token(lowered, r"pc-feature\b"):
                 if "forbidden command in plan: pc-feature" not in violations:
                     violations.append("forbidden command in plan: pc-feature")
             continue
 
-        if explicit_context and re.search(r"\bmake\s+feature\b", lowered):
+        if explicit_context and command_context_near_token(
+            lowered, r"make\s+feature\b"
+        ):
             if "forbidden command in plan: make feature" not in violations:
                 violations.append("forbidden command in plan: make feature")
-        if explicit_context and re.search(r"\b(?:\./)?tools/pc-feature\b", lowered):
+        has_tools_pc_feature_args = bool(
+            re.search(r"\b(?:\./)?tools/pc-feature\b\s+\S+", lowered)
+        )
+        if has_tools_pc_feature_args or command_context_near_token(
+            lowered, r"(?:\./)?tools/pc-feature\b"
+        ):
             if "forbidden command in plan: tools/pc-feature" not in violations:
                 violations.append("forbidden command in plan: tools/pc-feature")
             if "forbidden command in plan: pc-feature" not in violations:
                 violations.append("forbidden command in plan: pc-feature")
-        elif explicit_context and re.search(r"\bpc-feature\b", lowered):
+        elif bool(
+            re.search(r"(?<!/)\bpc-feature\b\s+\S+", lowered)
+        ) or command_context_near_token(lowered, r"pc-feature\b"):
             if "forbidden command in plan: pc-feature" not in violations:
                 violations.append("forbidden command in plan: pc-feature")
 
@@ -3006,10 +3037,24 @@ def ensure_plan_docs_handoff_note(plan_text: str) -> Tuple[str, bool]:
 
 
 def auto_rewrite_plan_for_policy_issues(
-    plan_text: str, policy_issues: List[str]
+    plan_text: str,
+    policy_issues: List[str],
+    *,
+    allowed_tests: Optional[List[str]] = None,
 ) -> Tuple[str, List[str]]:
     rewritten = plan_text
     notes: List[str] = []
+    if not plan_uses_contract_sections(rewritten):
+        recovery_plan = build_policy_recovery_plan_template(allowed_tests or [])
+        recovery_issues = plan_policy_violations(
+            recovery_plan,
+            allowed_tests=allowed_tests,
+        )
+        if not recovery_issues:
+            notes.append(
+                "replaced malformed non-contract plan with deterministic policy-recovery template"
+            )
+            rewritten = recovery_plan
     forbidden_paths = forbidden_paths_from_policy_issues(policy_issues)
     if forbidden_paths:
         rewritten_candidate, removed_paths = remove_forbidden_paths_from_files_section(
@@ -3043,7 +3088,7 @@ def build_policy_recovery_plan_template(allowed_tests: List[str]) -> str:
         "2. Reporter/orchestrator own required non-compacted docs/03-logs updates; "
         "patcher will not edit those files.\n"
         "Files to change:\n"
-        "- tools/pc-feature\n"
+        "- (none; planner must list implementation targets only)\n"
         "Risks:\n"
         "- Feature-specific implementation files may need refinement before patching.\n"
         "Tests (anti-hardcode coverage required):\n"
@@ -3161,6 +3206,7 @@ def revised_plan_quality_issues(
     revised_plan: str,
     *,
     previous_plan: str = "",
+    require_contract_sections: bool = False,
 ) -> List[str]:
     issues: List[str] = []
     lowered = revised_plan.lower()
@@ -3177,7 +3223,7 @@ def revised_plan_quality_issues(
         )
     previous_uses_contract = plan_uses_contract_sections(previous_plan)
     revised_uses_contract = plan_uses_contract_sections(revised_plan)
-    if previous_uses_contract or revised_uses_contract:
+    if require_contract_sections or previous_uses_contract or revised_uses_contract:
         missing_sections = missing_plan_contract_sections(revised_plan)
         if missing_sections:
             issues.append(
@@ -3186,6 +3232,30 @@ def revised_plan_quality_issues(
     if len([line for line in revised_plan.splitlines() if line.strip()]) < 1:
         issues.append("revised plan is empty")
     return issues
+
+
+def planner_create_quality_issues(
+    plan_text: str,
+    *,
+    previous_plan: str,
+    tdd_section: str,
+    allowed_tests: List[str],
+    enforce_anti_hardcode: bool,
+) -> List[str]:
+    issues = revised_plan_quality_issues(
+        plan_text,
+        previous_plan=previous_plan,
+        require_contract_sections=True,
+    )
+    if enforce_anti_hardcode:
+        issues.extend(anti_hardcode_coverage_issues(plan_text, tdd_section))
+    issues.extend(
+        plan_policy_violations(
+            plan_text,
+            allowed_tests=allowed_tests,
+        )
+    )
+    return sorted(set(issues))
 
 
 def merge_revised_plan(current_plan: str, revised_plan: str) -> str:
@@ -3483,6 +3553,12 @@ def parse_resume_mode() -> str:
             f"expected one of: {', '.join(sorted(RESUME_MODE_VALUES))}"
         )
     return value
+
+
+def should_force_planner_create_on_resume(
+    *, tester_outcome: Optional[str], plan_complete: bool
+) -> bool:
+    return bool(tester_outcome == "FAIL" and not plan_complete)
 
 
 def parse_reporter_auto_repair_mode() -> str:
@@ -5281,7 +5357,10 @@ def main() -> None:
                     role_paths_abs["tester"], work_item_id
                 )
                 tester_outcome = tester_artifact.get("outcome")
-            force_planner_on_resume = tester_outcome == "FAIL"
+            force_planner_on_resume = should_force_planner_create_on_resume(
+                tester_outcome=tester_outcome,
+                plan_complete=entry_section_complete(content, work_item_id, "Plan"),
+            )
         print(f"pc-feature: resume route selected: {resume_start_step}")
     current_main_head = git_ref_sha(root, "refs/heads/main")
     notes_value = get_entry_field(content, work_item_id, "Notes")
@@ -5729,6 +5808,7 @@ def main() -> None:
             rewritten_plan, rewrite_notes = auto_rewrite_plan_for_policy_issues(
                 revised_plan,
                 unresolved_policy_issues,
+                allowed_tests=allowed_tests_for_policy,
             )
             if rewrite_notes:
                 revised_plan = rewritten_plan
@@ -5949,6 +6029,25 @@ def main() -> None:
                 root=str(runner_root),
             ).strip()
             content = read_file(dev_tasks_path)
+            quality_issues = planner_create_quality_issues(
+                plan_text,
+                previous_plan=get_entry_section(content, work_item_id, "Plan"),
+                tdd_section=get_entry_section(content, work_item_id, "TDD Plan"),
+                allowed_tests=parse_allowed_tests(
+                    get_entry_section(content, work_item_id, "Allowed Tests")
+                ),
+                enforce_anti_hardcode=should_enforce_anti_hardcode(
+                    content, work_item_id
+                ),
+            )
+            if quality_issues:
+                flush_pending_failure_proposals(
+                    "planner create output failed quality checks"
+                )
+                die(
+                    "pc-feature: planner create output failed quality checks: "
+                    + "; ".join(quality_issues)
+                )
             content = replace_entry_section(content, work_item_id, "Plan", plan_text)
             write_file(dev_tasks_path, content)
             ensure_role_log(

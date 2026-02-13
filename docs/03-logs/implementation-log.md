@@ -6569,3 +6569,51 @@ Track when debt is paid down:
 - **Breaking changes:** None intended; enforcement remains fail-closed when unresolved.
 - **Performance:** Negligible (small additional string processing in reviewer loop).
 - **Dependencies:** None.
+
+### 2026-02-13 - Resume-plan stability + planner-create validation hardening
+
+**Feature/Bug:** Planner/reviewer loops on feature 19 were caused by malformed non-contract plan text, false command-policy positives, and resume forcing full planner-create despite an existing plan.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/dev-workflow.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added deterministic resume policy helper so planner-create is forced after tester `FAIL` only when `Plan` is incomplete.
+- Added planner-create output validation gate before writing `#### Plan`:
+  - required `Plan Contract v1` sections,
+  - anti-hardcode coverage checks (when enforced),
+  - plan policy checks (including allowed-tests alignment when available).
+- Hardened command-policy parsing:
+  - avoids false positives from path-like tokens such as `pc-hooks-run`,
+  - still blocks explicit `make feature`/`pc-feature`/`tools/pc-feature` command intent.
+- Extended policy auto-rewrite:
+  - can replace malformed non-contract plans with deterministic recovery template,
+  - keeps existing forbidden-files rewrite and docs handoff note behavior.
+- Added prompt-template candidate fallback across `_`/`-` separators only when one variant is missing; exact filenames remain authoritative when both variants exist.
+- Added/updated regression tests for:
+  - malformed-plan recovery,
+  - command/path parsing behavior,
+  - forced contract validation for planner-create,
+  - resume planner-create guard,
+  - prompt variant fallback behavior.
+
+**Why:**
+
+- Stop recurring reviewer `BLOCK` loops caused by malformed plan payloads and parser edge cases.
+- Keep resume flow stable and deterministic after tester failures.
+- Preserve strict policy enforcement while reducing non-actionable false positives.
+
+**Impact:**
+
+- **Breaking changes:** None intended; policy remains fail-closed.
+- **Performance:** Negligible (extra validation and lightweight regex checks).
+- **Dependencies:** None.

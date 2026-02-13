@@ -2310,3 +2310,19 @@ When a decision is reversed or replaced, document it here:
   - Reduces repeated reviewer `BLOCK` loops caused by forbidden-path echo from preflight context.
   - Preserves fail-closed behavior when policy issues remain unresolved after deterministic recovery.
   - Improves operator visibility with explicit policy-diff and auto-fix notes in iteration logs.
+
+### DEC-063 - Resume planner stability and plan-policy parser hardening
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** Feature 19 reproduced planner/reviewer loops where malformed non-contract plan content and command-policy false positives blocked convergence. Resume after tester `FAIL` could trigger full plan regeneration even when a valid plan already existed.
+- **Decision:**
+  - On resume after tester `FAIL`, force planner-create only when the `Plan` section is incomplete; otherwise keep and revise existing plan.
+  - Enforce planner-create output validation before writing `#### Plan`: required contract sections, anti-hardcode coverage (when enforced), and policy checks.
+  - Harden command-policy parsing to avoid false positives from path-like tokens (for example `tools/pc-hooks-run`) while still blocking explicit `tools/pc-feature` command intent.
+  - Extend deterministic policy auto-rewrite so malformed non-contract plans can be rehydrated to a compliant `Plan Contract v1` template.
+  - Keep prompt task naming deterministic and add separator fallback (`_`/`-`) only when one variant is missing, avoiding ambiguous dual-file resolution.
+- **Consequences:**
+  - Reduces non-converging planner/reviewer loops caused by malformed plan bodies and parser false positives.
+  - Keeps fail-closed behavior for real policy violations while reducing noisy false command blocks.
+  - Improves resume determinism without altering orchestration authority boundaries.

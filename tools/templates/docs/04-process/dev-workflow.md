@@ -98,6 +98,8 @@ then align the live root files without modifying templates.
 - Tester writes failures in the execution log entry.
 - Reporter reviews scope and completeness and records issues in the execution log entry.
 - Planner updates the plan and Patcher updates the patch.
+- On resume after tester `FAIL`, planner revises the existing `Plan` from feedback; do not regenerate a new plan when the plan section is already complete.
+- Plan policy checks treat backticked `tools/pc-feature` references as file-path prose unless explicit command intent (run/execute/args) is present.
 - Improvements are proposed by roles and persisted only by the orchestrator in `docs/possible-improvements.md`.
 - Repeat until feedback is resolved and tests pass.
 

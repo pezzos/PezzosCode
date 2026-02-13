@@ -1720,3 +1720,19 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Plan-policy checks still block true forbidden edits while tolerating handoff-only docs/log references.
   - Reviewer loop now emits policy-diff diagnostics and applies deterministic recovery before stagnation termination.
   - Prompt/template parity remains valid after prompt contract updates.
+
+## 2026-02-13 - Validate resume-plan stability and planner-create policy hardening
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (offload id `e16233c99bf3fd248e8105d567ef24dfee0d810329a4cb42e236993d19650e8f`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`17` tests, offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"`
+- Result: PASS (`3` tests, offload id `8ef2cc0308943e3fd83fe484f1738f8d6ef6b9f4a44d70ef9798243ed201f4c6`)
+- Verified:
+  - Resume after tester `FAIL` no longer forces planner-create when `Plan` is already complete.
+  - Planner-create now fails fast on malformed non-contract plan output before `#### Plan` is written.
+  - Plan-policy command checks distinguish path-style backticked `tools/pc-feature` references from explicit command intent.
+  - Deterministic auto-rewrite can recover malformed non-contract plans to compliant `Plan Contract v1` structure.

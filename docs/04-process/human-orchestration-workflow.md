@@ -31,6 +31,8 @@
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - Preflight `files_to_change` is patcher-scope only; role/global-log targets are retained as reporter/orchestrator handoff notes instead of patcher plan edits.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
+   - On resume after tester `FAIL`, planner revises the existing `Plan` from feedback; do not regenerate a fresh plan when the plan section is already complete.
+   - Plan policy checks treat backticked `tools/pc-feature` references as file-path prose unless explicit command intent (run/execute/args) is present.
    - Runtime control flow is strict: `Orchestrator → Planner → Plan Reviewer → Patcher → Tester → Reporter → Orchestrator`.
    - Restart rules: reviewer `BLOCK` returns to Planner; tester `FAIL` returns to Planner; reporter `FAIL` returns to Planner; only reporter `PASS` advances to final orchestrator gates/commit.
    - If any role has no work on a restart pass, record a no-op note in the iteration log and continue to the next role.
@@ -61,6 +63,8 @@
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - Preflight `files_to_change` is patcher-scope only; role/global-log targets are retained as reporter/orchestrator handoff notes instead of patcher plan edits.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.
+   - On resume after tester `FAIL`, planner revises the existing `Plan` from feedback; do not regenerate a fresh plan when the plan section is already complete.
+   - Plan policy checks treat backticked `tools/pc-feature` references as file-path prose unless explicit command intent (run/execute/args) is present.
    - Runtime control flow is strict: `Orchestrator → Planner → Plan Reviewer → Patcher → Tester → Reporter → Orchestrator`.
    - Restart rules: reviewer `BLOCK` returns to Planner; tester `FAIL` returns to Planner; reporter `FAIL` returns to Planner; only reporter `PASS` advances to final orchestrator gates/commit.
    - If any role has no work on a restart pass, record a no-op note in the iteration log and continue to the next role.

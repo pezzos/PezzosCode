@@ -342,6 +342,26 @@ class TestPcFeature(unittest.TestCase):
             any("added reporter/orchestrator docs handoff note" in n for n in notes)
         )
 
+    def test_auto_rewrite_plan_for_policy_issues_recovers_non_contract_plan(self):
+        plan = (
+            "Updated dev-tasks plan section with implementation notes.\n"
+            "- Keep paths (`tools/pc-hooks-run`, `tools/pc-feature`).\n"
+            "- Reporter owns docs/03-logs updates.\n"
+        )
+        rewritten, notes = self.pc_feature.auto_rewrite_plan_for_policy_issues(
+            plan,
+            [
+                "forbidden path in plan: docs/02-features/01-workflow-hardening/dev-tasks.md",
+                "forbidden command in plan: tools/pc-feature",
+            ],
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertIn("Plan Contract v1", rewritten)
+        self.assertIn("Allowed test commands:", rewritten)
+        self.assertTrue(
+            any("replaced malformed non-contract plan" in note for note in notes)
+        )
+
     def test_build_policy_recovery_plan_template_is_policy_compliant(self):
         allowed_tests = ["pytest tests/test_pc_feature.py"]
         plan = self.pc_feature.build_policy_recovery_plan_template(allowed_tests)
@@ -892,11 +912,71 @@ class TestPcFeature(unittest.TestCase):
             any("forbidden command in plan: pc-feature" in item for item in violations)
         )
 
+    def test_plan_policy_violations_allows_backticked_tools_pc_feature_path_list(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Record systematic review context only (commands run and results): tracked path inventory (`tools/pc-precommit`, `tools/pc-hooks-run`, `tools/pc-feature`).\n"
+            "Files to change:\n"
+            "- tools/pc-precommit\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertFalse(
+            any(
+                "forbidden command in plan: tools/pc-feature" in item
+                for item in violations
+            )
+        )
+        self.assertFalse(
+            any("forbidden command in plan: pc-feature" in item for item in violations)
+        )
+
     def test_plan_policy_violations_detects_tools_pc_feature_command_context(self):
         plan = (
             "Plan Contract v1\n"
             "Approach:\n"
             "1. Run tools/pc-feature F=12 and note docs/03-logs updates are owned by reporter/orchestrator; patcher will not edit those files.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertTrue(
+            any(
+                "forbidden command in plan: tools/pc-feature" in item
+                for item in violations
+            )
+        )
+        self.assertTrue(
+            any("forbidden command in plan: pc-feature" in item for item in violations)
+        )
+
+    def test_plan_policy_violations_blocks_backticked_tools_pc_feature_command(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Run `tools/pc-feature` after patching to validate orchestration flow.\n"
             "Files to change:\n"
             "- tools/pc-feature\n"
             "Risks:\n"
@@ -1132,6 +1212,36 @@ class TestPcFeature(unittest.TestCase):
             revised_plan, previous_plan=previous_plan
         )
         self.assertTrue(any("missing required sections" in item for item in issues))
+
+    def test_revised_plan_quality_issues_require_contract_when_forced(self):
+        issues = self.pc_feature.revised_plan_quality_issues(
+            "Quick narrative plan without contract sections.",
+            previous_plan="",
+            require_contract_sections=True,
+        )
+        self.assertTrue(any("missing required sections" in item for item in issues))
+
+    def test_planner_create_quality_issues_blocks_non_contract_plan(self):
+        issues = self.pc_feature.planner_create_quality_issues(
+            "Updated plan summary with `tools/pc-feature` path mention.",
+            previous_plan="",
+            tdd_section="",
+            allowed_tests=[],
+            enforce_anti_hardcode=False,
+        )
+        self.assertTrue(any("missing required sections" in item for item in issues))
+
+    def test_planner_create_quality_issues_accepts_recovery_contract(self):
+        allowed_tests = ["pytest tests/test_pc_feature.py"]
+        plan = self.pc_feature.build_policy_recovery_plan_template(allowed_tests)
+        issues = self.pc_feature.planner_create_quality_issues(
+            plan,
+            previous_plan="",
+            tdd_section="",
+            allowed_tests=allowed_tests,
+            enforce_anti_hardcode=False,
+        )
+        self.assertEqual([], issues)
 
     def test_merge_revised_plan_replaces_previous_plan(self):
         current = "old plan content\nwith stale path docs/02-features/12/dev-tasks.md"
@@ -1643,6 +1753,26 @@ class TestPcFeature(unittest.TestCase):
     def test_parse_resume_mode_defaults_to_auto(self):
         with mock.patch.dict(self.pc_feature.os.environ, {}, clear=True):
             self.assertEqual(self.pc_feature.parse_resume_mode(), "auto")
+
+    def test_should_force_planner_create_on_resume_requires_incomplete_plan(self):
+        self.assertFalse(
+            self.pc_feature.should_force_planner_create_on_resume(
+                tester_outcome="FAIL",
+                plan_complete=True,
+            )
+        )
+        self.assertTrue(
+            self.pc_feature.should_force_planner_create_on_resume(
+                tester_outcome="FAIL",
+                plan_complete=False,
+            )
+        )
+        self.assertFalse(
+            self.pc_feature.should_force_planner_create_on_resume(
+                tester_outcome="PASS",
+                plan_complete=False,
+            )
+        )
 
     def test_parse_args_help_flag_exits_zero_and_prints_resume_modes(self):
         stdout_capture = io.StringIO()
@@ -2978,6 +3108,41 @@ class TestPcFeature(unittest.TestCase):
         template_files = sorted(path.name for path in templates_dir.glob("*.md"))
         self.assertEqual(prompt_files, template_files)
 
+    def test_load_prompt_template_falls_back_to_hyphen_variant_when_missing(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            prompts_dir = Path(tmp_dir)
+            (prompts_dir / "planner-update-feedback-loop.md").write_text(
+                "fallback", encoding="utf-8"
+            )
+            original_prompts_dir = self.pc_feature.PROMPTS_DIR
+            self.pc_feature.PROMPTS_DIR = prompts_dir
+            try:
+                loaded = self.pc_feature.load_prompt_template(
+                    "planner", "update_feedback_loop"
+                )
+            finally:
+                self.pc_feature.PROMPTS_DIR = original_prompts_dir
+        self.assertEqual(loaded, "fallback")
+
+    def test_load_prompt_template_keeps_exact_variant_when_both_exist(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            prompts_dir = Path(tmp_dir)
+            (prompts_dir / "planner-update-feedback-loop.md").write_text(
+                "hyphen", encoding="utf-8"
+            )
+            (prompts_dir / "planner-update_feedback_loop.md").write_text(
+                "underscore", encoding="utf-8"
+            )
+            original_prompts_dir = self.pc_feature.PROMPTS_DIR
+            self.pc_feature.PROMPTS_DIR = prompts_dir
+            try:
+                loaded = self.pc_feature.load_prompt_template(
+                    "planner", "update_feedback_loop"
+                )
+            finally:
+                self.pc_feature.PROMPTS_DIR = original_prompts_dir
+        self.assertEqual(loaded, "underscore")
+
     def test_required_prompt_templates_exist(self):
         required = {
             "commit-message.md",
@@ -4209,10 +4374,23 @@ class TestPcFeature(unittest.TestCase):
                 return original_entry_complete(content, wi_id, section)
 
             def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Planner agent. Provide a concise plan" in prompt:
+                    return (
+                        "Plan Contract v1\n"
+                        "Approach:\n"
+                        "1. Implement behavior.\n"
+                        "Files to change:\n"
+                        "- tools/pc-feature\n"
+                        "Risks:\n"
+                        "- regression risk\n"
+                        "Tests (anti-hardcode coverage required):\n"
+                        "- Fixture coverage: at least 2 fixtures\n"
+                        "- Deterministic seed strategy: fixed ordering\n"
+                        "- Invariant checks: no deletes\n"
+                        "- Contract boundary coverage: parser + output\n"
+                    )
                 if "You are the Planner agent." in prompt and "Allowed Tests" in prompt:
                     return ""
-                if "You are the Planner agent. Provide a concise plan" in prompt:
-                    return "- initial plan"
                 return "Decision: Approve\nReasons:\n- clear"
 
             stderr_capture = io.StringIO()
