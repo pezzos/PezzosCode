@@ -27,6 +27,30 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-13 - New skill: implement-plan-safe
+
+**Feature/Bug:** Prompt simplification for approved plan execution
+
+**Changed Files:**
+
+- `.codex/skills/implement-plan-safe/SKILL.md`
+- `.codex/skills/implement-plan-safe/agents/openai.yaml`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Created new chat-only skill `implement-plan-safe`.
+- Defined trigger scope for short user commands (`Implement`, `Please implement this plan`, etc.) tied to existing approved plan context.
+- Added explicit no-side-effect guardrails, including explicit-approval requirements for `make feature` / `pc-feature`.
+- Added fallback behavior: ask one focused question and stop when no clear plan exists.
+- Added interface metadata for skill list/chip behavior.
+
+**Why:**
+
+- Reduce user command verbosity while preserving deterministic execution and safety constraints.
+
 ### 2026-02-12 - Dedicated Plan Reviewer Codex profile
 
 **Feature/Bug:** Orchestrator role profile isolation

@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-047] - Add chat-only shorthand skill for approved plan execution
+
+**Date:** 2026-02-13
+
+**Status:** Implemented
+
+**Decision:**
+Add a new local skill `implement-plan-safe` to trigger execution when the user sends short commands like `Implement`, provided an approved plan already exists in recent chat context.
+
+**Rationale:**
+The command flow is repetitive: user approves a plan, then asks for implementation with safety constraints. A dedicated chat-only skill reduces prompt overhead while preserving explicit safety rules and deterministic execution behavior.
+
+**Implications:**
+
+- Faster user invocation for plan execution.
+- Mandatory guardrail behavior remains explicit in one reusable skill.
+- Missing/ambiguous plan context now produces one focused clarifying question instead of speculative execution.
+
 ### [DEC-045] - Precommit template-sync uses deterministic copy autofix with Codex-only conflict escalation
 
 **Date:** 2026-02-12
