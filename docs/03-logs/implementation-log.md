@@ -6316,3 +6316,34 @@ Track when debt is paid down:
 - **Breaking changes:** None (strict gate semantics remain fail-closed).
 - **Performance:** Negligible (small artifact/section comparison at commit repair time).
 - **Dependencies:** None.
+
+### 2026-02-13 - Add chat-first Investigate skill for output diagnosis and durable fix planning
+
+**Feature/Bug:** Repeated manual diagnosis flow in Codex chat needed a standardized, plan-only investigation skill.
+
+**Changed Files:**
+
+- `.codex/skills/investigate/SKILL.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added a new `investigate` skill with a strict inline input contract: command text and raw output text passed directly in one prompt.
+- Defined a deterministic investigation sequence: issue detection, root-cause hypotheses, expected-vs-actual comparison against repo docs, and multiple permanent fix options.
+- Added mandatory docs-conflict handling: cite conflicting docs, explain impact, and propose documentation improvement.
+- Added decision gating: ask focused questions when a decision is required and avoid autonomous path selection.
+- Added explicit guardrails: no code edits, no fix-command execution, no hook/process modification, and recommendations-only auto-fix proposals.
+
+**Why:**
+
+- Replace repeated ad-hoc analysis prompts with a single reusable skill.
+- Keep execution safe and non-destructive while still producing durable remediation options.
+- Ensure diagnosis remains aligned to documented project expectations and process rules.
+
+**Impact:**
+
+- **Breaking changes:** None.
+- **Performance:** N/A (instructional skill only).
+- **Dependencies:** None.

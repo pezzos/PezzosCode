@@ -2230,3 +2230,19 @@ When a decision is reversed or replaced, document it here:
   - Workflow status telemetry remains consistent across skip and non-skip reporter paths.
 
 - WI-20260213-05: Process docs changed; orchestrator retained ownership of deferred docs/03-logs updates.
+
+### DEC-059 - Keep `investigate` as a chat-only, plan-only skill with no autonomous fixes
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** A reusable output-investigation skill was needed for frequent manual Codex runs, but the user explicitly constrained scope to analysis and recommendations only.
+- **Decision:**
+  - Implement `investigate` as a chat-first skill with inline inputs (`command` + `output`) and no CLI execution contract.
+  - Require deterministic analysis flow: issue detection, root-cause hypotheses, docs-based expected-vs-actual comparison, and multiple permanent fix options.
+  - Enforce docs-conflict surfacing and docs-improvement recommendations whenever source expectations disagree.
+  - Enforce decision gating: ask the user questions when a decision is required; do not autonomously choose a fix path.
+  - Restrict auto-fix to future-facing recommendations only; no file edits, hook changes, or command execution in the current run.
+- **Consequences:**
+  - Standardizes repeated diagnosis prompts into one reusable skill while keeping execution non-destructive.
+  - Preserves human control for ambiguous or policy-impacting remediation choices.
+  - Leaves room for future automation design without introducing implicit process changes now.

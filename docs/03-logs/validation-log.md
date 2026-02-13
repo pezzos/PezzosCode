@@ -1613,3 +1613,15 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Commit auto-repair now reconciles stale non-pending `Reporter Review` outcomes from latest reporter artifacts.
   - Top execution `Outcome` converges to `completed` when final gate passes and tester/reporter artifacts indicate completed state.
   - Reporter workflow events now close deterministically in both skip and non-skip reporter paths.
+
+## 2026-02-13 - Validate new `investigate` skill structure and log consistency
+
+- Command: `python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/investigate`
+- Result: PASS (`Skill is valid!`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`17` tests, offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (post validation-log update)
+- Result: PASS (`17` tests, offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Verified:
+  - New skill frontmatter/name contract is valid.
+  - Log updates remain compatible with repository docs-log checks.
