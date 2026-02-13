@@ -4165,11 +4165,13 @@ class TestPcFeature(unittest.TestCase):
                 "max tester retry attempts reached",
                 stderr_capture.getvalue(),
             )
+            self.assertIn("decision options:", stderr_capture.getvalue().lower())
             dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
                 encoding="utf-8"
             )
             self.assertNotIn("SMOKE_TEST_REQUIRED", dev_tasks)
             self.assertIn("allowed-tests validation failed", dev_tasks)
+            self.assertIn("Decision options:", dev_tasks)
             self.assertIn(
                 "plan-reviewer no-op; reason=blocked by invalid allowed tests",
                 dev_tasks,
@@ -4700,6 +4702,50 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.is_finalization_only_reporter_failure(handoff_feedback)
         )
 
+    def test_split_reporter_handoff_issues_classifies_repairability(self):
+        issues = [
+            "Patch section still contains pending placeholders",
+            "top execution field is blank: Reporter",
+            "required compacted output missing: docs/03-logs/compacted/decision-log-compact.md",
+            "reporter Docs/logs updated summary lacks compacted/traceability evidence",
+        ]
+        repairable, non_repairable = self.pc_feature.split_reporter_handoff_issues(
+            issues
+        )
+
+        self.assertIn("Patch section still contains pending placeholders", repairable)
+        self.assertIn("top execution field is blank: Reporter", repairable)
+        self.assertIn(
+            "required compacted output missing: docs/03-logs/compacted/decision-log-compact.md",
+            non_repairable,
+        )
+        self.assertIn(
+            "reporter Docs/logs updated summary lacks compacted/traceability evidence",
+            non_repairable,
+        )
+
+    def test_reporter_handoff_block_feedback_contains_decision_options(self):
+        decision_options = self.pc_feature.build_reporter_retry_decision_options_summary(
+            [
+                "required compacted output missing: docs/03-logs/compacted/decision-log-compact.md"
+            ]
+        )
+        feedback = self.pc_feature.build_reporter_handoff_block_feedback(
+            work_item_id="WI-20260213-22",
+            dev_tasks_repo_path="docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md",
+            issues=[
+                "required compacted output missing: docs/03-logs/compacted/decision-log-compact.md"
+            ],
+            prefix_note="Reporter PASS blocked by post-review completeness gate",
+            auto_repair_summary="post-review repair updates: Reporter Review:artifact",
+            decision_options=decision_options,
+        )
+
+        self.assertIn("Decision options:", feedback)
+        self.assertIn("A) apply deterministic closeout metadata repair", feedback)
+        self.assertIn("risk: weaker traceability/audit signal", feedback)
+        self.assertIn("Auto-repair activity:", feedback)
+
     def test_post_reporter_gate_blocks_pass_when_compacted_outputs_missing(self):
         class StopMain(RuntimeError):
             pass
@@ -5037,6 +5083,59 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.get_entry_field(repaired_content, work_item_id, "Outcome"),
             "completed",
         )
+
+    def test_reporter_gate_auto_repair_resolves_metadata_only_issues(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            work_item_id = "WI-20260213-23"
+            content = self._build_entry_content(work_item_id)
+            reporter_feedback = (
+                "Outcome: PASS\n"
+                "Docs/logs updated: docs/03-logs/implementation-log.md\n"
+                "Notes: reporter completed review\n"
+            )
+            issues_before = self.pc_feature.collect_reporter_post_review_issues(
+                content,
+                work_item_id,
+                worktree_path=tmp_dir,
+                reporter_feedback=reporter_feedback,
+            )
+
+            repaired_content, repaired = (
+                self.pc_feature.repair_commit_evidence_from_role_artifacts(
+                    content,
+                    work_item_id,
+                    gate_status="PASS",
+                    tester_artifact=self.pc_feature.build_artifact_from_feedback(
+                        (
+                            "Outcome: PASS\n"
+                            "Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`\n"
+                            "Notes: all allowed tests passed\n"
+                        ),
+                        role="tester",
+                    ),
+                    reporter_artifact=self.pc_feature.build_artifact_from_feedback(
+                        reporter_feedback,
+                        role="reporter",
+                        fallback_outcome="PASS",
+                    ),
+                )
+            )
+            issues_after = self.pc_feature.collect_reporter_post_review_issues(
+                repaired_content,
+                work_item_id,
+                worktree_path=tmp_dir,
+                reporter_feedback=reporter_feedback,
+            )
+
+            self.assertTrue(issues_before)
+            self.assertEqual(issues_after, [])
+            self.assertTrue(repaired)
+            self.assertIn(
+                "Outcome: PASS",
+                self.pc_feature.get_entry_section(
+                    repaired_content, work_item_id, "Reporter Review"
+                ),
+            )
 
     def test_sync_worktree_file_to_root_copies_latest_content(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

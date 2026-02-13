@@ -1673,3 +1673,20 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Live/template `dev-tasks.md` guidance is synchronized and explicit about Allowed Tests quality.
   - Template schema check now fails when required Allowed Tests guidance markers drift.
   - No runtime auto-fix behavior was introduced for Allowed Tests selection.
+
+## 2026-02-13 - Validate auto-repair-first reporter gate and retry-limit decision options
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_main_fails_when_allowed_tests_remain_invalid_after_planner_retries tests.test_pc_feature.TestPcFeature.test_finalization_only_reporter_fail_is_normalized_before_retry_loop tests.test_pc_feature.TestPcFeature.test_split_reporter_handoff_issues_classifies_repairability tests.test_pc_feature.TestPcFeature.test_reporter_handoff_block_feedback_contains_decision_options tests.test_pc_feature.TestPcFeature.test_post_reporter_gate_blocks_pass_when_compacted_outputs_missing tests.test_pc_feature.TestPcFeature.test_reporter_gate_auto_repair_resolves_metadata_only_issues tests.test_pc_feature.TestPcFeature.test_repair_commit_evidence_from_role_artifacts_reconciles_stale_reporter_review`
+- Result: FAIL (module import path `tests.test_pc_feature` not resolvable in this environment; offload id `c867f79773e756d86fc64c4228c8ad2680cb1eeefcadb747d623b83a0a1fa4aa`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests/test_pc_feature.py`
+- Result: FAIL (same module import resolution issue; offload id `3612bc7bd9c1bcbd31fa2fdb650dd4a09d7d1a5a0e35059f603d3722bc331d5e`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (offload id `3269d76dd08f4af406931c025d4731e2546239dbea97ef1dcb299a8f6e5c3079`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`17` tests, offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Verified:
+  - Reporter gate now runs deterministic auto-repair for metadata-only handoff/closeout issues before emitting reporter FAIL.
+  - Reporter handoff block feedback includes explicit human decision options with risk trade-offs.
+  - Tester and reporter retry-limit failures now surface explicit decision options with risks in both Notes and terminal error output.

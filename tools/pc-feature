@@ -113,6 +113,19 @@ PROCESS_DOC_FILES = (
     "docs/04-process/testing-strategy.md",
 )
 PROCESS_DOC_PREFIXES = ("tools/templates/docs/",)
+REPORTER_AUTO_REPAIRABLE_ISSUE_PREFIXES = (
+    "patch section still contains pending placeholders",
+    "test results section still contains pending placeholders",
+    "reporter review section still contains pending placeholders",
+    "test results section is missing an outcome line",
+    "reporter review section is missing an outcome line",
+    "top execution field is blank:",
+)
+REPORTER_NON_REPAIRABLE_ISSUE_PREFIXES = (
+    "required compacted output missing:",
+    "reporter feedback is missing docs/logs updated summary",
+    "reporter docs/logs updated summary lacks compacted/traceability evidence",
+)
 ESCALATION_ALLOWLIST_PREFIXES: Tuple[Tuple[str, ...], ...] = (
     ("git", "status"),
     ("git", "diff"),
@@ -3794,6 +3807,32 @@ def repair_commit_evidence_from_role_artifacts(
     return updated, repaired
 
 
+def build_artifact_from_feedback(
+    feedback: str, *, role: str, fallback_outcome: Optional[str] = None
+) -> Dict[str, Any]:
+    artifact: Dict[str, Any] = {
+        "exists": False,
+        "entry": "",
+        "outcome": None,
+        "tests_run": "",
+        "docs_updated": "",
+        "notes": "",
+    }
+    raw_feedback = (feedback or "").strip()
+    if not raw_feedback:
+        return artifact
+    artifact["exists"] = True
+    artifact["entry"] = raw_feedback
+    outcome = (fallback_outcome or parse_section_outcome(raw_feedback) or "").strip()
+    artifact["outcome"] = outcome.upper() if outcome else None
+    if role == "tester":
+        artifact["tests_run"] = parse_labeled_line(raw_feedback, "Tests run")
+    elif role == "reporter":
+        artifact["docs_updated"] = parse_labeled_line(raw_feedback, "Docs/logs updated")
+    artifact["notes"] = parse_labeled_line(raw_feedback, "Notes")
+    return artifact
+
+
 def execution_handoff_completeness_issues(
     content: str, work_item_id: str, *, require_reporter_review: bool
 ) -> List[str]:
@@ -3818,6 +3857,75 @@ def execution_handoff_completeness_issues(
         if not get_entry_field(content, work_item_id, field).strip():
             issues.append(f"top execution field is blank: {field}")
     return issues
+
+
+def split_reporter_handoff_issues(issues: List[str]) -> Tuple[List[str], List[str]]:
+    repairable: List[str] = []
+    non_repairable: List[str] = []
+    for issue in sorted(set(issues)):
+        normalized = " ".join(issue.lower().split())
+        if any(
+            normalized.startswith(prefix)
+            for prefix in REPORTER_AUTO_REPAIRABLE_ISSUE_PREFIXES
+        ):
+            repairable.append(issue)
+            continue
+        if any(
+            normalized.startswith(prefix)
+            for prefix in REPORTER_NON_REPAIRABLE_ISSUE_PREFIXES
+        ):
+            non_repairable.append(issue)
+            continue
+        non_repairable.append(issue)
+    return repairable, non_repairable
+
+
+def collect_reporter_post_review_issues(
+    content: str,
+    work_item_id: str,
+    *,
+    worktree_path: str,
+    reporter_feedback: str,
+) -> List[str]:
+    issues = execution_handoff_completeness_issues(
+        content, work_item_id, require_reporter_review=True
+    )
+    required_compacted_paths = required_compacted_output_paths(content, work_item_id)
+    missing_compacted = missing_compacted_output_paths(
+        worktree_path, required_compacted_paths
+    )
+    issues.extend(
+        f"required compacted output missing: {path}" for path in missing_compacted
+    )
+    issues.extend(
+        reporter_traceability_issues(reporter_feedback, required_compacted_paths)
+    )
+    return issues
+
+
+def build_tester_retry_decision_options_summary(context: str) -> str:
+    issue_summary = summarize_feedback(
+        context or "unresolved tester failures", max_chars=220
+    )
+    return (
+        "A) fix failing tests/allowed-tests commands and rerun (risk: extra implementation time); "
+        "B) reduce or replan scope before rerun (risk: partial delivery this cycle); "
+        "C) pause for PO descoping/waiver decision (risk: acceptance criteria deferred); "
+        f"current blocker: {issue_summary}"
+    )
+
+
+def build_reporter_retry_decision_options_summary(issues: List[str]) -> str:
+    issue_summary = (
+        "; ".join(sorted(set(issues))) if issues else "unresolved reporter gate issues"
+    )
+    issue_summary = summarize_feedback(issue_summary, max_chars=260)
+    return (
+        "A) apply deterministic closeout metadata repair and rerun reporter once (risk: may overwrite intentional manual closeout wording); "
+        "B) reopen Plan->Patch->Test loop before reporting again (risk: extra cycle time); "
+        "C) take a human closeout waiver decision and continue (risk: weaker traceability/audit signal); "
+        f"unresolved issues: {issue_summary}"
+    )
 
 
 def required_compacted_output_paths(content: str, work_item_id: str) -> List[str]:
@@ -3883,20 +3991,31 @@ def build_reporter_handoff_block_feedback(
     dev_tasks_repo_path: str,
     issues: List[str],
     prefix_note: str,
+    auto_repair_summary: str = "",
+    decision_options: str = "",
 ) -> str:
     issue_summary = "; ".join(sorted(set(issues))) if issues else "(none)"
     expected_fix = (
         "Populate execution metadata (`Patch`, `Test Results`, `Reporter Review`, top fields) "
         "and ensure required compacted outputs plus traceability evidence are present."
     )
+    notes = f"{prefix_note} ({issue_summary})."
+    if auto_repair_summary.strip():
+        notes = notes + " Auto-repair activity: " + auto_repair_summary.strip() + "."
+    decision_line = (
+        f"Decision options: {decision_options.strip()}\n"
+        if decision_options.strip()
+        else ""
+    )
     return (
         "Outcome: FAIL\n"
         "Docs/logs updated: reporter deferred\n"
-        f"Notes: {prefix_note} ({issue_summary}).\n"
+        f"Notes: {notes}\n"
         f"File/Path: {dev_tasks_repo_path}\n"
         "Check: Work-item execution record completeness and reporter handoff readiness.\n"
         f"Evidence: {issue_summary}\n"
         f"Expected fix: {expected_fix}\n"
+        f"{decision_line}"
         f"Work Item ID: {work_item_id}\n"
     )
 
@@ -5489,17 +5608,23 @@ def main() -> None:
                 content = update_entry_field(
                     content, work_item_id, "Outcome", "needs replan"
                 )
+                tester_decision_options = build_tester_retry_decision_options_summary(
+                    "Allowed Tests validation failures"
+                )
                 content = update_entry_field(
                     content,
                     work_item_id,
                     "Notes",
-                    "Tester retry limit reached; unresolved Allowed Tests validation failures require manual intervention.",
+                    "Tester retry limit reached; unresolved Allowed Tests validation failures require manual intervention. "
+                    + "Decision options: "
+                    + tester_decision_options,
                 )
                 write_file(dev_tasks_path, content)
                 flush_pending_failure_proposals("tester retry limit reached")
                 die(
                     "pc-feature: max tester retry attempts reached; "
-                    "resolve Allowed Tests failures before retrying"
+                    "resolve Allowed Tests failures before retrying; decision options: "
+                    + tester_decision_options
                 )
             continue
 
@@ -6048,12 +6173,50 @@ def main() -> None:
                 content, work_item_id, require_reporter_review=False
             )
             reporter_finalization_normalized = False
+            reporter_gate_auto_repair_notes: List[str] = []
+            if pre_reporter_issues:
+                pre_gate_issues_before = list(pre_reporter_issues)
+                pre_repairable, _pre_non_repairable = split_reporter_handoff_issues(
+                    pre_reporter_issues
+                )
+                if pre_repairable:
+                    repaired_content, pre_repaired = (
+                        repair_commit_evidence_from_role_artifacts(
+                            content,
+                            work_item_id,
+                            gate_status="PENDING",
+                            tester_artifact=build_artifact_from_feedback(
+                                tester_feedback, role="tester"
+                            ),
+                        )
+                    )
+                    if repaired_content != content:
+                        content = repaired_content
+                        write_file(dev_tasks_path, content)
+                    if pre_repaired:
+                        reporter_gate_auto_repair_notes.append(
+                            "pre-handoff repair updates: " + ", ".join(pre_repaired)
+                        )
+                    pre_reporter_issues = execution_handoff_completeness_issues(
+                        content, work_item_id, require_reporter_review=False
+                    )
+                    resolved_pre = sorted(
+                        set(pre_gate_issues_before) - set(pre_reporter_issues)
+                    )
+                    if resolved_pre:
+                        reporter_gate_auto_repair_notes.append(
+                            "pre-handoff issues resolved: " + "; ".join(resolved_pre)
+                        )
             if pre_reporter_issues:
                 reporter_feedback = build_reporter_handoff_block_feedback(
                     work_item_id=work_item_id,
                     dev_tasks_repo_path=dev_tasks_repo_path,
                     issues=pre_reporter_issues,
                     prefix_note=("Reporter blocked by pre-handoff completeness gate"),
+                    auto_repair_summary=" ".join(reporter_gate_auto_repair_notes),
+                    decision_options=build_reporter_retry_decision_options_summary(
+                        pre_reporter_issues
+                    ),
                 )
                 reporter_outcome = "FAIL"
             else:
@@ -6106,25 +6269,56 @@ def main() -> None:
             post_reporter_issues: List[str] = []
             if reporter_outcome == "PASS":
                 post_reporter_issues.extend(
-                    execution_handoff_completeness_issues(
-                        content, work_item_id, require_reporter_review=True
+                    collect_reporter_post_review_issues(
+                        content,
+                        work_item_id,
+                        worktree_path=patcher_path,
+                        reporter_feedback=reporter_feedback,
                     )
                 )
-                required_compacted_paths = required_compacted_output_paths(
-                    content, work_item_id
-                )
-                missing_compacted = missing_compacted_output_paths(
-                    patcher_path, required_compacted_paths
-                )
-                post_reporter_issues.extend(
-                    f"required compacted output missing: {path}"
-                    for path in missing_compacted
-                )
-                post_reporter_issues.extend(
-                    reporter_traceability_issues(
-                        reporter_feedback, required_compacted_paths
+                if post_reporter_issues:
+                    post_gate_issues_before = list(post_reporter_issues)
+                    post_repairable, _post_non_repairable = (
+                        split_reporter_handoff_issues(post_reporter_issues)
                     )
-                )
+                    if post_repairable:
+                        repaired_content, post_repaired = (
+                            repair_commit_evidence_from_role_artifacts(
+                                content,
+                                work_item_id,
+                                gate_status="PENDING",
+                                tester_artifact=build_artifact_from_feedback(
+                                    tester_feedback, role="tester"
+                                ),
+                                reporter_artifact=build_artifact_from_feedback(
+                                    reporter_feedback,
+                                    role="reporter",
+                                    fallback_outcome=reporter_outcome,
+                                ),
+                            )
+                        )
+                        if repaired_content != content:
+                            content = repaired_content
+                            write_file(dev_tasks_path, content)
+                        if post_repaired:
+                            reporter_gate_auto_repair_notes.append(
+                                "post-review repair updates: "
+                                + ", ".join(post_repaired)
+                            )
+                        post_reporter_issues = collect_reporter_post_review_issues(
+                            content,
+                            work_item_id,
+                            worktree_path=patcher_path,
+                            reporter_feedback=reporter_feedback,
+                        )
+                        resolved_post = sorted(
+                            set(post_gate_issues_before) - set(post_reporter_issues)
+                        )
+                        if resolved_post:
+                            reporter_gate_auto_repair_notes.append(
+                                "post-review issues resolved: "
+                                + "; ".join(resolved_post)
+                            )
             if post_reporter_issues:
                 reporter_feedback = build_reporter_handoff_block_feedback(
                     work_item_id=work_item_id,
@@ -6132,6 +6326,10 @@ def main() -> None:
                     issues=post_reporter_issues,
                     prefix_note=(
                         "Reporter PASS blocked by post-review completeness gate"
+                    ),
+                    auto_repair_summary=" ".join(reporter_gate_auto_repair_notes),
+                    decision_options=build_reporter_retry_decision_options_summary(
+                        post_reporter_issues
                     ),
                 )
                 reporter_outcome = "FAIL"
@@ -6169,6 +6367,14 @@ def main() -> None:
                     work_item_id,
                     "Runtime reconciliation updated execution record after reporter step: "
                     + ", ".join(runtime_updates)
+                    + ".",
+                )
+            if reporter_gate_auto_repair_notes:
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Reporter gate auto-repair activity: "
+                    + " | ".join(reporter_gate_auto_repair_notes)
                     + ".",
                 )
             if reporter_finalization_normalized:
@@ -6314,6 +6520,9 @@ def main() -> None:
             )
             write_file(dev_tasks_path, content)
             if tester_outcome != "PASS" and tester_failures >= MAX_LOOPS:
+                tester_decision_options = build_tester_retry_decision_options_summary(
+                    summarize_feedback(tester_feedback, max_chars=220)
+                )
                 content = update_entry_field(
                     content, work_item_id, "Outcome", "needs replan"
                 )
@@ -6321,15 +6530,23 @@ def main() -> None:
                     content,
                     work_item_id,
                     "Notes",
-                    "Tester retry limit reached; unresolved test failures require manual intervention.",
+                    "Tester retry limit reached; unresolved test failures require manual intervention. "
+                    + "Decision options: "
+                    + tester_decision_options,
                 )
                 write_file(dev_tasks_path, content)
                 flush_pending_failure_proposals("tester retry limit reached")
                 die(
                     "pc-feature: max tester retry attempts reached; "
-                    "check tester feedback for unresolved failures"
+                    "check tester feedback for unresolved failures; decision options: "
+                    + tester_decision_options
                 )
             if reporter_outcome == "FAIL" and reporter_failures >= MAX_LOOPS:
+                reporter_decision_options = (
+                    build_reporter_retry_decision_options_summary(
+                        [summarize_feedback(reporter_feedback, max_chars=260)]
+                    )
+                )
                 content = update_entry_field(
                     content, work_item_id, "Outcome", "needs replan"
                 )
@@ -6337,13 +6554,16 @@ def main() -> None:
                     content,
                     work_item_id,
                     "Notes",
-                    "Reporter retry limit reached; unresolved reporting failures require manual intervention.",
+                    "Reporter retry limit reached; unresolved reporting failures require manual intervention. "
+                    + "Decision options: "
+                    + reporter_decision_options,
                 )
                 write_file(dev_tasks_path, content)
                 flush_pending_failure_proposals("reporter retry limit reached")
                 die(
                     "pc-feature: max reporter retry attempts reached; "
-                    "check reporter feedback for unresolved scope gaps"
+                    "check reporter feedback for unresolved scope gaps; decision options: "
+                    + reporter_decision_options
                 )
             ensure_role_log(
                 os.path.join(planner_path, role_paths["planner"]), "planner"

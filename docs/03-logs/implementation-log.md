@@ -6443,3 +6443,39 @@ Track when debt is paid down:
 - **Breaking changes:** None to `pc-feature` runtime flow.
 - **Performance:** Negligible (small extra schema checks on template content).
 - **Dependencies:** None.
+
+### 2026-02-13 - Auto-repair-first reporter completeness gate and explicit human decision options
+
+**Feature/Bug:** Reporter and tester retry loops could hard-stop on metadata/closeout drift without a deterministic repair pass, and retry-limit messages did not present explicit decision options with risks.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added reporter gate issue classification helpers to separate deterministic auto-repairable issues (pending placeholders, missing outcome lines, blank top execution fields) from non-repairable issues (missing compacted outputs, missing traceability evidence).
+- Added a pre-handoff and post-review auto-repair pass in `pc-feature` using role-artifact reconciliation before converting reporter checks into hard FAIL outcomes.
+- Added shared decision-option builders and injected decision options + risks into:
+  - reporter handoff block feedback,
+  - tester retry-limit notes/errors,
+  - reporter retry-limit notes/errors.
+- Added new tests for:
+  - reporter issue classification,
+  - decision options in reporter block feedback,
+  - reporter metadata auto-repair resolving post-review issues,
+  - retry-limit output containing decision options.
+
+**Why:**
+
+- Enforce auto-repair-first behavior for closeout metadata drift and reduce avoidable retry-loop exhaustion.
+- Make PO/human intervention actionable when retries are exhausted by surfacing concrete options and trade-offs inline.
+
+**Impact:**
+
+- **Breaking changes:** None (existing fail-closed behavior remains for non-repairable issues).
+- **Performance:** Negligible (small additional in-memory reconciliation/check passes).
+- **Dependencies:** None.
