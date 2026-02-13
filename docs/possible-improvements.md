@@ -32,6 +32,21 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 
 ## Entries
 
+### Proposal: WI-20260213-01 - Report
+
+**Date:** 2026-02-13
+**Work Item:** WI-20260213-01
+**Agent:** Reporter
+**Step:** Report
+**Failure Summary:** tester=PASS; reporter=FAIL; tester*feedback=Outcome: PASS Tests run: `python3 -m unittest discover -s tests -p test_pc_autofix.py`; `python3 -m unittest discover -s tests -p test_pc_feature.py`; `python3 -m unittest discover -s tests -p test_pc_hooks_run.py` Notes: Results: `python3 -m unittest discover -s tests -p test_pc_autofix.py` -> 0; `python3 -m unittest discover -s tests -p test_pc_feature.py` -> 0; `python3 -m unittest discover -s tests -p test_pc*...; reporter_feedback=Outcome: FAIL Docs/logs updated: Updated `docs/02-features/19-template-drift-hardening-autofix-recovery/reporter-log.md` with WI-20260213-01 reporter review entry. File/Path: `docs/02-features/19-template-drift-hardening-autofix-recovery/dev-tasks.md`; `tools/pc-precommit`; `tests/test_pc_autofix.py`; `tests/test_pc_feature.py`; `tests/test_pc_hooks_run.py` Check: Scope completeness vs declared implementation/test...
+**Proposed Improvement:** Add an automated reporter gate that fails when `Files to Change` targets in `dev-tasks.md` have zero deltas against `refs/heads/main..HEAD`.
+**Proposed Patch Location:** `tools/pc-feature` reporter/reconciliation stage (post-tester, pre-finalization)., `docs/02-features/19-template-drift-hardening-autofix-recovery/dev-tasks.md`; `tools/pc-precommit`; `tests/test_pc_autofix.py`; `tests/test_pc_feature.py`; `tests/test_pc_hooks_run.py`
+**Risks / Trade-offs:** Enforcing PASS here would create a false completion signal and mask missing implementation scope.
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
 ### Proposal: WI-20260213-01 - Test
 
 **Date:** 2026-02-13
