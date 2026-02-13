@@ -32,6 +32,21 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 
 ## Entries
 
+### Proposal: WI-20260213-01 - Test
+
+**Date:** 2026-02-13
+**Work Item:** WI-20260213-01
+**Agent:** Tester
+**Step:** Test
+**Failure Summary:** tester=FAIL; reporter=SKIPPED; tester_feedback=Outcome: FAIL Tests run: (none) Notes: Invalid Allowed Tests after planner remediation attempts (missing targets: tests/test_pc_precommit.py). Allowed Tests must contain only specific, existing unittest/pytest commands. Do not include `make ci`, `make feature`, `pc-feature`, or placeholders. File/Path: docs/02-features/19-template-drift-hardening-autofix-recovery/dev-tasks.md Check: Allowed Tests must list existin...; reporter_feedback=Outcome: SKIPPED Docs/logs updated: reporter deferred Notes: Reporter skipped because tester failed during allowed-tests validation. Work Item ID: WI-20260213-01
+**Proposed Improvement:** Allowed Tests must contain only specific, existing unittest/pytest commands. Do not include `make ci`, `make feature`, `pc-feature`, or placeholders.
+**Proposed Patch Location:** docs/02-features/19-template-drift-hardening-autofix-recovery/dev-tasks.md
+**Risks / Trade-offs:** Tester: Allowed Tests must list existing scoped unittest/pytest commands.; missing targets: tests/test_pc_precommit.py
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
 ### Proposal: WI-20260213-05 - Report
 
 **Date:** 2026-02-13
