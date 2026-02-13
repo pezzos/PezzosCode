@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-063] - Align skills-check with Codex Skills directory contract
+
+**Date:** 2026-02-13
+
+**Status:** Implemented
+
+**Decision:**
+Update `skills-check` (live + template `Makefile`) to allow documented skill directories: optional `scripts/`, `references/`, `assets/`, and `agents/openai.yaml`. Keep fail-closed behavior for any unexpected top-level files/subdirectories and unexpected contents under `agents/`.
+
+**Rationale:**
+The previous gate rejected `agents/`, but Codex Skills documentation allows `agents/openai.yaml` and skill scaffolding creates it by default. The old rule caused deterministic false failures at final CI gates.
+
+**Implications:**
+
+- `make test`/`make ci` no longer fail on valid `agents/openai.yaml` layout.
+- Skill layout policy remains strict and deterministic (unknown paths still blocked).
+- Live/template parity is preserved to avoid bootstrap drift.
+
 ### [DEC-047] - Add chat-only shorthand skill for approved plan execution
 
 **Date:** 2026-02-13

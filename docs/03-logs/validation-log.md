@@ -27,6 +27,16 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-13 - Validate docs-aligned `skills-check` for Codex skill directories
+
+- `make skills-check` (PASS: `skills-check: ok`)
+- `tools/offload-proxy/pp make test` (PASS; offload id `d7cdc0a44e0647fafc9afb7d151b517c5065d1290c384a188c8df7407a55d4d5`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 17 tests; offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Verified:
+  - `agents/openai.yaml` under `.codex/skills/*` no longer fails `skills-check`.
+  - `skills-check` still fails closed for unexpected skill subdirectories/files.
+  - Live and template `Makefile` skill checks remain aligned.
+
 ### 2026-02-13 - Skill validation: implement-plan-safe
 
 - `python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/alexandrepezzotta/repos/PezzosCode/.codex/skills/implement-plan-safe` (PASS: `Skill is valid!`)

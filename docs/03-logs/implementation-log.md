@@ -27,6 +27,33 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-13 - Accept documented Codex skill directory layout in skills-check
+
+**Feature/Bug:** False CI failures from strict skill layout gate
+
+**Changed Files:**
+
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Updated `skills-check` to allow documented optional skill subdirectories: `agents`, `scripts`, `references`, and `assets`.
+- Added strict validation for `agents/`:
+  - `agents/openai.yaml` must exist when `agents/` exists,
+  - no extra files in `agents/`,
+  - no nested subdirectories in `agents/`.
+- Kept fail-closed behavior for unexpected top-level skill files/subdirectories.
+- Applied the same logic to `tools/templates/root/Makefile` to preserve live/template parity.
+
+**Why:**
+
+- Codex Skills documentation explicitly allows `agents/openai.yaml`, and current skill scaffolding creates it.
+- Existing strict checks caused deterministic `make ci` failure in valid skill states.
+
 ### 2026-02-13 - New skill: implement-plan-safe
 
 **Feature/Bug:** Prompt simplification for approved plan execution

@@ -59,9 +59,29 @@ skills-check:
 				find "$$dir" -mindepth 1 -maxdepth 1 -type f ! -name SKILL.md -print; \
 				exit 1; \
 			fi; \
-			if find "$$dir" -mindepth 1 -maxdepth 1 -type d | grep -q .; then \
+			if find "$$dir" -mindepth 1 -maxdepth 1 -type d ! \( -name agents -o -name scripts -o -name references -o -name assets \) | grep -q .; then \
 				echo "skills-check: $$name has unexpected subdirectories"; \
-				find "$$dir" -mindepth 1 -maxdepth 1 -type d -print; \
+				find "$$dir" -mindepth 1 -maxdepth 1 -type d ! \( -name agents -o -name scripts -o -name references -o -name assets \) -print; \
+				exit 1; \
+			fi; \
+			if [[ -d "$$dir/agents" ]]; then \
+				if [[ ! -f "$$dir/agents/openai.yaml" ]]; then \
+					echo "skills-check: $$name missing agents/openai.yaml"; \
+					exit 1; \
+				fi; \
+				if find "$$dir/agents" -mindepth 1 -maxdepth 1 -type f ! -name openai.yaml | grep -q .; then \
+					echo "skills-check: $$name has unexpected files in agents"; \
+					find "$$dir/agents" -mindepth 1 -maxdepth 1 -type f ! -name openai.yaml -print; \
+					exit 1; \
+				fi; \
+				if find "$$dir/agents" -mindepth 1 -maxdepth 1 -type d | grep -q .; then \
+					echo "skills-check: $$name has unexpected subdirectories in agents"; \
+					find "$$dir/agents" -mindepth 1 -maxdepth 1 -type d -print; \
+					exit 1; \
+				fi; \
+			fi; \
+			if [[ -f "$$dir/openai.yaml" ]]; then \
+				echo "skills-check: $$name openai.yaml must be under agents/"; \
 				exit 1; \
 			fi; \
 			if [[ "$$(sed -n "1p" "$$dir/SKILL.md")" != "---" ]]; then \
