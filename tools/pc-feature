@@ -51,6 +51,15 @@ RESUME_CONTRADICTION_POLICY_VALUES = {
     RESUME_CONTRADICTION_POLICY_REWIND,
 }
 RESUME_REPAIR_DRY_RUN_ENV = "RESUME_REPAIR_DRY_RUN"
+AUTO_REPAIR_REPORTER_GATE_ENV = "AUTO_REPAIR_REPORTER_GATE"
+AUTO_REPAIR_REPORTER_GATE_OFF = "off"
+AUTO_REPAIR_REPORTER_GATE_WARN = "warn"
+AUTO_REPAIR_REPORTER_GATE_APPLY = "apply"
+AUTO_REPAIR_REPORTER_GATE_VALUES = {
+    AUTO_REPAIR_REPORTER_GATE_OFF,
+    AUTO_REPAIR_REPORTER_GATE_WARN,
+    AUTO_REPAIR_REPORTER_GATE_APPLY,
+}
 IGNORED_PATH_PREFIXES = (
     ".tmp/",
     ".codex_subagent/",
@@ -125,6 +134,21 @@ REPORTER_NON_REPAIRABLE_ISSUE_PREFIXES = (
     "required compacted output missing:",
     "reporter feedback is missing docs/logs updated summary",
     "reporter docs/logs updated summary lacks compacted/traceability evidence",
+)
+REPORTER_AUTO_REPAIR_ALLOWED_UPDATES = frozenset(
+    {
+        "Patch",
+        "Test Results",
+        "Reporter Review",
+        "Test Results:artifact",
+        "Reporter Review:artifact",
+        "field:Patcher",
+        "field:Tester",
+        "field:Reporter",
+        "field:Tests run",
+        "field:Docs/logs updated",
+        "field:Outcome",
+    }
 )
 ESCALATION_ALLOWLIST_PREFIXES: Tuple[Tuple[str, ...], ...] = (
     ("git", "status"),
@@ -3145,6 +3169,19 @@ def parse_resume_mode() -> str:
     return value
 
 
+def parse_reporter_auto_repair_mode() -> str:
+    raw = os.environ.get(AUTO_REPAIR_REPORTER_GATE_ENV, AUTO_REPAIR_REPORTER_GATE_OFF)
+    value = raw.strip().lower()
+    if not value:
+        return AUTO_REPAIR_REPORTER_GATE_OFF
+    if value not in AUTO_REPAIR_REPORTER_GATE_VALUES:
+        die(
+            f"pc-feature: invalid {AUTO_REPAIR_REPORTER_GATE_ENV} value '{raw}'; "
+            "expected one of: " + ", ".join(sorted(AUTO_REPAIR_REPORTER_GATE_VALUES))
+        )
+    return value
+
+
 def parse_resume_contradiction_policy() -> str:
     raw = os.environ.get(
         RESUME_CONTRADICTION_POLICY_ENV,
@@ -3901,6 +3938,178 @@ def collect_reporter_post_review_issues(
         reporter_traceability_issues(reporter_feedback, required_compacted_paths)
     )
     return issues
+
+
+def split_reporter_auto_repair_updates(
+    updates: List[str],
+) -> Tuple[List[str], List[str]]:
+    allowed: List[str] = []
+    disallowed: List[str] = []
+    seen_allowed: Set[str] = set()
+    seen_disallowed: Set[str] = set()
+    for update in updates:
+        normalized = update.strip()
+        if not normalized:
+            continue
+        if normalized in REPORTER_AUTO_REPAIR_ALLOWED_UPDATES:
+            if normalized not in seen_allowed:
+                allowed.append(normalized)
+                seen_allowed.add(normalized)
+            continue
+        if normalized not in seen_disallowed:
+            disallowed.append(normalized)
+            seen_disallowed.add(normalized)
+    return allowed, disallowed
+
+
+def build_reporter_auto_repair_ledger(
+    *,
+    mode: str,
+    stage: str,
+    applied: bool,
+    proposed_updates: List[str],
+    disallowed_updates: List[str],
+    issues_before: List[str],
+    issues_preview_after: List[str],
+    skipped_reason: str = "",
+) -> str:
+    before_signature = hashlib.sha256(
+        "\n".join(sorted(set(issues_before))).encode("utf-8")
+    ).hexdigest()[:12]
+    preview_signature = hashlib.sha256(
+        "\n".join(sorted(set(issues_preview_after))).encode("utf-8")
+    ).hexdigest()[:12]
+    resolved = sorted(set(issues_before) - set(issues_preview_after))
+    unresolved = sorted(set(issues_preview_after))
+    risk_tags: List[str] = []
+    if disallowed_updates:
+        risk_tags.append("non-allowlisted-update-blocked")
+    if mode == AUTO_REPAIR_REPORTER_GATE_APPLY and applied:
+        risk_tags.append("metadata-overwrite")
+    if mode in {
+        AUTO_REPAIR_REPORTER_GATE_OFF,
+        AUTO_REPAIR_REPORTER_GATE_WARN,
+    }:
+        risk_tags.append("no-side-effect")
+    return (
+        f"mode={mode}; stage={stage}; applied={'yes' if applied else 'no'}; "
+        + (f"skipped_reason={skipped_reason}; " if skipped_reason else "")
+        + "proposed_updates="
+        + (",".join(proposed_updates) if proposed_updates else "none")
+        + "; disallowed_updates="
+        + (",".join(disallowed_updates) if disallowed_updates else "none")
+        + "; issues_before_sig="
+        + before_signature
+        + "; issues_preview_after_sig="
+        + preview_signature
+        + "; resolved_preview="
+        + (str(len(resolved)))
+        + "; unresolved_preview="
+        + (str(len(unresolved)))
+        + "; risk_tags="
+        + (",".join(risk_tags) if risk_tags else "none")
+    )
+
+
+def run_reporter_auto_repair_pass(
+    *,
+    mode: str,
+    stage: str,
+    content: str,
+    work_item_id: str,
+    issues_before: List[str],
+    tester_feedback: str,
+    reporter_feedback: str,
+    reporter_outcome: str,
+    worktree_path: str,
+) -> Tuple[str, List[str], str, bool]:
+    if stage not in {"pre", "post"}:
+        die(f"pc-feature: invalid reporter auto-repair stage '{stage}'")
+
+    if mode == AUTO_REPAIR_REPORTER_GATE_OFF:
+        ledger = build_reporter_auto_repair_ledger(
+            mode=mode,
+            stage=stage,
+            applied=False,
+            proposed_updates=[],
+            disallowed_updates=[],
+            issues_before=issues_before,
+            issues_preview_after=issues_before,
+            skipped_reason="mode-off",
+        )
+        return content, issues_before, ledger, False
+
+    repairable, _non_repairable = split_reporter_handoff_issues(issues_before)
+    if not repairable:
+        ledger = build_reporter_auto_repair_ledger(
+            mode=mode,
+            stage=stage,
+            applied=False,
+            proposed_updates=[],
+            disallowed_updates=[],
+            issues_before=issues_before,
+            issues_preview_after=issues_before,
+            skipped_reason="no-repairable-issues",
+        )
+        return content, issues_before, ledger, False
+
+    candidate_content, candidate_updates = repair_commit_evidence_from_role_artifacts(
+        content,
+        work_item_id,
+        gate_status="PENDING",
+        tester_artifact=build_artifact_from_feedback(tester_feedback, role="tester"),
+        reporter_artifact=build_artifact_from_feedback(
+            reporter_feedback,
+            role="reporter",
+            fallback_outcome=reporter_outcome,
+        ),
+    )
+    allowed_updates, disallowed_updates = split_reporter_auto_repair_updates(
+        candidate_updates
+    )
+    preview_content = candidate_content
+    if disallowed_updates:
+        preview_content = content
+
+    if stage == "pre":
+        issues_preview_after = execution_handoff_completeness_issues(
+            preview_content, work_item_id, require_reporter_review=False
+        )
+    else:
+        issues_preview_after = collect_reporter_post_review_issues(
+            preview_content,
+            work_item_id,
+            worktree_path=worktree_path,
+            reporter_feedback=reporter_feedback,
+        )
+
+    apply_change = (
+        mode == AUTO_REPAIR_REPORTER_GATE_APPLY
+        and not disallowed_updates
+        and preview_content != content
+    )
+    next_content = preview_content if apply_change else content
+    next_issues = issues_preview_after if apply_change else issues_before
+    skipped_reason = ""
+    if not apply_change and mode == AUTO_REPAIR_REPORTER_GATE_APPLY:
+        if disallowed_updates:
+            skipped_reason = "disallowed-updates"
+        elif preview_content == content:
+            skipped_reason = "no-content-change"
+    elif mode == AUTO_REPAIR_REPORTER_GATE_WARN:
+        skipped_reason = "warn-mode-preview-only"
+
+    ledger = build_reporter_auto_repair_ledger(
+        mode=mode,
+        stage=stage,
+        applied=apply_change,
+        proposed_updates=allowed_updates,
+        disallowed_updates=disallowed_updates,
+        issues_before=issues_before,
+        issues_preview_after=issues_preview_after,
+        skipped_reason=skipped_reason,
+    )
+    return next_content, next_issues, ledger, apply_change
 
 
 def build_tester_retry_decision_options_summary(context: str) -> str:
@@ -5094,6 +5303,7 @@ def main() -> None:
     emit_workflow_event("preflight", "DONE", outcome="READY")
 
     requires_global_logs = False
+    reporter_auto_repair_mode = parse_reporter_auto_repair_mode()
     reviewer_blocks = 0
     planner_revision_attempts = 0
     tester_failures = 0
@@ -6174,39 +6384,34 @@ def main() -> None:
             )
             reporter_finalization_normalized = False
             reporter_gate_auto_repair_notes: List[str] = []
-            if pre_reporter_issues:
-                pre_gate_issues_before = list(pre_reporter_issues)
-                pre_repairable, _pre_non_repairable = split_reporter_handoff_issues(
-                    pre_reporter_issues
+            reporter_auto_repair_consumed = False
+            reporter_feedback = ""
+            if (
+                pre_reporter_issues
+                and reporter_auto_repair_mode != AUTO_REPAIR_REPORTER_GATE_OFF
+                and not reporter_auto_repair_consumed
+            ):
+                (
+                    repaired_content,
+                    pre_reporter_issues,
+                    pre_repair_ledger,
+                    _pre_applied,
+                ) = run_reporter_auto_repair_pass(
+                    mode=reporter_auto_repair_mode,
+                    stage="pre",
+                    content=content,
+                    work_item_id=work_item_id,
+                    issues_before=pre_reporter_issues,
+                    tester_feedback=tester_feedback,
+                    reporter_feedback=reporter_feedback,
+                    reporter_outcome="PENDING",
+                    worktree_path=patcher_path,
                 )
-                if pre_repairable:
-                    repaired_content, pre_repaired = (
-                        repair_commit_evidence_from_role_artifacts(
-                            content,
-                            work_item_id,
-                            gate_status="PENDING",
-                            tester_artifact=build_artifact_from_feedback(
-                                tester_feedback, role="tester"
-                            ),
-                        )
-                    )
-                    if repaired_content != content:
-                        content = repaired_content
-                        write_file(dev_tasks_path, content)
-                    if pre_repaired:
-                        reporter_gate_auto_repair_notes.append(
-                            "pre-handoff repair updates: " + ", ".join(pre_repaired)
-                        )
-                    pre_reporter_issues = execution_handoff_completeness_issues(
-                        content, work_item_id, require_reporter_review=False
-                    )
-                    resolved_pre = sorted(
-                        set(pre_gate_issues_before) - set(pre_reporter_issues)
-                    )
-                    if resolved_pre:
-                        reporter_gate_auto_repair_notes.append(
-                            "pre-handoff issues resolved: " + "; ".join(resolved_pre)
-                        )
+                reporter_auto_repair_consumed = True
+                reporter_gate_auto_repair_notes.append(pre_repair_ledger)
+                if repaired_content != content:
+                    content = repaired_content
+                    write_file(dev_tasks_path, content)
             if pre_reporter_issues:
                 reporter_feedback = build_reporter_handoff_block_feedback(
                     work_item_id=work_item_id,
@@ -6268,57 +6473,38 @@ def main() -> None:
             )
             post_reporter_issues: List[str] = []
             if reporter_outcome == "PASS":
-                post_reporter_issues.extend(
-                    collect_reporter_post_review_issues(
-                        content,
-                        work_item_id,
-                        worktree_path=patcher_path,
-                        reporter_feedback=reporter_feedback,
-                    )
+                post_reporter_issues = collect_reporter_post_review_issues(
+                    content,
+                    work_item_id,
+                    worktree_path=patcher_path,
+                    reporter_feedback=reporter_feedback,
                 )
-                if post_reporter_issues:
-                    post_gate_issues_before = list(post_reporter_issues)
-                    post_repairable, _post_non_repairable = (
-                        split_reporter_handoff_issues(post_reporter_issues)
+                if (
+                    post_reporter_issues
+                    and reporter_auto_repair_mode != AUTO_REPAIR_REPORTER_GATE_OFF
+                    and not reporter_auto_repair_consumed
+                ):
+                    (
+                        repaired_content,
+                        post_reporter_issues,
+                        post_repair_ledger,
+                        _post_applied,
+                    ) = run_reporter_auto_repair_pass(
+                        mode=reporter_auto_repair_mode,
+                        stage="post",
+                        content=content,
+                        work_item_id=work_item_id,
+                        issues_before=post_reporter_issues,
+                        tester_feedback=tester_feedback,
+                        reporter_feedback=reporter_feedback,
+                        reporter_outcome=reporter_outcome,
+                        worktree_path=patcher_path,
                     )
-                    if post_repairable:
-                        repaired_content, post_repaired = (
-                            repair_commit_evidence_from_role_artifacts(
-                                content,
-                                work_item_id,
-                                gate_status="PENDING",
-                                tester_artifact=build_artifact_from_feedback(
-                                    tester_feedback, role="tester"
-                                ),
-                                reporter_artifact=build_artifact_from_feedback(
-                                    reporter_feedback,
-                                    role="reporter",
-                                    fallback_outcome=reporter_outcome,
-                                ),
-                            )
-                        )
-                        if repaired_content != content:
-                            content = repaired_content
-                            write_file(dev_tasks_path, content)
-                        if post_repaired:
-                            reporter_gate_auto_repair_notes.append(
-                                "post-review repair updates: "
-                                + ", ".join(post_repaired)
-                            )
-                        post_reporter_issues = collect_reporter_post_review_issues(
-                            content,
-                            work_item_id,
-                            worktree_path=patcher_path,
-                            reporter_feedback=reporter_feedback,
-                        )
-                        resolved_post = sorted(
-                            set(post_gate_issues_before) - set(post_reporter_issues)
-                        )
-                        if resolved_post:
-                            reporter_gate_auto_repair_notes.append(
-                                "post-review issues resolved: "
-                                + "; ".join(resolved_post)
-                            )
+                    reporter_auto_repair_consumed = True
+                    reporter_gate_auto_repair_notes.append(post_repair_ledger)
+                    if repaired_content != content:
+                        content = repaired_content
+                        write_file(dev_tasks_path, content)
             if post_reporter_issues:
                 reporter_feedback = build_reporter_handoff_block_feedback(
                     work_item_id=work_item_id,

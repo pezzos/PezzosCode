@@ -4724,6 +4724,78 @@ class TestPcFeature(unittest.TestCase):
             non_repairable,
         )
 
+    def test_parse_reporter_auto_repair_mode_defaults_to_off(self):
+        with mock.patch.dict(self.pc_feature.os.environ, {}, clear=True):
+            self.assertEqual(
+                self.pc_feature.parse_reporter_auto_repair_mode(),
+                self.pc_feature.AUTO_REPAIR_REPORTER_GATE_OFF,
+            )
+
+    def test_run_reporter_auto_repair_pass_warn_has_no_side_effect(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            work_item_id = "WI-20260213-24"
+            content = self._build_entry_content(work_item_id)
+            issues_before = self.pc_feature.execution_handoff_completeness_issues(
+                content, work_item_id, require_reporter_review=False
+            )
+
+            next_content, next_issues, ledger, applied = (
+                self.pc_feature.run_reporter_auto_repair_pass(
+                    mode=self.pc_feature.AUTO_REPAIR_REPORTER_GATE_WARN,
+                    stage="pre",
+                    content=content,
+                    work_item_id=work_item_id,
+                    issues_before=issues_before,
+                    tester_feedback=(
+                        "Outcome: PASS\n"
+                        "Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`\n"
+                        "Notes: all allowed tests passed\n"
+                    ),
+                    reporter_feedback="",
+                    reporter_outcome="PENDING",
+                    worktree_path=tmp_dir,
+                )
+            )
+
+            self.assertFalse(applied)
+            self.assertEqual(next_content, content)
+            self.assertEqual(next_issues, issues_before)
+            self.assertIn("mode=warn", ledger)
+            self.assertIn("risk_tags=no-side-effect", ledger)
+
+    def test_run_reporter_auto_repair_pass_apply_repairs_metadata_issues(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            work_item_id = "WI-20260213-25"
+            content = self._build_entry_content(work_item_id)
+            issues_before = self.pc_feature.execution_handoff_completeness_issues(
+                content, work_item_id, require_reporter_review=False
+            )
+
+            next_content, next_issues, ledger, applied = (
+                self.pc_feature.run_reporter_auto_repair_pass(
+                    mode=self.pc_feature.AUTO_REPAIR_REPORTER_GATE_APPLY,
+                    stage="pre",
+                    content=content,
+                    work_item_id=work_item_id,
+                    issues_before=issues_before,
+                    tester_feedback=(
+                        "Outcome: PASS\n"
+                        "Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`\n"
+                        "Notes: all allowed tests passed\n"
+                    ),
+                    reporter_feedback="",
+                    reporter_outcome="PENDING",
+                    worktree_path=tmp_dir,
+                )
+            )
+
+            self.assertTrue(applied)
+            self.assertNotEqual(next_content, content)
+            self.assertLess(len(next_issues), len(issues_before))
+            self.assertIn("mode=apply", ledger)
+            self.assertIn("applied=yes", ledger)
+            self.assertIn("disallowed_updates=none", ledger)
+
     def test_reporter_handoff_block_feedback_contains_decision_options(self):
         decision_options = self.pc_feature.build_reporter_retry_decision_options_summary(
             [

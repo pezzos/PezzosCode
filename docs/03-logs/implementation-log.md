@@ -6479,3 +6479,41 @@ Track when debt is paid down:
 - **Breaking changes:** None (existing fail-closed behavior remains for non-repairable issues).
 - **Performance:** Negligible (small additional in-memory reconciliation/check passes).
 - **Dependencies:** None.
+
+### 2026-02-13 - Add no-side-effect auto-repair modes and one-pass guard for reporter gate
+
+**Feature/Bug:** Reporter auto-repair needed explicit no-side-effect operation modes (`off`/`warn`/`apply`), strict update allowlisting, and bounded single-pass execution per attempt.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added `AUTO_REPAIR_REPORTER_GATE` environment control with validated values:
+  - `off` (default, no auto-repair mutation),
+  - `warn` (compute repair preview/ledger, no mutation),
+  - `apply` (allowlisted deterministic repair applied).
+- Added strict reporter auto-repair allowlist (`REPORTER_AUTO_REPAIR_ALLOWED_UPDATES`) and update classification to block non-allowlisted mutations from being auto-applied.
+- Added reporter auto-repair ledger generation with mode/stage/applied status, issue signatures, proposed/disallowed updates, and risk tags.
+- Replaced direct pre/post reporter repair calls with a unified `run_reporter_auto_repair_pass(...)` helper.
+- Enforced max one reporter auto-repair pass per attempt via a per-attempt consumption guard.
+- Added tests for:
+  - default mode resolution (`off`),
+  - `warn` no-side-effect behavior,
+  - `apply` metadata repair behavior.
+
+**Why:**
+
+- Support safe rollout with shadow preview first and explicit promotion control.
+- Prevent unintended mutations by constraining auto-repair to deterministic, allowlisted execution metadata updates.
+- Bound risk by limiting repair attempts and preserving explicit decision options when unresolved.
+
+**Impact:**
+
+- **Breaking changes:** None (`off` default keeps behavior conservative unless opt-in mode is set).
+- **Performance:** Negligible (single additional classification/preview pass per eligible reporter attempt).
+- **Dependencies:** None.

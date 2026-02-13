@@ -1690,3 +1690,17 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Reporter gate now runs deterministic auto-repair for metadata-only handoff/closeout issues before emitting reporter FAIL.
   - Reporter handoff block feedback includes explicit human decision options with risk trade-offs.
   - Tester and reporter retry-limit failures now surface explicit decision options with risks in both Notes and terminal error output.
+
+## 2026-02-13 - Validate no-side-effect reporter auto-repair modes and one-pass guard
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (offload id `854be8a391f45b389ba0d7112a5ac6f0cc98578d35252d44e8405abb46629152`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`17` tests, offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Verified:
+  - `AUTO_REPAIR_REPORTER_GATE` now validates `off|warn|apply` with `off` as default.
+  - `warn` mode computes a repair ledger without mutating execution content.
+  - `apply` mode applies only allowlisted deterministic metadata updates.
+  - Reporter auto-repair execution is bounded to a single pass per attempt.
