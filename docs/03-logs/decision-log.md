@@ -2264,3 +2264,19 @@ When a decision is reversed or replaced, document it here:
   - Standardizes repeated diagnosis prompts into one reusable skill while keeping execution non-destructive.
   - Preserves human control for ambiguous or policy-impacting remediation choices.
   - Leaves room for future automation design without introducing implicit process changes now.
+
+### DEC-060 - Create `workflow-hardening-top5` as a read-only prioritization skill with max-5 output
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** The project needed a reusable chat-only skill to turn `docs/possible-improvements.md` into high-value workflow hardening recommendations. The user required prioritization with a strict upper limit of five items and allowed fewer than five when evidence is insufficient.
+- **Decision:**
+  - Add a dedicated skill at `.codex/skills/workflow-hardening-top5`.
+  - Restrict scope to workflow/process robustness, stability, and issue prevention; exclude feature expansion.
+  - Enforce output size as `<= 5` recommendations with evidence-based filtering and deduplication.
+  - Require each recommendation to include why-now rationale, benefits, risks/trade-offs, and no-side-effect rollout guidance.
+  - Keep execution non-destructive: no file edits, no patch/apply actions, no auto-implementation.
+- **Consequences:**
+  - Recommendation quality and consistency improve across repeated chats.
+  - Human decision authority remains intact because the skill is analysis-only.
+  - The skill may intentionally return fewer than five items when confidence or evidence is limited.

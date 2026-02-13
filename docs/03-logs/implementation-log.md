@@ -6373,3 +6373,31 @@ Track when debt is paid down:
 - **Dependencies:** None.
 
 - WI-20260213-05 completed: implemented the feature scope end-to-end with focused, traceable changes aligned to ticket requirements.
+
+### 2026-02-13 - Add `workflow-hardening-top5` chat-only skill for process hardening recommendations
+
+**Feature/Bug:** Create a reusable read-only skill that analyzes the project improvement backlog and prioritizes workflow hardening work without proposing product feature expansion.
+
+**Changed Files:**
+
+- `.codex/skills/workflow-hardening-top5/SKILL.md`
+- `.codex/skills/workflow-hardening-top5/agents/openai.yaml`
+
+**What Changed:**
+
+- Initialized a new skill scaffold at `.codex/skills/workflow-hardening-top5`.
+- Replaced the template `SKILL.md` with a strict read-only, chat-only contract.
+- Added deterministic selection rules: deduplication by root problem, workflow-only filtering, and prioritization by recurrence/impact/prevention/safety.
+- Enforced output contract to return up to 5 recommendations (fewer allowed when evidence is insufficient), each with rationale, benefits, risks, no-side-effect rollout, and evidence references.
+- Added guardrails to prohibit file edits, patch commands, auto-implementation, and roadmap feature additions.
+
+**Why:**
+
+- Repeated failure patterns in `docs/possible-improvements.md` benefit from a consistent prioritization method that emphasizes robustness and stability instead of scope growth.
+- A dedicated skill reduces ad-hoc recommendation quality variance across chats.
+
+**Impact:**
+
+- **Breaking changes:** None.
+- **Performance:** N/A (instructional skill only).
+- **Dependencies:** None.
