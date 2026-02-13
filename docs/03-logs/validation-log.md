@@ -1748,3 +1748,25 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Deterministic auto-rewrite can recover malformed non-contract plans to compliant `Plan Contract v1` structure.
 
 - WI-20260213-01 validated: lint/tests and acceptance checks passed for the completed feature.
+
+## 2026-02-13 - Validate planner-create contract normalization and failure-state hardening
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature`
+- Result: FAIL (environment import path does not resolve `tests.test_pc_feature`; offload id `3612bc7bd9c1bcbd31fa2fdb650dd4a09d7d1a5a0e35059f603d3722bc331d5e`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_orchestrator_workflow_docs`
+- Result: FAIL (environment import path does not resolve `tests.test_orchestrator_workflow_docs`; offload id `975edecf66efef94ec0755ccc224d51b84fb0c909d6df02a95f2783821348e86`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (offload ids `95bfa07850814b047b342b933e96f9540fd1e9d8ede3b8b7d931de2f36a3eb5e`, `1b439e0ad8230b62f08ec6eb4c52ffcbfa6281ef30977638d4c3895a36579119`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"`
+- Result: PASS (offload ids `3af354abd6afd2f4f662a367159a8b8107385935ded6c8a2b929734becedb43c`, `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`)
+- Command: `tools/offload-proxy/pp make lint`
+- Result: FAIL in this environment due `end-of-file-fixer` permission errors on `.codex/skills/*` files (offload id `287c30d0585ba221b9ac68fe3ce7b1b0578319f3e28fef78fd6d6ea4d24c26e4`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload ids `e26717cf874ac4a5a2c1f234dbd5df8408c214cb5f0541c6e52c89a24972096e`, `c9365af1bff34d7ebbc28f4acbfa1da87044753ddb0a6b6cad1ca10f2e9730f0`)
+- Command: `tools/offload-proxy/pp make ci` (post doc/log updates)
+- Result: PASS (offload id `e18778f4ce4129915201d59624ac9f964926477edb493c6f9aaefe7470291595`)
+- Verified:
+  - Plan contract section detection now accepts heading labels with markdown bullet/indent wrappers while still enforcing section presence.
+  - Planner-create rejection now produces deterministic artifact `logs/<WI>/planner-create-rejection.md`.
+  - Planner-create quality failure now sets workflow state to `FAILED` and prevents rejected plan persistence in active `dev-tasks.md`.
+  - Live and template prompt contracts are synchronized for canonical heading output.

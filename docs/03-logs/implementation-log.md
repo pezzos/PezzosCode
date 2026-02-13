@@ -6646,3 +6646,50 @@ Track when debt is paid down:
 - **Dependencies:** None.
 
 - WI-20260213-01 completed: implemented the approved feature scope end-to-end with no unresolved blockers.
+
+### 2026-02-13 - Planner-create contract hardening, rejection artifacting, and fail-state correctness
+
+**Feature/Bug:** Planner-create failure diagnostics and state handling (smoke workflow hardening).
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/planner-create.md`
+- `prompts/planner-update-from-feedback.md`
+- `prompts/planner-update_from_feedback.md`
+- `tools/templates/prompts/planner-create.md`
+- `tools/templates/prompts/planner-update-from-feedback.md`
+- `tools/templates/prompts/planner-update_from_feedback.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Updated plan-contract section matching in `pc-feature` to accept heading label lines after deterministic markdown list/indent normalization.
+- Added deterministic planner-create rejection artifact writer:
+  - path: `logs/<WI>/planner-create-rejection.md`
+  - payload: UTC timestamp, quality issues, and raw planner output.
+- Hardened planner-create failure path:
+  - reverts unexpected `dev-tasks.md` side effects before exiting,
+  - emits explicit `planner FAIL` and `feature FAIL` workflow events with `state=FAILED`,
+  - extends terminal error text with rejection artifact pointer.
+- Added regression tests for:
+  - bulleted heading acceptance in contract section detection,
+  - planner-create rejection artifact generation,
+  - planner-create quality-failure behavior (side-effect rollback + failed workflow events).
+- Canonicalized planner contract examples in live/template prompts so section headings are consistently emitted at column 1.
+- Updated process protocol docs (live + template copy) to codify normalized heading matching, rejection artifacting, failed-state behavior, and no-persist guarantee for rejected planner-create output.
+
+**Why:**
+
+- Fixes the observed smoke-run failure mode where planner-create contract rejection lacked durable diagnostics and could leave ambiguous runtime state.
+
+**Impact:**
+
+- **Breaking changes:** None intended; planner quality gate remains fail-closed.
+- **Performance:** Negligible (small string normalization + small markdown artifact write on failure only).
+- **Dependencies:** None.

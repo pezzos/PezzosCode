@@ -1243,6 +1243,40 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertEqual([], issues)
 
+    def test_missing_plan_contract_sections_accepts_bulleted_heading_variants(self):
+        plan = (
+            "Plan Contract v1\n"
+            "- Approach:\n"
+            "  - Keep scope narrow.\n"
+            "- Files to change:\n"
+            "  - tools/pc-feature\n"
+            "- Risks:\n"
+            "  - low\n"
+            "- Tests (anti-hardcode coverage required):\n"
+            "  - Fixture coverage: at least 2 fixtures per critical path.\n"
+            "  - Deterministic seed strategy: fixed ordering.\n"
+            "  - Invariant checks: policy guard remains fail-closed.\n"
+            "  - Contract boundary coverage: plan parser and workflow gate.\n"
+        )
+        missing = self.pc_feature.missing_plan_contract_sections(plan)
+        self.assertEqual([], missing)
+
+    def test_write_planner_create_rejection_artifact_records_diagnostics(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = self.pc_feature.write_planner_create_rejection_artifact(
+                root=Path(tmp_dir),
+                work_item_id="WI-20260213-99",
+                quality_issues=[
+                    "revised plan missing required sections: Approach, Files to change"
+                ],
+                raw_plan="1. Quick narrative only",
+            )
+            self.assertTrue(path.exists())
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("# Planner Create Rejection (WI-20260213-99)", content)
+            self.assertIn("missing required sections", content)
+            self.assertIn("1. Quick narrative only", content)
+
     def test_merge_revised_plan_replaces_previous_plan(self):
         current = "old plan content\nwith stale path docs/02-features/12/dev-tasks.md"
         revised = "Plan Contract v1\nApproach:\n1. clean"
@@ -4447,6 +4481,143 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn(
                 "reporter no-op; reason=blocked by invalid allowed tests", dev_tasks
+            )
+
+    def test_main_planner_create_quality_failure_sets_failed_state_and_reverts_plan_side_effects(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260213-99"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            dev_tasks_path = self._worktree_dev_tasks(patcher_path)
+            recorded_events = []
+            workflow_history_path = (
+                patcher_path / "logs" / work_item_id / "workflow-history.ndjson"
+            )
+            workflow_status_path = (
+                patcher_path / "logs" / work_item_id / "workflow-status.json"
+            )
+
+            original_entry_complete = self.pc_feature.entry_section_complete
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section == "Preflight Report":
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Planner agent. Provide a concise plan" in prompt:
+                    current = dev_tasks_path.read_text(encoding="utf-8")
+                    dev_tasks_path.write_text(
+                        current + "\nSIDE_EFFECT_MARKER\n", encoding="utf-8"
+                    )
+                    return "1. Quick narrative plan only"
+                return "Decision: Approve\nReasons:\n- clear"
+
+            def fake_record_workflow_event(
+                metadata,
+                *,
+                step,
+                event,
+                attempt=None,
+                outcome="",
+                reason="",
+                state=None,
+                root=None,
+            ):
+                payload = {
+                    "timestamp": "2026-02-13T20:00:00Z",
+                    "step": step,
+                    "event": event,
+                    "attempt": attempt,
+                    "outcome": outcome,
+                    "reason": reason,
+                    "state": state,
+                }
+                recorded_events.append(payload)
+                return payload
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature, "codex_exec", side_effect=fake_codex_exec
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "build_metadata",
+                        return_value=SimpleNamespace(
+                            work_item_id=work_item_id,
+                            agent_name="pc-feature",
+                            run_id="run-123",
+                        ),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "init_workflow_tracking",
+                        return_value=(
+                            str(workflow_status_path),
+                            str(workflow_history_path),
+                        ),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "record_workflow_event",
+                        side_effect=fake_record_workflow_event,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "planner create output failed quality checks",
+                stderr_capture.getvalue(),
+            )
+            updated_dev_tasks = dev_tasks_path.read_text(encoding="utf-8")
+            self.assertNotIn("SIDE_EFFECT_MARKER", updated_dev_tasks)
+            self.assertNotIn("Plan Contract v1", updated_dev_tasks)
+            artifact = (
+                patcher_path / "logs" / work_item_id / "planner-create-rejection.md"
+            )
+            self.assertTrue(artifact.exists())
+            artifact_content = artifact.read_text(encoding="utf-8")
+            self.assertIn("Quick narrative plan only", artifact_content)
+            self.assertIn("missing required sections", artifact_content)
+            self.assertTrue(
+                any(
+                    event["step"] == "planner"
+                    and event["event"] == "FAIL"
+                    and event["state"] == "FAILED"
+                    for event in recorded_events
+                )
+            )
+            self.assertTrue(
+                any(
+                    event["step"] == "feature"
+                    and event["event"] == "FAIL"
+                    and event["state"] == "FAILED"
+                    for event in recorded_events
+                )
             )
 
     def test_main_discards_allowed_tests_side_effect_files(self):

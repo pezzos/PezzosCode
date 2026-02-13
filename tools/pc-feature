@@ -2607,9 +2607,14 @@ def sanitize_preflight_data(preflight_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def match_plan_contract_section(line: str) -> Optional[str]:
-    for section, pattern in PLAN_CONTRACT_SECTION_PATTERNS.items():
-        if pattern.match(line):
-            return section
+    candidates = [line]
+    normalized = normalize_plan_line(line)
+    if normalized and normalized not in candidates:
+        candidates.append(normalized)
+    for candidate in candidates:
+        for section, pattern in PLAN_CONTRACT_SECTION_PATTERNS.items():
+            if pattern.match(candidate):
+                return section
     return None
 
 
@@ -2635,6 +2640,32 @@ def plan_uses_contract_sections(plan_text: str) -> bool:
 def missing_plan_contract_sections(plan_text: str) -> List[str]:
     sections = extract_plan_contract_sections(plan_text)
     return [section for section in PLAN_CONTRACT_SECTIONS if not sections.get(section)]
+
+
+def write_planner_create_rejection_artifact(
+    *,
+    root: Path,
+    work_item_id: str,
+    quality_issues: List[str],
+    raw_plan: str,
+) -> Path:
+    artifact_path = root / "logs" / work_item_id / "planner-create-rejection.md"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    details = "\n".join(f"- {issue}" for issue in sorted(set(quality_issues)))
+    raw_section = raw_plan.rstrip() if raw_plan.strip() else "(empty planner output)"
+    artifact_body = (
+        f"# Planner Create Rejection ({work_item_id})\n\n"
+        f"- Timestamp (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+        "- Reason: planner create output failed quality checks\n"
+        "- Missing/invalid checks:\n"
+        f"{details}\n\n"
+        "## Raw Planner Output\n\n"
+        "```\n"
+        f"{raw_section}\n"
+        "```\n"
+    )
+    artifact_path.write_text(artifact_body, encoding="utf-8")
+    return artifact_path
 
 
 def compacted_policy_bootstrap_issues() -> List[str]:
@@ -6012,6 +6043,7 @@ def main() -> None:
         if force_planner_step or not entry_section_complete(
             content, work_item_id, "Plan"
         ):
+            planner_content_before_create = content
             plan_prompt = render_prompt_template(
                 load_prompt_template("planner", "create"),
                 {
@@ -6028,7 +6060,7 @@ def main() -> None:
                 runner_metadata=runner_metadata,
                 root=str(runner_root),
             ).strip()
-            content = read_file(dev_tasks_path)
+            content = planner_content_before_create
             quality_issues = planner_create_quality_issues(
                 plan_text,
                 previous_plan=get_entry_section(content, work_item_id, "Plan"),
@@ -6041,12 +6073,44 @@ def main() -> None:
                 ),
             )
             if quality_issues:
+                artifact_path = write_planner_create_rejection_artifact(
+                    root=runner_root,
+                    work_item_id=work_item_id,
+                    quality_issues=quality_issues,
+                    raw_plan=plan_text,
+                )
+                current_dev_tasks = read_file(dev_tasks_path)
+                if current_dev_tasks != planner_content_before_create:
+                    write_file(dev_tasks_path, planner_content_before_create)
+                    print(
+                        "pc-feature: reverted unexpected planner create side effects in dev-tasks.md"
+                    )
+                reason = (
+                    "planner create quality checks failed; "
+                    f"artifact=logs/{work_item_id}/{artifact_path.name}"
+                )
+                emit_workflow_event(
+                    "planner",
+                    "FAIL",
+                    attempt=attempt,
+                    outcome="FAIL",
+                    reason=reason,
+                    state="FAILED",
+                )
+                emit_workflow_event(
+                    "feature",
+                    "FAIL",
+                    outcome="FAIL",
+                    reason=reason,
+                    state="FAILED",
+                )
                 flush_pending_failure_proposals(
                     "planner create output failed quality checks"
                 )
                 die(
                     "pc-feature: planner create output failed quality checks: "
                     + "; ".join(quality_issues)
+                    + f"; details logged at logs/{work_item_id}/{artifact_path.name}"
                 )
             content = replace_entry_section(content, work_item_id, "Plan", plan_text)
             write_file(dev_tasks_path, content)

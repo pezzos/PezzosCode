@@ -16,7 +16,7 @@ The plan must explicitly include anti-hardcode coverage:
 - invariant checks,
 - contract boundary coverage.
 
-Return this exact structure in the Plan section body:
+Return ONLY the Plan section body using this exact heading structure (headings must start at column 1):
 
 Plan Contract v1
 Approach:
@@ -34,6 +34,7 @@ Approach:
 - Contract boundary coverage: ...
 - Allowed test commands:
   - ...
+- Handoff note: Any required non-compacted `docs/03-logs/*.md` updates are reporter/orchestrator-owned; patcher will not edit those files.
 
 Work Item ID: {work_item_id}
 

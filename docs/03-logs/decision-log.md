@@ -2344,3 +2344,19 @@ When a decision is reversed or replaced, document it here:
   - Reduces non-converging planner/reviewer loops caused by malformed plan bodies and parser false positives.
   - Keeps fail-closed behavior for real policy violations while reducing noisy false command blocks.
   - Improves resume determinism without altering orchestration authority boundaries.
+
+### DEC-064 - Harden planner-create contract intake with deterministic rejection artifacts and terminal failure state
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** Workflow smoke run `WI-20260213-01` failed at planner-create quality gate while leaving partial planner side effects and non-terminal runtime state, reducing diagnostics quality and recovery determinism.
+- **Decision:**
+  - Normalize list/indent heading prefixes when matching `Plan Contract v1` section labels so semantically-correct section headings are accepted even with markdown bullets/indentation.
+  - On planner-create quality failure, write deterministic diagnostics and raw planner payload to `logs/<WI>/planner-create-rejection.md`.
+  - Emit explicit terminal workflow events for both planner and feature with `state=FAILED` when planner-create quality checks fail.
+  - Revert unexpected planner-create side effects in `dev-tasks.md` before exiting so rejected output cannot persist as active plan content.
+  - Align planner create/update prompt examples (live + template copies) to canonical heading-at-column-1 contract formatting.
+- **Consequences:**
+  - Improves planner-create diagnostics and workflow state correctness without relaxing fail-closed quality gates.
+  - Reduces false negatives caused by superficial markdown heading formatting variance.
+  - Preserves deterministic rollback behavior for rejected planner-create output.

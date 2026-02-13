@@ -15,7 +15,7 @@ Never include role-scoped logs (`dev-tasks.md`, `planner-log.md`, `plan-reviewer
 When Decision is REVISE_PLAN, include an explicit note that required non-compacted `docs/03-logs` updates are owned by reporter/orchestrator and patcher will not edit those files.
 Any concrete test command written in the revised plan must be an exact command from the Allowed Tests section.
 
-When Decision is REVISE_PLAN, use this exact structure:
+When Decision is REVISE_PLAN, return only the revised plan body with this exact heading structure (headings must start at column 1):
 Plan Contract v1
 Approach:
 
@@ -32,6 +32,7 @@ Approach:
 - Contract boundary coverage: ...
 - Allowed test commands:
   - ...
+- Handoff note: Any required non-compacted `docs/03-logs/*.md` updates are reporter/orchestrator-owned; patcher will not edit those files.
 
 Work Item ID: {work_item_id}
 

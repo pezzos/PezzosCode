@@ -86,6 +86,9 @@
      - `Files to change`
      - `Risks`
      - `Tests (anti-hardcode coverage required)`
+   - Plan heading validation normalizes list/indent prefixes before matching section labels, but section bodies remain mandatory.
+   - If planner-create output fails quality checks, persist diagnostics to `logs/<WI>/planner-create-rejection.md`, mark planner/feature workflow state as `FAILED`, and stop before patching.
+   - Rejected planner-create output must not persist as the active `Plan` section in `dev-tasks.md`.
    - Plan Reviewer is a first-class step with its own prompt (`prompts/plan-reviewer-gate.md`), log (`plan-reviewer-log.md`), and commit.
    - Task-specific prompts live at `prompts/<role>-<task>.md` (examples: `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`).
    - Plan Reviewer decisions are `APPROVE`, `BLOCK`, or `CONFLICT`. A `CONFLICT` stops execution with explicit remediation before any patching.
