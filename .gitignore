@@ -10,3 +10,4 @@ __pycache__/
 .codex_precommit/
 .pytest_cache/
 .ruff_cache/
+.codex_subagent/
