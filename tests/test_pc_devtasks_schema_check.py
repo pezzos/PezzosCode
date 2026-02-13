@@ -34,12 +34,23 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
         template_dir.mkdir(parents=True, exist_ok=True)
         (template_dir / "dev-tasks.md").write_text(content, encoding="utf-8")
 
+    @staticmethod
+    def _valid_template_content() -> str:
+        return (
+            "## Execution Log\n\n"
+            "#### Allowed Tests\n\n"
+            "- (list exact commands; each command must resolve via `tools/pc-allowed-tests-check`)\n"
+        )
+
+    @staticmethod
+    def _valid_feature_content() -> str:
+        return "## Execution Log\n"
+
     def test_missing_execution_log_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            valid = "## Execution Log\n"
             missing_exec = "## Task Breakdown\n"
-            self._seed_template(root, valid)
+            self._seed_template(root, self._valid_template_content())
             self._seed_feature(root, "01-sample", missing_exec)
 
             errors = self.checker.run_check(root)
@@ -51,22 +62,25 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
     def test_missing_template_execution_log_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            valid = "## Execution Log\n"
+            valid = self._valid_feature_content()
             missing_exec = "## Task Breakdown\n"
             self._seed_template(root, missing_exec)
             self._seed_feature(root, "01-sample", valid)
 
             errors = self.checker.run_check(root)
 
-            self.assertEqual(len(errors), 1)
-            self.assertIn("feature-template", errors[0])
-            self.assertIn("## Execution Log", errors[0])
+            self.assertTrue(
+                any(
+                    "feature-template" in item and "## Execution Log" in item
+                    for item in errors
+                )
+            )
 
     def test_valid_files_pass(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            valid = "## Execution Log\n"
-            self._seed_template(root, valid)
+            valid = self._valid_feature_content()
+            self._seed_template(root, self._valid_template_content())
             self._seed_feature(root, "01-sample", valid)
             self._seed_feature(root, "02-other", valid)
 
@@ -74,11 +88,28 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
 
             self.assertEqual(errors, [])
 
+    def test_missing_template_allowed_tests_guidance_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            invalid_template = (
+                "## Execution Log\n\n"
+                "#### Allowed Tests\n\n"
+                "- (list exact commands)\n"
+            )
+            self._seed_template(root, invalid_template)
+            self._seed_feature(root, "01-sample", self._valid_feature_content())
+
+            errors = self.checker.run_check(root)
+
+            self.assertTrue(
+                any("tools/pc-allowed-tests-check" in item for item in errors)
+            )
+
     def test_main_is_quiet_on_success_by_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            valid = "## Execution Log\n"
-            self._seed_template(root, valid)
+            valid = self._valid_feature_content()
+            self._seed_template(root, self._valid_template_content())
             self._seed_feature(root, "01-sample", valid)
 
             stdout = io.StringIO()
@@ -93,8 +124,8 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
     def test_main_verbose_prints_success_summary(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            valid = "## Execution Log\n"
-            self._seed_template(root, valid)
+            valid = self._valid_feature_content()
+            self._seed_template(root, self._valid_template_content())
             self._seed_feature(root, "01-sample", valid)
 
             stdout = io.StringIO()

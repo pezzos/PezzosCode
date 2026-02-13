@@ -57,8 +57,9 @@
 
 ## Allowed Tests (Planner must populate before Tester runs)
 
-- `python3 -m unittest tests.test_pc_precommit`
-- `python3 -m unittest tests.test_pc_feature`
+- `python3 -m unittest discover -s tests -p "test_pc_autofix.py"`
+- `python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- `python3 -m unittest discover -s tests -p "test_pc_hooks_run.py"`
 
 ## Related Documents
 

@@ -2280,3 +2280,17 @@ When a decision is reversed or replaced, document it here:
   - Recommendation quality and consistency improve across repeated chats.
   - Human decision authority remains intact because the skill is analysis-only.
   - The skill may intentionally return fewer than five items when confidence or evidence is limited.
+
+### DEC-061 - Keep Allowed Tests hardening deterministic (template + validation), skip runtime auto-fix
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** Feature 19 failed on invalid Allowed Tests target drift (`tests.test_pc_precommit` missing). Auto-fix ideas were evaluated but carry non-negligible risk of selecting semantically wrong tests or masking documentation drift.
+- **Decision:**
+  - Update feature and template Allowed Tests guidance to require explicit existing unittest/pytest commands and validation through `tools/pc-allowed-tests-check`.
+  - Add deterministic template-schema enforcement in `tools/pc-devtasks-schema-check` so future feature templates keep the required Allowed Tests guidance markers.
+  - Do not implement runtime Allowed Tests auto-rewrite/suggestion logic at this stage.
+- **Consequences:**
+  - Future feature skeletons inherit a stricter and clearer Allowed Tests contract.
+  - Validation shifts left (template/schema time) without changing `pc-feature` execution semantics.
+  - Residual risk from risky auto-fix heuristics is intentionally avoided.

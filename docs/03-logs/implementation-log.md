@@ -6401,3 +6401,45 @@ Track when debt is paid down:
 - **Breaking changes:** None.
 - **Performance:** N/A (instructional skill only).
 - **Dependencies:** None.
+
+### 2026-02-13 - Harden Allowed Tests templates and feature-19 targets without runtime auto-fix
+
+**Feature/Bug:** Feature 19 orchestration blocked on invalid Allowed Tests target (`tests.test_pc_precommit` missing).
+
+**Changed Files:**
+
+- `docs/02-features/19-template-drift-hardening-autofix-recovery/dev-tasks.md`
+- `docs/02-features/19-template-drift-hardening-autofix-recovery/test-plan.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `tools/pc-devtasks-schema-check`
+- `tests/test_pc_devtasks_schema_check.py`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Replaced Feature 19 Allowed Tests commands with existing deterministic unittest-discover targets:
+  - `test_pc_autofix.py`
+  - `test_pc_feature.py`
+  - `test_pc_hooks_run.py`
+- Expanded both live and template `dev-tasks.md` Allowed Tests guidance to require:
+  - explicit test commands,
+  - validator compatibility (`tools/pc-allowed-tests-check`),
+  - explicit forbidden-command reminders.
+- Added a deterministic template guard in `pc-devtasks-schema-check` for Allowed Tests guidance markers.
+- Added regression coverage in `test_pc_devtasks_schema_check.py` for missing template Allowed Tests guidance.
+- Recorded decision to avoid runtime auto-fix heuristics for Allowed Tests in favor of template+validation hardening.
+
+**Why:**
+
+- Prevent repeated work-item failures from stale/non-existent Allowed Tests targets.
+- Ensure next generated features inherit correct Allowed Tests guidance by construction.
+- Keep behavior safe and predictable by avoiding heuristic auto-rewrites.
+
+**Impact:**
+
+- **Breaking changes:** None to `pc-feature` runtime flow.
+- **Performance:** Negligible (small extra schema checks on template content).
+- **Dependencies:** None.

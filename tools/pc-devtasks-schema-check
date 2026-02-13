@@ -14,6 +14,11 @@ FEATURES_DIR = Path("docs/02-features")
 TEMPLATE_DIRNAME = "feature-template"
 
 REQUIRED_SECTIONS = ("Execution Log",)
+TEMPLATE_ALLOWED_TESTS_HEADING = "Allowed Tests"
+TEMPLATE_ALLOWED_TESTS_GUIDANCE_MARKERS = (
+    "list exact commands",
+    "tools/pc-allowed-tests-check",
+)
 
 
 def section_pattern(section: str) -> re.Pattern[str]:
@@ -68,6 +73,28 @@ def check_dev_tasks_file(path: Path, *, label: str) -> List[str]:
     ]
 
 
+def check_template_allowed_tests(path: Path) -> List[str]:
+    if not path.exists():
+        return []
+    content = path.read_text(encoding="utf-8")
+    errors: List[str] = []
+    heading = re.compile(
+        rf"^\s*##{{2,4}}\s+{re.escape(TEMPLATE_ALLOWED_TESTS_HEADING)}\s*$",
+        re.IGNORECASE | re.MULTILINE,
+    )
+    if not heading.search(content):
+        errors.append(
+            f"feature-template: missing section '## {TEMPLATE_ALLOWED_TESTS_HEADING}' in {path.as_posix()}"
+        )
+    for marker in TEMPLATE_ALLOWED_TESTS_GUIDANCE_MARKERS:
+        if marker not in content:
+            errors.append(
+                "feature-template: missing Allowed Tests guidance marker "
+                f"'{marker}' in {path.as_posix()}"
+            )
+    return errors
+
+
 def run_check(root: Path) -> List[str]:
     features_root = root / FEATURES_DIR
     if not features_root.exists():
@@ -76,6 +103,7 @@ def run_check(root: Path) -> List[str]:
     errors: List[str] = []
     template_path = features_root / TEMPLATE_DIRNAME / "dev-tasks.md"
     errors.extend(check_dev_tasks_file(template_path, label="feature-template"))
+    errors.extend(check_template_allowed_tests(template_path))
 
     for feature_dir in feature_dirs(features_root):
         dev_tasks_path = feature_dir / "dev-tasks.md"

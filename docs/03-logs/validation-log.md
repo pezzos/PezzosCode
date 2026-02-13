@@ -1645,3 +1645,31 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Skill frontmatter and naming contract validate successfully.
   - Skill instructions enforce read-only/chat-only behavior and a maximum of five prioritized workflow improvements.
   - Output contract requires rationale, benefits, risks, no-side-effect rollout guidance, and evidence references per recommendation.
+
+## 2026-02-13 - Validate Allowed Tests hardening for Feature 19 and future templates
+
+- Command: `tools/offload-proxy/pp tools/pc-allowed-tests-check --cmd 'python3 -m unittest discover -s tests -p "test_pc_autofix.py"' --cmd 'python3 -m unittest discover -s tests -p "test_pc_feature.py"' --cmd 'python3 -m unittest discover -s tests -p "test_pc_hooks_run.py"'`
+- Result: PASS (all commands resolved by Allowed Tests validator)
+- Command: `tools/offload-proxy/pp tools/pc-devtasks-schema-check --root /Users/alexandrepezzotta/repos/PezzosCode --verbose`
+- Result: PASS (`pc-devtasks-schema-check: ok (21 files)`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_devtasks_schema_check.py"`
+- Result: PASS (`6` tests, offload id `d1a3bdcaa925bbf92cc120237c5ab1078f911832e5f3bbdd16fd82aab85d59fa`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_autofix.py"`
+- Result: PASS (`3` tests, offload id `5279d1fc9a1ced44f9c96da1414ef59e4676f963fbad52e7a1a2903538819b0d`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_hooks_run.py"`
+- Result: PASS (`4` tests, offload id `f70ecd7ee8c51d8b830cfabf893a795570b9bee74d4bb5bef0bc0160f0d10ed6`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`185` tests, `72` subtests, offload id `ccfd66d108a9c78570164a23a8881602f5cc6616a2c26e669cc959a8cf1b7389`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`17` tests, offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"`
+- Result: PASS (`3` tests, offload id `3670c97a3c840748f7c375572d25bdb71675a2c7131f39520948e35137e21181`)
+- Command: `git status --porcelain > /tmp/pc_status_before_tests.txt`
+- Result: PASS (baseline captured)
+- Command: `git status --porcelain > /tmp/pc_status_after_tests.txt && diff -u /tmp/pc_status_before_tests.txt /tmp/pc_status_after_tests.txt`
+- Result: PASS (no additional tracked-file mutations from validation commands)
+- Verified:
+  - Feature 19 Allowed Tests now reference existing commands, including `test_pc_hooks_run.py`.
+  - Live/template `dev-tasks.md` guidance is synchronized and explicit about Allowed Tests quality.
+  - Template schema check now fails when required Allowed Tests guidance markers drift.
+  - No runtime auto-fix behavior was introduced for Allowed Tests selection.

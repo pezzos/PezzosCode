@@ -44,6 +44,7 @@
 
 - Drift classifier by fixture category and direction.
 - Touched-path allowlist enforcement.
+- `pc-hooks-run` concise-failure summary/offload behavior (`tests/test_pc_hooks_run.py`).
 
 ### Integration Tests
 
