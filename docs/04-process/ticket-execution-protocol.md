@@ -68,6 +68,7 @@
 
 3. **Preflight Report (Mandatory)**
    - Produce the Preflight Report exactly in the format below.
+   - Preflight `files_to_change` is auto-sanitized to patcher-allowed paths; forbidden role/global-log paths are converted into reporter/orchestrator handoff notes.
 
 4. **Risk Classification**
    - Classify the work item as LOW or HIGH risk using the deterministic rules below.
@@ -89,6 +90,7 @@
    - Task-specific prompts live at `prompts/<role>-<task>.md` (examples: `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`).
    - Plan Reviewer decisions are `APPROVE`, `BLOCK`, or `CONFLICT`. A `CONFLICT` stops execution with explicit remediation before any patching.
    - Before patching, enforce deterministic plan policy checks and block if the plan includes role-scoped/global log files (except derived compacted outputs under `docs/03-logs/compacted/`) or forbidden commands in command context (`make feature`, `pc-feature`, `tools/pc-feature`).
+   - Path-policy checks prioritize `Files to change` plus explicit write-intent lines; reporter/orchestrator handoff-only mentions are allowed when patcher non-edit ownership is explicit.
    - Plan-reviewer read-only enforcement uses pre/post worktree dirty snapshots and blocks only reviewer-introduced deltas.
    - Every step decision (`APPROVE` / `BLOCK` / `PASS` / `FAIL`) must be written to the step's role log and committed before the next step starts.
    - Plan must include anti-hardcode coverage (fixtures per critical path, seed strategy, invariant checks, contract boundaries).
@@ -121,6 +123,7 @@
      - `MAX_REVIEWER_BLOCKS` (reviewer blocks per work item)
      - `MAX_PLANNER_REVISIONS` (planner revisions in reviewer-block loop)
    - If the same unresolved reviewer-policy issue repeats, stop early via stagnation guard instead of consuming all caps.
+   - When reviewer-policy issues repeat with the same signature, tooling applies deterministic plan-policy auto-rewrite/recovery before counting toward stagnation termination.
    - If a step has nothing to do during a retry, record a no-op entry in the iteration log and continue.
    - Repeat until feedback is resolved.
 

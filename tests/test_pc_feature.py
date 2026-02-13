@@ -287,6 +287,70 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertIn(f"Systematic review: {summary}", block)
 
+    def test_sanitize_preflight_data_moves_forbidden_paths_to_handoff(self):
+        data = {
+            "files_to_change": [
+                "tools/pc-feature",
+                "docs/02-features/19-template-drift-hardening-autofix-recovery/dev-tasks.md",
+                "docs/03-logs/implementation-log.md",
+                "docs/possible-improvements.md",
+            ],
+            "doc_updates": ["Update feature docs"],
+            "tdd_tests": ["python3 -m unittest tests.test_pc_feature", ""],
+        }
+        sanitized = self.pc_feature.sanitize_preflight_data(data)
+        self.assertEqual(sanitized["files_to_change"], ["tools/pc-feature"])
+        self.assertIn("Update feature docs", sanitized["doc_updates"])
+        self.assertTrue(
+            any(
+                update.startswith("Handoff-only docs/log updates")
+                for update in sanitized["doc_updates"]
+            )
+        )
+        self.assertEqual(
+            sanitized["tdd_tests"],
+            ["python3 -m unittest tests.test_pc_feature"],
+        )
+
+    def test_auto_rewrite_plan_for_policy_issues_removes_forbidden_files(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "- docs/03-logs/implementation-log.md\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        rewritten, notes = self.pc_feature.auto_rewrite_plan_for_policy_issues(
+            plan,
+            ["forbidden path in plan: docs/03-logs/implementation-log.md"],
+        )
+        self.assertIn("- tools/pc-feature", rewritten)
+        self.assertNotIn("docs/03-logs/implementation-log.md", rewritten)
+        self.assertTrue(
+            any("removed forbidden Files to change entries" in n for n in notes)
+        )
+        self.assertTrue(
+            any("added reporter/orchestrator docs handoff note" in n for n in notes)
+        )
+
+    def test_build_policy_recovery_plan_template_is_policy_compliant(self):
+        allowed_tests = ["pytest tests/test_pc_feature.py"]
+        plan = self.pc_feature.build_policy_recovery_plan_template(allowed_tests)
+        issues = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=allowed_tests,
+        )
+        self.assertEqual(issues, [])
+
     def test_classify_risk_flags_restore_touch(self):
         data = {"touches_restore": True, "files_to_change": []}
         risk, triggers = self.pc_feature.classify_risk(data)
@@ -773,6 +837,30 @@ class TestPcFeature(unittest.TestCase):
         )
         violations = self.pc_feature.plan_policy_violations(plan)
         self.assertTrue(any("dev-tasks.md" in item for item in violations))
+
+    def test_plan_policy_violations_ignores_reference_only_paths_outside_files_section(
+        self,
+    ):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Keep reviewer context linked to docs/02-features/12-incremental-prd-to-features/dev-tasks.md for traceability only.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertFalse(any("dev-tasks.md" in item for item in violations))
 
     def test_plan_policy_violations_does_not_treat_files_path_as_command(self):
         plan = (
@@ -7311,7 +7399,20 @@ class TestPcFeature(unittest.TestCase):
                 if "You are the Plan Reviewer agent." in prompt:
                     return "Decision: Block\nReasons:\n- unresolved policy"
                 if "Update the Plan section based on Plan Reviewer feedback" in prompt:
-                    return "1. Edit docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+                    return (
+                        "Plan Contract v1\n"
+                        "Approach:\n"
+                        "1. Keep scope tight.\n"
+                        "Files to change:\n"
+                        "- docs/02-features/12-incremental-prd-to-features/dev-tasks.md\n"
+                        "Risks:\n"
+                        "- low\n"
+                        "Tests (anti-hardcode coverage required):\n"
+                        "- Fixture coverage: at least 2 fixtures.\n"
+                        "- Deterministic seed strategy: fixed ordering.\n"
+                        "- Invariant checks: no role-scoped edits.\n"
+                        "- Contract boundary coverage: policy guard + reroute.\n"
+                    )
                 return "ok"
 
             stderr_capture = io.StringIO()
@@ -7336,6 +7437,15 @@ class TestPcFeature(unittest.TestCase):
                 )
                 stack.enter_context(
                     mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "plan_policy_violations",
+                        return_value=[
+                            "forbidden path in plan: docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+                        ],
+                    )
                 )
                 stack.enter_context(
                     mock.patch.object(self.pc_feature, "MAX_REVIEWER_BLOCKS", 10)
@@ -7389,7 +7499,20 @@ class TestPcFeature(unittest.TestCase):
                 if "You are the Plan Reviewer agent." in prompt:
                     return "Decision: Block\nReasons:\n- unresolved policy"
                 if "Update the Plan section based on Plan Reviewer feedback" in prompt:
-                    return "1. Edit docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+                    return (
+                        "Plan Contract v1\n"
+                        "Approach:\n"
+                        "1. Keep scope tight.\n"
+                        "Files to change:\n"
+                        "- docs/02-features/12-incremental-prd-to-features/dev-tasks.md\n"
+                        "Risks:\n"
+                        "- low\n"
+                        "Tests (anti-hardcode coverage required):\n"
+                        "- Fixture coverage: at least 2 fixtures.\n"
+                        "- Deterministic seed strategy: fixed ordering.\n"
+                        "- Invariant checks: no role-scoped edits.\n"
+                        "- Contract boundary coverage: policy guard + reroute.\n"
+                    )
                 return "ok"
 
             stderr_capture = io.StringIO()
@@ -7414,6 +7537,15 @@ class TestPcFeature(unittest.TestCase):
                 )
                 stack.enter_context(
                     mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "plan_policy_violations",
+                        return_value=[
+                            "forbidden path in plan: docs/02-features/12-incremental-prd-to-features/dev-tasks.md"
+                        ],
+                    )
                 )
                 stack.enter_context(
                     mock.patch.object(self.pc_feature, "MAX_REVIEWER_BLOCKS", 10)

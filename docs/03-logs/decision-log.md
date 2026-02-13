@@ -2294,3 +2294,19 @@ When a decision is reversed or replaced, document it here:
   - Future feature skeletons inherit a stricter and clearer Allowed Tests contract.
   - Validation shifts left (template/schema time) without changing `pc-feature` execution semantics.
   - Residual risk from risky auto-fix heuristics is intentionally avoided.
+
+### DEC-062 - Auto-sanitize preflight scope and auto-repair repeated reviewer policy blocks
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** Reviewer blocks repeatedly surfaced forbidden plan paths copied from preflight `files_to_change` context (role/global logs), causing stagnation loops before patching.
+- **Decision:**
+  - Auto-sanitize preflight `files_to_change` to patcher-allowed paths only.
+  - Convert forbidden role/global-log targets into explicit reporter/orchestrator handoff notes in preflight docs updates.
+  - Keep strict plan policy checks but focus path checks on `Files to change` plus explicit write-intent lines.
+  - Add deterministic planner auto-rewrite for forbidden `Files to change` entries and policy-diff diagnostics.
+  - On repeated identical reviewer-policy signatures, inject a deterministic recovery plan template before stagnation termination.
+- **Consequences:**
+  - Reduces repeated reviewer `BLOCK` loops caused by forbidden-path echo from preflight context.
+  - Preserves fail-closed behavior when policy issues remain unresolved after deterministic recovery.
+  - Improves operator visibility with explicit policy-diff and auto-fix notes in iteration logs.

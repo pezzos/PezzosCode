@@ -6,6 +6,7 @@ Also fill the Allowed Tests section with exact commands;
 do not include `make feature` or `pc-feature`.
 Commit your changes only once at the very end of your step.
 Never include role-scoped logs (`dev-tasks.md`, `planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`), paths under `docs/03-logs` except derived compacted outputs under `docs/03-logs/compacted/`, or `docs/possible-improvements.md` in the planned patcher file edits.
+If preflight context mentions role/global-log paths, convert them into reporter/orchestrator handoff notes instead of listing them in `Files to change`.
 Include an explicit handoff note in the plan stating that any required non-compacted `docs/03-logs` updates are owned by reporter/orchestrator and that patcher will not edit those files.
 Any concrete test command written in the plan must be an exact command from the Allowed Tests section (verbatim, command-for-command).
 The plan must explicitly include anti-hardcode coverage:

@@ -6517,3 +6517,55 @@ Track when debt is paid down:
 - **Breaking changes:** None (`off` default keeps behavior conservative unless opt-in mode is set).
 - **Performance:** Negligible (single additional classification/preview pass per eligible reporter attempt).
 - **Dependencies:** None.
+
+### 2026-02-13 - Preflight scope sanitization + reviewer policy auto-recovery hardening
+
+**Feature/Bug:** Reviewer policy blocks could loop on forbidden plan paths seeded from preflight `files_to_change` (role/global-log paths), then terminate via stagnation.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `prompts/planner-create.md`
+- `prompts/planner-update-from-feedback.md`
+- `prompts/plan-reviewer-gate.md`
+- `tools/templates/prompts/planner-create.md`
+- `tools/templates/prompts/planner-update-from-feedback.md`
+- `tools/templates/prompts/plan-reviewer-gate.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added deterministic preflight sanitization in `pc-feature`:
+  - filters `files_to_change` to patcher-allowed paths,
+  - shifts forbidden role/global-log targets into reporter/orchestrator handoff notes.
+- Refined plan path-policy scanning:
+  - scans `Files to change` + explicit write-intent lines,
+  - avoids blocking handoff-only docs/log references when patcher non-edit ownership is explicit.
+- Added reviewer-loop policy recovery helpers:
+  - deterministic forbidden-path removal from `Files to change`,
+  - automatic docs handoff note insertion,
+  - policy-diff diagnostics in iteration logs,
+  - deterministic recovery plan template injection after repeated identical policy signatures.
+- Updated planner/reviewer prompts (and template prompt copies) to reinforce sanitized scope + handoff semantics.
+- Updated process docs to document preflight auto-sanitization and deterministic reviewer-policy recovery behavior.
+- Added/updated unit tests for:
+  - preflight sanitization,
+  - policy rewrite/template compliance,
+  - reference-only path handling,
+  - stagnation behavior under persistent unresolved policy signatures.
+
+**Why:**
+
+- Prevent avoidable planner/reviewer stagnation caused by policy-incompatible file scope propagation.
+- Keep strict policy enforcement while relying on deterministic auto-repair instead of manual fail-fast handling.
+
+**Impact:**
+
+- **Breaking changes:** None intended; enforcement remains fail-closed when unresolved.
+- **Performance:** Negligible (small additional string processing in reviewer loop).
+- **Dependencies:** None.

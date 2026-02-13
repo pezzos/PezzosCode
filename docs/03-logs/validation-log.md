@@ -1704,3 +1704,19 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `warn` mode computes a repair ledger without mutating execution content.
   - `apply` mode applies only allowlisted deterministic metadata updates.
   - Reporter auto-repair execution is bounded to a single pass per attempt.
+
+## 2026-02-13 - Validate preflight sanitization and reviewer policy auto-recovery hardening
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`195` tests, offload id `1d39f905a18e39fbef9336dd77985809bc9bb20dd069b5ad037bddb248e9f3b6`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`17` tests, offload id `42e0f8db8968a646d85a7742f25969a30a439788af0b1b66c4cf035b2123532b`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"`
+- Result: PASS (`3` tests, offload id `20ee425627742e226be40b9d7be666cef5c02d5f5c5d200f75de9016d46c1882`)
+- Verified:
+  - Preflight now strips forbidden role/global-log entries from patcher file scope and records handoff notes.
+  - Plan-policy checks still block true forbidden edits while tolerating handoff-only docs/log references.
+  - Reviewer loop now emits policy-diff diagnostics and applies deterministic recovery before stagnation termination.
+  - Prompt/template parity remains valid after prompt contract updates.

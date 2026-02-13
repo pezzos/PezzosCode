@@ -2504,6 +2504,93 @@ def role_scoped_path_forbidden_for_patcher(path: str) -> bool:
     return name in ROLE_SCOPED_FILENAMES
 
 
+def possible_improvements_path_forbidden_for_patcher(path: str) -> bool:
+    return normalize_repo_path(path) == normalize_repo_path(POSSIBLE_IMPROVEMENTS_PATH)
+
+
+def plan_path_forbidden_for_patcher(path: str) -> bool:
+    normalized = normalize_repo_rel(path)
+    return role_scoped_path_forbidden_for_patcher(
+        normalized
+    ) or possible_improvements_path_forbidden_for_patcher(normalized)
+
+
+def normalize_preflight_path_candidate(value: str) -> Optional[str]:
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if stripped.startswith("`") and stripped.endswith("`"):
+        stripped = stripped[1:-1].strip()
+    stripped = stripped.rstrip(".,;:")
+    if not stripped:
+        return None
+    return normalize_repo_rel(stripped)
+
+
+def normalize_preflight_string_list(raw: Any) -> List[str]:
+    if not isinstance(raw, list):
+        return []
+    normalized: List[str] = []
+    seen = set()
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        value = item.strip()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        normalized.append(value)
+    return normalized
+
+
+def preflight_docs_handoff_note(paths: List[str]) -> str:
+    return (
+        "Handoff-only docs/log updates (reporter/orchestrator-owned; "
+        "patcher will not edit these files): " + ", ".join(paths)
+    )
+
+
+def sanitize_preflight_data(preflight_data: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(preflight_data, dict):
+        return {"files_to_change": [], "doc_updates": [], "tdd_tests": []}
+    sanitized = dict(preflight_data)
+    allowed_files: List[str] = []
+    forbidden_files: List[str] = []
+    seen_allowed = set()
+    seen_forbidden = set()
+    raw_files = sanitized.get("files_to_change")
+    if isinstance(raw_files, list):
+        for candidate in raw_files:
+            if not isinstance(candidate, str):
+                continue
+            normalized = normalize_preflight_path_candidate(candidate)
+            if not normalized:
+                continue
+            key = normalize_repo_path(normalized)
+            if plan_path_forbidden_for_patcher(normalized):
+                if key in seen_forbidden:
+                    continue
+                seen_forbidden.add(key)
+                forbidden_files.append(normalized)
+                continue
+            if key in seen_allowed:
+                continue
+            seen_allowed.add(key)
+            allowed_files.append(normalized)
+
+    allowed_files = sorted(allowed_files, key=normalize_repo_path)
+    forbidden_files = sorted(forbidden_files, key=normalize_repo_path)
+    sanitized["files_to_change"] = allowed_files
+    sanitized["tdd_tests"] = normalize_preflight_string_list(sanitized.get("tdd_tests"))
+    doc_updates = normalize_preflight_string_list(sanitized.get("doc_updates"))
+    if forbidden_files:
+        handoff_note = preflight_docs_handoff_note(forbidden_files)
+        if handoff_note not in doc_updates:
+            doc_updates.append(handoff_note)
+    sanitized["doc_updates"] = doc_updates
+    return sanitized
+
+
 def match_plan_contract_section(line: str) -> Optional[str]:
     for section, pattern in PLAN_CONTRACT_SECTION_PATTERNS.items():
         if pattern.match(line):
@@ -2744,15 +2831,244 @@ def docs_logs_wildcard_reference(path_text: str) -> bool:
     return normalized == "docs/03-logs/*"
 
 
+def plan_line_has_write_intent(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(edit|update|write|modify|touch|patch|change|create|add|remove)\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
+def plan_line_mentions_patcher_handoff(text: str) -> bool:
+    lowered = text.lower()
+    mentions_owner = "reporter" in lowered or "orchestrator" in lowered
+    patcher_guard = any(
+        marker in lowered
+        for marker in (
+            "patcher will not edit",
+            "patcher does not edit",
+            "patcher won't edit",
+            "not by patcher",
+            "not patcher",
+        )
+    )
+    return mentions_owner and patcher_guard
+
+
+def explicit_write_intent_scan_text(plan_text: str, sections: Dict[str, str]) -> str:
+    has_contract = any(value.strip() for value in sections.values())
+    active_section: Optional[str] = None
+    scan_lines: List[str] = []
+    for raw_line in plan_text.splitlines():
+        stripped = raw_line.strip()
+        if has_contract:
+            matched_section = match_plan_contract_section(stripped)
+            if matched_section:
+                active_section = matched_section
+                continue
+            if active_section == PLAN_CONTRACT_FILES_SECTION:
+                continue
+        normalized = normalize_plan_line(raw_line)
+        if not normalized:
+            continue
+        if "docs/03-logs/" in normalized.lower() and plan_line_mentions_patcher_handoff(
+            normalized
+        ):
+            continue
+        if plan_line_has_write_intent(normalized):
+            scan_lines.append(normalized)
+    return "\n".join(scan_lines)
+
+
+def parse_required_changes(feedback_text: str) -> List[str]:
+    issues: List[str] = []
+    seen = set()
+    in_required = False
+    for raw_line in feedback_text.splitlines():
+        stripped = raw_line.strip()
+        lowered = stripped.lower()
+        if lowered.startswith("required changes:"):
+            in_required = True
+            continue
+        if lowered.startswith("optional suggestions:"):
+            in_required = False
+            continue
+        if not in_required or not stripped.startswith("-"):
+            continue
+        issue = stripped[1:].strip()
+        if not issue or issue in seen:
+            continue
+        seen.add(issue)
+        issues.append(issue)
+    return issues
+
+
+def summarize_policy_issue_delta(previous: List[str], current: List[str]) -> str:
+    previous_set = set(previous)
+    current_set = set(current)
+    unchanged = sorted(previous_set & current_set)
+    resolved = sorted(previous_set - current_set)
+    new = sorted(current_set - previous_set)
+    summary = (
+        f"policy-diff unchanged={len(unchanged)} "
+        f"resolved={len(resolved)} new={len(new)}"
+    )
+    detail: List[str] = []
+    if new:
+        detail.append("new: " + ", ".join(new[:2]))
+    if resolved:
+        detail.append("resolved: " + ", ".join(resolved[:2]))
+    if unchanged:
+        detail.append("unchanged: " + ", ".join(unchanged[:2]))
+    if not detail:
+        return summary
+    return f"{summary} ({' | '.join(detail)})"
+
+
+def forbidden_paths_from_policy_issues(issues: List[str]) -> List[str]:
+    paths: List[str] = []
+    seen = set()
+    prefix = "forbidden path in plan:"
+    for issue in issues:
+        stripped = issue.strip()
+        if not stripped.lower().startswith(prefix):
+            continue
+        candidate = stripped.split(":", 1)[1].strip()
+        normalized = normalize_repo_rel(candidate)
+        key = normalize_repo_path(normalized)
+        if key in seen:
+            continue
+        seen.add(key)
+        paths.append(normalized)
+    return paths
+
+
+def remove_forbidden_paths_from_files_section(
+    plan_text: str, forbidden_paths: List[str]
+) -> Tuple[str, List[str]]:
+    if not forbidden_paths:
+        return plan_text, []
+    forbidden_keys = {normalize_repo_path(path) for path in forbidden_paths}
+    removed: List[str] = []
+    rewritten_lines: List[str] = []
+    has_contract = plan_uses_contract_sections(plan_text)
+    active_section: Optional[str] = None
+    files_section_has_entries = False
+
+    def flush_empty_files_section() -> None:
+        if active_section != PLAN_CONTRACT_FILES_SECTION:
+            return
+        if files_section_has_entries:
+            return
+        rewritten_lines.append(
+            "- (none; planner must list implementation targets only)"
+        )
+
+    for raw_line in plan_text.splitlines():
+        stripped = raw_line.strip()
+        if has_contract:
+            matched_section = match_plan_contract_section(stripped)
+            if matched_section:
+                flush_empty_files_section()
+                active_section = matched_section
+                files_section_has_entries = False
+                rewritten_lines.append(raw_line)
+                continue
+        if has_contract and active_section == PLAN_CONTRACT_FILES_SECTION:
+            normalized_line = normalize_plan_line(raw_line)
+            if normalized_line:
+                normalized_path = normalize_repo_path(normalized_line.strip("`"))
+                if any(
+                    key in normalized_path or normalized_path in key
+                    for key in forbidden_keys
+                ):
+                    removed.append(normalize_repo_rel(normalized_line.strip("`")))
+                    continue
+                files_section_has_entries = True
+        rewritten_lines.append(raw_line)
+
+    flush_empty_files_section()
+    rewritten = "\n".join(rewritten_lines).strip()
+    return rewritten, removed
+
+
+def ensure_plan_docs_handoff_note(plan_text: str) -> Tuple[str, bool]:
+    lowered = plan_text.lower()
+    if "docs/03-logs/" in lowered and plan_line_mentions_patcher_handoff(lowered):
+        return plan_text, False
+    note = (
+        "Note: Any required non-compacted docs/03-logs updates are owned by "
+        "reporter/orchestrator; patcher will not edit those files."
+    )
+    return plan_text.rstrip() + "\n" + note, True
+
+
+def auto_rewrite_plan_for_policy_issues(
+    plan_text: str, policy_issues: List[str]
+) -> Tuple[str, List[str]]:
+    rewritten = plan_text
+    notes: List[str] = []
+    forbidden_paths = forbidden_paths_from_policy_issues(policy_issues)
+    if forbidden_paths:
+        rewritten_candidate, removed_paths = remove_forbidden_paths_from_files_section(
+            rewritten, forbidden_paths
+        )
+        if removed_paths:
+            rewritten = rewritten_candidate
+            notes.append(
+                "removed forbidden Files to change entries: "
+                + ", ".join(sorted(set(removed_paths), key=normalize_repo_path))
+            )
+            if any(
+                path.startswith("docs/03-logs/")
+                or possible_improvements_path_forbidden_for_patcher(path)
+                for path in removed_paths
+            ):
+                rewritten, added = ensure_plan_docs_handoff_note(rewritten)
+                if added:
+                    notes.append("added reporter/orchestrator docs handoff note")
+    return rewritten, notes
+
+
+def build_policy_recovery_plan_template(allowed_tests: List[str]) -> str:
+    allowed_lines = ["  - (none listed; use Allowed Tests section commands)"]
+    if allowed_tests:
+        allowed_lines = [f"  - `{command}`" for command in allowed_tests]
+    return (
+        "Plan Contract v1\n"
+        "Approach:\n"
+        "1. Keep implementation scope limited to non-role-scoped patcher targets.\n"
+        "2. Reporter/orchestrator own required non-compacted docs/03-logs updates; "
+        "patcher will not edit those files.\n"
+        "Files to change:\n"
+        "- tools/pc-feature\n"
+        "Risks:\n"
+        "- Feature-specific implementation files may need refinement before patching.\n"
+        "Tests (anti-hardcode coverage required):\n"
+        "- Fixture coverage: at least 2 fixtures per critical path.\n"
+        "- Deterministic seed strategy: fixed ordering and deterministic inputs.\n"
+        "- Invariant checks: patcher cannot edit role-scoped/global-log files.\n"
+        "- Contract boundary coverage: policy gate and reviewer-loop recovery.\n"
+        "- Allowed test commands:\n" + "\n".join(allowed_lines)
+    )
+
+
 def plan_policy_violations(
     plan_text: str, *, allowed_tests: Optional[List[str]] = None
 ) -> List[str]:
     violations: List[str] = []
     sections = extract_plan_contract_sections(plan_text)
     files_scope_text = sections.get(PLAN_CONTRACT_FILES_SECTION, "").strip()
-    path_scan_targets: List[Tuple[str, str]] = [("full", plan_text)]
+    path_scan_targets: List[Tuple[str, str]] = []
     if files_scope_text:
-        path_scan_targets.insert(0, ("files", files_scope_text))
+        path_scan_targets.append(("files", files_scope_text))
+    explicit_write_text = explicit_write_intent_scan_text(plan_text, sections)
+    if explicit_write_text:
+        path_scan_targets.append(("intent", explicit_write_text))
+    if not path_scan_targets:
+        path_scan_targets.append(("full", plan_text))
     path_patterns = (
         r"docs/02-features/[^\s`]+/dev-tasks\.md",
         r"docs/02-features/[^\s`]+/planner-log\.md",
@@ -2766,7 +3082,7 @@ def plan_policy_violations(
         for pattern in path_patterns:
             for match in re.findall(pattern, path_scan_text, flags=re.IGNORECASE):
                 if (
-                    scan_scope == "full"
+                    scan_scope != "files"
                     and pattern == r"docs/03-logs/[^\s`]+"
                     and docs_logs_wildcard_reference(match)
                 ):
@@ -5205,6 +5521,7 @@ def main() -> None:
             preflight_data = json.loads(preflight_json)
         except json.JSONDecodeError:
             die(f"pc-feature: failed to parse preflight JSON\n{preflight_raw}")
+        preflight_data = sanitize_preflight_data(preflight_data)
 
         risk_level, triggers = classify_risk(preflight_data, actual_changed_paths)
         content = read_file(dev_tasks_path)
@@ -5402,9 +5719,27 @@ def main() -> None:
 
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
         allowed_tests_for_policy = parse_allowed_tests(allowed_section)
+        feedback_policy_issues = parse_required_changes(feedback)
         unresolved_policy_issues = plan_policy_violations(
             revised_plan,
             allowed_tests=allowed_tests_for_policy,
+        )
+        auto_policy_notes: List[str] = []
+        if unresolved_policy_issues:
+            rewritten_plan, rewrite_notes = auto_rewrite_plan_for_policy_issues(
+                revised_plan,
+                unresolved_policy_issues,
+            )
+            if rewrite_notes:
+                revised_plan = rewritten_plan
+                auto_policy_notes.extend(rewrite_notes)
+                unresolved_policy_issues = plan_policy_violations(
+                    revised_plan,
+                    allowed_tests=allowed_tests_for_policy,
+                )
+        policy_delta_summary = summarize_policy_issue_delta(
+            feedback_policy_issues,
+            unresolved_policy_issues,
         )
         if unresolved_policy_issues:
             stagnation_signature = "|".join(sorted(set(unresolved_policy_issues)))
@@ -5413,6 +5748,26 @@ def main() -> None:
             else:
                 last_stagnation_signature = stagnation_signature
                 stagnation_count = 1
+            if stagnation_count >= 2:
+                recovery_plan = build_policy_recovery_plan_template(
+                    allowed_tests_for_policy
+                )
+                recovery_issues = plan_policy_violations(
+                    recovery_plan,
+                    allowed_tests=allowed_tests_for_policy,
+                )
+                if not recovery_issues:
+                    revised_plan = recovery_plan
+                    auto_policy_notes.append(
+                        "applied deterministic policy-recovery plan template after repeated reviewer-policy blocks"
+                    )
+                    unresolved_policy_issues = []
+                    policy_delta_summary = summarize_policy_issue_delta(
+                        feedback_policy_issues,
+                        unresolved_policy_issues,
+                    )
+                    stagnation_count = 0
+                    last_stagnation_signature = ""
             if stagnation_count >= MAX_STAGNANT_REVIEWER_BLOCKS:
                 content = read_file(dev_tasks_path)
                 content = update_entry_field(
@@ -5423,7 +5778,13 @@ def main() -> None:
                     work_item_id,
                     "Planner/reviewer loop stagnation detected; "
                     f"repeat_count={stagnation_count}/{MAX_STAGNANT_REVIEWER_BLOCKS}; "
-                    f"issues={stagnation_signature}",
+                    f"issues={stagnation_signature}; "
+                    f"{policy_delta_summary}; "
+                    + (
+                        "auto-policy-fix=" + "; ".join(auto_policy_notes)
+                        if auto_policy_notes
+                        else "auto-policy-fix=(none)"
+                    ),
                 )
                 content = update_entry_field(
                     content,
@@ -5447,7 +5808,14 @@ def main() -> None:
             f"Attempt {attempt}: {iteration_reason}; planner updated plan "
             f"(reviewer_block={reviewer_blocks}/{MAX_REVIEWER_BLOCKS}, "
             f"planner_revision={planner_revision_attempts}/{MAX_PLANNER_REVISIONS}, "
-            f"execution_cycle={attempt}).",
+            f"execution_cycle={attempt}); "
+            f"{policy_delta_summary}; "
+            + (
+                "auto-policy-fix=" + "; ".join(auto_policy_notes)
+                if auto_policy_notes
+                else "auto-policy-fix=(none)"
+            )
+            + ".",
         )
         write_file(dev_tasks_path, content)
         ensure_role_log(os.path.join(planner_path, role_paths["planner"]), "planner")
