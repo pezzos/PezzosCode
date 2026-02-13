@@ -3544,6 +3544,124 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn("Main head locked: " + ("b" * 40), dev_tasks)
             self.assertNotIn("Main head locked: " + ("a" * 40), dev_tasks)
 
+    def test_main_sync_mode_refreshes_locked_main_head_without_stale_sync(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260213-01"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.update_entry_field(
+                content,
+                work_item_id,
+                "Notes",
+                f"Main head locked: {'a' * 40}",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            merge_mock = mock.Mock(return_value=(True, "merge ok"))
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_resume_mode",
+                        return_value="sync",
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "git_ref_sha",
+                        return_value="b" * 40,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "merge_main_into_worktree",
+                        merge_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_root_start_scope",
+                        side_effect=StopMain,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            merge_mock.assert_not_called()
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("Main head locked: " + ("b" * 40), dev_tasks)
+            self.assertNotIn("Main head locked: " + ("a" * 40), dev_tasks)
+
+    def test_main_sync_mode_lock_mismatch_merge_failure_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260213-02"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.update_entry_field(
+                content,
+                work_item_id,
+                "Notes",
+                f"Main head locked: {'a' * 40}",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            stderr_capture = io.StringIO()
+            merge_mock = mock.Mock(return_value=(False, "conflict"))
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_resume_mode",
+                        return_value="sync",
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "git_ref_sha",
+                        return_value="b" * 40,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "branch_behind_count",
+                        return_value=1,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "merge_main_into_worktree",
+                        merge_mock,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            merge_mock.assert_called_once_with(str(patcher_path), "refs/heads/main")
+            self.assertIn(
+                "failed to sync patcher worktree with main after lock mismatch",
+                stderr_capture.getvalue(),
+            )
+
     def test_main_existing_worktree_non_runtime_dirty_is_checkpointed(self):
         class StopMain(RuntimeError):
             pass

@@ -6251,3 +6251,37 @@ Track when debt is paid down:
 - **Breaking changes:** None (behavior is stricter/clearer but backward-compatible for valid entries).
 - **Performance:** Negligible (single deterministic repair pass).
 - **Dependencies:** None.
+
+### 2026-02-13 - Expand sync-mode lock reconciliation semantics
+
+**Feature/Bug:** `RESUME_MODE=sync` still failed on locked-main mismatch unless the startup path had first classified the patcher worktree as stale.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Updated locked-main mismatch handling in `tools/pc-feature`:
+  - `RESUME_MODE=sync` now always attempts reconciliation at lock-check time.
+  - Re-checks behind-state during lock reconciliation; if behind, checkpoints and merges `refs/heads/main` before refreshing lock.
+  - If not behind, refreshes `Main head locked:` directly without forcing a stale-start path.
+- Kept strict fail-closed behavior for non-sync modes and added behind-state + remediation hint in mismatch errors.
+- Updated help text and process protocol docs to describe sync mode as explicit drift reconciliation, not only stale-start merge handling.
+- Added regression coverage for:
+  - sync lock refresh when lock mismatches but branch is not behind,
+  - sync lock mismatch failure when behind-state merge fails.
+
+**Why:**
+
+- Operators set `RESUME_MODE=sync` specifically to acknowledge and reconcile main drift.
+- Requiring startup stale classification for lock refresh created inconsistent behavior and confusing failures.
+
+**Impact:**
+
+- **Breaking changes:** None (default behavior remains strict under `auto`/`prompt`).
+- **Performance:** Minimal extra behind-state check during lock mismatch in sync mode.
+- **Dependencies:** None.

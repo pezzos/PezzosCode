@@ -1571,3 +1571,24 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Blank top fields now report explicit missing-field errors instead of multiline bleed-through values.
   - `pc-feature` finalization can auto-repair commit evidence from role artifacts and proceed with completed-state gating.
   - Final staging validates synchronized main-worktree `dev-tasks.md` content.
+
+## 2026-02-13 - Validate sync-mode lock reconciliation after main drift
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_main_sync_mode_refreshes_locked_main_head_without_stale_sync tests.test_pc_feature.TestPcFeature.test_main_sync_mode_lock_mismatch_merge_failure_blocks tests.test_pc_feature.TestPcFeature.test_main_sync_mode_refreshes_locked_main_head_after_stale_sync`
+- Result: PASS (`3` tests, offload id `4f0c69b4140575a873caf6ab2a99dfdc9025bc6c22fc770e2c730759f38191d6`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests/test_pc_feature.py`
+- Result: PASS (offload id `c21d3a5bbd7812de3ed01757a8321e8230c8a1ab26a3a26f60c4cf79da0ebe7a`)
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `e547790fdd9be8ebfdf2f27874af7637405c1500f15173802a88196dda4d51af`)
+- Command: `tools/offload-proxy/pp make lint`
+- Result: FAIL due pre-existing filesystem permission restrictions in `.codex/skills/*` for `end-of-file-fixer` (offload id `61187a924d8fdeb4d91bf03b613b6c0e826fffd31ca9e1552c7a0f697c422136`)
+- Command: `SKIP=template-sync tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py docs/04-process/ticket-execution-protocol.md tools/templates/docs/04-process/ticket-execution-protocol.md docs/03-logs/decision-log.md docs/03-logs/implementation-log.md docs/03-logs/validation-log.md docs/03-logs/bug-log.md`
+- Result: PASS (offload id `700ae1357547d32d7cf326ce53356f762d720007a17d1fce8718d1d6f11b053a`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`14` tests, offload id `ac6e9da8bd627c0143d4f0935a2191f667799eff6766b01790f29565bc679b61`)
+- Verified:
+  - `RESUME_MODE=sync` refreshes `Main head locked:` even when startup is not classified as stale.
+  - Sync mode still performs merge-based reconciliation when behind-state exists at lock-check time.
+  - Non-sync modes remain fail-closed on lock mismatch.

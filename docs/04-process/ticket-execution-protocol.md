@@ -45,10 +45,11 @@
      - `auto` (default): resume in-progress work and preserve existing feature-worktree WIP.
      - `prompt`: ask before continuing/recreating an existing feature worktree.
      - `fresh`: recreate the feature patcher worktree and start from a clean baseline.
-     - `sync`: preserve feature-worktree WIP, checkpoint dirty startup state, and merge `main` into a stale patcher worktree before resuming.
+     - `sync`: preserve feature-worktree WIP, reconcile `main` drift (checkpoint + merge when behind), refresh the locked-main note, then resume.
    - Only one feature can be actively in progress at a time; runs fail fast if another feature patcher worktree is ahead/dirty.
    - Existing dirty state in the active feature worktree is treated as work-in-progress and checkpointed at startup.
    - Startup must not discard dirty files in the active feature worktree unless `RESUME_MODE=fresh` is explicitly requested.
+   - If `Main head locked:` differs from current `main`, `auto`/`prompt` fail fast; `sync` reconciles drift explicitly and updates the lock note.
    - If an existing feature worktree is behind `main`, `auto` fails fast; `sync` attempts `git merge --no-edit refs/heads/main` and fails with manual conflict resolution instructions when merge cannot be completed cleanly.
    - Startup contradiction handling is controlled by `RESUME_CONTRADICTION_POLICY`:
      - `repair` (default): try a deterministic planner-owned repair of pending `Patch`/`Test Results`/`Reporter Review` sections from role artifacts before blocking.

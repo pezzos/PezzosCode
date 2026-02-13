@@ -239,7 +239,7 @@ def feature_help_text() -> str:
             "  auto  (default)  Keep WIP and resume; fail fast if patcher worktree is behind main.",
             "  prompt            Ask before continuing/recreating existing patcher worktree.",
             "  fresh             Recreate patcher worktree from main.",
-            "  sync              Keep WIP, checkpoint startup changes, merge main into stale patcher worktree, then resume.",
+            "  sync              Keep WIP, reconcile main drift (merge when needed), refresh lock, then resume.",
             "",
             "Related environment variables:",
             "  RESUME_CONTRADICTION_POLICY=repair|block|rewind",
@@ -4180,7 +4180,6 @@ def main() -> None:
     resume_mode = parse_resume_mode()
     patcher_path = build_worktree_path(root, feature_slug, "patcher")
     patcher_branch = build_worktree_branch(feature_slug, "patcher")
-    stale_sync_completed = False
     enforce_single_active_feature(root, feature_slug, patcher_path)
     existing_patcher_worktree = os.path.exists(patcher_path) and os.path.exists(
         os.path.join(patcher_path, ".git")
@@ -4252,7 +4251,6 @@ def main() -> None:
                         "pc-feature: stale patcher worktree sync completed but branch is still behind main. "
                         f"Path: {patcher_path}"
                     )
-                stale_sync_completed = True
                 print(
                     "pc-feature: RESUME_MODE=sync merged main into stale patcher worktree: "
                     f"{patcher_path}"
@@ -4438,7 +4436,44 @@ def main() -> None:
     locked_main_head = parse_locked_main_head(notes_value)
     if locked_main_head:
         if locked_main_head != current_main_head:
-            if stale_sync_completed and resume_mode == RESUME_MODE_SYNC:
+            if resume_mode == RESUME_MODE_SYNC:
+                behind_now = (
+                    branch_behind_count(root, patcher_branch, "refs/heads/main") > 0
+                )
+                if behind_now:
+                    checkpointed_paths = checkpoint_resume_state(
+                        patcher_path,
+                        None,
+                        feature_slug=feature_slug,
+                    )
+                    if checkpointed_paths:
+                        print(
+                            "pc-feature: startup checkpoint commit created for paths: "
+                            + ", ".join(checkpointed_paths)
+                        )
+                    merged, merge_detail = merge_main_into_worktree(
+                        patcher_path, "refs/heads/main"
+                    )
+                    if not merged:
+                        die(
+                            "pc-feature: failed to sync patcher worktree with main "
+                            "after lock mismatch; "
+                            f"resolve conflicts manually in {patcher_path}.\n"
+                            + merge_detail
+                        )
+                    behind_now = (
+                        branch_behind_count(root, patcher_branch, "refs/heads/main") > 0
+                    )
+                    if behind_now:
+                        die(
+                            "pc-feature: patcher worktree sync completed after lock mismatch "
+                            "but branch is still behind main. "
+                            f"Path: {patcher_path}"
+                        )
+                    print(
+                        "pc-feature: RESUME_MODE=sync merged main into patcher worktree "
+                        f"after lock mismatch: {patcher_path}"
+                    )
                 notes_value = set_locked_main_head_note(notes_value, current_main_head)
                 content = update_entry_field(
                     content, work_item_id, "Notes", notes_value
@@ -4449,10 +4484,16 @@ def main() -> None:
                     f"{current_main_head}"
                 )
             else:
+                behind_note = (
+                    "patcher branch is behind main"
+                    if branch_behind_count(root, patcher_branch, "refs/heads/main") > 0
+                    else "patcher branch is not behind main"
+                )
                 die(
                     "pc-feature: main branch moved during feature execution; "
                     f"locked={locked_main_head} current={current_main_head}. "
-                    "Workflow policy requires main to stay unchanged while a feature is in progress."
+                    "Workflow policy requires main to stay unchanged while a feature is in progress. "
+                    f"({behind_note}; rerun with RESUME_MODE=sync to reconcile explicitly.)"
                 )
     else:
         notes_value = set_locked_main_head_note(notes_value, current_main_head)

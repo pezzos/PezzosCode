@@ -2199,3 +2199,18 @@ When a decision is reversed or replaced, document it here:
   - Eliminates parser drift and misleading multiline status errors.
   - Makes final commit gate behavior deterministic on the same finalized artifact content that is staged.
   - Reduces late commit failures caused by stale placeholders/top fields while preserving fail-closed behavior for genuinely missing evidence.
+
+### DEC-057 - Let `RESUME_MODE=sync` reconcile lock drift without requiring stale-start detection
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** `RESUME_MODE=sync` was documented as explicit drift reconciliation, but implementation refreshed `Main head locked:` only when startup had already detected a stale (`behind main`) patcher worktree in the same run. Lock mismatches could still fail in sync mode when the branch was not classified stale at startup.
+- **Decision:**
+  - On locked-main mismatch, treat `RESUME_MODE=sync` as explicit consent to reconcile drift.
+  - Re-evaluate behind-state at lock-check time; if behind, checkpoint dirty startup state and merge `refs/heads/main` before refreshing lock.
+  - If not behind, refresh the lock note directly in sync mode.
+  - Keep `auto`/`prompt` fail-closed and include behind-state guidance in the failure message.
+- **Consequences:**
+  - Sync mode now matches operator intent: explicit reconciliation instead of conditional partial behavior.
+  - Strict default policy remains unchanged for non-sync modes.
+  - Drift diagnostics are more actionable when runs are blocked.
