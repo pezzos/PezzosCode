@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROMPTS_DIR = ROOT / "prompts"
 sys.path.insert(0, str(ROOT))
 
-from lib import log_compaction, pc_runner  # noqa: E402
+from lib import commit_evidence_gate, log_compaction, pc_runner  # noqa: E402
 
 EXEC_LOG_HEADER = "## Execution Log"
 ENTRY_HEADER_PREFIX = "### "
@@ -146,15 +146,7 @@ SECTION_ORDER = [
     "Commit",
     "Final Report",
 ]
-REQUIRED_COMMIT_EVIDENCE_SECTIONS = ("Test Results", "Commit", "Final Report")
-REQUIRED_FINAL_REPORT_FIELDS = (
-    "What changed (files)",
-    "Tests written (names) + results",
-    "Docs/logs updated checklist",
-    "make ci results",
-    "Commands run (use pp for noisy output)",
-    "Commit message",
-)
+COMMIT_EVIDENCE_REMEDIATION = commit_evidence_gate.COMMIT_EVIDENCE_REMEDIATION
 SECTION_ALIASES = {
     "Files to Change": ("Files to Change + Change Budget",),
     "Files to Change + Change Budget": ("Files to Change",),
@@ -176,6 +168,17 @@ def read_file(path: str) -> str:
 def write_file(path: str, content: str) -> None:
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(content)
+
+
+def sync_worktree_file_to_root(
+    root: str, worktree_file_path: str, repo_relative_path: str
+) -> None:
+    root_file_path = os.path.abspath(os.path.join(root, repo_relative_path))
+    worktree_absolute = os.path.abspath(worktree_file_path)
+    if root_file_path == worktree_absolute:
+        return
+    os.makedirs(os.path.dirname(root_file_path), exist_ok=True)
+    write_file(root_file_path, read_file(worktree_file_path))
 
 
 def prompt_template_candidates(role: str, task: Optional[str] = None) -> List[Path]:
@@ -3366,71 +3369,11 @@ def entry_block_text(content: str, work_item_id: str) -> str:
     return "\n".join(lines[start:end])
 
 
-def parse_entry_sections(
-    content: str, work_item_id: str
-) -> Tuple[Dict[str, str], Set[str]]:
-    lines = content.splitlines()
-    start, end = find_entry_block(lines, work_item_id)
-    entry_lines = lines[start:end]
-    sections: Dict[str, str] = {}
-    duplicates: Set[str] = set()
-    cursor = 0
-    while cursor < len(entry_lines):
-        line = entry_lines[cursor]
-        if not line.startswith(SECTION_PREFIX):
-            cursor += 1
-            continue
-        title = line[len(SECTION_PREFIX) :].strip()
-        body_start = cursor + 1
-        body_end = len(entry_lines)
-        for idx in range(body_start, len(entry_lines)):
-            if entry_lines[idx].startswith(SECTION_PREFIX):
-                body_end = idx
-                break
-        body = "\n".join(entry_lines[body_start:body_end]).strip()
-        if title in sections:
-            duplicates.add(title)
-        else:
-            sections[title] = body
-        cursor = body_end
-    return sections, duplicates
-
-
 def commit_evidence_gate_issues(content: str, work_item_id: str) -> List[str]:
-    issues: List[str] = []
-    sections, duplicates = parse_entry_sections(content, work_item_id)
-    tests_run_field = get_entry_field(content, work_item_id, "Tests run").strip()
-    if not tests_run_field:
-        issues.append("missing top execution field: Tests run")
-
-    for section in REQUIRED_COMMIT_EVIDENCE_SECTIONS:
-        if section in duplicates:
-            issues.append(f"duplicate required section heading: {section}")
-        body = sections.get(section, "").strip()
-        if section not in sections:
-            issues.append(f"missing required section: {section}")
-            continue
-        if not body:
-            issues.append(f"required section is empty: {section}")
-            continue
-        if "(pending)" in body.lower():
-            issues.append(f"required section still pending: {section}")
-
-    test_results = sections.get("Test Results", "")
-    if test_results:
-        if not parse_section_outcome(test_results):
-            issues.append("Test Results is missing Outcome")
-
-    commit_body = sections.get("Commit", "")
-    if commit_body and not parse_commit_message(commit_body):
-        issues.append("Commit section is missing Commit message")
-
-    final_report = sections.get("Final Report", "")
-    if final_report:
-        for label in REQUIRED_FINAL_REPORT_FIELDS:
-            if not parse_labeled_line(final_report, label):
-                issues.append(f"Final Report is missing required field: {label}")
-
+    _selected_work_item, issues = commit_evidence_gate.commit_evidence_gate_issues(
+        content,
+        work_item_id=work_item_id,
+    )
     return issues
 
 
@@ -3554,6 +3497,97 @@ def reconcile_runtime_execution_record(
                 build_runtime_reporter_review_body(reporter_feedback),
             )
             repaired.append("Reporter Review")
+
+    return updated, repaired
+
+
+def build_feedback_from_role_artifact(artifact: Dict[str, Any], *, role: str) -> str:
+    if not artifact.get("exists"):
+        return ""
+    lines: List[str] = []
+    outcome = str(artifact.get("outcome") or "").strip()
+    if outcome:
+        lines.append(f"Outcome: {outcome}")
+    if role == "tester":
+        tests_run = str(artifact.get("tests_run") or "").strip()
+        if tests_run:
+            lines.append(f"Tests run: {tests_run}")
+    if role == "reporter":
+        docs_updated = str(artifact.get("docs_updated") or "").strip()
+        if docs_updated:
+            lines.append(f"Docs/logs updated: {docs_updated}")
+    notes = str(artifact.get("notes") or "").strip()
+    if notes:
+        lines.append(f"Notes: {notes}")
+    return "\n".join(lines)
+
+
+def repair_commit_evidence_from_role_artifacts(
+    content: str,
+    work_item_id: str,
+    *,
+    gate_status: str,
+    tester_log_path: Optional[str] = None,
+    reporter_log_path: Optional[str] = None,
+    tester_artifact: Optional[Dict[str, Any]] = None,
+    reporter_artifact: Optional[Dict[str, Any]] = None,
+) -> Tuple[str, List[str]]:
+    tester_data = tester_artifact or read_role_log_artifact(
+        tester_log_path, work_item_id
+    )
+    reporter_data = reporter_artifact or read_role_log_artifact(
+        reporter_log_path, work_item_id
+    )
+    tester_feedback = build_feedback_from_role_artifact(tester_data, role="tester")
+    reporter_feedback = build_feedback_from_role_artifact(
+        reporter_data, role="reporter"
+    )
+    reporter_outcome = (
+        parse_section_outcome(reporter_feedback)
+        or str(reporter_data.get("outcome") or "").strip().upper()
+    )
+
+    updated, repaired = reconcile_runtime_execution_record(
+        content,
+        work_item_id,
+        patch_completed=True,
+        tester_feedback=tester_feedback,
+        reporter_feedback=reporter_feedback,
+        reporter_outcome=reporter_outcome,
+    )
+
+    current_outcome = get_entry_field(updated, work_item_id, "Outcome").strip()
+    normalized_current_outcome = commit_evidence_gate.normalize_ticket_status(
+        current_outcome
+    )
+    if normalized_current_outcome not in commit_evidence_gate.COMPLETED_TICKET_STATUSES:
+        test_results_outcome = (
+            parse_section_outcome(
+                get_entry_section(updated, work_item_id, "Test Results")
+            )
+            or str(tester_data.get("outcome") or "").strip().upper()
+        )
+        reporter_review_outcome = (
+            parse_section_outcome(
+                get_entry_section(updated, work_item_id, "Reporter Review")
+            )
+            or str(reporter_data.get("outcome") or "").strip().upper()
+        )
+        normalized_gate_status = str(gate_status or "").strip().upper()
+        derived_outcome = ""
+        if (
+            normalized_gate_status == "PASS"
+            and test_results_outcome == "PASS"
+            and reporter_review_outcome in {"", "PASS", "SKIPPED"}
+        ):
+            derived_outcome = "pass"
+        elif test_results_outcome == "FAIL":
+            derived_outcome = "needs replan"
+        if derived_outcome and derived_outcome != current_outcome:
+            updated = update_entry_field(
+                updated, work_item_id, "Outcome", derived_outcome
+            )
+            repaired.append("field:Outcome")
 
     return updated, repaired
 
@@ -6389,14 +6423,33 @@ def main() -> None:
         f"Commit message: {commit_message}"
     )
     content = replace_entry_section(content, work_item_id, "Final Report", final_report)
+    content, commit_repair_updates = repair_commit_evidence_from_role_artifacts(
+        content,
+        work_item_id,
+        gate_status=gate_status,
+        tester_log_path=role_paths_abs["tester"],
+        reporter_log_path=role_paths_abs["reporter"],
+    )
+    if commit_repair_updates:
+        content = append_iteration_log_note(
+            content,
+            work_item_id,
+            "Commit evidence auto-repair applied: "
+            + ", ".join(commit_repair_updates)
+            + ".",
+        )
     commit_gate_issues = commit_evidence_gate_issues(content, work_item_id)
     if commit_gate_issues:
         issue_summary = "; ".join(commit_gate_issues)
-        die(f"pc-feature: commit evidence gate failed: {issue_summary}")
+        die(
+            "pc-feature: commit evidence gate failed: "
+            f"{issue_summary}; {COMMIT_EVIDENCE_REMEDIATION}"
+        )
     content = update_entry_field(content, work_item_id, "Outcome", "pass")
     write_file(dev_tasks_path, content)
 
     if not commit_already_done:
+        sync_worktree_file_to_root(root, dev_tasks_path, dev_tasks_repo_path)
         unstage_ephemeral_paths(root)
         staged_paths = stage_scoped_final_paths(root, allowed_stage_paths)
         commit_cmd = [

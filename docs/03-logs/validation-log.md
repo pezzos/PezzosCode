@@ -1540,3 +1540,34 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Remediation line no longer triggers shell command substitution errors.
   - Commit-step failure reasons prefer actionable gate/fatal markers over noisy first output lines.
   - UTC deprecation warning source switched to timezone-aware timestamp generation.
+
+- WI-20260212-04: Verified output contract compliance by returning JSON-only payload with required keys and single-line entries.
+
+## 2026-02-13 - Validate shared commit-evidence gate module and finalization auto-repair
+
+- Command: `python3 -m py_compile lib/commit_evidence_gate.py tools/pc-feature tests/test_pc_commit.py tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_commit.py"`
+- Result: PASS (`7` tests, offload id `dfa0adec5018e1c2fca2a2ed8f97776294791fe07e2ef8648620be3bf879b628`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "commit_evidence_gate"`
+- Result: PASS (`11` tests, offload id `6e2c2e2d0c5d4f2445feb5005937a4d47635379f8adf4113de6f692d171b2766`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "repair_commit_evidence_from_role_artifacts"`
+- Result: PASS (`1` test, offload id `a626407facf1102b512cc38f00f6e7d889aa6280a5c03d1722ac6d1c4eb08dc5`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "sync_worktree_file_to_root"`
+- Result: PASS (`1` test, offload id `c3dc4ce80790d0a5a68dcff2d3009be59564c24dfe01144e0f6b50051e539cc3`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "main_avoids_git_add_all_for_final_staging"`
+- Result: PASS (`1` test, offload id `f0b04fe75747a729892b4433a75d2be3cc05db2f996b858460118c20cea3b399`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "main_commit_failure_surfaces_pc_commit_detail"`
+- Result: PASS (`1` test, offload id `4ce4b259b27650df250c38fd5fede04ece05e638aa348014a22d256979f7fd63`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py" -k "main_skips_commit_generation_if_commit_section_already_filled"`
+- Result: PASS (`1` test, offload id `ca9e914d1d549dc345394f1df4abd5b3e65ee31db8ebe185a957832dd2748771`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: FAIL first pass due `black` formatting edits (offload id `c1100026722721e57525507a23ca56507ad994537a44163f22035279fd422205`); PASS rerun after formatter changes (offload id `e1bed58ca54e3e4d0243872483a21d38130179bf5bf23b350445e3eb20eb7db7`)
+- Command: `tools/offload-proxy/pp make ci` (post docs-log updates)
+- Result: PASS (offload id `44bdea02c6c4d70aaa9ddaf9918903341e5231a8cba4d29cc5eb58999fe3178a`)
+- Command: `tools/offload-proxy/pp make ci` (final verification after all edits)
+- Result: PASS (offload id `05bc66e03fe99b4d5c149e8c6cfe3fff6dad4b977fb950f9d0f90cba1e06e9df`)
+- Verified:
+  - Blank top fields now report explicit missing-field errors instead of multiline bleed-through values.
+  - `pc-feature` finalization can auto-repair commit evidence from role artifacts and proceed with completed-state gating.
+  - Final staging validates synchronized main-worktree `dev-tasks.md` content.

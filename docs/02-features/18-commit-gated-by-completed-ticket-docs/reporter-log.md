@@ -2,6 +2,16 @@
 
 ## Entries
 
+### 2026-02-12 - WI-20260212-04
+
+Outcome: PASS
+Docs/logs updated: `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md`
+File/Path: `docs/02-features/18-commit-gated-by-completed-ticket-docs/`
+Check: Scope and completeness against required work-item artifacts with primary git scope views.
+Evidence: `git status --short` shows expected in-progress artifacts (`dev-tasks.md` plus runtime `logs/WI-20260212-0{2,3,4}/` and shell snapshots) and no unexpected tracked file drift outside active work. `git diff --stat refs/heads/main..HEAD` remains feature-scoped to commit-gate implementation/tests/process docs and feature artifacts. `git diff --stat HEAD~1..HEAD` (supplemental) shows latest-step tester update only in `validation-log.md`.
+Expected fix: N/A
+Notes: Systematic review commands executed: `git status --short`; `git diff --stat refs/heads/main..HEAD`; `git diff --stat HEAD~1..HEAD`; `ls -la docs/02-features/18-commit-gated-by-completed-ticket-docs`; `sed -n '1,220p' docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md`; `sed -n '1,260p' docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md`. Global `docs/03-logs` absence was not treated as failure per prompt. Work Item ID: WI-20260212-04.
+
 ### 2026-02-12 - WI-20260212-03
 
 Outcome: PASS
@@ -51,3 +61,13 @@ Check: Scope/completeness review using required commands and work-item artifacts
 Evidence: `git status --short` shows only in-progress artifacts (`dev-tasks.md`, `logs/WI-20260212-02/`, `logs/WI-20260212-03/`); `git diff --stat refs/heads/main..HEAD` is feature-scoped (tools/tests/docs/log artifacts expected for F-18); `git diff --stat HEAD~1..HEAD` shows supplemental latest-step tester update (`validation-log.md`).
 Expected fix: N/A
 Notes: Systematic review commands executed: `git status --short`; `git diff --stat refs/heads/main..HEAD`; `git diff --stat HEAD~1..HEAD`; `ls -la docs/02-features/18-commit-gated-by-completed-ticket-docs`; `tail -n 120` for `dev-tasks.md`, `reporter-log.md`, `validation-log.md`; `grep -n "WI-20260212-03" dev-tasks.md`; `sed -n '1,220p' dev-tasks.md`. Single end-of-step commit was attempted and blocked by sandbox git metadata permissions (`index.lock: Operation not permitted`). Work Item ID: WI-20260212-03.
+
+### WI-20260212-04 - 2026-02-12
+
+Outcome: PASS
+Docs/logs updated: `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` (added WI-20260212-04 entry)
+File/Path: `docs/02-features/18-commit-gated-by-completed-ticket-docs/`
+Check: Scope and completeness against work-item artifacts using required primary/supplemental git scope views.
+Evidence: `git status --short` shows expected in-progress artifacts (`dev-tasks.md`, runtime `logs/WI-20260212-02/`, `logs/WI-20260212-03/`, `logs/WI-20260212-04/`, and shell snapshots) with no unexpected tracked drift for this reviewer step; `git diff --stat refs/heads/main..HEAD` is feature-scoped (commit-gate tooling/tests/process-doc/feature-artifact files); `git diff --stat HEAD~1..HEAD` (supplemental) shows latest-step tester-only change in `docs/02-features/18-commit-gated-by-completed-ticket-docs/validation-log.md`.
+Expected fix: N/A
+Notes: Reporter log was updated as required. Systematic review commands executed: `git status --short`; `git diff --stat refs/heads/main..HEAD`; `git diff --stat HEAD~1..HEAD`; `ls -la docs/02-features/18-commit-gated-by-completed-ticket-docs`; `sed -n '1,220p' docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md`; `sed -n '1,260p' docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md`; `git status --short docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md`. Commit was attempted once at the end and failed due sandbox git metadata lock permission (`index.lock: Operation not permitted`). Global logs will be auto-appended after gates when process docs change; no failure raised for missing `docs/03-logs` updates. Work Item ID: WI-20260212-04.

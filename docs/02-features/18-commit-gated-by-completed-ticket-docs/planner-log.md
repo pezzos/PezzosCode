@@ -116,3 +116,40 @@ Commit status:
 Step Planner revise after Plan Reviewer BLOCK at attempt 1.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260212-04 - 2026-02-12
+
+Updated `WI-20260212-04` planner content in `docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md:70` and `docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md:87`:
+
+- Filled `#### Allowed Tests` with exact commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+- Replaced `#### Plan` placeholder with a full `Plan Contract v1` body using the required structure.
+- Included explicit anti-hardcode coverage in every approach step:
+  - fixture coverage (>=2 fixtures per critical path),
+  - deterministic seed strategy,
+  - invariant checks,
+  - contract boundary coverage.
+- Added explicit handoff note that non-compacted `docs/03-logs/*` is reporter/orchestrator-owned and patcher will not edit those files.
+- Ensured planned patcher file edits do not include forbidden role-scoped logs or non-compacted `docs/03-logs/*`.
+
+Systematic review (commands and results):
+
+1. `nl -ba .../dev-tasks.md | sed -n '20,130p'`
+   Result: confirmed WI-20260212-04 placeholders for `Allowed Tests` and `Plan`.
+2. `apply_patch` on `docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md`
+   Result: inserted required allowed tests and Plan Contract v1 content.
+3. `nl -ba .../dev-tasks.md | sed -n '60,170p'`
+   Result: verified final content and formatting.
+4. `git status --short`
+   Result: showed modified `dev-tasks.md` plus unrelated untracked paths.
+5. `git add ... && git commit -m "docs(wi-20260212-04): add planner contract and allowed tests"`
+   Result: failed due sandbox permission: unable to create git worktree `index.lock`.
+
+Commit was attempted once at the end (as requested), but could not complete because of repository lock permission restrictions in this environment.
+
+### WI-20260212-04 - 2026-02-12
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.

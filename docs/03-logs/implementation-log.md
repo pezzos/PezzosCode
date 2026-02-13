@@ -6217,3 +6217,37 @@ Track when debt is paid down:
 - **Breaking changes:** `tools/pc-commit` now accepts `--work-item-id` (additive); explicit unknown work item fails fast with clear message.
 - **Performance:** Improved on failing runs via pre-check gate short-circuit.
 - **Dependencies:** None.
+
+- WI-20260212-04: Completed reporter handoff by preparing concise global log summaries for orchestrator consolidation with no code or file changes.
+
+### 2026-02-13 - Stabilize commit-evidence validation and finalization auto-repair
+
+**Feature/Bug:** Feature-18 commit gating produced misleading status parsing (`Outcome=- Tests run:`) and could validate stale main `dev-tasks.md` content after patcher finalization updates.
+
+**Changed Files:**
+
+- `lib/commit_evidence_gate.py`
+- `tools/pc-commit`
+- `tools/pc-feature`
+- `tests/test_pc_commit.py`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added shared commit-evidence validation helpers in `lib/commit_evidence_gate.py` and wired both `pc-commit` and `pc-feature` to the same gate rules.
+- Hardened label parsing to line-scoped capture (`[ \t]*`) so blank fields no longer consume the next execution-log line.
+- Added deterministic commit-evidence auto-repair in `pc-feature` to populate missing top fields/sections from tester and reporter artifacts before final gate evaluation.
+- Added outcome normalization during finalization: stale non-completed top `Outcome` values are reconciled to `pass` when CI + tester/reporter evidence indicates completed state.
+- Synced finalized patcher `dev-tasks.md` back into main worktree before final staging to prevent stale evidence checks after collect.
+- Added regression tests for multiline parse safety, missing outcome enforcement, artifact-backed auto-repair, and worktree-to-root file sync.
+
+**Why:**
+
+- Commit evidence diagnostics must be deterministic and accurate.
+- Final commit must validate the same finalized work-item content that gets staged.
+
+**Impact:**
+
+- **Breaking changes:** None (behavior is stricter/clearer but backward-compatible for valid entries).
+- **Performance:** Negligible (single deterministic repair pass).
+- **Dependencies:** None.

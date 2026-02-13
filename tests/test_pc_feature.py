@@ -109,6 +109,9 @@ class TestPcFeature(unittest.TestCase):
 
     def _build_commit_gate_ready_content(self, work_item_id: str) -> str:
         content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Outcome", "pass"
+        )
         tests_run_cmd = "`python3 -m unittest tests.test_pc_feature.TestPcFeature`"
         content = self.pc_feature.replace_entry_section(
             content,
@@ -4594,6 +4597,15 @@ class TestPcFeature(unittest.TestCase):
         issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
         self.assertIn("missing top execution field: Tests run", issues)
 
+    def test_commit_evidence_gate_fails_when_outcome_field_missing(self):
+        work_item_id = "WI-20260212-52"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Outcome", ""
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn("missing top execution field: Outcome", issues)
+
     def test_commit_evidence_gate_fails_when_final_report_fields_missing(self):
         work_item_id = "WI-20260212-42"
         content = self._build_commit_gate_ready_content(work_item_id)
@@ -4640,6 +4652,125 @@ class TestPcFeature(unittest.TestCase):
         )
         issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
         self.assertIn("required section is empty: Test Results", issues)
+
+    def test_commit_evidence_gate_fails_when_commit_section_missing(self):
+        work_item_id = "WI-20260212-53"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = content.replace("#### Commit", "### Commit", 1)
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn("missing required section: Commit", issues)
+
+    def test_commit_evidence_gate_fails_when_test_results_outcome_missing(self):
+        work_item_id = "WI-20260212-54"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", "- Tests run: python3 -m unittest"
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn("Test Results is missing Outcome", issues)
+
+    def test_commit_evidence_gate_fails_when_final_report_empty(self):
+        work_item_id = "WI-20260212-55"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Final Report", ""
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn("required section is empty: Final Report", issues)
+
+    def test_commit_evidence_gate_remediation_message_is_stable(self):
+        self.assertEqual(
+            self.pc_feature.COMMIT_EVIDENCE_REMEDIATION,
+            'Remediation: complete required "Test Results", "Commit", and '
+            '"Final Report" evidence before commit.',
+        )
+
+    def test_repair_commit_evidence_from_role_artifacts_fills_missing_fields(self):
+        work_item_id = "WI-20260212-56"
+        tests_run_cmd = "`python3 -m unittest tests.test_pc_feature.TestPcFeature`"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Outcome", ""
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tests run", ""
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Docs/logs updated", ""
+        )
+        content = self.pc_feature.replace_entry_section(
+            content, work_item_id, "Test Results", "- (pending)"
+        )
+
+        tester_artifact = {
+            "exists": True,
+            "outcome": "PASS",
+            "tests_run": tests_run_cmd,
+            "docs_updated": "",
+            "notes": "Results: all allowed tests passed",
+        }
+        reporter_artifact = {
+            "exists": True,
+            "outcome": "PASS",
+            "tests_run": "",
+            "docs_updated": "docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md",
+            "notes": "Reporter reviewed scope",
+        }
+
+        repaired_content, repaired = (
+            self.pc_feature.repair_commit_evidence_from_role_artifacts(
+                content,
+                work_item_id,
+                gate_status="PASS",
+                tester_artifact=tester_artifact,
+                reporter_artifact=reporter_artifact,
+            )
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(
+            repaired_content, work_item_id
+        )
+
+        self.assertEqual(issues, [])
+        self.assertIn("field:Tests run", repaired)
+        self.assertIn("field:Outcome", repaired)
+        self.assertIn("field:Docs/logs updated", repaired)
+        self.assertEqual(
+            self.pc_feature.get_entry_field(repaired_content, work_item_id, "Outcome"),
+            "pass",
+        )
+        self.assertEqual(
+            self.pc_feature.get_entry_field(
+                repaired_content, work_item_id, "Tests run"
+            ),
+            tests_run_cmd,
+        )
+
+    def test_sync_worktree_file_to_root_copies_latest_content(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            repo_rel_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            root_file = root / repo_rel_path
+            root_file.parent.mkdir(parents=True, exist_ok=True)
+            root_file.write_text("root-old\n", encoding="utf-8")
+
+            patcher_file = (
+                root
+                / "patcher"
+                / "docs"
+                / "02-features"
+                / "01-workflow-hardening"
+                / "dev-tasks.md"
+            )
+            patcher_file.parent.mkdir(parents=True, exist_ok=True)
+            patcher_file.write_text("patcher-new\n", encoding="utf-8")
+
+            self.pc_feature.sync_worktree_file_to_root(
+                str(root),
+                str(patcher_file),
+                repo_rel_path,
+            )
+
+            self.assertEqual(root_file.read_text(encoding="utf-8"), "patcher-new\n")
 
     def test_ticket_status_completion_matrix_is_deterministic(self):
         fixtures = [

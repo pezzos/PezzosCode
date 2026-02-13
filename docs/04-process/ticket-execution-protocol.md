@@ -166,6 +166,7 @@
 - Use `tools/pc-commit` to enforce convention and checks.
 - Before commit, ensure the planner-owned dev-tasks execution log is complete and role logs contain tester/reporter output.
 - Commit gate is fail-closed: the latest work-item entry must contain non-empty `Tests run` evidence plus completed `Test Results`, `Commit`, and `Final Report` sections; malformed/duplicate required headings block commit.
+- On commit-gate failure, tooling must print deterministic remediation text: `Remediation: complete required "Test Results", "Commit", and "Final Report" evidence before commit.`
 
 12. **AI Tooling (preferred)**
 

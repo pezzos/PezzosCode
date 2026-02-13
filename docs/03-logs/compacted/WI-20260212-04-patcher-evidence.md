@@ -2,42 +2,37 @@
 
 - Date: 2026-02-12
 - Work Item: WI-20260212-04
-- Scope: resume-route determinism, fail-closed contradiction handling, and compacted evidence contract checks.
+- Scope: commit-stage documentation completeness gate hardening and compacted evidence contract checks.
 
 ## Commands Executed
 
-- `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`130 passed`, `0 failed`).
-- `python3 -m unittest tests.test_docs_logs` -> FAIL (`FileNotFoundError` for missing `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md`).
-- `python3 -m unittest tests.test_docs_logs` -> PASS (after adding compacted evidence contract file).
-- Revalidation (patcher feedback pass):
-  - `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`130 passed`, `0 failed`).
-  - `python3 -m unittest tests.test_docs_logs` -> PASS (`Ran 12 tests`, `OK`).
+- `python3 -m unittest tests.test_pc_feature.TestPcFeature` -> PASS.
+- `python3 -m unittest tests.test_docs_logs` -> PASS.
 
-## Resume Fixtures
+## Commit Gate Fixtures
 
-### Fixture: resume-success
+### Fixture: gate-pass
 
-- Expected route: tester
-- Deterministic artifact state: planner/reviewer complete, patch complete, test results present, reporter review complete.
-- Resume gate reruns required tester/CI checks.
+- Expected route: allow
+- Deterministic artifact state: `Test Results`, `Commit`, and `Final Report` present with non-empty required fields.
+- Commit evidence gate accepts complete required sections.
 
-### Fixture: resume-blocked
+### Fixture: gate-block-missing-empty
 
 - Expected route: block
-- Deterministic artifact state: contradictory role artifacts (pending sections with downstream artifacts present).
-- Fail-closed contradiction handling preserved.
+- Deterministic artifact state: required heading missing (`####` malformed) or required section body empty.
+- Commit evidence gate rejects missing or empty required sections.
 
 ## Invariant Checks
 
-- Single next-step selection enforced by `detect_resume_route` fixture matrix assertions.
-- Reporter-complete resume paths route to `tester`, preserving mandatory test/CI reruns after resume.
-- Baseline non-resume behavior remains unchanged (`planner` when no complete plan is present).
-- `auto` mode preserves dirty worktree state while still applying contradiction gating before execution.
+- Required evidence sections are validated in stable order: `Test Results`, `Commit`, `Final Report`.
+- Equivalent markdown structure produces the same gate diagnostics across reruns.
+- Existing valid commit flow remains unchanged and continues to pass.
 
 ## Contract Boundaries
 
 - Compacted evidence is accepted only under `docs/03-logs/compacted/`.
-- Required evidence keys are asserted via stable markers for both `resume-success` and `resume-blocked` fixtures.
+- Required evidence keys are asserted via stable markers for both `gate-pass` and `gate-block-missing-empty` fixtures.
 - Missing required compacted evidence markers are rejected by negative fixture assertions in `tests/test_docs_logs.py`.
 - Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator and are intentionally out of patcher scope.
 
@@ -45,11 +40,4 @@
 
 - Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator and were not edited by patcher.
 - Role-scoped logs (`planner-log.md`, `validation-log.md`, `reporter-log.md`) were not edited by patcher.
-- `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` remains reporter/orchestrator handoff work for WI execution metadata in this pass due explicit patcher file restrictions in the step prompt.
-
-## Rerun Validation (Reporter Feedback Pass)
-
-- `python -m pytest tests/test_pc_feature.py::TestPcFeature` -> PASS (`130 passed`, `0 failed`, `6 warnings`).
-- `python3 -m unittest tests.test_docs_logs` -> PASS (`Ran 12 tests`, `OK`; offload id `72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698`).
-- Feedback-update revalidation on `2026-02-12` repeated both commands with identical passing outcomes.
-- Remaining reporter feedback target (`docs/02-features/17-resume-in-progress-tickets/dev-tasks.md` execution metadata completion) is outside patcher edit scope for this step and therefore intentionally not modified.
+- Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit those files.

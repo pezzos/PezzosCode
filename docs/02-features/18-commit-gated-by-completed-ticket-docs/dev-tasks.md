@@ -26,7 +26,7 @@
 
 ## Execution Log
 
-### WI-20260212-03 - Work item execution
+### WI-20260212-04 - Work item execution
 
 - Date: 2026-02-12
 - Scope / tasks covered:
@@ -39,6 +39,162 @@
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:
+- Notes: Main head locked: 70efc3997bc252d18c0b7b0ad4686f3a84b663f1
+
+#### Preflight Report
+
+- Work Item: WI-20260212-04
+- PRD ref: docs/01-product/prd.md (Feature F-18)
+- Risk level: LOW
+- Triggers: (none)
+- Scope in: Commit-stage precheck for work-item documentation completeness; deterministic missing-section diagnostics; hard-block commit when required evidence is missing; logging of commit-gate pass/fail outcomes in feature/run logs.
+- Scope out: No new git workflow beyond existing tools/pc-commit contract; no auto-authoring of narrative tester/reporter evidence; no remote/git host integration changes; no commit message policy changes.
+- Non-goals reminder: Do not fabricate human-authored test/report evidence and do not expand workflow/orchestration model beyond current pc-feature/pc-commit contracts.
+- Files to change: tools/pc-feature, tools/pc-commit, tests/test_pc_feature.py, docs/04-process/ticket-execution-protocol.md, docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md, docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md
+- TDD plan: TC-18-001 Missing `Tests Run` section blocks commit with remediation, TC-18-002 Missing final report fields block commit with remediation, TC-18-003 Complete docs allow commit flow to continue, TC-18-101 Duplicate section headings use deterministic interpretation, TC-18-102 Empty section body counts as missing evidence, TC-18-201 Malformed markdown returns remediation guidance, TC-18-301 Existing successful final-gate flows remain unchanged, python3 -m unittest tests.test_pc_feature.TestPcFeature, python3 -m unittest tests.test_docs_logs
+- Systematic review:
+
+#### TDD Plan
+
+- Tests to write first:
+  - TC-18-001 Missing `Tests Run` section blocks commit with remediation
+  - TC-18-002 Missing final report fields block commit with remediation
+  - TC-18-003 Complete docs allow commit flow to continue
+  - TC-18-101 Duplicate section headings use deterministic interpretation
+  - TC-18-102 Empty section body counts as missing evidence
+  - TC-18-201 Malformed markdown returns remediation guidance
+  - TC-18-301 Existing successful final-gate flows remain unchanged
+  - python3 -m unittest tests.test_pc_feature.TestPcFeature
+  - python3 -m unittest tests.test_docs_logs
+
+#### Allowed Tests
+
+- `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+- `python3 -m unittest tests.test_docs_logs`
+
+#### Files to Change
+
+- Files: tools/pc-feature, tools/pc-commit, tests/test_pc_feature.py, docs/04-process/ticket-execution-protocol.md, docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md, docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md
+
+#### Docs Updated
+
+- docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md (WI-20260212-04 preflight, plan, patch, test, report sections)
+- docs/04-process/ticket-execution-protocol.md (only if commit-gate semantics wording changes)
+- docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md
+- docs/02-features/18-commit-gated-by-completed-ticket-docs/validation-log.md (tester-owned)
+- docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md (reporter-owned)
+
+#### Plan
+
+Plan Contract v1
+Approach:
+
+1. Implement commit-stage documentation completeness gating so `pc-feature`/`pc-commit` block commit when required ticket evidence sections are missing or empty, with deterministic remediation messaging and no behavior drift for already-valid flows.
+   Files to change:
+
+- `tools/pc-feature`
+- `tools/pc-commit`
+  Risks:
+- False positives could block valid commits if section parsing is too strict.
+- False negatives could allow incomplete documentation through the gate.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Add at least two fixtures per critical path (valid docs pass path, missing/empty section block path, duplicate heading resolution path).
+- Deterministic seed strategy: Use explicit fixed fixture content/order and stable section-title matching so repeated runs produce identical diagnostics.
+- Invariant checks: Valid documentation must preserve existing commit flow; missing required evidence must always block with actionable remediation.
+- Contract boundary coverage: Cover parser boundaries for duplicate headings, empty bodies, malformed markdown blocks, and complete-document happy path.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Add and update regressions that lock in commit-gate behavior and ensure policy violations are surfaced exactly where users act (planner/patcher/tester/reporter loop remains unchanged outside this gate).
+   Files to change:
+
+- `tests/test_pc_feature.py`
+- `tests/test_docs_logs.py`
+  Risks:
+- Test assertions may overfit wording instead of behavior contract.
+- Incomplete matrix could miss a parser edge case and allow nondeterministic outcomes.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Use at least two independent fixtures for each required section family (tests evidence and final report evidence), including both present and missing/empty variants.
+- Deterministic seed strategy: Keep fixture identifiers/content static and deterministic to avoid flaky section-selection outcomes.
+- Invariant checks: Assert identical outcomes for equivalent markdown structure and stable error classification/remediation text.
+- Contract boundary coverage: Validate malformed markdown handling, duplicate section normalization, empty-section rejection, and complete-section acceptance.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Record compacted patcher evidence only, and keep non-compacted global logs outside patcher scope.
+   Files to change:
+
+- `docs/03-logs/compacted/WI-20260212-04-patcher-evidence.md`
+- `docs/04-process/ticket-execution-protocol.md`
+  Risks:
+- Evidence may be incomplete if compacted outputs omit required gate rationale.
+- Protocol wording edits could unintentionally broaden scope beyond commit-gate semantics.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Validate at least two representative evidence scenarios (gate-block and gate-pass) in compacted output expectations.
+- Deterministic seed strategy: Use fixed WI id and stable evidence section ordering for reproducible compacted output.
+- Invariant checks: Patcher edits must not include role-scoped logs or non-compacted `docs/03-logs/*`; commit-gate contract remains intact.
+- Contract boundary coverage: Confirm only derived compacted artifacts are patcher-editable under `docs/03-logs/compacted/`.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Required handoff note: Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit those files.
+
+#### Patch
+
+- (pending)
+
+#### Test Results
+
+- (pending)
+
+#### Reporter Review
+
+- (pending)
+
+#### Gates
+
+- make ci:
+
+#### Autofix Attempts
+
+- (none)
+
+#### Tester Feedback
+
+- Notes:
+
+#### Reporter Feedback
+
+- Notes:
+
+#### Iteration Log
+
+- Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_cycle=1).
+
+#### Commit
+
+- Commit message:
+
+#### Final Report
+
+-
+
+### WI-20260212-03 - Work item execution
+
+- Date: 2026-02-12
+- Scope / tasks covered:
+- Planner: Codex
+- Plan Reviewer: Codex
+- Patcher: Codex
+- Tester: Codex
+- Reporter: Codex
+- Outcome: pass
+- Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`; `python3 -m unittest tests.test_docs_logs`
+- Offload ids (if any):
+- Docs/logs updated: `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` (added WI-20260212-03 entry at `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md:5`)
 - Notes: Main head locked: 3efc2c66c1fbad1d1edd61452b3df0a85b1efb0f
 
 #### Preflight Report
@@ -140,19 +296,26 @@ Required ownership note: Non-compacted `docs/03-logs` updates are owned by repor
 
 #### Patch
 
-- (pending)
+- Runtime reconciliation: patch step completed in this execution loop.
+- Source artifacts: patcher role commit and scoped diff.
 
 #### Test Results
 
-- (pending)
+- Runtime reconciliation: derived from tester feedback in this execution loop.
+- Outcome: PASS
+- Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`; `python3 -m unittest tests.test_docs_logs`
+- Notes: Results: `python3 -m unittest tests.test_pc_feature.TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0
 
 #### Reporter Review
 
-- (pending)
+- Runtime reconciliation: derived from reporter feedback in this execution loop.
+- Outcome: PASS
+- Docs/logs updated: `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` (added WI-20260212-03 entry at `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md:5`)
+- Notes: Systematic review commands executed: `git status --short`; `git diff --stat refs/heads/main..HEAD`; `git diff --stat HEAD~1..HEAD`; `ls -la docs/02-features/18-commit-gated-by-completed-ticket-docs`; `tail -n 120` for...
 
 #### Gates
 
-- make ci:
+- make ci: PASS
 
 #### Autofix Attempts
 
@@ -169,14 +332,20 @@ Required ownership note: Non-compacted `docs/03-logs` updates are owned by repor
 #### Iteration Log
 
 - Attempt 1: Plan Reviewer BLOCK; planner updated plan (reviewer_block=1/12, planner_revision=1/12, execution_cycle=1).
+- Runtime reconciliation updated execution record after reporter step: Patch, field:Patcher, Test Results, field:Tester, field:Tests run, field:Reporter, field:Docs/logs updated, Reporter Review.
 
 #### Commit
 
-- Commit message:
+- Commit message: chore(wi-20260212-03): finalize work item updates
 
 #### Final Report
 
--
+What changed (files): (see git diff)
+Tests written (names) + results: (see feature validation-log.md)
+Docs/logs updated checklist: (see Docs Updated)
+make ci results: PASS
+Commands run (use pp for noisy output): prepatch smoke python3 -m unittest tests.test_pc_feature.TestPcFeature: ok; tools/offload-proxy/pp make ci: ok; collect patcher branch into main: ok
+Commit message: chore(wi-20260212-03): finalize work item updates
 
 ### WI-20260212-02 - Work item execution
 

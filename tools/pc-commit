@@ -27,6 +27,7 @@ scope=""
 summary=""
 allow_paths=()
 work_item_id=""
+commit_evidence_remediation='Remediation: complete required "Test Results", "Commit", and "Final Report" evidence before commit.'
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -78,6 +79,8 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "Not inside a git repository." >&2
   exit 1
 fi
+repo_root="$(git rev-parse --show-toplevel)"
+script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ ${#allow_paths[@]} -eq 0 ]]; then
   staged_paths=()
@@ -193,166 +196,51 @@ validate_commit_evidence_gate() {
 
   local validation_output
   if ! validation_output="$(
-    PC_COMMIT_WORK_ITEM_ID="$work_item_id" python3 - "${dev_tasks_paths[@]}" <<'PY'
+    PC_COMMIT_REPO_ROOT="$repo_root" \
+    PC_COMMIT_LIB_ROOT="$script_root" \
+    PC_COMMIT_WORK_ITEM_ID="$work_item_id" \
+    python3 - "${dev_tasks_paths[@]}" <<'PY'
 import os
-import re
 import sys
 from pathlib import Path
 
-REQUIRED_SECTIONS = ("Test Results", "Commit", "Final Report")
-REQUIRED_FINAL_REPORT_FIELDS = (
-    "What changed (files)",
-    "Tests written (names) + results",
-    "Docs/logs updated checklist",
-    "make ci results",
-    "Commands run (use pp for noisy output)",
-    "Commit message",
-)
-ENTRY_PATTERN = re.compile(r"^###\s+(WI-\d{8}-\d{2})\b.*$", re.MULTILINE)
-SECTION_PATTERN = re.compile(r"^####\s+(.+?)\s*$", re.MULTILINE)
-OUTCOME_PATTERN = re.compile(
-    r"Outcome:\s*(PASS|FAIL|NEEDS REPLAN|SKIPPED)",
-    re.IGNORECASE,
-)
-COMPLETED_TICKET_STATUSES = {"completed", "pass"}
-WORK_ITEM_PATTERN = re.compile(r"^WI-(\d{8})-(\d{2})$")
+LIB_ROOT_RAW = os.environ.get("PC_COMMIT_LIB_ROOT", "").strip()
+if not LIB_ROOT_RAW:
+    raise SystemExit("pc-commit: missing library root for commit evidence checks")
+LIB_ROOT = Path(LIB_ROOT_RAW).resolve()
+sys.path.insert(0, str(LIB_ROOT))
+
+from lib import commit_evidence_gate  # noqa: E402
+
 TARGET_WORK_ITEM_ID = os.environ.get("PC_COMMIT_WORK_ITEM_ID", "").strip()
-
-
-def parse_label(text: str, label: str) -> str:
-    pattern = re.compile(
-        rf"^(?:-\s*)?{re.escape(label)}\s*:\s*(.+)$",
-        re.MULTILINE | re.IGNORECASE,
-    )
-    match = pattern.search(text)
-    return match.group(1).strip() if match else ""
-
-
-def normalize_ticket_status(value: str) -> str:
-    return " ".join(str(value or "").strip().split()).lower()
-
-
-def work_item_sort_key(work_item_id: str):
-    match = WORK_ITEM_PATTERN.fullmatch(work_item_id or "")
-    if not match:
-        return ("00000000", 0)
-    return (match.group(1), int(match.group(2)))
-
-
-def collect_entry_blocks(content: str):
-    matches = list(ENTRY_PATTERN.finditer(content))
-    if not matches:
-        return []
-    entries = []
-    for idx, marker in enumerate(matches):
-        start = marker.start()
-        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(content)
-        entries.append((marker.group(1), content[start:end]))
-    return entries
-
-
-def select_entry_block(content: str):
-    entries = collect_entry_blocks(content)
-    if not entries:
-        return "", "", ""
-    if TARGET_WORK_ITEM_ID:
-        for candidate_id, candidate_block in entries:
-            if candidate_id == TARGET_WORK_ITEM_ID:
-                return candidate_id, candidate_block, ""
-        return (
-            TARGET_WORK_ITEM_ID,
-            "",
-            f"requested work-item execution entry not found: {TARGET_WORK_ITEM_ID}",
-        )
-    selected_id, selected_block = max(entries, key=lambda item: work_item_sort_key(item[0]))
-    return selected_id, selected_block, ""
-
-
-def parse_sections(block: str):
-    sections = {}
-    duplicates = set()
-    matches = list(SECTION_PATTERN.finditer(block))
-    for idx, match in enumerate(matches):
-        title = match.group(1).strip()
-        start = match.end()
-        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(block)
-        body = block[start:end].strip()
-        if title in sections:
-            duplicates.add(title)
-        else:
-            sections[title] = body
-    return sections, duplicates
 
 
 def validate(path: Path):
     content = path.read_text(encoding="utf-8")
-    work_item_id, block, selection_issue = select_entry_block(content)
-    if selection_issue:
-        label = work_item_id or "unknown-work-item"
-        return [f"{path} [{label}]: {selection_issue}"]
-    if not block:
-        return [f"{path}: missing work-item execution entry header (expected `### WI-YYYYMMDD-NN`)"]
-    issues = []
-    sections, duplicates = parse_sections(block)
-    tests_run_field = parse_label(block, "Tests run")
-    if not tests_run_field:
-        issues.append("missing top execution field: Tests run")
-    ticket_status_field = parse_label(block, "Outcome")
-    normalized_ticket_status = normalize_ticket_status(ticket_status_field)
-    if not normalized_ticket_status:
-        issues.append("missing top execution field: Outcome")
-    elif normalized_ticket_status not in COMPLETED_TICKET_STATUSES:
-        issues.append(
-            "active ticket status is not completed: "
-            f"Outcome={ticket_status_field or '(empty)'}"
-        )
-
-    for section in REQUIRED_SECTIONS:
-        if section in duplicates:
-            issues.append(f"duplicate required section heading: {section}")
-        body = sections.get(section, "").strip()
-        if section not in sections:
-            issues.append(f"missing required section: {section}")
-            continue
-        if not body:
-            issues.append(f"required section is empty: {section}")
-            continue
-        if "(pending)" in body.lower():
-            issues.append(f"required section still pending: {section}")
-
-    test_results = sections.get("Test Results", "")
-    if test_results:
-        if not OUTCOME_PATTERN.search(test_results):
-            issues.append("Test Results is missing Outcome")
-
-    commit_section = sections.get("Commit", "")
-    if commit_section and not parse_label(commit_section, "Commit message"):
-        issues.append("Commit section is missing Commit message")
-
-    final_report = sections.get("Final Report", "")
-    if final_report:
-        for field in REQUIRED_FINAL_REPORT_FIELDS:
-            if not parse_label(final_report, field):
-                issues.append(f"Final Report is missing required field: {field}")
-
+    selected_work_item_id, issues = commit_evidence_gate.commit_evidence_gate_issues(
+        content,
+        work_item_id=TARGET_WORK_ITEM_ID,
+    )
     if issues:
-        label = work_item_id or "unknown-work-item"
+        if issues == [commit_evidence_gate.MISSING_ENTRY_HEADER_ISSUE]:
+            return [f"{path}: {issues[0]}"]
+        label = selected_work_item_id or TARGET_WORK_ITEM_ID or "unknown-work-item"
         return [f"{path} [{label}]: {issue}" for issue in issues]
     return []
 
 
 all_issues = []
-for arg in sys.argv[1:]:
+for arg in sorted(sys.argv[1:]):
     all_issues.extend(validate(Path(arg)))
 
 if all_issues:
-    print("\n".join(all_issues))
+    print("\n".join(sorted(set(all_issues))))
     raise SystemExit(1)
 PY
   )"; then
     echo "Commit evidence gate failed:" >&2
     echo "$validation_output" >&2
-    echo 'Remediation: complete required "Test Results", "Commit", and "Final Report" evidence before commit.' >&2
+    echo "$commit_evidence_remediation" >&2
     return 1
   fi
 

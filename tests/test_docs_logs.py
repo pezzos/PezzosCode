@@ -106,26 +106,26 @@ class TestCompactedPatcherEvidence(unittest.TestCase):
         shared_markers = [
             "# WI-20260212-04 Patcher Evidence (Compacted)",
             "## Commands Executed",
-            "`python -m pytest tests/test_pc_feature.py::TestPcFeature`",
+            "`python3 -m unittest tests.test_pc_feature.TestPcFeature`",
             "`python3 -m unittest tests.test_docs_logs`",
             "## Ownership Note",
             "Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator",
         ]
         fixture_markers = [
             (
-                "resume-success",
+                "gate-pass",
                 [
-                    "### Fixture: resume-success",
-                    "Expected route: tester",
-                    "Resume gate reruns required tester/CI checks.",
+                    "### Fixture: gate-pass",
+                    "Expected route: allow",
+                    "Commit evidence gate accepts complete required sections.",
                 ],
             ),
             (
-                "resume-blocked",
+                "gate-block-missing-empty",
                 [
-                    "### Fixture: resume-blocked",
+                    "### Fixture: gate-block-missing-empty",
                     "Expected route: block",
-                    "Fail-closed contradiction handling preserved.",
+                    "Commit evidence gate rejects missing or empty required sections.",
                 ],
             ),
         ]
@@ -151,20 +151,20 @@ class TestCompactedPatcherEvidence(unittest.TestCase):
 
     def test_compacted_evidence_rejects_missing_required_markers(self):
         required = [
-            "### Fixture: resume-success",
-            "Expected route: tester",
-            "### Fixture: resume-blocked",
+            "### Fixture: gate-pass",
+            "Expected route: allow",
+            "### Fixture: gate-block-missing-empty",
             "Expected route: block",
         ]
         incomplete_fixture = "\n".join(
             [
                 "# WI-20260212-04 Patcher Evidence (Compacted)",
-                "### Fixture: resume-success",
-                "Expected route: tester",
+                "### Fixture: gate-pass",
+                "Expected route: allow",
             ]
         )
         missing = self._missing_markers(incomplete_fixture, required)
-        self.assertIn("### Fixture: resume-blocked", missing)
+        self.assertIn("### Fixture: gate-block-missing-empty", missing)
         self.assertIn("Expected route: block", missing)
 
 

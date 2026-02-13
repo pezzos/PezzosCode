@@ -309,6 +309,41 @@ Commit message: chore(test): complete ticket docs
             )
             self.assertNotIn("command not found", commit.stderr)
 
+    def test_commit_evidence_gate_does_not_cross_capture_blank_outcome(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            repo = Path(tmp_dir)
+            env = self._init_repo_with_fake_make(repo)
+            rel_path = self._stage_dev_tasks(
+                repo,
+                self._build_dev_tasks(
+                    [
+                        self._completed_work_item_entry("WI-20260212-09"),
+                        self._completed_work_item_entry("WI-20260212-10").replace(
+                            "- Outcome: pass\n- Tests run: `python3 -m unittest`\n",
+                            "- Outcome:\n- Tests run:\n",
+                        ),
+                    ]
+                ),
+            )
+
+            commit = self._run(
+                [
+                    str(PC_COMMIT_PATH),
+                    "--yes",
+                    "--message",
+                    "chore(test): verify blank top fields remain blank",
+                    "--allow",
+                    rel_path,
+                ],
+                cwd=repo,
+                env=env,
+            )
+
+            self.assertNotEqual(commit.returncode, 0)
+            self.assertIn("missing top execution field: Outcome", commit.stderr)
+            self.assertIn("missing top execution field: Tests run", commit.stderr)
+            self.assertNotIn("Outcome=- Tests run:", commit.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

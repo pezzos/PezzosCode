@@ -2182,3 +2182,20 @@ When a decision is reversed or replaced, document it here:
   - Active work-item commit gating is deterministic even when execution log entries are reordered.
   - Commit failure summaries in workflow history are materially more diagnostic.
   - Failing commit-gate runs waste less execution time.
+
+- WI-20260212-04: Process docs changed; orchestrator retained ownership of deferred docs/03-logs updates.
+
+### DEC-056 - Share commit-evidence validator and add deterministic finalization repair/sync
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** Commit-gate diagnostics diverged between `pc-feature` and `pc-commit`, and top-field parsing in `pc-commit` could misclassify blank values by consuming next-line labels. Finalization could also validate stale main `dev-tasks.md` content after patcher-side commit/report updates.
+- **Decision:**
+  - Introduce `lib/commit_evidence_gate.py` as the single source of truth for commit-evidence rules and required-field diagnostics.
+  - Update `pc-commit` to use the shared validator.
+  - Update `pc-feature` to use the shared validator, run one deterministic evidence-repair pass from tester/reporter artifacts, and normalize stale non-completed top `Outcome` to `pass` only when final-gate evidence is completed.
+  - Sync finalized patcher `dev-tasks.md` into main worktree immediately before final staging/commit.
+- **Consequences:**
+  - Eliminates parser drift and misleading multiline status errors.
+  - Makes final commit gate behavior deterministic on the same finalized artifact content that is staged.
+  - Reduces late commit failures caused by stale placeholders/top fields while preserving fail-closed behavior for genuinely missing evidence.
