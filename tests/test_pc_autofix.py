@@ -50,6 +50,18 @@ class PcAutofixTests(unittest.TestCase):
             ["README.md", "docs/03-logs/implementation-log.md"],
         )
 
+    def test_build_prompt_precommit_sorts_and_deduplicates_allowed_paths(self):
+        prompt = self.mod.build_prompt(
+            "pre-commit", "ruff failed", ["b.py", "a.py", "b.py"]
+        )
+        self.assertLess(prompt.index("- a.py"), prompt.index("- b.py"))
+        self.assertEqual(prompt.count("- b.py"), 1)
+
+    def test_validate_scope_requires_allowed_paths_for_precommit(self):
+        with self.assertRaises(SystemExit) as raised:
+            self.mod.validate_scope("pre-commit", [], Path("."))
+        self.assertEqual(raised.exception.code, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,11 +27,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if ! command -v pre-commit >/dev/null 2>&1; then
-  echo "pre-commit not installed. Install with: pipx install pre-commit" >&2
-  exit 1
-fi
-
 if ! command -v git >/dev/null 2>&1; then
   echo "git not installed." >&2
   exit 1
@@ -39,6 +34,38 @@ fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
+
+if ! command -v pre-commit >/dev/null 2>&1; then
+  echo "pre-commit not installed. Install with: pipx install pre-commit" >&2
+  exit 1
+fi
+
+pc_hooks_run_cmd=()
+if [[ -x "tools/pc-hooks-run" ]]; then
+  pc_hooks_run_cmd=("tools/pc-hooks-run")
+elif [[ -f "tools/pc-hooks-run" ]]; then
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "pc-precommit: python3 is required to run tools/pc-hooks-run fallback." >&2
+    exit 1
+  fi
+  pc_hooks_run_cmd=("python3" "tools/pc-hooks-run")
+else
+  echo "pc-precommit: warning: tools/pc-hooks-run missing; falling back to direct pre-commit." >&2
+fi
+
+pc_autofix_cmd=()
+if [[ -x "tools/pc-autofix" ]]; then
+  pc_autofix_cmd=("tools/pc-autofix")
+elif [[ -f "tools/pc-autofix" ]]; then
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "pc-precommit: python3 is required to run tools/pc-autofix fallback." >&2
+    exit 1
+  fi
+  pc_autofix_cmd=("python3" "tools/pc-autofix")
+else
+  echo "pc-precommit: required tool not found: tools/pc-autofix" >&2
+  exit 1
+fi
 
 if [[ -n "$work_item_id" ]]; then
   if [[ -z "$agent_name" ]]; then
@@ -130,7 +157,11 @@ trap cleanup EXIT
 run_precommit() {
   : >"$output_file"
   set +e
-  pre-commit run --hook-stage pre-commit --files "${staged_paths[@]}" >"$output_file" 2>&1
+  if [[ ${#pc_hooks_run_cmd[@]} -gt 0 ]]; then
+    "${pc_hooks_run_cmd[@]}" --hook-stage pre-commit --files "${staged_paths[@]}" >"$output_file" 2>&1
+  else
+    pre-commit run --hook-stage pre-commit --files "${staged_paths[@]}" >"$output_file" 2>&1
+  fi
   local status=$?
   set -e
   cat "$output_file"
@@ -210,11 +241,7 @@ if [[ "$status" -ne 0 ]]; then
     exit 1
   fi
   echo "pre-commit: running AI autofix after $max_lint_attempts failed attempt(s)." >&2
-  autofix_cmd=(
-    tools/pc-autofix
-    --mode pre-commit
-    --issues-file "$output_file"
-  )
+  autofix_cmd=("${pc_autofix_cmd[@]}" --mode pre-commit --issues-file "$output_file")
   for path in "${staged_paths[@]}"; do
     autofix_cmd+=(
       --allowed-path "$path"
@@ -267,11 +294,7 @@ if [[ "$needs_stash" == true ]]; then
       echo ""
       git status --porcelain
     } >"$conflict_file"
-    autofix_cmd=(
-      tools/pc-autofix
-      --mode stash-conflict
-      --issues-file "$conflict_file"
-    )
+    autofix_cmd=("${pc_autofix_cmd[@]}" --mode stash-conflict --issues-file "$conflict_file")
     if [[ -n "$work_item_id" ]]; then
       autofix_cmd+=(
         --work-item-id "$work_item_id"

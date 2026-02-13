@@ -1746,3 +1746,5 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Planner-create now fails fast on malformed non-contract plan output before `#### Plan` is written.
   - Plan-policy command checks distinguish path-style backticked `tools/pc-feature` references from explicit command intent.
   - Deterministic auto-rewrite can recover malformed non-contract plans to compliant `Plan Contract v1` structure.
+
+- WI-20260213-01 validated: lint/tests and acceptance checks passed for the completed feature.

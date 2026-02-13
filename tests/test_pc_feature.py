@@ -4997,6 +4997,19 @@ class TestPcFeature(unittest.TestCase):
                 self.pc_feature.AUTO_REPAIR_REPORTER_GATE_OFF,
             )
 
+    def test_parse_reporter_auto_repair_mode_normalizes_valid_values(self):
+        with mock.patch.dict(
+            self.pc_feature.os.environ,
+            {
+                self.pc_feature.AUTO_REPAIR_REPORTER_GATE_ENV: "  APPLY  ",
+            },
+            clear=False,
+        ):
+            self.assertEqual(
+                self.pc_feature.parse_reporter_auto_repair_mode(),
+                self.pc_feature.AUTO_REPAIR_REPORTER_GATE_APPLY,
+            )
+
     def test_run_reporter_auto_repair_pass_warn_has_no_side_effect(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             work_item_id = "WI-20260213-24"

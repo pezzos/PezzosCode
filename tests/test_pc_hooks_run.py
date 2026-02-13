@@ -56,6 +56,12 @@ class TestPcHooksRun(unittest.TestCase):
             summary_lines,
         )
 
+    def test_summarize_output_truncates_with_omitted_count(self):
+        output = "\n".join(f"line {idx}" for idx in range(5))
+        summary_lines, omitted = self.pc_hooks.summarize_output(output, max_lines=3)
+        self.assertEqual(summary_lines, ["line 0", "line 1", "line 2"])
+        self.assertEqual(omitted, 2)
+
     def test_write_offload_log_writes_payload_and_index_entry(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -177,6 +183,21 @@ class TestPcHooksRun(unittest.TestCase):
             self.assertIn("Passed", raw_log)
             self.assertIn("Skipped", raw_log)
             self.assertIn("Failed", raw_log)
+
+    def test_main_returns_127_when_precommit_binary_missing(self):
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            status = self.pc_hooks.main(
+                [
+                    "--hook-stage",
+                    "pre-commit",
+                    "--all-files",
+                    "--pre-commit-bin",
+                    "/path/that/does/not/exist/pre-commit",
+                ]
+            )
+        self.assertEqual(status, 127)
+        self.assertIn("not found", stderr.getvalue())
 
 
 if __name__ == "__main__":
