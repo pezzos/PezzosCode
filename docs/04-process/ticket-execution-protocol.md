@@ -35,6 +35,9 @@
 - Planner/Tester/Reporter run in the patcher worktree so they review shared content; separate worktrees are not created for those roles.
 - Runtime artifacts (`dev-tasks.md`, planner/tester/reporter logs, and `logs/<WI>/...`) are worktree-local during execution and are collected into `main` only after successful completion.
 - Runtime shell snapshots under `.codex_subagent/shell_snapshots/` are excluded from feature scope and must not be staged/committed as work-item output.
+- Runtime artifact paths under `.codex_subagent/shell_snapshots/`, `.codex_subagent/sessions/`, and `.codex_subagent/tmp/` are blocked from branch scope unless explicitly allowlisted.
+- Allowlisted `.codex_subagent` paths are limited to deterministic tool metadata (currently `.codex_subagent/config.toml`).
+- Scope enforcement provides recommendation-only remediation output and must not auto-mutate tracked files.
 - Use a single worktree per feature and auto-collect into `main` as a single squashed commit (no `feature-worktrees.json`).
   - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.
 - Deterministic steps are executed via a shared runner library with standard metadata injection (`work_item_id`, `agent_name`, `run_id`).

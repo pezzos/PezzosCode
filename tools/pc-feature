@@ -57,10 +57,16 @@ IGNORED_PATH_PREFIXES = (
     ".offload/",
     "logs/",
 )
-RUNTIME_SHELL_SNAPSHOT_PREFIX = ".codex_subagent/shell_snapshots/"
+RUNTIME_ARTIFACT_PREFIX = ".codex_subagent/"
+RUNTIME_ARTIFACT_BLOCKED_PREFIXES = (
+    ".codex_subagent/shell_snapshots/",
+    ".codex_subagent/sessions/",
+    ".codex_subagent/tmp/",
+)
 IGNORED_PATH_FILES = {
     ".codex_subagent/config.toml",
 }
+RUNTIME_ARTIFACT_ALLOWLIST = frozenset(IGNORED_PATH_FILES)
 ROLE_LOG_FILES = {
     "planner": "planner-log.md",
     "plan-reviewer": "plan-reviewer-log.md",
@@ -1104,6 +1110,18 @@ def worktree_is_dirty(path: str) -> bool:
     return bool(get_status_paths(path))
 
 
+def is_git_worktree(path: str) -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=path,
+    )
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
 def filter_ignored_paths(paths: List[str]) -> List[str]:
     filtered: List[str] = []
     for entry in paths:
@@ -1777,42 +1795,106 @@ def branch_diff_name_status(
     return entries
 
 
-def shell_snapshot_branch_diff_status(
+def runtime_artifact_branch_diff_status(
     status_entries: List[Tuple[str, str]]
 ) -> Dict[str, List[str]]:
     grouped: Dict[str, Set[str]] = {
         "tracked-added": set(),
         "tracked-deleted": set(),
         "tracked-other": set(),
+        "tracked-unallowlisted": set(),
     }
     for status, path in status_entries:
         normalized = normalize_repo_path(path)
-        if not normalized.startswith(RUNTIME_SHELL_SNAPSHOT_PREFIX):
+        if not normalized.startswith(RUNTIME_ARTIFACT_PREFIX):
             continue
-        if status == "A":
-            grouped["tracked-added"].add(normalized)
-        elif status == "D":
-            grouped["tracked-deleted"].add(normalized)
-        else:
-            grouped["tracked-other"].add(normalized)
+        if normalized in RUNTIME_ARTIFACT_ALLOWLIST:
+            continue
+        if any(
+            normalized.startswith(prefix)
+            for prefix in RUNTIME_ARTIFACT_BLOCKED_PREFIXES
+        ):
+            if status == "A":
+                grouped["tracked-added"].add(normalized)
+            elif status == "D":
+                grouped["tracked-deleted"].add(normalized)
+            else:
+                grouped["tracked-other"].add(normalized)
+            continue
+        grouped["tracked-unallowlisted"].add(normalized)
     return {label: sorted(paths) for label, paths in grouped.items()}
 
 
-def enforce_snapshot_scope_clean(root: str, base_ref: str, branch: str) -> None:
-    grouped = shell_snapshot_branch_diff_status(
+def runtime_artifact_remediation_recommendation(grouped: Dict[str, List[str]]) -> str:
+    remove_candidates = sorted(
+        set(
+            grouped.get("tracked-added", [])
+            + grouped.get("tracked-other", [])
+            + grouped.get("tracked-unallowlisted", [])
+        )
+    )
+    recommendations: List[str] = []
+    if remove_candidates:
+        recommendations.append(
+            "git rm --cached -- "
+            + " ".join(shlex.quote(path) for path in remove_candidates)
+        )
+    if grouped.get("tracked-deleted"):
+        recommendations.append(
+            "review tracked-deleted runtime paths and keep only intentional cleanup"
+        )
+    recommendations.append("rerun the reporter gate once branch scope is clean")
+    return "; ".join(recommendations)
+
+
+def enforce_runtime_artifact_scope_clean(
+    root: str,
+    base_ref: str,
+    branch: str,
+    *,
+    gate_name: str = "reporter",
+) -> None:
+    grouped = runtime_artifact_branch_diff_status(
         branch_diff_name_status(root, base_ref, branch)
     )
     if not any(grouped.values()):
         return
     detail_parts: List[str] = []
-    for label in ("tracked-added", "tracked-deleted", "tracked-other"):
+    for label in (
+        "tracked-added",
+        "tracked-deleted",
+        "tracked-other",
+        "tracked-unallowlisted",
+    ):
         paths = grouped[label]
         if paths:
             detail_parts.append(f"{label}: {', '.join(paths)}")
+    recommendation = runtime_artifact_remediation_recommendation(grouped)
     die(
-        "pc-feature: branch scope contains runtime shell snapshot artifacts: "
+        "pc-feature: branch scope contains blocked runtime artifacts: "
         + "; ".join(detail_parts)
-        + "; remediation: remove these tracked paths from feature scope and rerun the reporter gate"
+        + "; remediation: remove these tracked paths from feature scope and rerun the "
+        + gate_name
+        + " gate"
+        + "; auto-fix recommendation (no changes applied): "
+        + recommendation
+    )
+
+
+def shell_snapshot_branch_diff_status(
+    status_entries: List[Tuple[str, str]]
+) -> Dict[str, List[str]]:
+    # Backward-compatible alias used by existing tests.
+    return runtime_artifact_branch_diff_status(status_entries)
+
+
+def enforce_snapshot_scope_clean(root: str, base_ref: str, branch: str) -> None:
+    # Backward-compatible alias for legacy call sites.
+    enforce_runtime_artifact_scope_clean(
+        root,
+        base_ref,
+        branch,
+        gate_name="reporter",
     )
 
 
@@ -4168,7 +4250,12 @@ def append_noop_step_note(
 def collect_allowed_final_stage_paths(
     root: str, base_ref: str, branch: str, dev_tasks_path: str, feature_dir: str
 ) -> List[str]:
-    enforce_snapshot_scope_clean(root, base_ref, branch)
+    enforce_runtime_artifact_scope_clean(
+        root,
+        base_ref,
+        branch,
+        gate_name="reporter",
+    )
     allowed = set(
         collect_branch_merge_paths(
             root,
@@ -5950,6 +6037,13 @@ def main() -> None:
             write_file(dev_tasks_path, content)
         else:
             emit_workflow_event("reporter", "START", attempt=attempt)
+            if is_git_worktree(root):
+                enforce_runtime_artifact_scope_clean(
+                    root,
+                    "refs/heads/main",
+                    patcher_branch,
+                    gate_name="reporter",
+                )
             pre_reporter_issues = execution_handoff_completeness_issues(
                 content, work_item_id, require_reporter_review=False
             )

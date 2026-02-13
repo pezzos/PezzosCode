@@ -2,6 +2,16 @@
 
 ## Entries
 
+### 2026-02-13 - WI-20260213-05 (Reporter rerun 2)
+
+Outcome: PASS
+Docs/logs updated: `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md`
+File/Path: `docs/02-features/18-commit-gated-by-completed-ticket-docs/`
+Check: Scope and completeness for active feature worktree using required primary scope view (`git status --short`, `git diff --stat refs/heads/main..HEAD`) with supplemental latest-step context (`git diff --stat HEAD~1..HEAD`).
+Evidence: `git status --short` shows only untracked runtime artifacts under `logs/WI-20260213-05/` and no unexpected tracked modifications. `git diff --stat refs/heads/main..HEAD` remains feature-scoped to expected tooling/tests/docs updates for F-18 and no longer includes `.codex_subagent/shell_snapshots/*` tracked artifacts. `git diff --stat HEAD~1..HEAD` (supplemental) shows latest-step context limited to `docs/02-features/18-commit-gated-by-completed-ticket-docs/plan-reviewer-log.md`.
+Expected fix: N/A
+Notes: Systematic review commands executed: `git status --short`; `git diff --stat refs/heads/main..HEAD`; `git diff --stat HEAD~1..HEAD`; `ls -la docs/02-features/18-commit-gated-by-completed-ticket-docs`; `cat docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md`; `cat docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md`. Global `docs/03-logs/*` updates are completion-phase artifacts and were not treated as a blocker. Work Item ID: WI-20260213-05.
+
 ### 2026-02-13 - WI-20260213-05 (Reporter rerun)
 
 Outcome: FAIL
@@ -101,10 +111,9 @@ Notes: Reporter log was updated as required. Systematic review commands executed
 ### WI-20260213-05 - 2026-02-13
 
 Outcome: PASS
-Docs/logs updated: reporter review complete; finalization-owned placeholders deferred to final gates.
-File/Path: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md
-Check: Reporter scope excludes finalization-owned placeholders (`Commit`, `Final Report`, `Gates`).
-Evidence: Normalized non-actionable reporter FAIL feedback (Outcome: FAIL Docs/logs updated: `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` (updated locally; single end-of-step commit attempt failed due git worktree lock permission: `index.lock: Op...).
-Expected fix: none at reporter stage; final gates populate commit/final report details.
-Notes: Reporter FAIL referenced finalization-owned placeholders only; treated as PASS.
-Work Item ID: WI-20260213-05
+Docs/logs updated: `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` (added `2026-02-13 - WI-20260213-05 (Reporter rerun 2)` entry)
+File/Path: `docs/02-features/18-commit-gated-by-completed-ticket-docs/`
+Check: Scope and completeness review from active feature worktree using required primary scope view and supplemental latest-step context.
+Evidence: `git status --short` shows only `M docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` plus untracked runtime `logs/WI-20260213-05/`; `git diff --stat refs/heads/main..HEAD` is feature-scoped and does not include prior `.codex_subagent/shell_snapshots/*` tracked artifact; `git diff --stat HEAD~1..HEAD` shows latest-step context limited to `docs/02-features/18-commit-gated-by-completed-ticket-docs/plan-reviewer-log.md`.
+Expected fix: N/A
+Notes: Systematic review commands executed: `git status --short`; `git diff --stat refs/heads/main..HEAD`; `git diff --stat HEAD~1..HEAD`; `ls -la docs/02-features/18-commit-gated-by-completed-ticket-docs`; `cat docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md`; `cat docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md`. Single end-of-step commit was attempted and blocked by sandbox permissions creating git worktree lock (`index.lock: Operation not permitted`). Work Item ID: WI-20260213-05.

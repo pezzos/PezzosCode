@@ -21,6 +21,18 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
             "Runtime shell snapshots under `.codex_subagent/shell_snapshots/` are excluded from feature scope and must not be staged/committed as work-item output.",
             content,
         )
+        self.assertIn(
+            "Runtime artifact paths under `.codex_subagent/shell_snapshots/`, `.codex_subagent/sessions/`, and `.codex_subagent/tmp/` are blocked from branch scope unless explicitly allowlisted.",
+            content,
+        )
+        self.assertIn(
+            "Allowlisted `.codex_subagent` paths are limited to deterministic tool metadata (currently `.codex_subagent/config.toml`).",
+            content,
+        )
+        self.assertIn(
+            "Scope enforcement provides recommendation-only remediation output and must not auto-mutate tracked files.",
+            content,
+        )
 
     def test_implementation_log_documents_execute_work_item_workflow_summary(self):
         path = ROOT / "docs" / "03-logs" / "implementation-log.md"

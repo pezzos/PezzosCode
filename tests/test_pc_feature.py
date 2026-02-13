@@ -3007,7 +3007,7 @@ class TestPcFeature(unittest.TestCase):
             paths,
         )
 
-    def test_collect_allowed_final_stage_paths_blocks_shell_snapshot_contamination(
+    def test_collect_allowed_final_stage_paths_blocks_runtime_artifact_contamination(
         self,
     ):
         stderr_capture = io.StringIO()
@@ -3018,7 +3018,16 @@ class TestPcFeature(unittest.TestCase):
                 (
                     "A",
                     ".codex_subagent/shell_snapshots/WI-20260213-05-session.sh",
-                )
+                ),
+                (
+                    "M",
+                    ".codex_subagent/sessions/session-20260213.json",
+                ),
+                (
+                    "A",
+                    ".codex_subagent/custom/runtime-dump.txt",
+                ),
+                ("A", ".codex_subagent/config.toml"),
             ],
         ):
             with self.assertRaises(SystemExit):
@@ -3031,15 +3040,27 @@ class TestPcFeature(unittest.TestCase):
                         "docs/02-features/01-workflow-hardening",
                     )
         message = stderr_capture.getvalue()
-        self.assertIn("runtime shell snapshot artifacts", message)
+        self.assertIn("blocked runtime artifacts", message)
         self.assertIn("tracked-added", message)
+        self.assertIn("tracked-other", message)
+        self.assertIn("tracked-unallowlisted", message)
+        self.assertIn("auto-fix recommendation (no changes applied)", message)
         self.assertIn(
             ".codex_subagent/shell_snapshots/wi-20260213-05-session.sh",
             message,
         )
+        self.assertIn(
+            ".codex_subagent/sessions/session-20260213.json",
+            message,
+        )
+        self.assertIn(
+            ".codex_subagent/custom/runtime-dump.txt",
+            message,
+        )
+        self.assertNotIn(".codex_subagent/config.toml", message)
 
-    def test_collect_allowed_final_stage_paths_snapshot_status_dedupes(self):
-        grouped = self.pc_feature.shell_snapshot_branch_diff_status(
+    def test_runtime_artifact_branch_diff_status_dedupes_and_classifies(self):
+        grouped = self.pc_feature.runtime_artifact_branch_diff_status(
             [
                 (
                     "D",
@@ -3051,7 +3072,11 @@ class TestPcFeature(unittest.TestCase):
                 ),
                 (
                     "M",
-                    ".codex_subagent/shell_snapshots/nested/fixed.log",
+                    ".codex_subagent/tmp/fixed.log",
+                ),
+                (
+                    "A",
+                    ".codex_subagent/custom/runtime-dump.txt",
                 ),
                 ("A", "docs/02-features/01-workflow-hardening/dev-tasks.md"),
             ]
@@ -3062,9 +3087,30 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertEqual(
             grouped["tracked-other"],
-            [".codex_subagent/shell_snapshots/nested/fixed.log"],
+            [".codex_subagent/tmp/fixed.log"],
         )
         self.assertEqual(grouped["tracked-added"], [])
+        self.assertEqual(
+            grouped["tracked-unallowlisted"],
+            [".codex_subagent/custom/runtime-dump.txt"],
+        )
+
+    def test_runtime_artifact_branch_diff_status_allows_allowlisted_paths(self):
+        grouped = self.pc_feature.runtime_artifact_branch_diff_status(
+            [
+                ("A", ".codex_subagent/config.toml"),
+                ("M", ".codex_subagent/config.toml"),
+            ]
+        )
+        self.assertEqual(
+            grouped,
+            {
+                "tracked-added": [],
+                "tracked-deleted": [],
+                "tracked-other": [],
+                "tracked-unallowlisted": [],
+            },
+        )
 
     def test_final_commit_allow_paths_excludes_codex_subagent_prefix(self):
         allow_paths = self.pc_feature.final_commit_allow_paths()
