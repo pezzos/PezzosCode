@@ -2360,3 +2360,5 @@ When a decision is reversed or replaced, document it here:
   - Improves planner-create diagnostics and workflow state correctness without relaxing fail-closed quality gates.
   - Reduces false negatives caused by superficial markdown heading formatting variance.
   - Preserves deterministic rollback behavior for rejected planner-create output.
+
+- WI-20260213-01: Process docs changed; orchestrator retained ownership of deferred docs/03-logs updates.

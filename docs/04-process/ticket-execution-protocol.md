@@ -97,6 +97,7 @@
    - Plan-reviewer read-only enforcement uses pre/post worktree dirty snapshots and blocks only reviewer-introduced deltas.
    - Every step decision (`APPROVE` / `BLOCK` / `PASS` / `FAIL`) must be written to the step's role log and committed before the next step starts.
    - Plan must include anti-hardcode coverage (fixtures per critical path, seed strategy, invariant checks, contract boundaries).
+   - Invariant checks must explicitly cover role routing sequence, Allowed Tests command whitelist matching, resume-stage routing, and required structured log artifact presence.
    - Block the work item if the Plan/TDD Plan does not state fixture count (>=2 per critical path), seed strategy, and invariant checks.
    - Patch: make the smallest diff that satisfies the work item (TDD where applicable).
    - Test: run agreed checks and record results.

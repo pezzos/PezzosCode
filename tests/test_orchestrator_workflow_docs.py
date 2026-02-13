@@ -144,6 +144,40 @@ class TestOrchestratorWorkflowDocs(unittest.TestCase):
             content,
         )
 
+    def test_execution_protocol_requires_workflow_invariant_coverage(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "Invariant checks must explicitly cover role routing sequence, Allowed Tests command whitelist matching, resume-stage routing, and required structured log artifact presence.",
+            content,
+        )
+
+    def test_feature_20_test_plan_records_deterministic_fixture_and_allowed_tests(self):
+        path = (
+            ROOT
+            / "docs"
+            / "02-features"
+            / "20-synthetic-feature-workflow-smoke-test"
+            / "test-plan.md"
+        )
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "fixed scenario-id/seed mapping",
+            content,
+        )
+        self.assertIn(
+            "baseline pass path and gate/resume failure path",
+            content,
+        )
+        self.assertIn(
+            "`python3 -m unittest tests.test_pc_feature`",
+            content,
+        )
+        self.assertIn(
+            "`python3 -m unittest tests.test_orchestrator_workflow_docs`",
+            content,
+        )
+
     def test_decision_log_records_orchestrator_gate_entry(self):
         path = ROOT / "docs" / "03-logs" / "decision-log.md"
         content = path.read_text(encoding="utf-8")

@@ -10,7 +10,7 @@
 
 **Status:** Draft
 
-**Last Updated:** 2026-02-11
+**Last Updated:** 2026-02-13
 
 ### Product Surfaces
 
@@ -21,8 +21,9 @@
 
 ### Test Objectives
 
-- Verify synthetic fixture can exercise full workflow deterministically.
-- Verify invariant checks detect stage-routing and gate regressions.
+- Verify synthetic fixture can exercise full workflow deterministically with fixed scenario-id/seed mapping.
+- Verify critical paths include at least 2 fixtures per path (baseline pass path and gate/resume failure path) with distinct evidence pointers.
+- Verify invariant checks detect role-routing, Allowed Tests whitelist, resume-stage, and structured-log regressions.
 - Verify smoke output points to actionable evidence.
 
 ### Test Scope
@@ -49,10 +50,12 @@
 
 - Baseline synthetic workflow run passes.
 - Injected gate violation fails at expected stage.
+- Allowed Tests whitelist mismatch is rejected with deterministic policy feedback.
 
 ### E2E Tests
 
 - Full synthetic run including resume-path scenario.
+- Resume-path failure scenario reports required structured log artifact pointers.
 
 ## Test Cases
 
@@ -85,11 +88,18 @@
 
 - Synthetic fixture + evaluator implementation complete.
 - Required logs and assertion helpers available.
+- Allowed Tests section contains only scoped unittest/pytest commands.
 
 ### Exit Criteria
 
 - All synthetic smoke tests pass.
 - Failure diagnostics are clear and reproducible.
+- Pass/fail summaries include explicit evidence pointers for each fixture.
+
+### Allowed Test Commands
+
+- `python3 -m unittest tests.test_pc_feature`
+- `python3 -m unittest tests.test_orchestrator_workflow_docs`
 
 ## Sign-off
 
@@ -105,6 +115,7 @@
 
 ## Change Log
 
-| Date       | Changes           | Author |
-| ---------- | ----------------- | ------ |
-| 2026-02-11 | Initial test plan | Codex  |
+| Date       | Changes                                                         | Author |
+| ---------- | --------------------------------------------------------------- | ------ |
+| 2026-02-11 | Initial test plan                                               | Codex  |
+| 2026-02-13 | Added deterministic fixture/invariant and Allowed Tests details | Codex  |

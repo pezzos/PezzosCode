@@ -3123,10 +3123,10 @@ def build_policy_recovery_plan_template(allowed_tests: List[str]) -> str:
         "Risks:\n"
         "- Feature-specific implementation files may need refinement before patching.\n"
         "Tests (anti-hardcode coverage required):\n"
-        "- Fixture coverage: at least 2 fixtures per critical path.\n"
-        "- Deterministic seed strategy: fixed ordering and deterministic inputs.\n"
-        "- Invariant checks: patcher cannot edit role-scoped/global-log files.\n"
-        "- Contract boundary coverage: policy gate and reviewer-loop recovery.\n"
+        "- Fixture coverage: at least 2 fixtures per critical path (baseline pass path and gate/resume failure path) with distinct evidence pointers.\n"
+        "- Deterministic seed strategy: fixed scenario-id/seed mapping and deterministic inputs.\n"
+        "- Invariant checks: role routing sequence, Allowed Tests command whitelist matching, resume-stage routing, and required structured log artifact presence.\n"
+        "- Contract boundary coverage: evaluator input boundaries and workflow adapter output boundaries.\n"
         "- Allowed test commands:\n" + "\n".join(allowed_lines)
     )
 

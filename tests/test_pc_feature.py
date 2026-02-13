@@ -363,13 +363,21 @@ class TestPcFeature(unittest.TestCase):
         )
 
     def test_build_policy_recovery_plan_template_is_policy_compliant(self):
-        allowed_tests = ["pytest tests/test_pc_feature.py"]
+        allowed_tests = [
+            "python3 -m unittest tests.test_pc_feature",
+            "python3 -m unittest tests.test_orchestrator_workflow_docs",
+        ]
         plan = self.pc_feature.build_policy_recovery_plan_template(allowed_tests)
         issues = self.pc_feature.plan_policy_violations(
             plan,
             allowed_tests=allowed_tests,
         )
         self.assertEqual(issues, [])
+        self.assertIn("baseline pass path and gate/resume failure path", plan)
+        self.assertIn("fixed scenario-id/seed mapping", plan)
+        self.assertIn("role routing sequence", plan)
+        self.assertIn("Allowed Tests command whitelist matching", plan)
+        self.assertIn("required structured log artifact presence", plan)
 
     def test_classify_risk_flags_restore_touch(self):
         data = {"touches_restore": True, "files_to_change": []}
@@ -621,10 +629,27 @@ class TestPcFeature(unittest.TestCase):
             "python -m unittest discover -s tests",
         )
         self.assertEqual(
+            self.pc_feature.normalize_allowed_test(
+                "python3 -m unittest tests.test_pc_feature"
+            ),
+            "python3 -m unittest tests.test_pc_feature",
+        )
+        self.assertEqual(
             self.pc_feature.normalize_allowed_test("pytest tests -q"),
             "pytest tests -q",
         )
+        self.assertEqual(
+            self.pc_feature.normalize_allowed_test(
+                "tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature"
+            ),
+            "python3 -m unittest tests.test_pc_feature",
+        )
         self.assertIsNone(self.pc_feature.normalize_allowed_test("bash -lc 'echo hi'"))
+        self.assertIsNone(
+            self.pc_feature.normalize_allowed_test(
+                "tools/offload-proxy/pp bash -lc 'echo hi'"
+            )
+        )
         self.assertIsNone(
             self.pc_feature.normalize_allowed_test("node scripts/test.js")
         )
