@@ -110,7 +110,7 @@ class TestPcFeature(unittest.TestCase):
     def _build_commit_gate_ready_content(self, work_item_id: str) -> str:
         content = self._build_entry_content(work_item_id)
         content = self.pc_feature.update_entry_field(
-            content, work_item_id, "Outcome", "pass"
+            content, work_item_id, "Outcome", "completed"
         )
         tests_run_cmd = "`python3 -m unittest tests.test_pc_feature.TestPcFeature`"
         content = self.pc_feature.replace_entry_section(
@@ -1516,7 +1516,7 @@ class TestPcFeature(unittest.TestCase):
         finally:
             self.pc_feature.datetime = original_datetime
 
-    def test_select_resume_work_item_id_resumes_newest_non_pass(self):
+    def test_select_resume_work_item_id_resumes_newest_non_completed(self):
         newest = "WI-20260206-03"
         middle = "WI-20260206-02"
         oldest = "WI-20260206-01"
@@ -1527,7 +1527,9 @@ class TestPcFeature(unittest.TestCase):
         content = self.pc_feature.update_entry_field(
             content, newest, "Outcome", "needs replan"
         )
-        content = self.pc_feature.update_entry_field(content, middle, "Outcome", "pass")
+        content = self.pc_feature.update_entry_field(
+            content, middle, "Outcome", "completed"
+        )
         content = self.pc_feature.update_entry_field(
             content, oldest, "Outcome", "needs replan"
         )
@@ -1536,13 +1538,15 @@ class TestPcFeature(unittest.TestCase):
             newest,
         )
 
-    def test_select_resume_work_item_id_returns_none_when_newest_pass(self):
+    def test_select_resume_work_item_id_returns_none_when_newest_completed(self):
         newest = "WI-20260206-03"
         older = "WI-20260206-02"
         content = "## Execution Log\n\n"
         content += self.pc_feature.build_execution_entry(newest) + "\n"
         content += self.pc_feature.build_execution_entry(older)
-        content = self.pc_feature.update_entry_field(content, newest, "Outcome", "pass")
+        content = self.pc_feature.update_entry_field(
+            content, newest, "Outcome", "completed"
+        )
         content = self.pc_feature.update_entry_field(
             content, older, "Outcome", "needs replan"
         )
@@ -2984,6 +2988,10 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature,
             "collect_branch_merge_paths",
             return_value=["tools/pc-feature"],
+        ), mock.patch.object(
+            self.pc_feature,
+            "branch_diff_name_status",
+            return_value=[],
         ):
             paths = self.pc_feature.collect_allowed_final_stage_paths(
                 "/tmp/root",
@@ -2998,6 +3006,70 @@ class TestPcFeature(unittest.TestCase):
             "docs/02-features/01-workflow-hardening/dev-tasks.md",
             paths,
         )
+
+    def test_collect_allowed_final_stage_paths_blocks_shell_snapshot_contamination(
+        self,
+    ):
+        stderr_capture = io.StringIO()
+        with mock.patch.object(
+            self.pc_feature,
+            "branch_diff_name_status",
+            return_value=[
+                (
+                    "A",
+                    ".codex_subagent/shell_snapshots/WI-20260213-05-session.sh",
+                )
+            ],
+        ):
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stderr(stderr_capture):
+                    self.pc_feature.collect_allowed_final_stage_paths(
+                        "/tmp/root",
+                        "refs/heads/main",
+                        "feature-branch",
+                        "docs/02-features/01-workflow-hardening/dev-tasks.md",
+                        "docs/02-features/01-workflow-hardening",
+                    )
+        message = stderr_capture.getvalue()
+        self.assertIn("runtime shell snapshot artifacts", message)
+        self.assertIn("tracked-added", message)
+        self.assertIn(
+            ".codex_subagent/shell_snapshots/wi-20260213-05-session.sh",
+            message,
+        )
+
+    def test_collect_allowed_final_stage_paths_snapshot_status_dedupes(self):
+        grouped = self.pc_feature.shell_snapshot_branch_diff_status(
+            [
+                (
+                    "D",
+                    ".codex_subagent/shell_snapshots/WI-20260213-05-session.sh",
+                ),
+                (
+                    "D",
+                    ".codex_subagent/shell_snapshots/WI-20260213-05-session.sh",
+                ),
+                (
+                    "M",
+                    ".codex_subagent/shell_snapshots/nested/fixed.log",
+                ),
+                ("A", "docs/02-features/01-workflow-hardening/dev-tasks.md"),
+            ]
+        )
+        self.assertEqual(
+            grouped["tracked-deleted"],
+            [".codex_subagent/shell_snapshots/wi-20260213-05-session.sh"],
+        )
+        self.assertEqual(
+            grouped["tracked-other"],
+            [".codex_subagent/shell_snapshots/nested/fixed.log"],
+        )
+        self.assertEqual(grouped["tracked-added"], [])
+
+    def test_final_commit_allow_paths_excludes_codex_subagent_prefix(self):
+        allow_paths = self.pc_feature.final_commit_allow_paths()
+        self.assertNotIn(".codex_subagent", allow_paths)
+        self.assertIn(".codex_subagent/config.toml", allow_paths)
 
     def test_run_scoped_autofix_blocks_new_out_of_scope_touches(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3190,7 +3262,7 @@ class TestPcFeature(unittest.TestCase):
             patcher_path = root / "patcher"
             patcher_path.mkdir(parents=True, exist_ok=True)
             work_item_id = "WI-20260209-02"
-            content = self._build_entry_content(work_item_id, outcome="pass")
+            content = self._build_entry_content(work_item_id, outcome="completed")
             feature_dir = self._write_feature_workspace(root, content)
             dev_tasks_repo_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
             checkpoint_mock = mock.Mock(return_value=[dev_tasks_repo_path])
@@ -4854,13 +4926,70 @@ class TestPcFeature(unittest.TestCase):
         self.assertIn("field:Docs/logs updated", repaired)
         self.assertEqual(
             self.pc_feature.get_entry_field(repaired_content, work_item_id, "Outcome"),
-            "pass",
+            "completed",
         )
         self.assertEqual(
             self.pc_feature.get_entry_field(
                 repaired_content, work_item_id, "Tests run"
             ),
             tests_run_cmd,
+        )
+
+    def test_repair_commit_evidence_from_role_artifacts_reconciles_stale_reporter_review(
+        self,
+    ):
+        work_item_id = "WI-20260213-10"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Outcome", "needs replan"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Reporter Review",
+            "- Outcome: FAIL\n- Docs/logs updated: blocked pending finalization",
+        )
+
+        tester_artifact = {
+            "exists": True,
+            "outcome": "PASS",
+            "tests_run": "`python3 -m unittest tests.test_pc_feature.TestPcFeature`",
+            "docs_updated": "",
+            "notes": "tests passed",
+        }
+        reporter_artifact = {
+            "exists": True,
+            "outcome": "PASS",
+            "tests_run": "",
+            "docs_updated": "docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md",
+            "notes": "finalization-only fail normalized to pass",
+        }
+
+        repaired_content, repaired = (
+            self.pc_feature.repair_commit_evidence_from_role_artifacts(
+                content,
+                work_item_id,
+                gate_status="PASS",
+                tester_artifact=tester_artifact,
+                reporter_artifact=reporter_artifact,
+            )
+        )
+        issues = self.pc_feature.commit_evidence_gate_issues(
+            repaired_content, work_item_id
+        )
+
+        self.assertEqual(issues, [])
+        self.assertIn("Reporter Review:artifact", repaired)
+        self.assertIn("field:Outcome", repaired)
+        self.assertIn(
+            "Outcome: PASS",
+            self.pc_feature.get_entry_section(
+                repaired_content, work_item_id, "Reporter Review"
+            ),
+        )
+        self.assertEqual(
+            self.pc_feature.get_entry_field(repaired_content, work_item_id, "Outcome"),
+            "completed",
         )
 
     def test_sync_worktree_file_to_root_copies_latest_content(self):
@@ -4894,7 +5023,7 @@ class TestPcFeature(unittest.TestCase):
         fixtures = [
             ("completed-lower", "completed", True),
             ("completed-upper-whitespace", "  COMPLETED  ", True),
-            ("pass-mixed-case", " PaSs ", True),
+            ("pass-mixed-case", " PaSs ", False),
             ("non-completed-ongoing", "Ongoing", False),
             ("non-completed-awaiting-approval", "Awaiting PO Approval", False),
             ("missing", "", False),

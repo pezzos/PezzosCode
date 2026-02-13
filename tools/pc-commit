@@ -28,6 +28,7 @@ summary=""
 allow_paths=()
 work_item_id=""
 commit_evidence_remediation='Remediation: complete required "Test Results", "Commit", and "Final Report" evidence before commit.'
+runtime_shell_snapshot_prefix=".codex_subagent/shell_snapshots/"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -112,6 +113,25 @@ is_allowed_path() {
   return 1
 }
 
+is_runtime_shell_snapshot_path() {
+  local path="$1"
+  [[ "$path" == "$runtime_shell_snapshot_prefix"* ]]
+}
+
+print_snapshot_scope_remediation() {
+  echo "Remediation: remove tracked runtime shell snapshots from feature scope before commit." >&2
+}
+
+has_runtime_shell_snapshot_paths() {
+  local path
+  for path in "$@"; do
+    if is_runtime_shell_snapshot_path "$path"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 collect_allowed_changed_paths() {
   local allowed_changed_local
   allowed_changed_local=()
@@ -122,6 +142,9 @@ collect_allowed_changed_paths() {
     path="${line:3}"
     if [[ "$path" == *" -> "* ]]; then
       path="${path##* -> }"
+    fi
+    if is_runtime_shell_snapshot_path "$path"; then
+      continue
     fi
     if is_allowed_path "$path"; then
       allowed_changed_local+=("$path")
@@ -144,7 +167,7 @@ collect_disallowed_paths() {
     if [[ "$path" == *" -> "* ]]; then
       path="${path##* -> }"
     fi
-    if ! is_allowed_path "$path"; then
+    if is_runtime_shell_snapshot_path "$path" || ! is_allowed_path "$path"; then
       disallowed_local+=("$path")
     fi
   done < <(git status --porcelain)
@@ -165,6 +188,9 @@ fi
 if [[ ${#disallowed[@]} -gt 0 ]]; then
   echo "Unexpected changes detected:" >&2
   printf ' - %s\n' "${disallowed[@]}" >&2
+  if has_runtime_shell_snapshot_paths "${disallowed[@]}"; then
+    print_snapshot_scope_remediation
+  fi
   echo "Use --allow <path> to permit expected files." >&2
   exit 1
 fi
@@ -288,6 +314,11 @@ auto_restage_linted() {
 
   local path
   for path in "${unstaged_paths[@]}"; do
+    if is_runtime_shell_snapshot_path "$path"; then
+      echo "Unexpected unstaged runtime shell snapshot path: $path" >&2
+      print_snapshot_scope_remediation
+      return 1
+    fi
     if ! contains_path "$path"; then
       echo "Unexpected unstaged file not already staged: $path" >&2
       return 1
@@ -340,6 +371,9 @@ else
   if [[ ${#disallowed[@]} -gt 0 ]]; then
     echo "Unexpected changes detected after checks:" >&2
     printf ' - %s\n' "${disallowed[@]}" >&2
+    if has_runtime_shell_snapshot_paths "${disallowed[@]}"; then
+      print_snapshot_scope_remediation
+    fi
     echo "Use --allow <path> to permit expected files." >&2
     exit 1
   fi

@@ -32,6 +32,21 @@ Use `---` to separate entries; status stays `Proposed` until a human decision.
 
 ## Entries
 
+### Proposal: WI-20260213-05 - Report
+
+**Date:** 2026-02-13
+**Work Item:** WI-20260213-05
+**Agent:** Reporter
+**Step:** Report
+**Failure Summary:** tester=PASS; reporter=FAIL; tester_feedback=Outcome: PASS Tests run: `python3 -m unittest tests.test_pc_feature.TestPcFeature`; `python3 -m unittest tests.test_docs_logs` Notes: Results: `python3 -m unittest tests.test_pc_feature.TestPcFeature` -> 0; `python3 -m unittest tests.test_docs_logs` -> 0 Discovery: `python3 -m unittest tests.test_docs_logs` => Ran 16 tests Work Item ID: WI-20260213-05; reporter_feedback=Outcome: FAIL Docs/logs updated: `docs/02-features/18-commit-gated-by-completed-ticket-docs/reporter-log.md` (updated locally; commit attempt blocked by sandbox git lock permissions) File/Path: `.codex_subagent/shell_snapshots/019c55c3-1699-7012-b42b-b90c902f4b44.sh` Check: Scope completeness for active feature worktree (primary scope view must exclude runtime shell snapshot artifacts). Evidence: `git diff --stat...
+**Proposed Improvement:** Add/strengthen guardrails so `.codex_subagent/shell_snapshots/\*`cannot enter staged/committed feature scope.
+**Proposed Patch Location:**`.gitignore`and/or staging/orchestration scripts.,`.codex_subagent/shell_snapshots/019c55c3-1699-7012-b42b-b90c902f4b44.sh`
+**Risks / Trade-offs:** Stricter guards may block intentionally tracked diagnostics unless explicitly allowlisted.
+**Status:** Proposed
+**Decision Log Ref:** DEC-TBD
+
+---
+
 ### Proposal: WI-20260212-01 - Report
 
 **Date:** 2026-02-12

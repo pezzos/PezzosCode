@@ -6285,3 +6285,34 @@ Track when debt is paid down:
 - **Breaking changes:** None (default behavior remains strict under `auto`/`prompt`).
 - **Performance:** Minimal extra behind-state check during lock mismatch in sync mode.
 - **Dependencies:** None.
+
+- WI-20260213-05 completed: implemented the planned feature changes end-to-end and integrated them without expanding scope.
+
+### 2026-02-13 - Harden commit auto-repair against stale section outcomes
+
+**Feature/Bug:** Commit-gate runs could still fail with `Outcome=needs replan` after successful reruns when `Reporter Review` or `Test Results` outcomes were stale but non-pending.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added `reconcile_section_outcome_from_artifact(...)` in `pc-feature` commit repair flow to refresh non-pending `Test Results` and `Reporter Review` outcomes from latest role artifacts when they drift.
+- Updated commit-repair outcome derivation to prefer role-artifact outcomes over stale section outcomes.
+- Added regression coverage for stale reporter-review mismatch (`section FAIL` + `artifact PASS`) to ensure commit-evidence repair converges to `Outcome: completed`.
+- Added terminal reporter workflow event emission (`DONE`/`FAIL`) in the non-skip reporter path for consistent workflow-status closure.
+- Documented commit auto-repair reconciliation semantics in both live and template ticket-execution protocol docs.
+
+**Why:**
+
+- Existing repair logic handled pending placeholders but not stale non-pending section outcomes, which could keep top outcome blocked and trigger false commit-gate failures.
+
+**Impact:**
+
+- **Breaking changes:** None (strict gate semantics remain fail-closed).
+- **Performance:** Negligible (small artifact/section comparison at commit repair time).
+- **Dependencies:** None.

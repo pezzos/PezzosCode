@@ -57,6 +57,7 @@ IGNORED_PATH_PREFIXES = (
     ".offload/",
     "logs/",
 )
+RUNTIME_SHELL_SNAPSHOT_PREFIX = ".codex_subagent/shell_snapshots/"
 IGNORED_PATH_FILES = {
     ".codex_subagent/config.toml",
 }
@@ -1116,7 +1117,11 @@ def filter_ignored_paths(paths: List[str]) -> List[str]:
 
 def final_commit_allow_paths() -> List[str]:
     # Runtime artifacts should not block pc-commit guard rails.
-    prefixes = [prefix.rstrip("/") for prefix in IGNORED_PATH_PREFIXES if prefix]
+    prefixes = [
+        prefix.rstrip("/")
+        for prefix in IGNORED_PATH_PREFIXES
+        if prefix and prefix != ".codex_subagent/"
+    ]
     return sorted(set(prefixes + list(IGNORED_PATH_FILES)))
 
 
@@ -1738,6 +1743,77 @@ def branch_diff_paths(root: str, base_ref: str, branch: str) -> List[str]:
     if result.returncode != 0:
         die(f"pc-feature: failed to list changed paths for {branch}\n{result.stderr}")
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def branch_diff_name_status(
+    root: str, base_ref: str, branch: str
+) -> List[Tuple[str, str]]:
+    result = subprocess.run(
+        ["git", "diff", "--name-status", f"{base_ref}..{branch}"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=root,
+    )
+    if result.returncode != 0:
+        die(
+            "pc-feature: failed to list changed path statuses for "
+            + f"{branch}\n{result.stderr}"
+        )
+    entries: List[Tuple[str, str]] = []
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        parts = stripped.split("\t")
+        if len(parts) < 2:
+            continue
+        status_code = parts[0][:1].upper()
+        for raw_path in parts[1:]:
+            normalized = normalize_repo_path(raw_path)
+            if normalized:
+                entries.append((status_code, normalized))
+    return entries
+
+
+def shell_snapshot_branch_diff_status(
+    status_entries: List[Tuple[str, str]]
+) -> Dict[str, List[str]]:
+    grouped: Dict[str, Set[str]] = {
+        "tracked-added": set(),
+        "tracked-deleted": set(),
+        "tracked-other": set(),
+    }
+    for status, path in status_entries:
+        normalized = normalize_repo_path(path)
+        if not normalized.startswith(RUNTIME_SHELL_SNAPSHOT_PREFIX):
+            continue
+        if status == "A":
+            grouped["tracked-added"].add(normalized)
+        elif status == "D":
+            grouped["tracked-deleted"].add(normalized)
+        else:
+            grouped["tracked-other"].add(normalized)
+    return {label: sorted(paths) for label, paths in grouped.items()}
+
+
+def enforce_snapshot_scope_clean(root: str, base_ref: str, branch: str) -> None:
+    grouped = shell_snapshot_branch_diff_status(
+        branch_diff_name_status(root, base_ref, branch)
+    )
+    if not any(grouped.values()):
+        return
+    detail_parts: List[str] = []
+    for label in ("tracked-added", "tracked-deleted", "tracked-other"):
+        paths = grouped[label]
+        if paths:
+            detail_parts.append(f"{label}: {', '.join(paths)}")
+    die(
+        "pc-feature: branch scope contains runtime shell snapshot artifacts: "
+        + "; ".join(detail_parts)
+        + "; remediation: remove these tracked paths from feature scope and rerun the reporter gate"
+    )
 
 
 def collect_branch_merge_paths(
@@ -3329,8 +3405,10 @@ def select_resume_work_item_id(content: str) -> Optional[str]:
         return None
     newest_id = headers[0]
     normalize_work_item_id(newest_id)
-    outcome = entry_outcome(content, newest_id)
-    if outcome and outcome.startswith("pass"):
+    normalized_outcome = commit_evidence_gate.normalize_ticket_status(
+        entry_outcome(content, newest_id)
+    )
+    if normalized_outcome in commit_evidence_gate.COMPLETED_TICKET_STATUSES:
         return None
     return newest_id
 
@@ -3501,6 +3579,30 @@ def reconcile_runtime_execution_record(
     return updated, repaired
 
 
+def reconcile_section_outcome_from_artifact(
+    content: str,
+    work_item_id: str,
+    section: str,
+    artifact: Dict[str, Any],
+) -> Tuple[str, bool]:
+    if not artifact.get("exists"):
+        return content, False
+    artifact_outcome = str(artifact.get("outcome") or "").strip().upper()
+    if not artifact_outcome:
+        return content, False
+    current_body = get_entry_section(content, work_item_id, section)
+    current_outcome = parse_section_outcome(current_body)
+    if current_outcome == artifact_outcome:
+        return content, False
+    if section == "Test Results":
+        replacement = build_resume_test_results_repair_body(artifact)
+    elif section == "Reporter Review":
+        replacement = build_resume_reporter_review_repair_body(artifact)
+    else:
+        return content, False
+    return replace_entry_section(content, work_item_id, section, replacement), True
+
+
 def build_feedback_from_role_artifact(artifact: Dict[str, Any], *, role: str) -> str:
     if not artifact.get("exists"):
         return ""
@@ -3555,6 +3657,22 @@ def repair_commit_evidence_from_role_artifacts(
         reporter_feedback=reporter_feedback,
         reporter_outcome=reporter_outcome,
     )
+    updated, tester_reconciled = reconcile_section_outcome_from_artifact(
+        updated,
+        work_item_id,
+        "Test Results",
+        tester_data,
+    )
+    if tester_reconciled:
+        repaired.append("Test Results:artifact")
+    updated, reporter_reconciled = reconcile_section_outcome_from_artifact(
+        updated,
+        work_item_id,
+        "Reporter Review",
+        reporter_data,
+    )
+    if reporter_reconciled:
+        repaired.append("Reporter Review:artifact")
 
     current_outcome = get_entry_field(updated, work_item_id, "Outcome").strip()
     normalized_current_outcome = commit_evidence_gate.normalize_ticket_status(
@@ -3562,16 +3680,18 @@ def repair_commit_evidence_from_role_artifacts(
     )
     if normalized_current_outcome not in commit_evidence_gate.COMPLETED_TICKET_STATUSES:
         test_results_outcome = (
-            parse_section_outcome(
+            str(tester_data.get("outcome") or "").strip().upper()
+            or parse_section_outcome(
                 get_entry_section(updated, work_item_id, "Test Results")
             )
-            or str(tester_data.get("outcome") or "").strip().upper()
+            or ""
         )
         reporter_review_outcome = (
-            parse_section_outcome(
+            str(reporter_data.get("outcome") or "").strip().upper()
+            or parse_section_outcome(
                 get_entry_section(updated, work_item_id, "Reporter Review")
             )
-            or str(reporter_data.get("outcome") or "").strip().upper()
+            or ""
         )
         normalized_gate_status = str(gate_status or "").strip().upper()
         derived_outcome = ""
@@ -3580,7 +3700,7 @@ def repair_commit_evidence_from_role_artifacts(
             and test_results_outcome == "PASS"
             and reporter_review_outcome in {"", "PASS", "SKIPPED"}
         ):
-            derived_outcome = "pass"
+            derived_outcome = "completed"
         elif test_results_outcome == "FAIL":
             derived_outcome = "needs replan"
         if derived_outcome and derived_outcome != current_outcome:
@@ -4048,6 +4168,7 @@ def append_noop_step_note(
 def collect_allowed_final_stage_paths(
     root: str, base_ref: str, branch: str, dev_tasks_path: str, feature_dir: str
 ) -> List[str]:
+    enforce_snapshot_scope_clean(root, base_ref, branch)
     allowed = set(
         collect_branch_merge_paths(
             root,
@@ -5970,6 +6091,28 @@ def main() -> None:
                     build_runtime_reporter_review_body(reporter_feedback),
                 )
             write_file(dev_tasks_path, content)
+            if reporter_outcome == "PASS":
+                emit_workflow_event(
+                    "reporter",
+                    "DONE",
+                    attempt=attempt,
+                    outcome="PASS",
+                )
+            elif reporter_outcome == "FAIL":
+                emit_workflow_event(
+                    "reporter",
+                    "FAIL",
+                    attempt=attempt,
+                    outcome="FAIL",
+                    reason=summarize_feedback(reporter_feedback),
+                )
+            else:
+                emit_workflow_event(
+                    "reporter",
+                    "DONE",
+                    attempt=attempt,
+                    outcome=reporter_outcome or "UNKNOWN",
+                )
 
         if tester_outcome == "PASS":
             tester_failures = 0
@@ -6486,7 +6629,7 @@ def main() -> None:
             "pc-feature: commit evidence gate failed: "
             f"{issue_summary}; {COMMIT_EVIDENCE_REMEDIATION}"
         )
-    content = update_entry_field(content, work_item_id, "Outcome", "pass")
+    content = update_entry_field(content, work_item_id, "Outcome", "completed")
     write_file(dev_tasks_path, content)
 
     if not commit_already_done:

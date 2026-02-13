@@ -2214,3 +2214,19 @@ When a decision is reversed or replaced, document it here:
   - Sync mode now matches operator intent: explicit reconciliation instead of conditional partial behavior.
   - Strict default policy remains unchanged for non-sync modes.
   - Drift diagnostics are more actionable when runs are blocked.
+
+### DEC-058 - Reconcile stale section outcomes from role artifacts before commit gate
+
+- **Date:** 2026-02-13
+- **Status:** Accepted
+- **Context:** Commit auto-repair could leave `Outcome: needs replan` even after successful reruns when `Reporter Review`/`Test Results` sections were non-pending but stale, because section reconciliation only ran for pending placeholders while role logs already carried newer PASS artifacts.
+- **Decision:**
+  - Add deterministic section-outcome reconciliation in `pc-feature` commit repair using latest tester/reporter artifacts, even when sections are non-pending.
+  - Prefer artifact outcomes over stale section outcomes when deriving top `Outcome` during commit repair.
+  - Emit explicit terminal reporter workflow events (`DONE`/`FAIL`) in the non-skip reporter path so workflow status does not remain open-ended.
+- **Consequences:**
+  - Reduces false commit-gate failures caused by stale execution-log section outcomes.
+  - Keeps fail-closed behavior when artifacts and gate evidence still do not support completion.
+  - Workflow status telemetry remains consistent across skip and non-skip reporter paths.
+
+- WI-20260213-05: Process docs changed; orchestrator retained ownership of deferred docs/03-logs updates.

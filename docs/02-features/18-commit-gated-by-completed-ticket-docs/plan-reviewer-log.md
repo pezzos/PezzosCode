@@ -113,3 +113,50 @@ Required changes:
 Optional suggestions:
 
 - Add one explicit assertion in tests that equivalent markdown heading variants normalize to the same section-classification outcome (to further reduce parser drift risk).
+
+### WI-20260213-05 - 2026-02-13
+
+Step Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block
+Reasons:
+
+- Plan violates orchestrator scope policy.
+  Required changes:
+- forbidden path in plan: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md
+  Optional suggestions:
+- Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260213-05 - 2026-02-13
+
+Step Plan Reviewer APPROVE at attempt 1.
+
+Decision: Approve
+Reasons:
+
+- Plan Contract v1 sections are present and explicit for each step: `Approach`, `Files to change`, `Risks`, and `Tests (anti-hardcode coverage required)`.
+- File scope complies with policy: no role-scoped logs are assigned to patcher, no forbidden global logs under `docs/03-logs/` are targeted except allowed compacted output in `docs/03-logs/compacted/`.
+- Forbidden orchestration commands (`make feature`, `pc-feature`, `tools/pc-feature`) are not listed in command context.
+- Anti-hardcode and boundary coverage expectations are concrete (negative paths, malformed structures, duplicate headings, empty sections, deterministic ordering/seeds, invariant checks).
+- The note correctly assigns required non-compacted `docs/03-logs/*` updates to reporter/orchestrator and states patcher will not edit them.
+  Required changes:
+- None.
+  Optional suggestions:
+- In tests, prefer asserting stable contract markers/codes in remediation output (not full prose) to reduce brittleness while keeping enforcement strict.
+
+### WI-20260213-05 - 2026-02-13
+
+Step Plan Reviewer APPROVE at attempt 2.
+
+Decision: Approve
+Reasons:
+
+- `Approach` is clear, sequenced, and directly addresses the WI goal (exclude shell snapshot artifacts from commit-gate scope, then lock behavior with tests, then document policy/evidence).
+- `Files to change` are policy-compliant: no role-scoped logs, no forbidden non-compacted `docs/03-logs/*` paths, and compacted evidence path is explicitly allowed.
+- `Risks` are concrete and actionable (over-filtering, brittle assertions, doc/runtime drift), with mitigation implied by the planned coverage.
+- `Tests (anti-hardcode coverage required)` is explicit and sufficient: fixture variants, deterministic seeds/paths, invariants, and boundary cases are all specified across both gate surfaces.
+- Forbidden orchestration commands are not included as execution steps; references are only file paths or policy notes, which is acceptable.
+  Required changes:
+- None.
+  Optional suggestions:
+- In tests, prefer matching stable machine-readable failure markers/codes (if available) over message text to further reduce brittleness.

@@ -153,3 +153,107 @@ Commit was attempted once at the end (as requested), but could not complete beca
 Step Planner revise after Plan Reviewer BLOCK at attempt 1.
 
 Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260213-05 - 2026-02-13
+
+Updated `docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md` for `WI-20260213-05` with:
+
+- `#### Allowed Tests` populated using exact commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+- `#### Plan` replaced with a full **Plan Contract v1** body, including:
+  - explicit anti-hardcode coverage in each approach step:
+    - fixture coverage (`>=2` fixtures per critical path),
+    - deterministic seed strategy,
+    - invariant checks,
+    - contract boundary coverage,
+  - allowed test commands repeated verbatim from `Allowed Tests`,
+  - explicit handoff note that non-compacted `docs/03-logs/*` is reporter/orchestrator-owned and patcher will not edit those files.
+
+Systematic review (commands and results):
+
+1. `mcp__serena__search_for_pattern` for WI section marker
+   Result: located `### WI-20260213-05 - Work item execution`.
+2. `mcp__serena__search_for_pattern` for `#### Allowed Tests` placeholder
+   Result: found exact placeholder block to replace.
+3. `mcp__serena__search_for_pattern` for `#### Plan` pending block
+   Result: found `- (pending)` plan placeholder.
+4. `apply_patch` on `docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md`
+   Result: patch applied successfully.
+5. `git status --short -- ... && git diff -- ...`
+   Result: confirmed the expected planner content is present.
+6. `git add ... && git commit -m "docs(f-18): add planner contract for WI-20260213-05"`
+   Result: commit failed due worktree lock permission error:
+   `Unable to create .../.git/worktrees/.../index.lock: Operation not permitted`.
+
+No tests were run (planner-doc update only).
+
+### WI-20260213-05 - 2026-02-13
+
+Step Planner revise after Plan Reviewer BLOCK at attempt 1.
+
+Decision: Block Reasons: - Plan violates orchestrator scope policy. Required changes: - forbidden path in plan: docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md Optional suggestions: - Keep plan files limited to implementation targets; role/global logs are automation-owned.
+
+### WI-20260213-05 - 2026-02-13
+
+Decision: REVISE_PLAN
+Rationale: Reporter identified out-of-scope tracked snapshot artifacts, so the plan must add repository guardrails and cleanup steps to restore scope integrity before revalidation.
+Revised Plan:
+Plan Contract v1
+Approach:
+
+1. Remove tracked shell snapshot artifacts from WI scope and enforce clean feature-scope diffs before commit-gate evaluation.
+   Files to change:
+
+- `.gitignore`
+- `tools/pc-feature`
+- `tools/pc-commit`
+  Risks:
+- Over-filtering may hide intentionally tracked diagnostic files if no explicit allowlist path exists.
+- Cleanup logic may fail if legacy artifacts are already tracked in git history and not handled deterministically.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Add at least 2 fixture cases for snapshot artifact presence (artifact tracked/reported) and clean scope (no artifact).
+- Deterministic seed strategy: Use fixed synthetic snapshot paths under `.codex_subagent/shell_snapshots/` and stable file ordering for scope checks.
+- Invariant checks: Assert commit/report gates fail when out-of-scope snapshot artifacts are present and pass only when scope matches planned files.
+- Contract boundary coverage: Validate behavior for tracked-deleted artifacts, tracked-added artifacts, and ignored-untracked artifacts with explicit remediation text.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+2. Extend gate tests to lock artifact-exclusion behavior and prevent regressions in commit eligibility + docs-log validation flows.
+   Files to change:
+
+- `tests/test_pc_feature.py`
+- `tests/test_docs_logs.py`
+  Risks:
+- Assertions may become brittle if tied to incidental phrasing instead of stable failure signals.
+- Missing edge coverage could allow artifact leakage in alternate orchestration paths.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Cover at least 2 variants each for clean scope and contaminated scope across both gate surfaces.
+- Deterministic seed strategy: Reuse canonical WI id and fixed snapshot fixture filenames for all new cases.
+- Invariant checks: Ensure previously valid completed-ticket flows still pass while any scoped artifact contamination blocks.
+- Contract boundary coverage: Include duplicate artifact paths, nested snapshot paths, and absent snapshot directory scenarios.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+3. Update process documentation and compacted patcher evidence to codify shell snapshot exclusion and re-run criteria for reporter gate.
+   Files to change:
+
+- `docs/04-process/ticket-execution-protocol.md`
+- `docs/03-logs/compacted/WI-20260213-05-patcher-evidence.md`
+  Risks:
+- Documentation may drift from enforced script behavior if not aligned to exact gate checks.
+- Scope policy may be interpreted too broadly without explicit artifact path examples.
+  Tests (anti-hardcode coverage required):
+- Fixture coverage: Document and validate at least 2 outcomes (scope clean accepted, snapshot-contaminated blocked).
+- Deterministic seed strategy: Use fixed command strings and a fixed WI id format in compacted evidence.
+- Invariant checks: Confirm scope policy explicitly excludes runtime shell snapshots from staged/committed feature scope.
+- Contract boundary coverage: Confirm docs/evidence reference only allowed paths and avoid role-scoped log edits.
+- Allowed test commands:
+  - `python3 -m unittest tests.test_pc_feature.TestPcFeature`
+  - `python3 -m unittest tests.test_docs_logs`
+
+Work Item ID: WI-20260213-05
+
+Note: Required non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator; patcher will not edit those files.

@@ -14,6 +14,14 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
             content,
         )
 
+    def test_execution_protocol_excludes_runtime_shell_snapshots_from_scope(self):
+        path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "Runtime shell snapshots under `.codex_subagent/shell_snapshots/` are excluded from feature scope and must not be staged/committed as work-item output.",
+            content,
+        )
+
     def test_implementation_log_documents_execute_work_item_workflow_summary(self):
         path = ROOT / "docs" / "03-logs" / "implementation-log.md"
         content = path.read_text(encoding="utf-8")
@@ -229,6 +237,103 @@ class TestCompactedPatcherEvidenceWI2026021203(unittest.TestCase):
         self.assertIn("## Contract Boundaries", content)
         self.assertIn(
             "Only completed ticket statuses are accepted at commit gate.", content
+        )
+
+
+class TestCompactedPatcherEvidenceWI2026021305(unittest.TestCase):
+    WI_ID = "WI-20260213-05"
+
+    def _compacted_path(self) -> Path:
+        return (
+            ROOT
+            / "docs"
+            / "03-logs"
+            / "compacted"
+            / f"{self.WI_ID}-patcher-evidence.md"
+        )
+
+    def _missing_markers(self, content: str, required_markers) -> list:
+        return [marker for marker in required_markers if marker not in content]
+
+    def test_compacted_completed_only_gate_fixtures_include_required_markers(self):
+        path = self._compacted_path()
+        content = path.read_text(encoding="utf-8")
+        shared_markers = [
+            "# WI-20260213-05 Patcher Evidence (Compacted)",
+            "## Commands Executed",
+            "`python3 -m unittest tests.test_pc_feature.TestPcFeature`",
+            "`python3 -m unittest tests.test_docs_logs`",
+            "## Ownership Note",
+            "Non-compacted `docs/03-logs/*` updates are owned by reporter/orchestrator",
+        ]
+        fixture_markers = [
+            (
+                "completed-allow",
+                [
+                    "### Fixture: completed-allow",
+                    "Expected route: allow",
+                    "Commit evidence gate accepts completed ticket docs with required evidence.",
+                ],
+            ),
+            (
+                "non-completed-block",
+                [
+                    "### Fixture: non-completed-block",
+                    "Expected route: block",
+                    "Gate failed closed for non-completed ticket status.",
+                ],
+            ),
+            (
+                "malformed-evidence-block",
+                [
+                    "### Fixture: malformed-evidence-block",
+                    "Expected route: block",
+                    "Commit evidence gate rejects malformed or missing required evidence.",
+                ],
+            ),
+            (
+                "snapshot-clean-allow",
+                [
+                    "### Fixture: snapshot-clean-allow",
+                    "Expected route: allow",
+                    "Scope check passes when no tracked shell snapshot artifacts exist in `refs/heads/main..HEAD`.",
+                ],
+            ),
+            (
+                "snapshot-contaminated-block",
+                [
+                    "### Fixture: snapshot-contaminated-block",
+                    "Expected route: block",
+                    "Scope check fails closed when tracked shell snapshot artifacts are present in branch diff.",
+                ],
+            ),
+        ]
+        for marker in shared_markers:
+            self.assertIn(marker, content)
+        for fixture_name, markers in fixture_markers:
+            with self.subTest(fixture=fixture_name):
+                missing = self._missing_markers(content, markers)
+                self.assertEqual(missing, [])
+
+    def test_compacted_completed_only_gate_contract_boundaries(self):
+        path = self._compacted_path()
+        relative = path.relative_to(ROOT).as_posix()
+        self.assertTrue(relative.startswith("docs/03-logs/compacted/"))
+        self.assertFalse(relative.endswith("implementation-log.md"))
+        self.assertFalse(relative.endswith("validation-log.md"))
+        content = path.read_text(encoding="utf-8")
+        self.assertIn("## Contract Boundaries", content)
+        self.assertIn(
+            "Commit is blocked unless normalized top-level `Outcome` is exactly `completed`.",
+            content,
+        )
+        self.assertIn(
+            "Required fixture markers are deterministic and validated by `tests/test_docs_logs.py`.",
+            content,
+        )
+        self.assertIn(
+            "Runtime shell snapshots under `.codex_subagent/shell_snapshots/` are excluded from feature scope and must be removed before reporter/commit revalidation.",
+            content,
         )
 
 

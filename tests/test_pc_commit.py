@@ -50,7 +50,7 @@ class TestPcCommit(unittest.TestCase):
         return f"""### {work_item_id} - Work item execution
 
 - Date: 2026-02-12
-- Outcome: pass
+- Outcome: completed
 - Tests run: `python3 -m unittest`
 
 #### Test Results
@@ -319,7 +319,7 @@ Commit message: chore(test): complete ticket docs
                     [
                         self._completed_work_item_entry("WI-20260212-09"),
                         self._completed_work_item_entry("WI-20260212-10").replace(
-                            "- Outcome: pass\n- Tests run: `python3 -m unittest`\n",
+                            "- Outcome: completed\n- Tests run: `python3 -m unittest`\n",
                             "- Outcome:\n- Tests run:\n",
                         ),
                     ]
@@ -343,6 +343,41 @@ Commit message: chore(test): complete ticket docs
             self.assertIn("missing top execution field: Outcome", commit.stderr)
             self.assertIn("missing top execution field: Tests run", commit.stderr)
             self.assertNotIn("Outcome=- Tests run:", commit.stderr)
+
+    def test_commit_evidence_gate_rejects_legacy_pass_outcome(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            repo = Path(tmp_dir)
+            env = self._init_repo_with_fake_make(repo)
+            rel_path = self._stage_dev_tasks(
+                repo,
+                self._build_dev_tasks(
+                    [
+                        self._completed_work_item_entry("WI-20260212-10").replace(
+                            "- Outcome: completed\n",
+                            "- Outcome: pass\n",
+                        ),
+                    ]
+                ),
+            )
+
+            commit = self._run(
+                [
+                    str(PC_COMMIT_PATH),
+                    "--yes",
+                    "--message",
+                    "chore(test): reject legacy pass outcome",
+                    "--allow",
+                    rel_path,
+                ],
+                cwd=repo,
+                env=env,
+            )
+
+            self.assertNotEqual(commit.returncode, 0)
+            self.assertIn(
+                "active ticket status is not completed: Outcome=pass",
+                commit.stderr,
+            )
 
 
 if __name__ == "__main__":

@@ -34,6 +34,7 @@
 - Role scope is enforced (planner/plan-reviewer/tester/reporter log files only; patcher excluded from those files).
 - Planner/Tester/Reporter run in the patcher worktree so they review shared content; separate worktrees are not created for those roles.
 - Runtime artifacts (`dev-tasks.md`, planner/tester/reporter logs, and `logs/<WI>/...`) are worktree-local during execution and are collected into `main` only after successful completion.
+- Runtime shell snapshots under `.codex_subagent/shell_snapshots/` are excluded from feature scope and must not be staged/committed as work-item output.
 - Use a single worktree per feature and auto-collect into `main` as a single squashed commit (no `feature-worktrees.json`).
   - Tooling must be idempotent: reruns should not corrupt state or report success when a step fails.
 - Deterministic steps are executed via a shared runner library with standard metadata injection (`work_item_id`, `agent_name`, `run_id`).
@@ -166,7 +167,8 @@
 - Follow commit rules in `docs/04-process/git-workflow.md`.
 - Use `tools/pc-commit` to enforce convention and checks.
 - Before commit, ensure the planner-owned dev-tasks execution log is complete and role logs contain tester/reporter output.
-- Commit gate is fail-closed: the latest work-item entry must contain non-empty `Tests run` evidence plus completed `Test Results`, `Commit`, and `Final Report` sections; malformed/duplicate required headings block commit.
+- Commit gate is fail-closed: the latest work-item entry must contain non-empty `Tests run` evidence, `Outcome: completed` (normalized), plus completed `Test Results`, `Commit`, and `Final Report` sections; malformed/duplicate required headings block commit.
+- Commit auto-repair reconciles stale `Test Results`/`Reporter Review` outcomes from latest role artifacts before final gate evaluation; unresolved contradictions still fail closed.
 - On commit-gate failure, tooling must print deterministic remediation text: `Remediation: complete required "Test Results", "Commit", and "Final Report" evidence before commit.`
 
 12. **AI Tooling (preferred)**

@@ -14,7 +14,7 @@ WORK_ITEM_RE = re.compile(r"^WI-\d{8}-\d{2}$")
 WORKFLOW_STATUS_FILENAME = "workflow-status.json"
 WORKFLOW_HISTORY_FILENAME = "workflow-history.ndjson"
 MAX_REASON_LEN = 140
-COMPLETED_TICKET_STATUSES = {"completed", "pass"}
+COMPLETED_TICKET_STATUSES = {"completed"}
 
 
 def normalize_reason(value: Any) -> str:

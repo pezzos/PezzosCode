@@ -12,7 +12,7 @@ REQUIRED_FINAL_REPORT_FIELDS = (
     "Commands run (use pp for noisy output)",
     "Commit message",
 )
-COMPLETED_TICKET_STATUSES = {"completed", "pass"}
+COMPLETED_TICKET_STATUSES = {"completed"}
 COMMIT_EVIDENCE_REMEDIATION = (
     'Remediation: complete required "Test Results", "Commit", and '
     '"Final Report" evidence before commit.'
