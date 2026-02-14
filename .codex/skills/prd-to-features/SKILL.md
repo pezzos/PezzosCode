@@ -7,8 +7,9 @@ description: Convert docs/01-product/prd.md prioritized features into numbered f
 
 ## Overview
 
-Generate feature folders from the PRD and fill template files while preserving
-incremental safety (no duplicate creation or destructive overwrite).
+Generate feature folders from the PRD and hydrate feature files with
+feature-specific content while preserving incremental safety (no duplicate
+creation or destructive overwrite).
 
 ## Inputs
 
@@ -28,7 +29,7 @@ skip logic, output contract, and full DoD requirements.
 1. Read `docs/02-features/AGENTS.md` and follow the selection rule for product surfaces.
 2. Read `docs/01-product/prd.md` and extract the prioritized feature list and scope boundaries.
 3. Run the planning helper to preview folder mapping before writes.
-4. Execute creation/update with `tools/prd-to-features`.
+4. Execute creation/update with `tools/prd-to-features` (hydrate mode is the only default behavior).
 5. Verify that output respects incremental rules from `references/selection-and-update-rules.md`.
 6. If a feature cannot be specified safely, stop and request missing context.
 

@@ -1832,3 +1832,30 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Skill contract now accepts `command/output` or description-only `issue`.
   - Free-text `$investigate ...` input is documented as valid and normalized to `issue`.
   - Rubric and agent metadata are aligned with the new contract semantics.
+
+## 2026-02-14 - Validate hydrate-only `prd-to-features` implementation
+
+- Command: `python3 -m py_compile tools/prd-to-features tests/test_prd_to_features.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_prd_to_features.py"`
+- Result: FAIL on first run due changed reason assertion in
+  `test_autofixes_missing_execution_log_for_existing_feature`; offload id
+  `060b8cc19b0d0d66ab9abf64f69d57a3a618806abe48fda414301af2d300ddef`
+- Command: `tools/offload-proxy/pp make lint`
+- Result: FAIL on first run because `black` reformatted files; offload id
+  `8138541052bfd54a08616ae4b7ddfa4709f5643c4abc9e818bd2aac6fcf43add`
+- Command: `tools/offload-proxy/pp make lint`
+- Result: PASS on second run after formatter-applied changes
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_prd_to_features.py"`
+- Result: PASS (`11` tests; offload id
+  `73a7b18f05bda0ceb0b9d9552ee29762d5c0ab78b6fafd90437e95062fcc01d3`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`17` tests; offload id
+  `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Verified:
+  - New feature folders are hydrated with feature-specific content instead of
+    template-only placeholders.
+  - Existing non-done folders with placeholder/incomplete core docs are
+    updated in place.
+  - Skip logic now honors explicit completed/rejected/deferred markers found in
+    implementation/decision logs.

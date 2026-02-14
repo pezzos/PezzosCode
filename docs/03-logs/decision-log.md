@@ -2432,6 +2432,29 @@ When a decision is reversed or replaced, document it here:
   - Require a clarifying question only when both `output` and `issue` are missing.
   - Align the rubric and agent metadata so evidence ranking supports `output` when present or `issue/context` when output is absent.
 - **Consequences:**
-  - Investigation workflow remains backward compatible for existing `command/output` usage.
-  - Users can now diagnose outcome failures without pasting large CLI output.
-  - Recommendations remain evidence-ranked, with explicit confidence/assumption handling when output is missing.
+- Investigation workflow remains backward compatible for existing `command/output` usage.
+- Users can now diagnose outcome failures without pasting large CLI output.
+- Recommendations remain evidence-ranked, with explicit confidence/assumption handling when output is missing.
+
+### DEC-066 - Make PRD-to-features hydrate-only by default (no skeleton mode)
+
+- **Date:** 2026-02-14
+- **Status:** Accepted
+- **Context:** Running `prd-to-features` in bootstrapped repos produced many
+  new feature folders containing unadapted template content, which did not meet
+  feature documentation quality expectations.
+- **Decision:**
+  - Enforce hydrate-only behavior as the default and only mode for
+    `tools/prd-to-features`.
+  - Generate feature-specific content for core docs during feature creation.
+  - For existing non-done folders, update only missing files and
+    placeholder/incomplete core docs (no destructive overwrite of authored
+    docs).
+  - Read implementation/decision logs to skip features explicitly marked
+    completed, rejected, or deferred.
+  - Update skill/rule documentation to explicitly reject skeleton-only outputs.
+- **Consequences:**
+  - New features generated from PRD are immediately usable and contextualized.
+  - Incremental safety remains intact while eliminating template-only drift.
+  - Existing authored feature docs are preserved unless clearly template-like or
+    incomplete.

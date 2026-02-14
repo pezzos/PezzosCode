@@ -23,5 +23,6 @@ Selection rule for skills:
 
 - Read `docs/01-product/prd.md` and relevant context to determine product surfaces (CLI/TUI/API/UI).
 - Only uncomment and fill template sections that match those surfaces; keep others commented out.
+- Skeleton-only output is not acceptable; feature files must be hydrated with feature-specific content by default.
 - If a new surface is introduced later, uncomment and complete only the newly relevant blocks.
 - When drafting feature content, use the five-step workflow: data model → pure logic → edge cases → UI → integration.

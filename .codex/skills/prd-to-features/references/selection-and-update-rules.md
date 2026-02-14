@@ -10,6 +10,8 @@
 - Do not create duplicate feature folders.
 - Do not overwrite an existing feature folder unless explicitly asked.
 - If a folder exists, update only missing sections or leave it unchanged and report it.
+- Hydration is mandatory by default: generated/updated feature docs must be adapted
+  to the specific PRD feature (skeleton-only output is invalid).
 
 ## Incremental Mode (Default for Existing Projects)
 
@@ -30,6 +32,7 @@
 - Feature folders created only for missing P0/P1 items in the PRD.
 - Folder order matches PRD list via numeric prefixes.
 - Template sections match the chosen product surfaces.
+- Hydrated content is feature-specific and removes unresolved template markers.
 - No TODO placeholders remain unless blocked by missing PRD context.
 - Skipped items are explicitly reported with reasons.
 - Existing feature folders are never deleted.

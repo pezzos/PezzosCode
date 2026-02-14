@@ -3,6 +3,7 @@ import argparse
 import re
 import shutil
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -11,6 +12,39 @@ DEFAULT_PRD_PATH = Path("docs/01-product/prd.md")
 DEFAULT_FEATURES_DIR = Path("docs/02-features")
 TEMPLATE_DIRNAME = "feature-template"
 EXEC_LOG_HEADER = "## Execution Log"
+CORE_DOC_FILES = (
+    "feature-spec.md",
+    "tech-design.md",
+    "dev-tasks.md",
+    "test-plan.md",
+)
+SURFACE_ORDER = ("CLI", "TUI", "API", "Web UI", "Desktop UI", "Mobile UI")
+LOG_SKIP_KEYWORDS = {
+    "rejected": ("rejected", "declined", "won't", "wont", "not pursue"),
+    "deferred": ("deferred", "postponed", "later", "future"),
+    "completed": ("status: done", "done", "completed", "shipped", "implemented"),
+}
+TEMPLATE_PLACEHOLDER_MARKERS = (
+    "[Feature Name]",
+    "[unique-id]",
+    "[YYYY-MM-DD]",
+    "[Team/Person]",
+    "[Not Started | In Progress | Complete]",
+    "[Draft | In Review | Approved | In Development | Shipped]",
+    "[Requirement 1",
+    "[Requirement 2",
+    "[Capability 1]",
+    "[ModelName]",
+    "[ServiceName]",
+    "[ComponentName]",
+    "[Entry Point]",
+    "[System/Feature]",
+    "[API/Service]",
+)
+LOG_PATHS = (
+    Path("docs/03-logs/implementation-log.md"),
+    Path("docs/03-logs/decision-log.md"),
+)
 
 
 @dataclass(frozen=True)
@@ -20,6 +54,8 @@ class FeatureRecord:
     priority: str
     slug: str
     source: str
+    outcome: str
+    notes: str
 
 
 @dataclass(frozen=True)
@@ -42,22 +78,42 @@ def slugify(title: str) -> str:
     return slug.strip("-")
 
 
+def normalize_sentence(text: str, fallback: str) -> str:
+    value = re.sub(r"\s+", " ", text.strip()) if text else ""
+    if not value:
+        value = fallback
+    if not value.endswith("."):
+        value += "."
+    return value
+
+
+def ordered_unique(values: Iterable[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
+
+
 def parse_prd_features(prd_text: str) -> List[FeatureRecord]:
-    features: List[Tuple[str, str, str]] = []
+    features: List[Tuple[str, str, str, str, str]] = []
     lines = prd_text.splitlines()
     features.extend(_parse_feature_table(lines))
     features.extend(_parse_process_features(lines))
     seen = set()
-    ordered: List[Tuple[str, str, str]] = []
-    for priority, title, source in features:
+    ordered: List[Tuple[str, str, str, str, str]] = []
+    for priority, title, outcome, notes, source in features:
         key = slugify(title)
         if key in seen:
             continue
         seen.add(key)
-        ordered.append((priority, title, source))
+        ordered.append((priority, title, outcome, notes, source))
     prd_features: List[FeatureRecord] = []
     index = 1
-    for priority, title, source in ordered:
+    for priority, title, outcome, notes, source in ordered:
         if priority not in {"P0", "P1"}:
             continue
         prd_features.append(
@@ -67,15 +123,17 @@ def parse_prd_features(prd_text: str) -> List[FeatureRecord]:
                 priority=priority,
                 slug=slugify(title),
                 source=source,
+                outcome=outcome,
+                notes=notes,
             )
         )
         index += 1
     return prd_features
 
 
-def _parse_feature_table(lines: Iterable[str]) -> List[Tuple[str, str, str]]:
+def _parse_feature_table(lines: Iterable[str]) -> List[Tuple[str, str, str, str, str]]:
     in_section = False
-    rows: List[Tuple[str, str, str]] = []
+    rows: List[Tuple[str, str, str, str, str]] = []
     for line in lines:
         stripped = line.strip()
         if stripped.lower().startswith("## prioritized feature list"):
@@ -96,14 +154,18 @@ def _parse_feature_table(lines: Iterable[str]) -> List[Tuple[str, str, str]]:
             continue
         priority = cells[0]
         title = cells[1]
-        rows.append((priority, title, "table"))
+        outcome = cells[2] if len(cells) >= 3 else ""
+        notes = cells[3] if len(cells) >= 4 else ""
+        rows.append((priority, title, outcome, notes, "table"))
     return rows
 
 
-def _parse_process_features(lines: Iterable[str]) -> List[Tuple[str, str, str]]:
+def _parse_process_features(
+    lines: Iterable[str],
+) -> List[Tuple[str, str, str, str, str]]:
     in_section = False
-    rows: List[Tuple[str, str, str]] = []
-    pattern = re.compile(r"^- \[[ xX]\]\s*(.+?)\s*\((P\d)\)\s*:?.*$")
+    rows: List[Tuple[str, str, str, str, str]] = []
+    pattern = re.compile(r"^- \[[ xX]\]\s*(.+?)\s*\((P\d)\)\s*:?\s*(.*)$")
     for line in lines:
         stripped = line.rstrip()
         if stripped.lower().startswith("## process features"):
@@ -118,7 +180,11 @@ def _parse_process_features(lines: Iterable[str]) -> List[Tuple[str, str, str]]:
             continue
         title = match.group(1)
         priority = match.group(2)
-        rows.append((priority, title, "process"))
+        details = match.group(3).strip()
+        outcome = normalize_sentence(
+            details, f"Deliver {title.lower()} according to the PRD."
+        )
+        rows.append((priority, title, outcome, details, "process"))
     return rows
 
 
@@ -150,8 +216,15 @@ def parse_dev_tasks_status(dev_tasks_path: Path) -> Tuple[Optional[str], Optiona
         return None, "dev-tasks.md missing"
     content = dev_tasks_path.read_text(encoding="utf-8")
     for line in content.splitlines():
-        if line.strip().lower().startswith("status:"):
-            value = line.split(":", 1)[1].strip()
+        stripped = line.strip()
+        if stripped.lower().startswith("status:"):
+            value = stripped.split(":", 1)[1].strip()
+            if not value:
+                return None, "Status line missing value"
+            return value, None
+        bold_match = re.match(r"^\*\*status:\*\*\s*(.+)$", stripped, re.IGNORECASE)
+        if bold_match:
+            value = bold_match.group(1).strip()
             if not value:
                 return None, "Status line missing value"
             return value, None
@@ -161,7 +234,455 @@ def parse_dev_tasks_status(dev_tasks_path: Path) -> Tuple[Optional[str], Optiona
 def status_is_done(status: Optional[str]) -> bool:
     if not status:
         return False
-    return bool(re.match(r"^done\b", status.strip(), re.IGNORECASE))
+    return bool(re.match(r"^(done|completed|shipped)\b", status.strip(), re.IGNORECASE))
+
+
+def feature_matches_line(feature: FeatureRecord, line: str) -> bool:
+    normalized = line.lower()
+    if feature.title.lower() in normalized:
+        return True
+    if feature.slug in normalized:
+        return True
+    if feature.slug.replace("-", " ") in normalized:
+        return True
+    return False
+
+
+def extract_log_skip_reasons(
+    root: Path, features: List[FeatureRecord]
+) -> Dict[str, str]:
+    reasons: Dict[str, str] = {}
+    for rel_path in LOG_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            continue
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for lineno, line in enumerate(lines, start=1):
+            lowered = line.lower()
+            for feature in features:
+                if feature.slug in reasons:
+                    continue
+                if not feature_matches_line(feature, lowered):
+                    continue
+                for label, keywords in LOG_SKIP_KEYWORDS.items():
+                    if any(keyword in lowered for keyword in keywords):
+                        reasons[feature.slug] = (
+                            f"{label} marker in {rel_path.as_posix()}:{lineno}"
+                        )
+                        break
+    return reasons
+
+
+def parse_checked_surfaces(prd_text: str) -> List[str]:
+    selected: List[str] = []
+    for line in prd_text.splitlines():
+        match = re.match(
+            r"^\s*-\s*\[(x|X)\]\s*(CLI|TUI|API|Web UI|Desktop UI|Mobile UI)\s*$",
+            line.strip(),
+        )
+        if match:
+            selected.append(match.group(2))
+    return ordered_unique(selected)
+
+
+def infer_product_surfaces(prd_text: str, features: List[FeatureRecord]) -> List[str]:
+    checked = parse_checked_surfaces(prd_text)
+    if checked:
+        return checked
+    feature_evidence = " ".join(
+        " ".join(
+            part
+            for part in (feature.title, feature.outcome, feature.notes)
+            if part.strip()
+        )
+        for feature in features
+    )
+    evidence = (
+        feature_evidence + "\n" + "\n".join(prd_text.splitlines()[:180])
+    ).lower()
+    patterns = {
+        "CLI": (r"\bcli\b", r"\bcommand line\b"),
+        "TUI": (r"\btui\b", r"\bterminal ui\b"),
+        "API": (r"\bapi\b", r"\bendpoint\b", r"\bendpoints\b"),
+        "Web UI": (r"\bweb ui\b", r"\bweb app\b", r"\bbrowser\b"),
+        "Desktop UI": (r"\bdesktop ui\b", r"\bdesktop app\b"),
+        "Mobile UI": (r"\bmobile ui\b", r"\bmobile app\b"),
+    }
+    scores: Dict[str, int] = {}
+    for surface, surface_patterns in patterns.items():
+        scores[surface] = sum(
+            len(re.findall(pattern, evidence)) for pattern in surface_patterns
+        )
+    selected: List[str] = []
+    if scores["CLI"] > 0:
+        selected.append("CLI")
+    for surface in SURFACE_ORDER:
+        if surface == "CLI":
+            continue
+        if scores[surface] >= 2:
+            selected.append(surface)
+    if not selected:
+        selected = ["CLI"]
+    return ordered_unique(selected)
+
+
+def format_surface_checklist(surfaces: List[str]) -> str:
+    selected = set(surfaces)
+    lines = []
+    for surface in SURFACE_ORDER:
+        mark = "x" if surface in selected else " "
+        lines.append(f"- [{mark}] {surface}")
+    return "\n".join(lines)
+
+
+def render_feature_spec(
+    feature: FeatureRecord, surfaces: List[str], updated_on: str
+) -> str:
+    summary = normalize_sentence(
+        feature.outcome, f"Implement {feature.title} based on PRD requirements"
+    )
+    notes = feature.notes.strip() if feature.notes.strip() else "None."
+    checklist = format_surface_checklist(surfaces)
+    return (
+        f"# Feature Specification: {feature.title}\n\n"
+        "> **User intent & acceptance criteria**\n\n"
+        "---\n\n"
+        "## Overview\n\n"
+        f"**Feature ID:** `F-{feature.index:02d}`\n\n"
+        "**Status:** Draft\n\n"
+        "**Owner:** Developer/PO\n\n"
+        f"**Last Updated:** {updated_on}\n\n"
+        "### Summary\n\n"
+        f"{summary}\n\n"
+        "## User Intent\n\n"
+        "### Who is this for?\n\n"
+        "- **Primary users:** Developer/PO\n"
+        f"- **User goals:** Deliver `{feature.title}` with deterministic behavior.\n"
+        "- **Current pain:** PRD intent exists, but feature-level execution details are missing.\n\n"
+        "### Why do they need it?\n\n"
+        "**As a** developer/PO\n\n"
+        f"**I want to** implement `{feature.title}`\n\n"
+        "**So that** the prioritized PRD outcome is delivered reliably.\n\n"
+        "### User Value\n\n"
+        "- **Value proposition:** Converts PRD intent into executable feature scope.\n"
+        f"- **Expected impact:** {summary}\n"
+        f"- **Priority:** {feature.priority}.\n\n"
+        "## Feature Requirements\n\n"
+        "### Functional Requirements\n\n"
+        "#### Core Functionality\n\n"
+        f"- **Requirement 1:** Implement `{feature.title}` according to PRD priority `{feature.priority}`.\n"
+        "- **Requirement 2:** Keep behavior deterministic and idempotent on reruns.\n"
+        "- **Requirement 3:** Document boundaries, success criteria, and evidence paths.\n\n"
+        "#### Edge Cases\n\n"
+        "- Missing or ambiguous PRD details require explicit PO clarification.\n"
+        "- Existing implementation artifacts must not be overwritten destructively.\n\n"
+        "### Product Surfaces\n\n"
+        f"{checklist}\n\n"
+        "## Acceptance Criteria\n\n"
+        "- Feature folder content is specific to this PRD item, not template placeholders.\n"
+        "- Functional behavior and tests are defined before patching.\n"
+        "- Scope boundaries and non-goals are explicit.\n"
+        "- Validation evidence is captured in work-item logs.\n\n"
+        "## Scope\n\n"
+        "### In Scope\n\n"
+        f"- `{feature.title}`\n"
+        f"- Outcome from PRD: {summary}\n"
+        "- Feature-level documentation needed for Plan -> Patch -> Test -> Report.\n\n"
+        "### Out of Scope\n\n"
+        "- Unrelated product changes.\n"
+        "- New workflow automation beyond this feature.\n"
+        "- Destructive rewrites of completed feature folders.\n\n"
+        "## Dependencies\n\n"
+        "### Requires\n\n"
+        "- `docs/01-product/prd.md`\n"
+        "- `docs/02-features/AGENTS.md`\n"
+        "- `docs/04-process/ticket-execution-protocol.md`\n\n"
+        "### Blocks\n\n"
+        "- None currently identified.\n\n"
+        "## Risks & Considerations\n\n"
+        f"- Source notes: {notes}\n"
+        "- Ambiguous acceptance criteria can cause rework if not clarified during planning.\n"
+    )
+
+
+def render_tech_design(
+    feature: FeatureRecord, surfaces: List[str], updated_on: str, folder_name: str
+) -> str:
+    summary = normalize_sentence(
+        feature.outcome, f"Implement {feature.title} with deterministic execution"
+    )
+    checklist = format_surface_checklist(surfaces)
+    surface_text = ", ".join(surfaces)
+    return (
+        f"# Technical Design: {feature.title}\n\n"
+        "> **Architecture & implementation approach**\n\n"
+        "---\n\n"
+        "## Overview\n\n"
+        f"**Feature:** {feature.title}\n\n"
+        "**Status:** Draft\n\n"
+        f"**Last Updated:** {updated_on}\n\n"
+        "### Summary\n\n"
+        f"{summary}\n\n"
+        f"This design targets the following product surfaces: {surface_text}.\n\n"
+        "### Product Surfaces\n\n"
+        f"{checklist}\n\n"
+        "## Technical Requirements\n\n"
+        "### From Feature Spec\n\n"
+        f"- Implement `{feature.title}` in line with PRD priority `{feature.priority}`.\n"
+        "- Keep changes deterministic, idempotent, and scope-bounded.\n"
+        "- Preserve non-destructive update behavior for existing docs/artifacts.\n\n"
+        "### Technical Constraints\n\n"
+        "- Follow existing repository workflow contracts and role boundaries.\n"
+        "- Avoid destructive git/file operations in automated steps.\n"
+        "- Keep diffs small and focused.\n\n"
+        "## Architecture\n\n"
+        "### System Context\n\n"
+        "- Input source: `docs/01-product/prd.md`\n"
+        "- Feature artifacts: `docs/02-features/"
+        f"{folder_name}`\n"
+        "- Execution policy: `docs/04-process/ticket-execution-protocol.md`\n\n"
+        "### Component Design\n\n"
+        "- Planning: extract feature intent, surfaces, and constraints.\n"
+        "- Patching: implement minimum code/doc changes needed for acceptance.\n"
+        "- Validation: run targeted tests first, then broader checks when required.\n\n"
+        "### Data Model\n\n"
+        "- No new persistent data model is required by default.\n"
+        "- Any schema/state changes must be justified in `dev-tasks.md` before patching.\n\n"
+        "### Integration Points\n\n"
+        "- PRD feature list and process features.\n"
+        "- Feature-level docs (`feature-spec.md`, `dev-tasks.md`, `test-plan.md`).\n"
+        "- Global logs in `docs/03-logs/` after validation.\n\n"
+        "## Implementation Approach\n\n"
+        "1. Confirm feature boundaries and acceptance criteria.\n"
+        "2. Implement minimal changes for the target behavior.\n"
+        "3. Add/adjust tests to lock behavior.\n"
+        "4. Validate and update logs with evidence.\n\n"
+        "## Risks & Mitigations\n\n"
+        "- **Risk:** PRD ambiguity.  \n"
+        "  **Mitigation:** Pause and request PO clarification before patching.\n"
+        "- **Risk:** Scope drift during implementation.  \n"
+        "  **Mitigation:** Keep file scope explicit in work-item preflight.\n"
+    )
+
+
+def render_dev_tasks(
+    feature: FeatureRecord, surfaces: List[str], updated_on: str
+) -> str:
+    surfaces_text = ", ".join(surfaces)
+    return (
+        f"# Development Tasks: {feature.title}\n\n"
+        "> **LLM-executable tasks**\n\n"
+        "---\n\n"
+        "## Overview\n\n"
+        f"Feature: {feature.title}\n\n"
+        f"Priority: {feature.priority}\n\n"
+        "Status: Not Started\n\n"
+        f"Last Updated: {updated_on}\n\n"
+        f"Product Surfaces: {surfaces_text}\n\n"
+        "## Ownership and Traceability\n\n"
+        "Source of truth: `dev-tasks.md` (tasks + execution log)\n\n"
+        "Roles (record names or agent ids):\n\n"
+        "- Orchestrator: Unassigned\n"
+        "- Planner: Unassigned\n"
+        "- Patcher: Unassigned\n"
+        "- Tester: Unassigned\n"
+        "- Reporter: Unassigned\n"
+        "- Product Owner: Unassigned\n\n"
+        "## Execution Log\n\n"
+        "Record each execution round here. Link any related logs in `docs/03-logs/`.\n\n"
+        "### WI-YYYYMMDD-01 - Work item execution\n\n"
+        "- Date:\n"
+        "- Scope / tasks covered:\n"
+        "- Planner:\n"
+        "- Patcher:\n"
+        "- Tester:\n"
+        "- Reporter:\n"
+        "- Outcome: pass\n"
+        "- Tests run:\n"
+        "- Offload ids (if any):\n"
+        "- Docs/logs updated:\n"
+        "- Notes:\n\n"
+        "#### Preflight Report\n\n"
+        "- Work Item:\n"
+        "- PRD ref:\n"
+        "- Risk level:\n"
+        "- Triggers:\n"
+        "- Scope in:\n"
+        "- Scope out:\n"
+        "- Non-goals reminder:\n"
+        "- Files to change:\n"
+        "- TDD plan:\n"
+        "- Systematic review:\n\n"
+        "#### TDD Plan\n\n"
+        "- Tests to write first:\n\n"
+        "#### Allowed Tests\n\n"
+        "- (list exact commands; each command must resolve via `tools/pc-allowed-tests-check`)\n"
+        '- (allowed forms: `python3 -m unittest discover -s tests -p "test_*.py"` or `python3 -m pytest tests/test_example.py -q`)\n'
+        "- (forbidden: `make ci`, `make feature`, `pc-feature`, placeholders, or narrative text)\n\n"
+        "#### Files to Change\n\n"
+        "- Files:\n\n"
+        "#### Docs Updated\n\n"
+        "- [ ] Implementation log\n"
+        "- [ ] Decision log (if needed)\n"
+        "- [ ] Bug log (if needed)\n"
+        "- [ ] Validation log (if needed)\n"
+        "- [ ] Feature docs\n"
+        "- [ ] PRD (if needed)\n\n"
+        "#### Plan\n\n"
+        "- (pending)\n\n"
+        "#### Patch\n\n"
+        "- (pending)\n\n"
+        "#### Test Results\n\n"
+        "- (pending)\n\n"
+        "#### Reporter Review\n\n"
+        "- (pending)\n\n"
+        "#### Gates\n\n"
+        "- make ci:\n\n"
+        "#### Autofix Attempts\n\n"
+        "- (none)\n\n"
+        "#### Tester Feedback\n\n"
+        "- Notes:\n\n"
+        "#### Reporter Feedback\n\n"
+        "- Notes:\n\n"
+        "#### Iteration Log\n\n"
+        "-\n\n"
+        "#### Commit\n\n"
+        "- Commit message:\n\n"
+        "#### Final Report\n\n"
+        "-\n\n"
+        "## Task Breakdown\n\n"
+        "### Discovery and Spec Sync\n\n"
+        f"- [ ] **TASK-001: Confirm requirements for `{feature.title}`**\n"
+        f"  - Align acceptance criteria with PRD priority `{feature.priority}`.\n"
+        "  - Document scope boundaries and non-goals before coding.\n"
+        "  - **Acceptance:** Scope and success criteria are explicit.\n\n"
+        "### Implementation\n\n"
+        f"- [ ] **TASK-002: Implement `{feature.title}` capability**\n"
+        f"  - Build minimum required behavior for surfaces: {surfaces_text}.\n"
+        "  - Keep behavior deterministic and idempotent on reruns.\n"
+        "  - **Acceptance:** Primary workflow works end-to-end.\n\n"
+        "### Testing\n\n"
+        "- [ ] **TASK-003: Add tests before patch completion**\n"
+        "  - Add failing tests first, then implement the smallest passing patch.\n"
+        "  - Cover happy path and at least one edge condition.\n"
+        "  - **Acceptance:** Tests guard against regressions.\n\n"
+        "### Validation and Reporting\n\n"
+        "- [ ] **TASK-004: Validate and capture evidence**\n"
+        "  - Run allowed tests and record results.\n"
+        "  - Capture offload ids for noisy command output.\n"
+        "  - **Acceptance:** Validation evidence is complete and reproducible.\n\n"
+        "- [ ] **TASK-005: Finalize docs and logs**\n"
+        "  - Update feature docs and required `docs/03-logs/` entries.\n"
+        "  - Summarize tradeoffs and follow-ups in Final Report.\n"
+        "  - **Acceptance:** Plan -> Patch -> Test -> Report is fully documented.\n"
+    )
+
+
+def render_test_plan(
+    feature: FeatureRecord, surfaces: List[str], updated_on: str
+) -> str:
+    checklist = format_surface_checklist(surfaces)
+    summary = normalize_sentence(
+        feature.outcome, f"Validate `{feature.title}` behavior against PRD intent"
+    )
+    return (
+        f"# Test Plan: {feature.title}\n\n"
+        "> **Validation strategy**\n\n"
+        "---\n\n"
+        "## Overview\n\n"
+        f"**Feature:** {feature.title}\n\n"
+        "**Status:** Draft\n\n"
+        f"**Last Updated:** {updated_on}\n\n"
+        "### Product Surfaces\n\n"
+        f"{checklist}\n\n"
+        "### Test Objectives\n\n"
+        f"- Validate `{feature.title}` acceptance criteria.\n"
+        "- Prove deterministic behavior across reruns.\n"
+        "- Cover edge conditions and failure handling.\n\n"
+        "### Test Scope\n\n"
+        "**In Scope:**\n\n"
+        f"- Core behavior for `{feature.title}`\n"
+        "- Integration points touched by the implementation\n"
+        "- Regression checks for existing behavior\n\n"
+        "**Out of Scope:**\n\n"
+        "- Unrelated roadmap features\n"
+        "- Infrastructure changes outside this feature boundary\n\n"
+        "## Test Strategy\n\n"
+        "### Unit Tests\n\n"
+        "- Validate core logic and helper behavior.\n"
+        "- Include both expected path and boundary conditions.\n\n"
+        "### Integration Tests\n\n"
+        "- Validate interactions between changed modules.\n"
+        "- Confirm artifacts/log updates are deterministic when applicable.\n\n"
+        "### Manual Verification\n\n"
+        "- Verify developer workflow remains stable after changes.\n"
+        "- Confirm generated docs/artifacts are feature-specific.\n\n"
+        "## Test Cases\n\n"
+        "### Functional Tests\n\n"
+        "- **TC-F001:** Generate or update feature artifacts and verify content is hydrated.\n"
+        "- **TC-F002:** Re-run workflow and confirm idempotent behavior.\n"
+        "- **TC-F003:** Verify skip behavior for done/deferred/rejected items.\n\n"
+        "### Edge Cases\n\n"
+        "- Missing status lines in existing `dev-tasks.md`.\n"
+        "- Existing folder index/slug drift.\n"
+        "- Missing template files in partially-created folders.\n\n"
+        "## Exit Criteria\n\n"
+        f"- `{summary}`\n"
+        "- Targeted automated tests pass.\n"
+        "- Validation evidence is recorded in `docs/03-logs/validation-log.md`.\n"
+    )
+
+
+def build_core_documents(
+    feature: FeatureRecord, surfaces: List[str], folder_name: str
+) -> Dict[str, str]:
+    updated_on = date.today().isoformat()
+    return {
+        "feature-spec.md": render_feature_spec(feature, surfaces, updated_on),
+        "tech-design.md": render_tech_design(
+            feature, surfaces, updated_on, folder_name
+        ),
+        "dev-tasks.md": render_dev_tasks(feature, surfaces, updated_on),
+        "test-plan.md": render_test_plan(feature, surfaces, updated_on),
+    }
+
+
+def document_needs_hydration(content: str) -> bool:
+    if any(marker in content for marker in TEMPLATE_PLACEHOLDER_MARKERS):
+        return True
+    non_empty_lines = [line for line in content.splitlines() if line.strip()]
+    return len(non_empty_lines) <= 4
+
+
+def write_if_changed(path: Path, content: str) -> bool:
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        if existing == content:
+            return False
+    path.write_text(content, encoding="utf-8")
+    return True
+
+
+def hydrate_core_documents(
+    target_dir: Path,
+    feature: FeatureRecord,
+    surfaces: List[str],
+    force: bool = False,
+) -> List[str]:
+    rendered = build_core_documents(feature, surfaces, target_dir.name)
+    changed: List[str] = []
+    for filename in CORE_DOC_FILES:
+        content = rendered[filename]
+        path = target_dir / filename
+        if not path.exists():
+            if write_if_changed(path, content):
+                changed.append(filename)
+            continue
+        existing = path.read_text(encoding="utf-8")
+        if force or document_needs_hydration(existing):
+            if write_if_changed(path, content):
+                changed.append(filename)
+    return changed
 
 
 def update_missing_files(
@@ -218,7 +739,10 @@ def apply_prd_to_features(
         raise FileNotFoundError(f"Missing PRD: {prd_file}")
     if not template_dir.exists():
         raise FileNotFoundError(f"Missing feature template: {template_dir}")
-    prd_features = parse_prd_features(prd_file.read_text(encoding="utf-8"))
+    prd_text = prd_file.read_text(encoding="utf-8")
+    prd_features = parse_prd_features(prd_text)
+    surfaces = infer_product_surfaces(prd_text, prd_features)
+    log_skip_reasons = extract_log_skip_reasons(root, prd_features)
     existing = discover_existing_features(features_root)
     by_index = existing["by_index"]
     by_slug = existing["by_slug"]
@@ -249,6 +773,20 @@ def apply_prd_to_features(
                 drift_reason = (
                     f"slug exists at index {existing_feature.index:02d}; not reindexing"
                 )
+        if feature.slug in log_skip_reasons:
+            reason_parts = [log_skip_reasons[feature.slug]]
+            if drift_reason:
+                reason_parts.append(drift_reason)
+            summary["skipped"].append(
+                ActionResult(
+                    name=(
+                        existing_feature.path.name if existing_feature else desired_name
+                    ),
+                    action="skipped",
+                    reason="; ".join(reason_parts),
+                )
+            )
+            continue
         if existing_feature:
             status, status_note = parse_dev_tasks_status(
                 existing_feature.path / "dev-tasks.md"
@@ -264,13 +802,22 @@ def apply_prd_to_features(
                 )
                 continue
             created, _ = update_missing_files(existing_feature.path, template_dir)
+            hydrated = hydrate_core_documents(
+                existing_feature.path, feature, surfaces, force=False
+            )
             repaired_exec_log = ensure_execution_log_section(
                 existing_feature.path / "dev-tasks.md"
             )
-            if created or repaired_exec_log:
+            details: List[str] = list(created) + list(hydrated)
+            if repaired_exec_log:
+                details.append("dev-tasks.md")
+            details = ordered_unique(details)
+            if details:
                 reason_parts = []
                 if created:
                     reason_parts.append("missing template files")
+                if hydrated:
+                    reason_parts.append("hydrated placeholder/incomplete core docs")
                 if repaired_exec_log:
                     reason_parts.append(
                         "dev-tasks.md missing Execution Log (autofixed)"
@@ -279,9 +826,6 @@ def apply_prd_to_features(
                     reason_parts.append(status_note)
                 if drift_reason:
                     reason_parts.append(drift_reason)
-                details: List[str] = list(created)
-                if repaired_exec_log:
-                    details.append("dev-tasks.md")
                 summary["updated"].append(
                     ActionResult(
                         name=existing_feature.path.name,
@@ -304,15 +848,29 @@ def apply_prd_to_features(
                     )
                 )
             continue
-        created, _ = create_feature_folder(features_root / desired_name, template_dir)
+        target_dir = features_root / desired_name
+        created, _ = create_feature_folder(target_dir, template_dir)
+        hydrated = hydrate_core_documents(target_dir, feature, surfaces, force=True)
+        repaired_exec_log = ensure_execution_log_section(target_dir / "dev-tasks.md")
+        details = ordered_unique(
+            created + hydrated + (["dev-tasks.md"] if repaired_exec_log else [])
+        )
+        reason_parts = [f"missing feature folder from PRD ({feature.priority})"]
+        if hydrated:
+            reason_parts.append("hydrated core docs")
         summary["created"].append(
             ActionResult(
                 name=desired_name,
                 action="created",
-                reason=f"missing feature folder from PRD ({feature.priority})",
-                details=created,
+                reason="; ".join(reason_parts),
+                details=details,
             )
         )
+        new_feature = ExistingFeature(
+            path=target_dir, index=desired_index, slug=desired_slug
+        )
+        by_index.setdefault(desired_index, new_feature)
+        by_slug.setdefault(desired_slug, new_feature)
     return summary
 
 

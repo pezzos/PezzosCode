@@ -6858,3 +6858,42 @@ Track when debt is paid down:
 - **Breaking changes:** None intended; existing `command/output` usage still works.
 - **Performance:** None.
 - **Dependencies:** None.
+
+### 2026-02-14 - Enforce hydrate-only `prd-to-features` generation by default
+
+**Feature/Bug:** PRD-to-features produced template-only feature folders without
+feature-specific adaptation.
+
+**Changed Files:**
+
+- `tools/prd-to-features`
+- `tests/test_prd_to_features.py`
+- `.codex/skills/prd-to-features/SKILL.md`
+- `.codex/skills/prd-to-features/references/selection-and-update-rules.md`
+- `docs/02-features/AGENTS.md`
+- `tools/templates/docs/02-features/AGENTS.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Reworked `tools/prd-to-features` so core feature docs (`feature-spec.md`,
+  `tech-design.md`, `dev-tasks.md`, `test-plan.md`) are deterministically
+  hydrated with feature-specific content on creation.
+- Added placeholder/incomplete-content detection for existing non-done feature
+  folders so template-like docs are updated in place without destructive
+  overwrites.
+- Added product-surface inference and checkbox hydration for generated docs.
+- Added log-aware skip detection from `docs/03-logs/implementation-log.md` and
+  `docs/03-logs/decision-log.md` for completed/rejected/deferred features.
+- Expanded status parsing to recognize both `Status:` and `**Status:**`.
+- Added/updated unit coverage for hydrated output, deferred-log skipping, and
+  bold-status done skipping.
+- Updated skill/rules/docs contracts to make hydrate-only behavior explicit and
+  mark skeleton-only output as invalid.
+
+**Why:**
+
+- Align implementation with documented selection/hydration expectations and
+  prevent low-value template-only feature generation.
