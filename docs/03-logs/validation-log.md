@@ -27,6 +27,14 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-13 - PRD context/process reconciliation validation
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 17 tests; offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Verified:
+  - `docs/01-product/prd.md` retains required PRD sections with an explicit Workflow/Process Requirements section.
+  - Workflow policy statements now include command authority, HIGH-risk approval gate behavior, and anti-hardcode testing constraints.
+  - Implementation and validation logs capture the doc update for traceability.
+
 ### 2026-02-13 - Validate docs-aligned `skills-check` for Codex skill directories
 
 - `make skills-check` (PASS: `skills-check: ok`)

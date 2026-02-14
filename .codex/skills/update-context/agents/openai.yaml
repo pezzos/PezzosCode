@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Context"
+  short_description: "Update docs context from project inputs"
+  default_prompt: "/update-context project description"

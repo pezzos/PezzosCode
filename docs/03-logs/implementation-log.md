@@ -27,6 +27,33 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-13 - PRD context/process reconciliation via context-to-product
+
+**Feature/Bug:** PRD alignment with current context + workflow policy
+
+**Changed Files:**
+
+- `docs/01-product/prd.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Updated PRD metadata/version and refreshed feature-priority mapping to reflect current expected features from `docs/00-context/expected-features.md`.
+- Strengthened workflow/process requirements to match canonical protocol details:
+  - command authority for `make feature` / `pc-feature`,
+  - mandatory preflight + deterministic risk classification,
+  - HIGH-risk approval behavior with `Awaiting PO Approval`,
+  - reviewer/tester/reporter feedback-loop restart behavior,
+  - fail-closed commit gate + `tools/pc-commit` commit format enforcement.
+- Added explicit anti-hardcode testing requirements (fixture count, seed strategy, invariants, contract boundaries) to functional/process sections.
+- Cleaned PRD scope section labels to remove remaining template markers and clarified future-scope wording for UI/TUI separation.
+
+**Why:**
+
+- Keep `docs/01-product/prd.md` synchronized with source-of-truth context/process docs and prevent drift between product intent and execution policy.
+- Ensure required gating, testing, and documentation constraints are discoverable from the PRD without relying on implicit knowledge.
+
 ### 2026-02-13 - Accept documented Codex skill directory layout in skills-check
 
 **Feature/Bug:** False CI failures from strict skill layout gate
