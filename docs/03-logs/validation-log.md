@@ -1817,3 +1817,18 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Live and template prompt contracts are synchronized for canonical heading output.
 
 - WI-20260213-01 validated: lint/test and feature acceptance checks passed with no blocking issues.
+
+## 2026-02-14 - Validate `investigate` description-only contract update
+
+- Command: `python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/alexandrepezzotta/repos/PezzosCode/.codex/skills/investigate`
+- Result: FAIL (`ModuleNotFoundError: No module named 'yaml'` in local python environment)
+- Command: `uv run python /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/alexandrepezzotta/repos/PezzosCode/.codex/skills/investigate`
+- Result: PASS (`Skill is valid!`)
+- Command: `tools/offload-proxy/pp make lint`
+- Result: FAIL on first run because `prettier` reformatted files; offload id `921b85ed68ada4840895787b4ef9c4c645c3dfa3c07234b9ebce2b0d032ab854`
+- Command: `tools/offload-proxy/pp make lint`
+- Result: PASS on second run after formatter-applied changes
+- Verified:
+  - Skill contract now accepts `command/output` or description-only `issue`.
+  - Free-text `$investigate ...` input is documented as valid and normalized to `issue`.
+  - Rubric and agent metadata are aligned with the new contract semantics.

@@ -2419,3 +2419,19 @@ When a decision is reversed or replaced, document it here:
   - Preserves deterministic rollback behavior for rejected planner-create output.
 
 - WI-20260213-01: Process docs changed; orchestrator retained ownership of deferred docs/03-logs updates.
+
+### DEC-065 - Relax `investigate` input contract to support description-only incidents
+
+- **Date:** 2026-02-14
+- **Status:** Accepted
+- **Context:** The existing `investigate` skill required both `command` and full `output`, which blocked valid investigations when command output was unavailable or unhelpful (for example, command succeeds but generated artifacts are wrong).
+- **Decision:**
+  - Keep CLI-evidence mode as the preferred path: `command + output`.
+  - Add description-only mode: `issue=<plain-language description>`.
+  - Accept free-text invocation and normalize it to `issue=<...>`.
+  - Require a clarifying question only when both `output` and `issue` are missing.
+  - Align the rubric and agent metadata so evidence ranking supports `output` when present or `issue/context` when output is absent.
+- **Consequences:**
+  - Investigation workflow remains backward compatible for existing `command/output` usage.
+  - Users can now diagnose outcome failures without pasting large CLI output.
+  - Recommendations remain evidence-ranked, with explicit confidence/assumption handling when output is missing.

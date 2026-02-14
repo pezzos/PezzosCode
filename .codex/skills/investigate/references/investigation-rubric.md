@@ -12,7 +12,10 @@ Derive expected behavior from these sources, in order:
 
 ## Root-Cause and Fix Option Requirements
 
-- Rank root-cause hypotheses by concrete evidence from the provided output.
+- Rank root-cause hypotheses by concrete evidence from provided evidence:
+  - `output` when available (preferred),
+  - otherwise `issue` + any provided `context`.
+- If `output` is missing, explicitly call out lowered confidence and assumptions.
 - Propose at least three durable options:
   - direct implementation fix,
   - prevention/guardrail fix (tests/checks/process),

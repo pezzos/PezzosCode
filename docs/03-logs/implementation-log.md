@@ -6823,3 +6823,38 @@ Track when debt is paid down:
 - **Dependencies:** None.
 
 - WI-20260213-01 completed: delivered the planned feature scope end-to-end with required code and documentation updates.
+
+### 2026-02-14 - Update `investigate` skill to accept issue descriptions without CLI output
+
+**Feature/Bug:** Skill contract was too restrictive for outcome failures without useful CLI output.
+
+**Changed Files:**
+
+- `.codex/skills/investigate/SKILL.md`
+- `.codex/skills/investigate/references/investigation-rubric.md`
+- `.codex/skills/investigate/agents/openai.yaml`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Expanded `investigate` input contract with two supported modes:
+  - CLI-evidence mode (`command` + `output`, preferred).
+  - Description-only mode (`issue`) when output is unavailable.
+- Added free-text compatibility (`$investigate <description>`) by normalizing free text to `issue`.
+- Updated step logic to rank hypotheses from available evidence:
+  - prioritize `output` evidence when present,
+  - otherwise use `issue/context` and mark assumptions explicitly.
+- Updated rubric language to avoid output-only dependency and require confidence caveats when output is absent.
+- Updated `agents/openai.yaml` labels/prompts to reflect broader trigger and usage.
+
+**Why:**
+
+- Enables investigation of silent failures and bad outcomes where command execution appears successful but artifacts or behavior are wrong.
+
+**Impact:**
+
+- **Breaking changes:** None intended; existing `command/output` usage still works.
+- **Performance:** None.
+- **Dependencies:** None.

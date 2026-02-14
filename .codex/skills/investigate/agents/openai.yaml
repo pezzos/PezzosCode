@@ -1,4 +1,4 @@
 interface:
-  display_name: "Investigate Run Output"
-  short_description: "Diagnose run output without edits"
-  default_prompt: "Use $investigate to analyze command output, rank root-cause hypotheses, and propose durable fixes without making edits."
+  display_name: "Investigate Failures"
+  short_description: "Diagnose failures from output or issue description"
+  default_prompt: "Use $investigate to analyze command output or a plain issue description, rank root-cause hypotheses, and propose durable fixes without making edits."
