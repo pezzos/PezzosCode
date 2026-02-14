@@ -1859,3 +1859,11 @@ Overall, this was a successful launch with clear areas for improvement. The core
     updated in place.
   - Skip logic now honors explicit completed/rejected/deferred markers found in
     implementation/decision logs.
+
+## 2026-02-14 - Validate bootstrap runtime `lib/` sync fix
+
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p test_bootstrap_into.py`
+- Result: PASS (`18` tests; offload id `eca5010d12f85b9727c1cc0253fa8d7578ac07876fbd66b14c6bfc1cd1fbde24`)
+- Verified:
+  - Bootstrap now copies runtime `lib/` modules required by tool imports.
+  - New regression test confirms `lib/pc_runner.py` is copied and marker-stamped exactly once.

@@ -145,6 +145,26 @@ class TestBootstrapInto(unittest.TestCase):
             )
             self.assertIn("tools/pc-feature", result.stdout)
 
+    def test_bootstrap_into_copies_runtime_lib_modules(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            init_git_repo(tmp_dir)
+            result = run_bootstrap_into([tmp_dir])
+            self.assertEqual(result.returncode, 0)
+
+            lib_module_path = Path(tmp_dir) / "lib" / "pc_runner.py"
+            self.assertTrue(
+                lib_module_path.exists(),
+                "Runtime lib modules should land in lib/ for tool imports.",
+            )
+            lib_module_content = lib_module_path.read_text(encoding="utf-8")
+            self.assertIn(SCRIPT_MARKER, lib_module_content)
+            self.assertEqual(
+                lib_module_content.count(SCRIPT_MARKER),
+                1,
+                "Runtime lib modules should only have one bootstrap marker",
+            )
+            self.assertIn("lib/pc_runner.py", result.stdout)
+
     def test_bootstrap_into_copies_log_assets(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)

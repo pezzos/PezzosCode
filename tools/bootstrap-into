@@ -300,7 +300,7 @@ is_syncable_path() {
     return
   fi
 
-  if [[ "$rel" == "tools/"* || "$rel" == ".codex/skills/"* ]]; then
+  if [[ "$rel" == "tools/"* || "$rel" == "lib/"* || "$rel" == ".codex/skills/"* ]]; then
     if [[ "$rel" == "tools/bootstrap-into" ]]; then
       echo "never"
     else
@@ -484,6 +484,7 @@ copy_dir_files() {
 copy_dir_files "$repo_root/tools/templates/root" "$target_repo" ""
 copy_dir_files "$repo_root/tools/templates/docs" "$target_repo/docs" "docs"
 copy_dir_files "$repo_root/.codex/skills" "$target_repo/.codex/skills" ".codex/skills"
+copy_dir_files "$repo_root/lib" "$target_repo/lib" "lib"
 copy_dir_files "$repo_root/tools" "$target_repo/tools" "tools"
 
 if ! "$dry_run"; then

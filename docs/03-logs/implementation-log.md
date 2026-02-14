@@ -6897,3 +6897,24 @@ feature-specific adaptation.
 
 - Align implementation with documented selection/hydration expectations and
   prevent low-value template-only feature generation.
+
+### 2026-02-14 - Bootstrap runtime `lib/` modules with tooling sync
+
+**Feature/Bug:** `make feature` bootstrap crash in downstream repos (`ModuleNotFoundError: No module named 'lib'`).
+
+**Changed Files:**
+
+- `tools/bootstrap-into`
+- `tests/test_bootstrap_into.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Updated bootstrap sync policy so `lib/` paths are treated like runtime tooling sync targets.
+- Added explicit copy phase for top-level `lib/` during bootstrap (`copy_dir_files "$repo_root/lib" "$target_repo/lib" "lib"`).
+- Added regression coverage to assert `lib/pc_runner.py` is copied, marker-stamped once, and reported in bootstrap output.
+
+**Why:**
+
+- Downstream repos bootstrap `tools/pc-feature`, `pc-commit`, and related scripts that import `lib.*`; missing `lib/` causes deterministic runtime failure before workflow execution starts.
