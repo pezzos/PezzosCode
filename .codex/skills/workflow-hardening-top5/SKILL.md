@@ -1,6 +1,6 @@
 ---
 name: workflow-hardening-top5
-description: Read /Users/alexandrepezzotta/repos/PezzosCode/docs/possible-improvements.md and propose up to 5 prioritized workflow-hardening improvements that increase robustness, stability, and failure prevention. Use when the user asks for process/workflow improvement recommendations in chat only, not feature expansion.
+description: Analyze docs/possible-improvements.md and propose up to five prioritized workflow-hardening recommendations focused on reliability, failure prevention, and low-risk rollout. Use when the user asks for process/workflow improvement ideas in chat and does not want feature expansion implementation.
 ---
 
 # Workflow Hardening Top5
@@ -13,7 +13,7 @@ Return high-value workflow/process hardening recommendations from the project ba
 
 When triggered, read:
 
-`/Users/alexandrepezzotta/repos/PezzosCode/docs/possible-improvements.md`
+`docs/possible-improvements.md`
 
 If the file is missing or empty, report that clearly and stop.
 

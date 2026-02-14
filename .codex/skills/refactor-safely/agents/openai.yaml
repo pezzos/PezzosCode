@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor Safely"
+  short_description: "Refactor code with behavior parity"
+  default_prompt: "Use $refactor-safely to improve structure with small reversible edits while preserving behavior and validating with tests."

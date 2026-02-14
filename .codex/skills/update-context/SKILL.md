@@ -1,6 +1,6 @@
 ---
 name: update-context
-description: Update `docs/00-context/*` from a large project-description input plus an iterative Q&A loop. Use when the user runs `/update-context` with a very large project description (or asks to refresh context docs) and wants complete context files, either by filling template files or enriching already-populated files.
+description: Update docs/00-context files from a large project description using a gap-driven Q&A loop and template-fill vs enrich-existing mode detection. Use when the user runs /update-context, asks to refresh context docs, or provides major product details that must be reflected across context files.
 ---
 
 # Update Context
@@ -129,5 +129,5 @@ python3 .codex/skills/update-context/scripts/detect_context_mode.py --show-diff 
 - Validate skill:
 
 ```bash
-python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/update-context
+python3 "$CODEX_HOME/skills/.system/skill-creator/scripts/quick_validate.py" .codex/skills/update-context
 ```

@@ -1,6 +1,6 @@
 ---
 name: investigate
-description: Thoroughly investigate command output passed inline, identify issue and root-cause hypotheses, compare actual behavior with expected behavior defined in project docs/processes, and propose multiple permanent fixes plus future auto-fix recommendations. Use when the user provides a command and output text and wants analysis-only guidance with no code edits.
+description: Perform analysis-only investigation of inline command output, produce evidence-ranked root-cause hypotheses, compare expected vs actual behavior from project docs, and propose durable fix options. Use when the user asks to "investigate" a failing run and explicitly wants diagnosis without file edits.
 ---
 
 # Investigate

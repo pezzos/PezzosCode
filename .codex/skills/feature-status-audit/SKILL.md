@@ -1,6 +1,6 @@
 ---
 name: feature-status-audit
-description: Audit task tickets for a single feature and update ticket frontmatter status fields based on checklist completion and evidence in the ticket. Use when you want to reconcile task status with actual work in an existing repo.
+description: Audit TASK-*.md tickets for one feature folder under docs/02-features and update frontmatter status fields using deterministic evidence rules. Use when the user asks to reconcile task progress, correct stale ticket statuses, or run a status audit before reporting.
 ---
 
 # Feature Status Audit

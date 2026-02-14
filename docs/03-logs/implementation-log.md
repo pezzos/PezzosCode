@@ -27,6 +27,32 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-14 - Batch A skill metadata hardening and portability cleanup
+
+**Feature/Bug:** Codex skill activation quality and interface consistency
+
+**Changed Files:**
+
+- `.codex/skills/*/SKILL.md` (15 skills)
+- `.codex/skills/*/agents/openai.yaml` (15 skills)
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/insights.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Rewrote frontmatter `description` text across all local skills so each description clearly states task scope plus trigger conditions.
+- Standardized `agents/openai.yaml` for all skills with consistent `display_name`, `short_description`, and `default_prompt`.
+- Ensured every `default_prompt` explicitly references its skill token (for example, `$implement-plan-safe`) for explicit invocation clarity.
+- Removed hardcoded user-specific absolute paths from skill metadata/instructions and replaced with portable repo-relative or environment-based paths.
+- Resolved validator-incompatible metadata patterns (angle brackets in descriptions) discovered during validation.
+
+**Why:**
+
+- Improve auto-trigger precision, reduce invocation ambiguity, and keep skill metadata portable across machines/worktrees.
+- Keep interface metadata aligned with current Codex Skills conventions and avoid stale or inconsistent UI prompts.
+
 ### 2026-02-13 - PRD context/process reconciliation via context-to-product
 
 **Feature/Bug:** PRD alignment with current context + workflow policy

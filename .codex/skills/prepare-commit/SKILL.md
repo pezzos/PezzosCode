@@ -1,6 +1,6 @@
 ---
 name: prepare-commit
-description: Prepare a clean, scoped commit by reviewing diffs, confirming tests/lint, updating logs, and staging intended files. Use when a user asks to get changes ready for commit or requests a commit prep checklist.
+description: Prepare a clean, scoped commit by reviewing diffs, confirming validation status, updating required docs logs, and staging only intended files. Use when the user asks to prepare changes for commit, requests commit readiness checks, or wants a commit-prep checklist.
 ---
 
 # Prepare Commit

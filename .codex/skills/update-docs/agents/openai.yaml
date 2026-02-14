@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Docs Logs"
+  short_description: "Record changes in docs/03-logs"
+  default_prompt: "Use $update-docs to update implementation, decision, bug, and validation logs for the latest changes."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "PRD to Features"
+  short_description: "Generate feature docs from PRD"
+  default_prompt: "Use $prd-to-features to create or backfill indexed feature folders from docs/01-product/prd.md using template rules."

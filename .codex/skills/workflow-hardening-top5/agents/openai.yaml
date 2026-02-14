@@ -1,4 +1,4 @@
 interface:
   display_name: "Workflow Hardening Top 5"
-  short_description: "Prioritize robust workflow improvements from project backlog"
-  default_prompt: "Read /Users/alexandrepezzotta/repos/PezzosCode/docs/possible-improvements.md and propose up to 5 prioritized workflow hardening improvements with rationale, benefits, risks, and no-side-effect implementation guidance."
+  short_description: "Prioritize robust workflow fixes"
+  default_prompt: "Use $workflow-hardening-top5 to analyze docs/possible-improvements.md and return up to five prioritized workflow-hardening recommendations."

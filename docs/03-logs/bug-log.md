@@ -126,6 +126,66 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-005] - Skill metadata validation blocked by angle brackets in descriptions
+
+**Date Discovered:** 2026-02-14
+
+**Discovered By:** Batch validation run (`quick_validate.py`)
+
+**Severity:** Low
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Internal skill maintainers (validation gate)
+
+**Symptoms:**
+Skill validation failed during Batch A metadata rollout with `Description cannot contain angle brackets (< or >)`.
+
+**Steps to Reproduce:**
+
+1. Run `python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py` against `.codex/skills/create-feature-skeleton` (or the affected skills).
+2. Observe validation error for frontmatter `description`.
+
+**Expected Behavior:**
+All updated skills pass metadata validation.
+
+**Actual Behavior:**
+Validation fails for skills whose descriptions contain placeholder notation like `<feature-name>`.
+
+**Root Cause:**
+Frontmatter descriptions were written with angle-bracket placeholders, which are disallowed by the skill validator.
+
+**Fix:**
+Replaced angle-bracket placeholders in descriptions with plain-language folder naming references.
+
+**Files Changed:**
+
+- `.codex/skills/create-feature-skeleton/SKILL.md`
+- `.codex/skills/feature-status-audit/SKILL.md`
+- `.codex/skills/prd-to-features/SKILL.md`
+
+**Prevention:**
+Run full-scope `quick_validate.py` before finalizing batch metadata edits and avoid angle-bracket placeholders in frontmatter descriptions.
+
+- Tests added: none (metadata validation already enforces the rule).
+- Process changes: keep validator run mandatory for skill metadata edits.
+- Monitoring added: none.
+
+**Related Issues:**
+
+- [DEC-064] - Standardize skill interface metadata and portable prompts
+- [Validation Log] 2026-02-14 Batch A skill metadata and interface validation
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-14
+
+**Deployed:** 2026-02-14
+
+**Verified By:** Codex (`quick_validate.py` loop passed for all skills)
+
 ### [BUG-004] - `pc-feature` loop reads stale `dev-tasks.md` from `main`
 
 **Date Discovered:** 2026-02-08

@@ -1,6 +1,6 @@
 ---
 name: update-docs
-description: Update documentation logs so decisions and changes remain traceable. Use when a user asks to update implementation, decision, bug, or validation logs after changes.
+description: Update docs/03-logs entries so implementation, decisions, bugs, validations, and related rationale remain traceable after work is done. Use when the user asks to log what changed, record validation outcomes, or refresh project memory in documentation logs.
 ---
 
 # Update Docs That Remember

@@ -1,6 +1,6 @@
 ---
 name: refactor-safely
-description: Refactor code without changing behavior by preserving invariants, making small reversible steps, and validating with tests. Use when a user requests a safe refactor or asks to improve structure without behavior changes.
+description: Refactor code structure without behavior change by preserving invariants, applying small reversible edits, and validating continuously with tests. Use when the user asks for a safe refactor, maintainability cleanup, or structure improvement with no functional changes.
 ---
 
 # Refactor Safely

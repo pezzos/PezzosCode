@@ -27,6 +27,17 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-14 - Batch A skill metadata and interface validation
+
+- `python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/<skill>` in a loop over all 15 skills (PASS: all returned `Skill is valid!`)
+- `rg -n '/Users/alexandrepezzotta|/Users/' .codex/skills` (PASS: no matches; exit code 1 expected for no results)
+- `make lint` (PASS)
+- `make ci` (PASS: 360 tests, `OK`; `skills-check: ok`)
+- Verified:
+  - Every local skill now has valid frontmatter and an `agents/openai.yaml` file.
+  - Every skill `default_prompt` includes its `$skill-name` token.
+  - No user-specific absolute paths remain in `.codex/skills`.
+
 ### 2026-02-13 - PRD context/process reconciliation validation
 
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 17 tests; offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)

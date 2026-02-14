@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review End User Impact"
+  short_description: "Assess staged changes for users"
+  default_prompt: "Use $review-end-user-impact to review staged diffs from the end-user perspective and report user-visible risks and impacts."

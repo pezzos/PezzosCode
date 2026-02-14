@@ -1,6 +1,6 @@
 ---
 name: sync-root-from-context
-description: Read docs/00-context and docs/01-product/prd.md, then update live root files (bootstrapped from tools/templates/root/) to match the project.
+description: Synchronize live root project files (AGENTS, Makefile, hooks, config) from docs/00-context and docs/01-product/prd.md while preserving repo-specific safety constraints. Use when context or PRD changes and root-level operational files need to be realigned.
 ---
 
 # Sync Root Files From Context

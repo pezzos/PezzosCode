@@ -1,6 +1,6 @@
 ---
 name: implement-plan-safe
-description: Execute an already proposed and approved implementation plan from the current chat context when the user asks with short commands like "Implement", "Please implement this plan", or "Ok for this plan, implement with no side effects". Use only when a concrete plan already exists in the conversation and the user is asking to execute it now.
+description: Execute an already approved implementation plan from current chat context with scoped edits, validations, and safety guardrails. Use when the user sends short execution prompts like "Implement", "Please implement this plan", or "Implement with no side effects", and a concrete plan already exists.
 ---
 
 # Implement Plan Safe

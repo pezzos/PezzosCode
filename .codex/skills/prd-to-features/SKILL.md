@@ -1,6 +1,6 @@
 ---
 name: prd-to-features
-description: Convert docs/01-product/prd.md into feature folders under docs/02-features using the template in docs/02-features/feature-template and the selection rules in docs/02-features/AGENTS.md. Use when a user wants to turn the PRD prioritized feature list into fully populated feature docs.
+description: Convert docs/01-product/prd.md prioritized features into numbered folders under docs/02-features using template and selection rules, with incremental skip logic for completed or existing work. Use when the user asks to generate feature docs from the PRD or backfill missing feature folders.
 ---
 
 # PRD to Features

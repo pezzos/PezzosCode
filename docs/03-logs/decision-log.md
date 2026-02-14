@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-064] - Standardize skill interface metadata and portable prompts
+
+**Date:** 2026-02-14
+
+**Status:** Implemented
+
+**Decision:**
+Apply a repository-wide baseline for local Codex skills: every skill must have explicit trigger-oriented `description` metadata, an `agents/openai.yaml` interface block, `default_prompt` that references the `$skill-name` token, and no user-specific absolute paths in skill metadata/instructions.
+
+**Rationale:**
+Recent skill behavior showed drift risk from uneven metadata quality (trigger ambiguity, stale prompts, and hardcoded paths). A single baseline improves deterministic activation, explicit invocation, and portability.
+
+**Implications:**
+
+- Skill discovery and auto-activation become more predictable.
+- UI skill chips/prompts are consistent across all local skills.
+- Skills remain portable across machines/worktrees without local path rewrites.
+
 ### [DEC-063] - Align skills-check with Codex Skills directory contract
 
 **Date:** 2026-02-13

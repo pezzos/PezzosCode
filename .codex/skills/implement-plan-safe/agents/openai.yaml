@@ -1,4 +1,4 @@
 interface:
   display_name: "Implement Plan"
   short_description: "Execute approved plan safely"
-  default_prompt: "Implement the approved plan with no side effects."
+  default_prompt: "Use $implement-plan-safe to execute the approved plan with scoped edits, validations, and no-side-effect guardrails."

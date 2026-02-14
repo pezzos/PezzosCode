@@ -102,6 +102,32 @@ Deploying small changes frequently (daily) is far less risky than big releases e
 
 ---
 
+#### 4. Explicit Skill Trigger Metadata Reduces Activation Drift
+
+**Context:** Codex local skills under `.codex/skills/`
+
+**What we learned:**
+Skill reliability improves when frontmatter descriptions explicitly encode both task scope and trigger cues, and when interface metadata is normalized across all skills.
+
+**Evidence:**
+
+- Batch A validation passed for 15 skills after rewriting trigger-oriented descriptions.
+- All skills now expose consistent `agents/openai.yaml` fields and `$skill-name` default prompts.
+- Absolute user-specific paths were removed from skill metadata, eliminating portability drift.
+
+**Action:**
+
+- Keep skill descriptions trigger-specific instead of generic summaries.
+- Require `agents/openai.yaml` for every local skill with explicit `$skill-name` in `default_prompt`.
+- Reject hardcoded local absolute paths in skill metadata during review.
+
+**Related:**
+
+- [DEC-064] - Standardize skill interface metadata and portable prompts
+- [Validation Log] - 2026-02-14 Batch A skill metadata and interface validation
+
+---
+
 ### What Doesn't Work
 
 #### 1. [Anti-Pattern Title]

@@ -1,6 +1,6 @@
 ---
 name: context-to-product
-description: Reflect docs/00-context and docs/04-process into docs/01-product/prd.md by extracting user, vision, system, and assumptions context and ensuring the PRD template is filled consistently. Use when a user wants to turn context docs into a complete PRD or validate that PRD mirrors the context.
+description: Build or refresh docs/01-product/prd.md from docs/00-context and docs/04-process, preserving terminology, scope boundaries, and workflow requirements. Use when the user asks to create a PRD from context, sync PRD content with context/process docs, or audit PRD drift against source-of-truth docs.
 ---
 
 # Context to Product

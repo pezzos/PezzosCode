@@ -1,6 +1,6 @@
 ---
 name: create-feature-skeleton
-description: Create a new feature folder in docs/02-features from the feature template and populate it with a provided summary. Use when a user asks to start a new feature's docs or wants the feature template cloned and filled.
+description: Create a new indexed feature folder under docs/02-features from docs/02-features/feature-template and populate core files from a provided summary. Use when the user asks to start feature documentation, scaffold a new feature folder, or clone and fill the feature template.
 ---
 
 # Create Feature Skeleton

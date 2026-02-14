@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Feature Skeleton"
+  short_description: "Scaffold feature docs from template"
+  default_prompt: "Use $create-feature-skeleton to create a new docs/02-features folder from the template and populate it from a summary."

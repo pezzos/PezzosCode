@@ -1,6 +1,6 @@
 ---
 name: write-tests-first
-description: Write tests before implementation to lock in expected behavior and verify failures first. Use when a user asks to add tests first, practice TDD, or define test cases before coding.
+description: Apply tests-first development by writing failing tests from requirements before implementation, then making minimal code changes to pass. Use when the user asks for TDD, requests tests before code changes, or wants behavior locked by explicit test cases.
 ---
 
 # Write Tests First

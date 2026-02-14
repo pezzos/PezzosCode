@@ -1,6 +1,6 @@
 ---
 name: review-end-user-impact
-description: Review staged git changes from the end-user point of view, focusing on impact, expectations, and usability rather than technical details. Use when a user asks questions like "Is the change ok for users?" or "Review the change as an end-user" and the review should be based on the staged diff and user definitions in docs/00-context/users.md.
+description: Review staged git changes from the end-user perspective using docs/00-context/users.md and report user-visible impact, friction, and expectation risks instead of technical internals. Use when the user asks if a change is good for users, requests an end-user review, or wants usability-focused feedback on staged diffs.
 ---
 
 # Review End User Impact

@@ -1,6 +1,6 @@
 ---
 name: readme-sync
-description: Read all non-template README.md files, reduce duplication, and update them to be concise and current.
+description: Reconcile all non-template README.md files, remove duplication, and keep statements concise and accurate against docs/00-context and docs/03-logs sources of truth. Use when README content drifts, repeats itself, or needs a documentation cleanup pass.
 ---
 
 # README Sync
