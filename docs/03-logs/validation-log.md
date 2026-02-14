@@ -27,6 +27,16 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-14 - Post-MVP context refresh validation
+
+- `python3 .codex/skills/update-context/scripts/detect_context_mode.py --json` (PASS: all six context files detected as `enrich-existing`)
+- `tools/offload-proxy/pp rg -n '\[Name or Role\]|\[short description\]|\[what it|\[Journey name\]|\[Principle' docs/00-context/vision.md docs/00-context/system-map.md docs/00-context/context-boundaries-operating-model.md docs/00-context/users.md docs/00-context/assumptions.md docs/00-context/expected-features.md` (PASS: no placeholder matches; offload id `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 17 tests; offload id `42e0f8db8968a646d85a7742f25969a30a439788af0b1b66c4cf035b2123532b`)
+- Verified:
+  - Context docs reflect single-user/personal scope and post-MVP hardening focus.
+  - `users.md` no longer contains unresolved template persona placeholders.
+  - Decision/implementation/validation logs were updated for traceability.
+
 ### 2026-02-14 - Batch B/C skills hardening validation
 
 - `python3 .codex/skills/feature-status-audit/scripts/run_audit.py --help` (PASS)

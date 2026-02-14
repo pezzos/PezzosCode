@@ -5,18 +5,18 @@
 <!-- Describe who uses the product and why it matters to them. -->
 
 PezzosCode is built for a single developer/PO who wants a reliable, AI-first workflow
-to bootstrap projects and execute features with minimal manual effort.
+to bootstrap/update projects and execute features with near-zero manual input.
 
 ## Primary Users
 
 ### Persona: Developer/PO (single user)
 
-- **Who they are:** Entrepreneur building multiple projects for self and clients, using Codex as the main executor.
-- **Goals:** Bootstrap projects fast; describe features and let AI implement them with minimal manual setup.
-- **Pain points:** AI workflows need manual setup; small errors derail flow; inconsistent process adherence.
+- **Who they are:** A solo builder running multiple projects with one personal workflow, toolset, and habits.
+- **Goals:** Bootstrap/update projects fast; describe intent once; let AI execute and auto-fix deterministic issues.
+- **Pain points:** Manual prompts interrupt flow; repetitive fixups add toil; token-heavy runs cost time and context.
 - **Context of use:** macOS CLI, frequent use across new and existing repos.
-- **Success looks like:** One-command bootstrap + AI executes approved tasks without manual intervention.
-- **Non-goals:** UI-driven workflows, multi-user coordination, or heavy configuration.
+- **Success looks like:** One-command bootstrap/update + AI executes approved tasks with almost no human input.
+- **Non-goals:** UI-driven workflows, multi-user coordination, heavy configuration, or support for other dev styles.
 
 ## Secondary Users
 
@@ -24,30 +24,27 @@ None. Single-user focus.
 
 ## Edge Users
 
-<!-- Rare but important users, admins, partners, etc. -->
-
-### Persona: [Name or Role]
-
-- **Who they are:** [short description]
-- **Goals:** [what they want to achieve]
-- **Pain points:** [what makes their job hard today]
-- **Context of use:** [environment, device, frequency]
-- **Success looks like:** [outcome they care about]
-- **Non-goals:** [what they do not need]
+None. This product is intentionally single-user.
 
 ## Key User Journeys
 
-1. **Bootstrap a project**
-   - **Trigger:** Need to start a new project or retrofit an existing repo.
-   - **Steps:** Run bootstrap command; confirm template files; start describing context.
-   - **Success outcome:** Project has PezzosCode structure ready for AI execution.
+1. **Bootstrap or refresh a project**
+   - **Trigger:** Need to start a new project or update an existing repo with latest workflow.
+   - **Steps:** Run bootstrap/update command; verify sync; continue with context/features.
+   - **Success outcome:** Project is ready for AI execution with minimal manual adjustments.
    - **Failure risks:** Template conflicts; missing dependencies; non-idempotent reruns.
 
 2. **Execute approved work with AI**
    - **Trigger:** Features/tasks are defined and approved.
-   - **Steps:** Run execution command; AI writes tests and implementation; review output.
-   - **Success outcome:** Features implemented with minimal manual work.
-   - **Failure risks:** Workflow breaks on errors; approvals not respected; token waste.
+   - **Steps:** Run execution command; AI performs Plan → Patch → Test → Report; deterministic issues auto-fix.
+   - **Success outcome:** Features implemented with near-zero manual intervention.
+   - **Failure risks:** Workflow breaks on errors; approvals not respected; token waste from avoidable LLM steps.
+
+3. **Post-MVP workflow hardening**
+   - **Trigger:** Errors, token spikes, or repeated manual interventions are observed.
+   - **Steps:** Capture friction; prioritize hardening task; simplify/remove unused parts; validate and log.
+   - **Success outcome:** Fewer failures, fewer prompts, lower token usage.
+   - **Failure risks:** Over-optimization hides needed diagnostics; useful capabilities removed by mistake.
 
 ## Accessibility & Inclusion
 
@@ -62,4 +59,7 @@ None. Single-user focus.
 <!-- Terms users use, not internal jargon. -->
 
 - **Bootstrap:** Copy the PezzosCode template and set up a project to run the workflow.
+- **Refresh/Update:** Reapply template/tooling changes into an existing project safely.
 - **Execute Ticket:** Run the ticket protocol end-to-end with AI assistance.
+- **Toil:** Any avoidable human input or repetitive manual fixup in the workflow.
+- **Auto-fix:** Deterministic script/AI correction that runs before asking the user to intervene.

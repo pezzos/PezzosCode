@@ -27,6 +27,36 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-14 - Context refresh for post-MVP optimization phase
+
+**Feature/Bug:** Context alignment after MVP completion
+
+**Changed Files:**
+
+- `docs/00-context/vision.md`
+- `docs/00-context/system-map.md`
+- `docs/00-context/context-boundaries-operating-model.md`
+- `docs/00-context/users.md`
+- `docs/00-context/assumptions.md`
+- `docs/00-context/expected-features.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Updated context docs to reflect confirmed product reality:
+  - single-user/personal workflow scope,
+  - MVP status achieved and in use across projects,
+  - post-MVP focus on error reduction, token efficiency, and removing unused complexity.
+- Replaced stale/placeholder content in `users.md` (edge users now explicitly none).
+- Rebased expected feature candidates to the post-MVP hardening backlog.
+- Added a decision entry documenting the post-MVP scope constraint.
+
+**Why:**
+
+- Keep source-of-truth context aligned with the current product phase and prevent future scope drift toward generic or high-toil workflows.
+
 ### 2026-02-14 - Batch B/C skill hardening: deterministic resources, progressive disclosure, and CI metadata guardrail
 
 **Feature/Bug:** Codex skills robustness and policy hardening (Batch B + C)

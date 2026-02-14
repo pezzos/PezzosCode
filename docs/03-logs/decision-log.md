@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-066] - Confirm post-MVP strategy: hardening and simplification only
+
+**Date:** 2026-02-14
+
+**Status:** Implemented
+
+**Decision:**
+Treat MVP as achieved and constrain next work to workflow hardening only: reduce human toil, reduce error rate, reduce token consumption, and remove unused complexity (skills/code paths).
+
+**Rationale:**
+The product is now working in other projects, and the user explicitly confirmed it is personal/single-user and not intended to support broader development styles.
+
+**Implications:**
+
+- Context docs now state a post-MVP optimization phase instead of open-ended feature expansion.
+- New expected features prioritize automation/autofix, token efficiency, and pruning.
+- Requests that generalize for multi-user or broad style compatibility remain out of scope unless a new product decision is made.
+
 ### [DEC-065] - Enforce CI-level skill metadata contracts and explicit invocation for high-impact skill workflows
 
 **Date:** 2026-02-14

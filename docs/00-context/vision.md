@@ -6,24 +6,20 @@
 
 **Problem:**
 
-- Bootstrapping a new project with an AI‑first workflow is time‑consuming and inconsistent without a stable template.
-- The primary user (single developer/PO) wants to describe problems/features and let AI implement them with minimal manual setup.
-- Without a standardized process, work becomes brittle, repetitive, and error‑prone.
-- AI needs a minimal, reliable toolchain to operate like a productive developer without constant human intervention.
-- Context mistakes between template vs. project and noisy outputs cause wasted tokens and rework.
-- Lack of predictable gates (plan/patch/test/report) slows iteration and increases regressions.
-- Deterministic tasks are still pushed through LLMs, burning tokens that should be handled by scripts.
-- Limited observability makes CI/test/precommit failures hard to diagnose and slows iteration.
-- Non-incremental PRD → features updates cause regressions and confusion.
-- Role prompts and plan review gates are inconsistent, creating avoidable rework.
-- Learning loops for improving scripts and processes are ad hoc.
+- Bootstrapping or updating a project for AI-assisted delivery is still costly when workflow assumptions are not pre-wired.
+- The product serves one user only (single developer/PO), so every extra prompt or manual input is avoidable toil.
+- Generic support for many development styles adds complexity that this project does not need.
+- Deterministic failures (template drift, lint/format, staging, retries) still create rework when not auto-fixed.
+- Noisy output and unnecessary LLM steps waste tokens and slow down execution.
+- Now that MVP is working across other projects, unused skills and over-complex paths become maintenance debt.
 
 **Vision:**
 
-- One command bootstraps a project that follows the PezzosCode process.
-- After bootstrapping, the user can work with AI with almost no manual work beyond describing features/tasks.
+- One command bootstraps or updates a project that follows the PezzosCode process.
+- After bootstrap/update, the user works with AI with almost no manual work beyond describing features/tasks.
 - The AI is treated as a developer: the repo ships the tools and hooks it needs to be autonomous and productive.
-- Commands are simple, memorable, and the workflow is robust, low‑token, and easy to use.
+- Commands stay simple and memorable while the workflow gets more robust and token-efficient.
+- Deterministic issues are auto-fixed by scripts/AI before asking the human for input.
 - Work is orchestrated with clear roles (orchestrator, planner, plan-reviewer, patcher, tester, reporter) and clean workspaces.
 - Large outputs are offloaded, keeping AI context focused and deterministic.
 - Deterministic workflow steps are delegated to scripts with a shared runner and consistent metadata.
@@ -31,6 +27,7 @@
 - PRD → features updates are incremental, with strict template/project boundaries to prevent regressions.
 - Learning loops propose improvements after failures, gated by human approval.
 - Plans are validated by a dedicated Plan Reviewer role before code changes.
+- Post-MVP work stays focused on reducing errors, reducing tokens, and removing unused complexity.
 
 ## WHAT exists RIGHT NOW?
 
@@ -38,21 +35,23 @@
 
 **Product Boundaries:**
 
-- In scope: CLI tooling and templates to bootstrap and run the PezzosCode process on macOS.
-- Out of scope: UI, cloud services, multi‑user support, Windows support, and extra complexity beyond essentials.
-- A future CLI/TUI can exist, but any UI will live in another project and only call CLI commands.
+- In scope: personal CLI tooling/templates to bootstrap/update and run the PezzosCode process on macOS.
+- Out of scope: UI, cloud services, multi-user support, Windows support, and generic support for other development styles.
+- The project is intentionally opinionated for one user's tools/habits; no attempt is made to fit all teams.
 
 **Current Capabilities:**
 
-- Bootstrap a project with a template and run a guided workflow with AI assistance.
+- Bootstrap or update a project with templates and run a guided workflow with AI assistance.
 - Tools support ticket execution, preflight, and documentation flow.
 - Targeted for macOS and projects using Python, TypeScript/Node, Rust, or Go.
+- MVP baseline is already used in other projects; current effort is workflow hardening.
 
 **Key Metrics:**
 
-- Success is one‑command bootstrap + AI execution with almost no manual setup.
-- AI can implement approved features/tasks without workflow failures.
-- Simplicity, robustness, and idempotent reruns are the core success signals.
+- One-command bootstrap/update works consistently across projects.
+- AI implements approved features/tasks with near-zero manual intervention.
+- Workflow errors and rerun failures trend downward over time.
+- Token usage per completed work item trends downward without reducing quality.
 
 ## Anchor Points
 
@@ -62,6 +61,7 @@
 
 - Simple and robust: fewer knobs, fewer failure modes.
 - AI‑first, low setup: AI can operate without manual wiring in each project.
+- Opinionated over configurable: optimize for one user's workflow, tools, and habits.
 - Idempotent and recoverable: safe reruns, skip completed work, handle errors gracefully.
 - Minimal dependencies: only essential tools to keep setup and maintenance light.
 - Token‑efficient workflow: prefer hooks and tools over verbose AI instructions.
@@ -82,3 +82,4 @@
 - macOS‑first, CLI‑only, no Windows support.
 - No cloud or multi‑user features; focus on essentials.
 - Personal use, prioritize robustness over feature breadth.
+- Do not generalize for external development styles; reduce toil for the primary user first.

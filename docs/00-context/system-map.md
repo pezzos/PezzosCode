@@ -37,17 +37,18 @@
 ### Tools (CLI scripts)
 
 - **Technology:** Bash + Python.
-- **Entry Points:** `tools/bootstrap-into`, `tools/pc-feature`, `tools/pc-commit`.
+- **Entry Points:** `tools/bootstrap-into`, `tools/pc-feature`, `tools/pc-commit`, `tools/pc-template-sync`.
 - **Key Files/Modules:**
-  - `tools/bootstrap-into`: copy templates into target repo.
+  - `tools/bootstrap-into`: copy templates into target repo and reapply updates safely.
   - `tools/pc-feature`: execute work item workflow end-to-end.
   - `tools/pc-commit`: validate and commit changes.
+  - `tools/pc-template-sync`: keep template/living docs aligned.
   - `tools/offload-proxy/pp`: offload noisy command output to `.offload/`.
 
 ### Skills (Codex helpers)
 
 - **Technology:** Markdown skill files in `.codex/skills/`.
-- **Entry Points:** `context-to-product`, `prd-to-features`, `feature-status-audit`, `sync-root-from-context`, etc.
+- **Entry Points:** `context-to-product`, `prd-to-features`, `feature-status-audit`, `sync-root-from-context`, `update-context`, etc.
 
 ### External Services
 
@@ -73,6 +74,11 @@
    - Output hygiene: noisy command output is offloaded to `.offload/`.
    - Role sessions share one feature worktree by default (planner/plan-reviewer/patcher/tester/reporter) with role-scoped logs.
 
+3. **Post-MVP hardening loop**
+   - User action: report friction/errors/token waste and request optimization.
+   - System flow: context update → feature/task selection → tools/skills simplification or hardening → validation/logging.
+   - Data touched: `docs/00-context/`, `docs/02-features/`, `docs/03-logs/`, tools/scripts, skill inventory.
+
 ## Deployment
 
 ### Environments
@@ -83,8 +89,9 @@
 
 ### Build & Deploy Process
 
-1. Run tools/bootstrap-into to seed a target repo.
-2. Use ticket workflow to execute features locally.
+1. Run `tools/bootstrap-into` to seed or refresh a target repo.
+2. Run ticket workflow commands to execute and validate work locally.
+3. Capture improvements in context/features/logs and reapply in future projects.
 
 ## Configuration
 
@@ -123,7 +130,7 @@ None.
 ### Metrics
 
 - **Tool:** none (manual).
-- **Key Metrics:** successful bootstrap; successful ticket execution with minimal manual intervention; step runtimes by timestamped logs.
+- **Key Metrics:** successful bootstrap/update; successful ticket execution with minimal manual intervention; workflow failures per work item; token usage trend per work item.
 
 ### Alerts
 
@@ -133,8 +140,10 @@ None.
 ## Known Issues & Debt
 
 - [ ] Keep tools idempotent across reruns to avoid state corruption.
+- [ ] Remove unused skills and redundant script paths without breaking execution.
+- [ ] Keep automation aggressive enough to reduce toil without masking critical failures.
 
 ---
 
-**Last Updated:** 2026-02-11
+**Last Updated:** 2026-02-14
 **Updated By:** Alexandre Pezzotta
