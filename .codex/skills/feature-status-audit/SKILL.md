@@ -41,6 +41,13 @@ and update ticket frontmatter `status` fields automatically.
    - Tasks marked Done / Ongoing / To Do
    - Checklist of tasks to confirm manually
 
+## Deterministic Helper
+
+Use the bundled wrapper to run the audit consistently and optionally emit JSON:
+
+- `python3 .codex/skills/feature-status-audit/scripts/run_audit.py`
+- `python3 .codex/skills/feature-status-audit/scripts/run_audit.py --feature 01 --json`
+
 ## Output Format
 
 - Feature audited.

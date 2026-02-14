@@ -2,3 +2,10 @@ interface:
   display_name: "Feature Status Audit"
   short_description: "Audit TASK status from ticket evidence"
   default_prompt: "Use $feature-status-audit to reconcile TASK ticket frontmatter statuses for one feature using deterministic evidence rules."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "serena"
+      description: "Serena MCP server for symbol-aware navigation and edits"
+policy:
+  allow_implicit_invocation: false

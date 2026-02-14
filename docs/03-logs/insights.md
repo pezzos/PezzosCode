@@ -128,6 +128,32 @@ Skill reliability improves when frontmatter descriptions explicitly encode both 
 
 ---
 
+#### 5. CI Metadata Gates + Progressive Disclosure Keep Skills Stable as They Grow
+
+**Context:** Skill system maintenance after adding scripts/references/policies
+
+**What we learned:**
+As skills accumulate scripts, references, and policy metadata, stability depends on two controls used together: progressive-disclosure structure (lean `SKILL.md`, detailed `references/`) and CI-level metadata contract checks.
+
+**Evidence:**
+
+- Batch B refactors reduced long inlined rules across multiple skills by moving detail into focused references.
+- Batch C introduced `pc-skills-metadata-check`, and `make ci` passed with the new gate active.
+- The checker now enforces prompt token presence, short-description bounds, and absolute-path hygiene.
+
+**Action:**
+
+- Keep `SKILL.md` procedural and push long rule sets into `references/`.
+- Require skill metadata checks in standard CI (`make test`/`make ci`).
+- Use explicit invocation policy for high-impact mutating skills.
+
+**Related:**
+
+- [DEC-065] - Enforce CI-level skill metadata contracts and explicit invocation for high-impact skill workflows
+- [BUG-006] - Skill metadata drift was not gated by CI
+
+---
+
 ### What Doesn't Work
 
 #### 1. [Anti-Pattern Title]

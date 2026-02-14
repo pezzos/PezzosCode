@@ -7,68 +7,43 @@ description: Convert docs/01-product/prd.md prioritized features into numbered f
 
 ## Overview
 
-Generate feature folders from the PRD and fill the feature template files, respecting product surface selection rules. Supports incremental mode to avoid duplicate features on existing projects. Use the five-step workflow (data model → pure logic → edge cases → UI → integration) when drafting feature content.
+Generate feature folders from the PRD and fill template files while preserving
+incremental safety (no duplicate creation or destructive overwrite).
 
 ## Inputs
 
 - `docs/01-product/prd.md`
 - `docs/02-features/AGENTS.md`
 - `docs/02-features/feature-template/`
-- `docs/00-context/*.md` (optional, for additional context)
-- `docs/03-logs/implementation-log.md` (for completed items)
-- `docs/03-logs/decision-log.md` (for rejected/deferred items)
-- `docs/02-features/<feature>/dev-tasks.md` (for `Status: Done`)
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
 
-## Naming Convention
+## Detailed Rules
 
-- Prefix feature folders with an ordered index that matches the PRD prioritized feature list.
-- Use two-digit padding: `01-<feature-name>`, `02-<feature-name>`, etc.
-
-## Update-in-Place Rules
-
-- Do not create duplicate feature folders.
-- Do not overwrite an existing feature folder unless explicitly asked.
-- If a folder exists, update only missing sections or leave it unchanged and report it.
-
-## Incremental Mode (Default for Existing Projects)
-
-- Read `docs/03-logs/implementation-log.md` and `docs/03-logs/decision-log.md`.
-- Skip features that are marked completed, rejected, or deferred in logs.
-- Add only missing features not already present in `docs/02-features/`.
+Read `references/selection-and-update-rules.md` for naming, incremental mode,
+skip logic, output contract, and full DoD requirements.
 
 ## Steps
 
 1. Read `docs/02-features/AGENTS.md` and follow the selection rule for product surfaces.
 2. Read `docs/01-product/prd.md` and extract the prioritized feature list and scope boundaries.
-3. In incremental mode, skip any feature already present in `docs/02-features/` or noted as completed/rejected/deferred in logs.
-4. For each remaining P0/P1 feature, create `docs/02-features/<index>-<feature-name>/` using the template files.
-5. Fill `feature-spec.md`, `tech-design.md`, `dev-tasks.md`, and `test-plan.md` using PRD context.
-6. Uncomment only the template sections that match the product surfaces; keep the rest commented.
-7. If a feature cannot be fully specified from the PRD, list missing inputs and request clarification.
+3. Run the planning helper to preview folder mapping before writes.
+4. Execute creation/update with `tools/prd-to-features`.
+5. Verify that output respects incremental rules from `references/selection-and-update-rules.md`.
+6. If a feature cannot be specified safely, stop and request missing context.
 
-## Output Format
+## Deterministic Helpers
 
-- List of feature folders created or updated (with index prefix).
-- List of features skipped because they already exist.
-- List of features skipped because they are completed/rejected/deferred (with log reference or `Status: Done`).
-- Sections populated for each feature.
-- Missing context/questions.
+- Preview (read-only):
+  - `python3 .codex/skills/prd-to-features/scripts/plan_feature_folders.py --json`
+- Execute:
+  - `tools/prd-to-features`
 
 ## Commands
 
-- `rg -n "Prioritized Feature List" docs/01-product/prd.md`
-- `cat docs/01-product/prd.md`
-- `cat docs/02-features/AGENTS.md`
-- `cat docs/03-logs/implementation-log.md`
-- `cat docs/03-logs/decision-log.md`
-- `cp -R docs/02-features/feature-template/* docs/02-features/<index>-<feature-name>/`
+- `python3 .codex/skills/prd-to-features/scripts/plan_feature_folders.py --json`
+- `tools/prd-to-features`
 
 ## DoD
 
-- Feature folders created only for missing P0/P1 items in the PRD.
-- Folder order matches PRD list via numeric prefixes.
-- Template sections match the chosen product surfaces.
-- No TODO placeholders remain unless blocked by missing PRD context (must be called out).
-- Skipped items are explicitly reported with reasons.
-- Never delete existing feature folders.
-- Skip any feature whose `dev-tasks.md` shows `Status: Done`.
+See `references/selection-and-update-rules.md#definition-of-done`.

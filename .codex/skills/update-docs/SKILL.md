@@ -22,6 +22,14 @@ Update logs and docs so decisions and changes remain traceable.
 4. Update `docs/03-logs/validation-log.md` if validation was performed.
 5. Ensure references are accurate and concise.
 
+## Deterministic Helper
+
+Use the template generator when creating new log entries to avoid rewriting section
+scaffolding:
+
+- `python3 .codex/skills/update-docs/scripts/new_log_entry.py --kind implementation --title "<entry title>"`
+- `python3 .codex/skills/update-docs/scripts/new_log_entry.py --kind validation --title "<entry title>" --date 2026-02-14`
+
 ## Commands
 
 - None

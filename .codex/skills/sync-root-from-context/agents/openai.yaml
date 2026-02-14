@@ -2,3 +2,10 @@ interface:
   display_name: "Sync Root From Context"
   short_description: "Align root files with context and PRD"
   default_prompt: "Use $sync-root-from-context to update live root project files so they match docs/00-context and docs/01-product/prd.md."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "serena"
+      description: "Serena MCP server for symbol-aware navigation and edits"
+policy:
+  allow_implicit_invocation: false

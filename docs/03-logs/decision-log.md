@@ -104,6 +104,27 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-065] - Enforce CI-level skill metadata contracts and explicit invocation for high-impact skill workflows
+
+**Date:** 2026-02-14
+
+**Status:** Implemented
+
+**Decision:**
+Adopt a two-part hardening baseline for local skills:
+
+1. enforce metadata/interface quality with a dedicated CI checker (`tools/pc-skills-metadata-check`), and
+2. require explicit invocation (`policy.allow_implicit_invocation: false`) for high-impact mutating skills.
+
+**Rationale:**
+Batch-A improvements raised metadata quality, but there was no deterministic gate preventing future drift. Additionally, mutating skills (plan execution, feature generation, root sync, etc.) are safer when invoked explicitly rather than implicitly.
+
+**Implications:**
+
+- `make test`/`make ci` now fail-closed for malformed skill metadata and prompt-token drift.
+- High-impact mutating skills are less likely to auto-trigger unexpectedly.
+- Skill maintenance now includes deterministic script helpers and reference-driven progressive disclosure.
+
 ### [DEC-064] - Standardize skill interface metadata and portable prompts
 
 **Date:** 2026-02-14

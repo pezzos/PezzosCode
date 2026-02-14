@@ -2,3 +2,8 @@ interface:
   display_name: "Write Tests First"
   short_description: "Apply tests-first implementation flow"
   default_prompt: "Use $write-tests-first to write failing tests from requirements before implementation and then make minimal passing changes."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "serena"
+      description: "Serena MCP server for symbol-aware navigation and edits"

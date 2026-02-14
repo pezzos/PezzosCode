@@ -27,6 +27,51 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-14 - Batch B/C skill hardening: deterministic resources, progressive disclosure, and CI metadata guardrail
+
+**Feature/Bug:** Codex skills robustness and policy hardening (Batch B + C)
+
+**Changed Files:**
+
+- `.codex/skills/feature-status-audit/SKILL.md`
+- `.codex/skills/feature-status-audit/scripts/run_audit.py`
+- `.codex/skills/update-docs/SKILL.md`
+- `.codex/skills/update-docs/scripts/new_log_entry.py`
+- `.codex/skills/prd-to-features/SKILL.md`
+- `.codex/skills/prd-to-features/scripts/plan_feature_folders.py`
+- `.codex/skills/prd-to-features/references/selection-and-update-rules.md`
+- `.codex/skills/investigate/SKILL.md`
+- `.codex/skills/investigate/references/investigation-rubric.md`
+- `.codex/skills/readme-sync/SKILL.md`
+- `.codex/skills/readme-sync/references/readme-rules.md`
+- `.codex/skills/sync-root-from-context/SKILL.md`
+- `.codex/skills/sync-root-from-context/references/root-file-checklist.md`
+- `.codex/skills/*/agents/openai.yaml` (dependency/policy updates on selected skills)
+- `tools/pc-skills-metadata-check`
+- `tests/test_pc_skills_metadata_check.py`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/bug-log.md`
+- `docs/03-logs/validation-log.md`
+- `docs/03-logs/insights.md`
+
+**What Changed:**
+
+- Added deterministic helper scripts for repeated skill workflows:
+  - feature status audits (`run_audit.py`),
+  - docs log entry scaffolding (`new_log_entry.py`),
+  - PRD-to-feature planning preview (`plan_feature_folders.py`).
+- Refactored long skill bodies into progressive-disclosure references for `investigate`, `prd-to-features`, `readme-sync`, and `sync-root-from-context`.
+- Added `dependencies.tools` metadata (Serena MCP) to edit-heavy skills and disabled implicit invocation for high-impact mutating skills.
+- Added new repository guardrail `tools/pc-skills-metadata-check` and wired it into `make test`/`make ci` through `skills-metadata-check` in both live and template Makefiles.
+- Added unit coverage for the new metadata checker.
+
+**Why:**
+
+- Reduce execution variance for repetitive workflows, keep skills concise under context pressure, and enforce metadata quality in CI to prevent trigger/prompt drift and portability regressions.
+
 ### 2026-02-14 - Batch A skill metadata hardening and portability cleanup
 
 **Feature/Bug:** Codex skill activation quality and interface consistency

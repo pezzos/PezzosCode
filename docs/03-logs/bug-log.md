@@ -126,6 +126,67 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-006] - Skill metadata drift was not gated by CI
+
+**Date Discovered:** 2026-02-14
+
+**Discovered By:** Batch B/C process review
+
+**Severity:** Medium
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Internal maintainers of `.codex/skills/*`
+
+**Symptoms:**
+Skill metadata quality could regress (prompt token mismatch, invalid interface fields, local absolute path leakage) without a dedicated deterministic gate.
+
+**Steps to Reproduce:**
+
+1. Modify skill metadata (for example, remove `$skill-name` from `default_prompt`).
+2. Run CI before this fix.
+3. Observe no metadata-specific failure signal.
+
+**Expected Behavior:**
+CI fails when skill metadata or interface contracts drift.
+
+**Actual Behavior:**
+No dedicated check enforced metadata semantics beyond layout/frontmatter basics.
+
+**Root Cause:**
+`make test`/`make ci` lacked a validator for `agents/openai.yaml` contracts and portability constraints.
+
+**Fix:**
+Added `tools/pc-skills-metadata-check`, integrated `skills-metadata-check` into both live and template Makefiles, and added unit tests.
+
+**Files Changed:**
+
+- `tools/pc-skills-metadata-check`
+- `tests/test_pc_skills_metadata_check.py`
+- `Makefile`
+- `tools/templates/root/Makefile`
+
+**Prevention:**
+Fail-closed metadata checks now run in `make test` and `make ci`.
+
+- Tests added: `tests/test_pc_skills_metadata_check.py`
+- Process changes: added `skills-metadata-check` Makefile target
+- Monitoring added: none
+
+**Related Issues:**
+
+- [DEC-065] - Enforce CI-level skill metadata contracts and explicit invocation for high-impact skill workflows
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-14
+
+**Deployed:** 2026-02-14
+
+**Verified By:** Codex (`make ci`; offload id `4aa43f23489b633ab1f3fdb605b483ccbca877caf26df6e9850a44f2244a43e6`)
+
 ### [BUG-005] - Skill metadata validation blocked by angle brackets in descriptions
 
 **Date Discovered:** 2026-02-14

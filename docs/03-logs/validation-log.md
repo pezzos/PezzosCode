@@ -27,6 +27,22 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-14 - Batch B/C skills hardening validation
+
+- `python3 .codex/skills/feature-status-audit/scripts/run_audit.py --help` (PASS)
+- `python3 .codex/skills/update-docs/scripts/new_log_entry.py --help` (PASS)
+- `python3 .codex/skills/prd-to-features/scripts/plan_feature_folders.py --help` (PASS)
+- `tools/pc-skills-metadata-check --verbose` (PASS: `pc-skills-metadata-check: ok (15 skills)`)
+- `python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/<skill>` in loop (PASS: all skills valid)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_skills_metadata_check.py"` (PASS; offload id `38bf320bde0206302c1e57a1b42621b895232f0c74ebfec8c7b81ec6681fa5a0`)
+- `make lint` (RUN1: autoformatted by `black`/`prettier`; RUN2: PASS)
+- `tools/offload-proxy/pp make ci` (PASS; offload id `4aa43f23489b633ab1f3fdb605b483ccbca877caf26df6e9850a44f2244a43e6`)
+- Verified:
+  - New deterministic helper scripts execute and expose stable CLI contracts.
+  - Progressive-disclosure skills reference dedicated `references/` docs.
+  - `skills-metadata-check` is enforced via `make test`/`make ci` (live + template Makefile).
+  - High-impact skill policies/dependencies in `agents/openai.yaml` parse correctly under CI.
+
 ### 2026-02-14 - Batch A skill metadata and interface validation
 
 - `python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/<skill>` in a loop over all 15 skills (PASS: all returned `Skill is valid!`)

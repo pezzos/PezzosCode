@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check feature feature-help feature-status ci
+.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check skills-metadata-check feature feature-help feature-status ci
 
 fmt:
 	@tools/pc-hooks-run --hook-stage manual --all-files
@@ -15,6 +15,7 @@ lint-verbose:
 test:
 	@python -m unittest discover -s tests -p "test_*.py"
 	@$(MAKE) skills-check
+	@$(MAKE) skills-metadata-check
 	@$(MAKE) docs-check
 
 feature:
@@ -106,6 +107,9 @@ skills-check:
 			fi; \
 		done; \
 		echo "skills-check: ok"'
+
+skills-metadata-check:
+	@tools/pc-skills-metadata-check
 
 docs-check:
 	@tools/pc-devtasks-schema-check

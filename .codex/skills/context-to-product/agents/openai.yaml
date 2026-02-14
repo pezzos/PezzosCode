@@ -2,3 +2,8 @@ interface:
   display_name: "Context to Product"
   short_description: "Build or sync PRD from context docs"
   default_prompt: "Use $context-to-product to build or reconcile docs/01-product/prd.md from docs/00-context and docs/04-process."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "serena"
+      description: "Serena MCP server for symbol-aware navigation and edits"

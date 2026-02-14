@@ -2,3 +2,8 @@ interface:
   display_name: "Prepare Commit"
   short_description: "Stage a clean, scoped commit"
   default_prompt: "Use $prepare-commit to review diff scope, verify checks, update logs, and stage only intended files for commit."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "serena"
+      description: "Serena MCP server for symbol-aware navigation and edits"
