@@ -8,9 +8,9 @@
 
 **Product Name:** PezzosCode
 
-**Version:** 0.5
+**Version:** 0.6
 
-**Last Updated:** 2026-02-11
+**Last Updated:** 2026-02-13
 
 **Status:** Draft
 
@@ -22,6 +22,7 @@ PezzosCode bootstraps a new project with a standardized, AI-first workflow and t
 It enables a single developer/PO to describe features and let AI execute tickets with minimal manual setup.
 The focus is simplicity, robustness, idempotent re-runs, and a deterministic Plan → Patch → Test → Report loop.
 Deterministic steps are delegated to scripts, observability is improved with structured logs, and PRD → features updates are incremental to prevent regressions.
+Execution stays local (macOS CLI), with explicit human gates for HIGH-risk work and strict scope boundaries to avoid workflow drift.
 
 ## Problem Statement
 
@@ -117,16 +118,21 @@ Deterministic steps are delegated to scripts, observability is improved with str
 
 **Postconditions:** Ticket is implemented and documented.
 
-## Prioritized Feature List (Template)
+## Prioritized Feature List
 
 <!-- Ordered list of features tied to the PRD scope -->
 
-| Priority | Feature                         | Outcome                                  | Notes                  |
-| -------- | ------------------------------- | ---------------------------------------- | ---------------------- |
-| P0       | Bootstrap templates into a repo | Project is ready for AI workflow         | Idempotency required   |
-| P0       | Execute ticket workflow         | AI can implement approved tasks reliably | Requires Codex CLI     |
-| P1       | Update/reapply templates        | Existing repos stay in sync              | Avoid conflicts        |
-| P2       | Optional CLI/TUI wrapper        | Faster iteration for user                | Separate project if UI |
+| Priority | Feature                                                         | Outcome                                                           | Notes                                               |
+| -------- | --------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------- |
+| P0       | Bootstrap + safe template reapply                               | New/existing repos become execution-ready with idempotent reruns  | Conflict handling: overwrite/merge/skip             |
+| P0       | Deterministic work-item execution with explicit gates           | Plan → Patch → Test → Report runs predictably and is auditable    | Command authority remains with the human PO/user    |
+| P0       | Output offload + structured logs + shared runner                | Noisy output stays token-efficient and every step is traceable    | `pp` pointers + `logs/<WI>/<step>.log` + metadata   |
+| P0       | Resume safety + fail-closed commit gate + scoped autofix        | Interrupted runs resume safely; commits require complete evidence | Active-WIP preserve by default; strict commit gate  |
+| P0       | Single-worktree orchestration + template-drift hardening        | Reliable role collaboration without worktree tracking-file drift  | No `feature-worktrees.json`; deterministic recovery |
+| P1       | Orchestrator roles + Plan Reviewer gate + role-specific prompts | Cleaner separation of responsibilities and better plan quality    | Dedicated planner/reviewer/patcher/tester/reporter  |
+| P1       | Anti-hardcode test policy + synthetic end-to-end smoke feature  | Better regression resistance and early workflow break detection   | Fixtures + seeds + invariants + boundary contracts  |
+| P1       | Incremental PRD-to-features + post-run learning loop            | Feature docs evolve safely and repeated failures are reduced      | Add-missing only; human-gated improvements          |
+| P2       | Offload audit + compacted logs + workflow quality nudges        | Better long-run maintainability and signal-to-noise               | Index lifecycle, compact logs, precommit warnings   |
 
 ## Process Features
 
@@ -163,15 +169,15 @@ Deterministic steps are delegated to scripts, observability is improved with str
 
 - [ ] **FR-002:** Execute a ticket end-to-end with AI and minimal manual work.
   - **Rationale:** Primary user goal is AI execution with minimal intervention.
-  - **Acceptance Criteria:** Plan → Patch → Test → Report; gates enforced; logs updated.
+  - **Acceptance Criteria:** Plan → Patch → Test → Report with orchestrator gates and feedback-loop restart rules; required role logs and execution evidence are updated.
 
 - [ ] **FR-003:** Require ticket-specific Definition of Done before coding.
   - **Rationale:** Prevent “it kinda works” outcomes and clarify finish lines.
-  - **Acceptance Criteria:** Ticket template includes DoD and execution workflow enforces it.
+  - **Acceptance Criteria:** Ticket template includes explicit work-item DoD; execution blocks patching until DoD, tests, and report sections are defined.
 
 - [ ] **FR-004:** Offload noisy command output.
   - **Rationale:** Reduce token waste and keep prompts focused.
-  - **Acceptance Criteria:** Noisy outputs are stored in `.offload/` and referenced by id.
+  - **Acceptance Criteria:** Noisy outputs are stored in `.offload/`, referenced by id, and retrievable through deterministic index metadata.
 
 - [ ] **FR-005:** Provide a shared runner library for tool/script execution.
   - **Rationale:** Standardize Codex/Serena invocation and reduce token waste.
@@ -213,6 +219,10 @@ Deterministic steps are delegated to scripts, observability is improved with str
   - **Rationale:** Keep template-driven repos reliable when precommit/CI detects out-of-sync files.
   - **Acceptance Criteria:** Workflow detects template/living-file drift, attempts deterministic scoped repairs, re-stages only allowed files, and fails with explicit remediation when unresolved.
 
+- [ ] **FR-015:** Enforce command authority and HIGH-risk approval gates.
+  - **Rationale:** Prevent unauthorized or unsafe autonomous execution.
+  - **Acceptance Criteria:** Only the human PO/user runs `make feature` / `pc-feature` unless explicitly approved in-run; HIGH-risk work stops after preflight with `Awaiting PO Approval` until explicit approval is granted.
+
 #### Should Have (P1)
 
 - [ ] **FR-101:** Reapply templates to existing repos safely.
@@ -222,6 +232,10 @@ Deterministic steps are delegated to scripts, observability is improved with str
 - [ ] **FR-102:** Provide a synthetic feature for end-to-end workflow smoke testing.
   - **Rationale:** Catch orchestration/gate regressions with a repeatable collaborative test path.
   - **Acceptance Criteria:** A lightweight synthetic feature can run full Plan → Patch → Test → Report, validate gates/resume/logs, and report pass/fail before real feature execution.
+
+- [ ] **FR-103:** Enforce anti-hardcode testing coverage.
+  - **Rationale:** Prevent brittle implementations that only pass shallow examples.
+  - **Acceptance Criteria:** Plan/TDD states fixture count (>=2 critical-path fixtures), deterministic seed strategy, invariant assertions, and boundary contract tests.
 
 #### Nice to Have (P2)
 
@@ -275,25 +289,28 @@ Deterministic steps are delegated to scripts, observability is improved with str
 
 ## Workflow/Process Requirements
 
-- Plan → Patch → Test → Report is mandatory for every ticket.
-- `make feature` is orchestration/bootstrap only (never listed as a plan step or test command).
-- Ticket-specific Definition of Done is required before coding.
-- Work item risk classification is deterministic; HIGH-risk work requires explicit approval before implementation.
-- Output offload is required for noisy commands.
-- Orchestrator + planner/plan-reviewer/patcher/tester/reporter roles are supported.
-- Worktree policy and naming convention are defined and followed.
-- Plan Reviewer validates plans before patching (no code edits).
-- Role-specific prompts are used for planner/plan-reviewer/patcher/tester/reporter.
-- Tester runs only planner-declared Allowed Tests; `make ci`, `make feature`, and `pc-feature` are forbidden as test commands.
-- Deterministic steps are delegated to scripts via a shared runner library.
-- CI/tests/precommit/feature runs write structured logs to `logs/<WI>/<step>.log`.
-- Resume behavior preserves active worktree WIP by default and supports explicit fresh restarts.
-- prd-to-features is incremental: add missing only, never delete, skip `Status: Done`.
-- Post-run improvement proposals are recorded in `docs/possible-improvements.md` and require human approval to apply.
-- Single worktree per feature; no `feature-worktrees.json`.
-- Final gate runs `make ci` only after role loop success, with at most two CI attempts (initial + single autofix rerun).
-- Precommit-only autofix must not modify `docs/03-logs/*` or feature execution logs.
-- Template/living-file drift hardening and synthetic-feature smoke tests are required reliability checks.
+- Documentation bootstrap sequence is fixed: `docs/00-context` → `docs/01-product/prd.md` → `docs/02-features/*`.
+- Plan → Patch → Test → Report is mandatory for every work item.
+- `make feature` is orchestration/bootstrap only and never listed as a plan step or Allowed Test command.
+- Command authority: only the human PO/user runs `make feature` / `pc-feature` unless explicit per-run approval is granted.
+- Preflight report is mandatory and includes scope, risk, files-to-change, TDD plan, and work-item DoD.
+- Risk classification is deterministic; HIGH risk requires explicit approval before implementation and records `Awaiting PO Approval` when not granted.
+- Ticket-specific Definition of Done is required before coding and must be satisfied before commit.
+- Plan Reviewer validates plans before patching (no code edits) and reviewer/tester/reporter failures loop back to Planner until resolved.
+- Planner provides Allowed Tests; Tester may run only those commands. `make ci`, `make feature`, and `pc-feature` are forbidden as test commands.
+- Anti-hardcode testing policy is enforced: >=2 fixtures per critical path, deterministic seeds, invariant checks, and boundary contract coverage.
+- Deterministic steps are delegated to scripts through a shared runner with standard metadata (`work_item_id`, `agent_name`, `run_id`).
+- Output offload is mandatory for noisy commands; references use `.offload/<id>.txt` pointers and indexed metadata.
+- CI/tests/precommit/feature runs write structured logs to `logs/<WI>/<step>.log` using `[WI-...][agent][step]` prefix + timestamps.
+- Resume behavior preserves active feature-worktree WIP by default, supports explicit fresh reset, and always re-runs tests/CI.
+- Worktree policy: one feature worktree by default, role ownership boundaries enforced, and no `feature-worktrees.json`.
+- `prd-to-features` is incremental: add missing only, never delete existing, and skip `Status: Done`.
+- Post-run workflow improvements are proposed by roles and written by orchestrator to `docs/possible-improvements.md` with human approval required for application.
+- Final gate runs `make ci` only after role-loop success, with at most two attempts (initial + single autofix rerun).
+- Commit gate is fail-closed, enforces complete work-item evidence, and follows `type(scope): summary` via `tools/pc-commit`.
+- Precommit-only autofix must remain staged-file-scoped and must not modify `docs/03-logs/*` or feature execution logs.
+- Use Serena for symbol-aware navigation/edits when available; otherwise keep deterministic tool/script-first behavior.
+- Template/living-file drift hardening and synthetic-feature smoke tests remain required reliability checks.
 
 ### Constraints
 
@@ -343,18 +360,14 @@ Bootstrap → Context/PRD → Features → Tickets → Execute → Repeat
 
 ## Scope
 
-### Scope Boundaries (Template)
-
-<!-- Define what this PRD covers and what it explicitly avoids -->
+### Scope Boundaries
 
 - **System boundaries:** local CLI tools, templates, and docs.
 - **User boundaries:** single developer/PO; no secondary users.
 - **Data boundaries:** local repos and docs only; no remote storage.
 - **Platform boundaries:** macOS CLI.
 
-### Non-Goals (Template)
-
-<!-- Explicitly state what this PRD is not trying to achieve -->
+### Non-Goals
 
 - Cloud services or remote state.
 - UI or multi-user collaboration.
@@ -375,7 +388,7 @@ Bootstrap → Context/PRD → Features → Tickets → Execute → Repeat
 
 ### Future Considerations
 
-- Optional CLI/TUI wrapper for looping approved tickets.
+- Optional loop-assist CLI wrappers are acceptable; any UI/TUI work belongs in a separate project that calls CLI commands.
 
 ## Dependencies
 
@@ -424,10 +437,11 @@ Bootstrap → Context/PRD → Features → Tickets → Execute → Repeat
 
 ### Change Log
 
-| Date       | Version | Changes                                                                          | Author       |
-| ---------- | ------- | -------------------------------------------------------------------------------- | ------------ |
-| 2026-01-30 | 0.1     | Draft PRD from context docs                                                      | Primary user |
-| 2026-02-02 | 0.2     | Add workflow/process requirements and offload policy                             | Primary user |
-| 2026-02-02 | 0.3     | Add process features and expected-features mapping                               | Primary user |
-| 2026-02-05 | 0.4     | Add observability, runner, incremental features, role prompts                    | Primary user |
-| 2026-02-11 | 0.5     | Sync expected-features + protocol details (resume, gates, hardening, smoke test) | Primary user |
+| Date       | Version | Changes                                                                                                         | Author       |
+| ---------- | ------- | --------------------------------------------------------------------------------------------------------------- | ------------ |
+| 2026-01-30 | 0.1     | Draft PRD from context docs                                                                                     | Primary user |
+| 2026-02-02 | 0.2     | Add workflow/process requirements and offload policy                                                            | Primary user |
+| 2026-02-02 | 0.3     | Add process features and expected-features mapping                                                              | Primary user |
+| 2026-02-05 | 0.4     | Add observability, runner, incremental features, role prompts                                                   | Primary user |
+| 2026-02-11 | 0.5     | Sync expected-features + protocol details (resume, gates, hardening, smoke test)                                | Primary user |
+| 2026-02-13 | 0.6     | Reconcile PRD with context/process docs: authority gates, anti-hardcode policy, and prioritized feature mapping | Codex        |
