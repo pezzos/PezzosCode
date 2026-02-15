@@ -46,6 +46,33 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
     def _valid_feature_content() -> str:
         return "## Execution Log\n"
 
+    @staticmethod
+    def _work_item_with_required_sections(
+        *, test_results: str = "- (pending)", tester_feedback: str = "- (pending)"
+    ) -> str:
+        return (
+            "## Execution Log\n\n"
+            "### WI-20260214-01 - Work item execution\n\n"
+            "- Date: 2026-02-14\n"
+            "- Outcome: needs replan\n\n"
+            "#### Preflight Report\n\n- (pending)\n\n"
+            "#### TDD Plan\n\n- (pending)\n\n"
+            "#### Allowed Tests\n\n- (pending)\n\n"
+            "#### Files to Change\n\n- (pending)\n\n"
+            "#### Docs Updated\n\n- (pending)\n\n"
+            "#### Plan\n\n- (pending)\n\n"
+            "#### Patch\n\n- (pending)\n\n"
+            f"#### Test Results\n\n{test_results}\n\n"
+            "#### Reporter Review\n\n- (pending)\n\n"
+            "#### Gates\n\n- (pending)\n\n"
+            "#### Autofix Attempts\n\n- (none)\n\n"
+            f"#### Tester Feedback\n\n{tester_feedback}\n\n"
+            "#### Reporter Feedback\n\n- (pending)\n\n"
+            "#### Iteration Log\n\n- (pending)\n\n"
+            "#### Commit\n\n- (pending)\n\n"
+            "#### Final Report\n\n- (pending)\n"
+        )
+
     def test_missing_execution_log_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -137,27 +164,46 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
             self._seed_feature(
                 root,
                 "01-sample",
-                (
-                    "## Execution Log\n\n"
-                    "### WI-20260214-01 - Work item execution\n\n"
-                    "- Date: 2026-02-14\n"
-                    "- Outcome: needs replan\n\n"
-                    "#### Preflight Report\n\n- (pending)\n\n"
-                    "#### TDD Plan\n\n- (pending)\n\n"
-                    "#### Allowed Tests\n\n- (pending)\n\n"
-                    "#### Files to Change\n\n- (pending)\n\n"
-                    "#### Docs Updated\n\n- (pending)\n\n"
-                    "#### Plan\n\n- (pending)\n\n"
-                    "#### Patch\n\n- (pending)\n\n"
-                    "#### Test Results\n\n- (pending)\n\n"
-                    "#### Reporter Review\n\n- (pending)\n\n"
-                    "#### Gates\n\n- (pending)\n\n"
-                    "#### Autofix Attempts\n\n- (none)\n\n"
-                    "#### Tester Feedback\n\n- (pending)\n\n"
-                    "#### Reporter Feedback\n\n- (pending)\n\n"
-                    "#### Iteration Log\n\n- (pending)\n\n"
-                    "#### Commit\n\n- (pending)\n\n"
-                    "#### Final Report\n\n- (pending)\n"
+                self._work_item_with_required_sections(),
+            )
+
+            errors = self.checker.run_check(root)
+
+            self.assertEqual(errors, [])
+
+    def test_semantic_invariant_missing_tester_outcome_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._seed_template(root, self._valid_template_content())
+            self._seed_feature(
+                root,
+                "01-sample",
+                self._work_item_with_required_sections(
+                    test_results="- `tools/pc-devtasks-schema-check` -> pass (exit 0).",
+                    tester_feedback="- Notes: Pending.",
+                ),
+            )
+
+            errors = self.checker.run_check(root)
+
+            self.assertTrue(
+                any(
+                    "semantic invariant violation" in item
+                    and "missing critical artifact" in item
+                    for item in errors
+                )
+            )
+
+    def test_semantic_invariant_passes_when_tester_outcome_exists(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._seed_template(root, self._valid_template_content())
+            self._seed_feature(
+                root,
+                "01-sample",
+                self._work_item_with_required_sections(
+                    test_results="- `tools/pc-devtasks-schema-check` -> pass (exit 0).",
+                    tester_feedback="Outcome: PASS\n- Notes: clean.",
                 ),
             )
 

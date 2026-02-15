@@ -7140,3 +7140,39 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - The failing consumer incidents showed deterministic crashes caused by assuming `yaml` is always installed in runtime environments.
 - Running this check in no-site-packages mode enforces the intended tool portability contract and prevents recurrence.
+
+### 2026-02-15 - Align dev-tasks schema/migration tooling with resume tester-outcome invariant
+
+**Feature/Bug:** Resume compatibility gap for legacy work items with complete
+`Test Results` but missing tester outcome.
+
+**Changed Files:**
+
+- `tools/pc-devtasks-schema-check`
+- `tools/pc-devtasks-migrate-legacy`
+- `tests/test_pc_devtasks_schema_check.py`
+- `tests/test_pc_devtasks_migrate_legacy.py`
+
+**What Changed:**
+
+- Added semantic invariant validation in `pc-devtasks-schema-check` to fail
+  work items where `Test Results` is complete and `Tester Feedback` has no
+  parsed `Outcome`.
+- Added section-body parsing helpers in `pc-devtasks-schema-check` to evaluate
+  completion/outcome status per work item (beyond heading-presence checks).
+- Extended `pc-devtasks-migrate-legacy` to repair legacy mismatch entries by
+  upserting `- Outcome: <...>` into `Tester Feedback` when missing and
+  `Test Results` is complete.
+- Added deterministic tester-outcome derivation for migration:
+  explicit section outcome first, then exit-code/pass-fail inference from
+  `Test Results`, fallback `SKIPPED`.
+- Added regression coverage for both tools:
+  schema semantic violation detection and migration repair of the observed
+  `WI-20260214-01` legacy pattern.
+
+**Why:**
+
+- Runtime resume already blocks this contradiction fail-closed, but legacy docs
+  could still pass schema/migration tooling and then fail later at resume.
+- Aligning schema/migration checks with runtime invariants makes the failure
+  detectable and fixable earlier, with deterministic consumer sync.

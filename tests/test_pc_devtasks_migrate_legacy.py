@@ -48,6 +48,32 @@ class TestPcDevtasksMigrateLegacy(unittest.TestCase):
             "## Task Breakdown\n"
         )
 
+    def _legacy_tester_outcome_mismatch_entry(self) -> str:
+        return (
+            "## Execution Log\n\n"
+            "### WI-20260214-01 - Work item execution\n\n"
+            "- Date: 2026-02-14\n"
+            "- Outcome: needs replan\n\n"
+            "#### Preflight Report\n\n- (pending)\n\n"
+            "#### TDD Plan\n\n- (pending)\n\n"
+            "#### Allowed Tests\n\n- (pending)\n\n"
+            "#### Files to Change\n\n- (pending)\n\n"
+            "#### Docs Updated\n\n- (pending)\n\n"
+            "#### Plan\n\n- (pending)\n\n"
+            "#### Patch\n\n- (pending)\n\n"
+            "#### Test Results\n\n"
+            "- `tools/pc-devtasks-schema-check` -> pass (exit 0).\n\n"
+            "#### Reporter Review\n\n- Pending.\n\n"
+            "#### Gates\n\n- (pending)\n\n"
+            "#### Autofix Attempts\n\n- (none)\n\n"
+            "#### Tester Feedback\n\n- Notes: Pending.\n\n"
+            "#### Reporter Feedback\n\n- Notes: Pending.\n\n"
+            "#### Iteration Log\n\n- (pending)\n\n"
+            "#### Commit\n\n- (pending)\n\n"
+            "#### Final Report\n\n- (pending)\n\n"
+            "## Task Breakdown\n"
+        )
+
     def test_dry_run_reports_updates_without_writing_file(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -91,6 +117,22 @@ class TestPcDevtasksMigrateLegacy(unittest.TestCase):
 
             self.assertEqual(status, 0)
             self.assertIn("no legacy entries found", stdout.getvalue())
+
+    def test_apply_repairs_missing_tester_outcome_when_test_results_complete(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            dev_tasks_path = self._feature_dev_tasks_path(root)
+            dev_tasks_path.write_text(
+                self._legacy_tester_outcome_mismatch_entry(), encoding="utf-8"
+            )
+
+            status = self.migrator.main(["--root", str(root)])
+
+            self.assertEqual(status, 0)
+            migrated = dev_tasks_path.read_text(encoding="utf-8")
+            self.assertIn(
+                "#### Tester Feedback\n\n- Outcome: PASS\n- Notes: Pending.", migrated
+            )
 
 
 if __name__ == "__main__":

@@ -15,6 +15,13 @@ TEMPLATE_DIRNAME = "feature-template"
 ENTRY_HEADER_PREFIX = "### "
 SECTION_PREFIX = "#### "
 WORK_ITEM_PATTERN = re.compile(r"^WI-\d{8}-\d{2}$")
+SECTION_OUTCOME_PATTERN = re.compile(
+    r"Outcome:\s*(PASS|FAIL|NEEDS REPLAN|SKIPPED)", re.IGNORECASE
+)
+ZERO_EXIT_PATTERN = re.compile(r"(?:->\s*0\b|exit\s*0\b)", re.IGNORECASE)
+NON_ZERO_EXIT_PATTERN = re.compile(
+    r"(?:->\s*[1-9]\d*\b|exit\s*[1-9]\d*\b)", re.IGNORECASE
+)
 SECTION_ALIASES = {
     "Files to Change": ("Files to Change + Change Budget",),
 }
@@ -163,6 +170,100 @@ def missing_sections(entry_lines: List[str]) -> List[str]:
     return missing
 
 
+def find_section_span(
+    entry_lines: List[str], section_name: str
+) -> Optional[Tuple[int, int]]:
+    headings: List[Tuple[str, int]] = []
+    for idx, line in enumerate(entry_lines):
+        if not line.startswith(SECTION_PREFIX):
+            continue
+        heading = line[len(SECTION_PREFIX) :].strip()
+        if heading:
+            headings.append((heading, idx))
+    for idx, (heading, start) in enumerate(headings):
+        if heading not in section_variants(section_name):
+            continue
+        end = headings[idx + 1][1] if idx + 1 < len(headings) else len(entry_lines)
+        return start, end
+    return None
+
+
+def section_body_text(entry_lines: List[str], section_name: str) -> str:
+    span = find_section_span(entry_lines, section_name)
+    if not span:
+        return ""
+    start, end = span
+    return "\n".join(entry_lines[start + 1 : end]).strip()
+
+
+def parse_section_outcome(text: str) -> Optional[str]:
+    match = SECTION_OUTCOME_PATTERN.search(text or "")
+    if not match:
+        return None
+    return match.group(1).upper()
+
+
+def section_is_complete(text: str) -> bool:
+    if not text.strip():
+        return False
+    return "(pending)" not in text.lower()
+
+
+def infer_tester_outcome_from_test_results(text: str) -> str:
+    explicit = parse_section_outcome(text)
+    if explicit:
+        return explicit
+    if NON_ZERO_EXIT_PATTERN.search(text):
+        return "FAIL"
+    if ZERO_EXIT_PATTERN.search(text):
+        return "PASS"
+    normalized = text.lower()
+    if "fail" in normalized:
+        return "FAIL"
+    if "pass" in normalized:
+        return "PASS"
+    return "SKIPPED"
+
+
+def upsert_section_outcome(
+    entry_lines: List[str], section_name: str, outcome: str
+) -> bool:
+    span = find_section_span(entry_lines, section_name)
+    if not span:
+        return False
+    start, end = span
+    body_lines = entry_lines[start + 1 : end]
+    outcome_line = f"- Outcome: {outcome}"
+    for idx, line in enumerate(body_lines):
+        stripped = line.strip()
+        normalized = stripped[2:].strip() if stripped.startswith("- ") else stripped
+        if normalized.lower().startswith("outcome:"):
+            if body_lines[idx] == outcome_line:
+                return False
+            body_lines[idx] = outcome_line
+            entry_lines[start + 1 : end] = body_lines
+            return True
+    insert_at = 0
+    while insert_at < len(body_lines) and not body_lines[insert_at].strip():
+        insert_at += 1
+    body_lines.insert(insert_at, outcome_line)
+    entry_lines[start + 1 : end] = body_lines
+    return True
+
+
+def repair_missing_tester_feedback_outcome(entry_lines: List[str]) -> bool:
+    test_results = section_body_text(entry_lines, "Test Results")
+    if not section_is_complete(test_results):
+        return False
+    tester_feedback = section_body_text(entry_lines, "Tester Feedback")
+    if not tester_feedback.strip():
+        return False
+    if parse_section_outcome(tester_feedback):
+        return False
+    outcome = infer_tester_outcome_from_test_results(test_results)
+    return upsert_section_outcome(entry_lines, "Tester Feedback", outcome)
+
+
 def section_default_lines(work_item_id: str, section: str) -> List[str]:
     if section == "Preflight Report":
         return [
@@ -227,22 +328,24 @@ def is_legacy_bootstrap_entry(entry_lines: List[str], missing: List[str]) -> boo
 def repair_legacy_entry(
     work_item_id: str, entry_lines: List[str]
 ) -> Tuple[List[str], bool]:
+    changed = False
     missing = missing_sections(entry_lines)
-    if not is_legacy_bootstrap_entry(entry_lines, missing):
-        return entry_lines, False
-    changed = update_field(entry_lines, "Outcome", "completed")
-    while entry_lines and entry_lines[-1].strip() == "":
-        entry_lines.pop()
-    for section in missing:
-        entry_lines.extend(
-            [
-                "",
-                f"{SECTION_PREFIX}{section}",
-                "",
-                *section_default_lines(work_item_id, section),
-                "",
-            ]
-        )
+    if is_legacy_bootstrap_entry(entry_lines, missing):
+        changed = update_field(entry_lines, "Outcome", "completed")
+        while entry_lines and entry_lines[-1].strip() == "":
+            entry_lines.pop()
+        for section in missing:
+            entry_lines.extend(
+                [
+                    "",
+                    f"{SECTION_PREFIX}{section}",
+                    "",
+                    *section_default_lines(work_item_id, section),
+                    "",
+                ]
+            )
+            changed = True
+    if repair_missing_tester_feedback_outcome(entry_lines):
         changed = True
     return entry_lines, changed
 

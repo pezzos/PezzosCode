@@ -22,6 +22,9 @@ TEMPLATE_ALLOWED_TESTS_GUIDANCE_MARKERS = (
 WORK_ITEM_ENTRY_PATTERN = re.compile(r"^###\s+(WI-\d{8}-\d{2})\b.*$", re.MULTILINE)
 SECTION_HEADING_PATTERN = re.compile(r"^####\s+(.+?)\s*$", re.MULTILINE)
 TESTS_RUN_PATTERN = re.compile(r"^-\s+Tests run:\s*\S+", re.MULTILINE)
+SECTION_OUTCOME_PATTERN = re.compile(
+    r"Outcome:\s*(PASS|FAIL|NEEDS REPLAN|SKIPPED)", re.IGNORECASE
+)
 REQUIRED_WORK_ITEM_SECTIONS = (
     "Preflight Report",
     "TDD Plan",
@@ -112,6 +115,56 @@ def missing_work_item_sections(block: str) -> List[str]:
     return missing
 
 
+def work_item_section_bodies(block: str) -> dict[str, str]:
+    matches = list(SECTION_HEADING_PATTERN.finditer(block))
+    sections: dict[str, str] = {}
+    for idx, marker in enumerate(matches):
+        section = marker.group(1).strip()
+        if not section:
+            continue
+        start = marker.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(block)
+        sections[section] = block[start:end].strip()
+    return sections
+
+
+def parse_section_outcome(text: str) -> str | None:
+    match = SECTION_OUTCOME_PATTERN.search(text or "")
+    if not match:
+        return None
+    return match.group(1).upper()
+
+
+def section_complete(text: str) -> bool:
+    if not text.strip():
+        return False
+    return "(pending)" not in text.lower()
+
+
+def section_body_for_variants(sections: dict[str, str], section: str) -> str:
+    variants = (section,) + SECTION_ALIASES.get(section, ())
+    for variant in variants:
+        if variant in sections:
+            return sections[variant]
+    return ""
+
+
+def semantic_work_item_errors(
+    work_item_id: str, block: str, *, label: str, path: Path
+) -> List[str]:
+    sections = work_item_section_bodies(block)
+    test_results = section_body_for_variants(sections, "Test Results")
+    tester_feedback = section_body_for_variants(sections, "Tester Feedback")
+
+    if section_complete(test_results) and not parse_section_outcome(tester_feedback):
+        return [
+            f"{label}: semantic invariant violation in {path.as_posix()} "
+            f"for {work_item_id}: missing critical artifact: "
+            "test results exist without tester feedback outcome"
+        ]
+    return []
+
+
 def check_dev_tasks_file(path: Path, *, label: str) -> List[str]:
     if not path.exists():
         return [f"{label}: missing file {path.as_posix()}"]
@@ -124,11 +177,19 @@ def check_dev_tasks_file(path: Path, *, label: str) -> List[str]:
     for work_item_id, block in work_item_blocks(content):
         missing_work_item = missing_work_item_sections(block)
         if not missing_work_item:
-            continue
-        errors.append(
-            f"{label}: missing required work-item section(s) in {path.as_posix()} "
-            f"for {work_item_id}: {', '.join(missing_work_item)}"
-        )
+            errors.extend(
+                semantic_work_item_errors(
+                    work_item_id,
+                    block,
+                    label=label,
+                    path=path,
+                )
+            )
+        else:
+            errors.append(
+                f"{label}: missing required work-item section(s) in {path.as_posix()} "
+                f"for {work_item_id}: {', '.join(missing_work_item)}"
+            )
     return errors
 
 

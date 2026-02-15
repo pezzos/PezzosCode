@@ -2017,3 +2017,25 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `pc-skills-metadata-check` no longer crashes when `yaml` is unavailable in site-packages.
   - `skills-metadata-check` now runs in deterministic `python3 -S` mode through live/template `Makefile` targets.
   - CI covers the regression path through `make test`/`make ci`.
+
+## 2026-02-15 - Validate schema/migration alignment for missing tester outcome legacy mismatch
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'`
+- Result: PASS (`10` tests; offload id `b16c2d37f8720077a281358023a1ae49c385415ecb8a4149a4a55f0a91241625`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'`
+- Result: PASS (`4` tests; offload id `12ee8f9c568dc72d71638a4fa19e96955b77b3fb1eac79813abe5cbccde8d4e9`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-devtasks-schema-check tools/pc-devtasks-migrate-legacy tests/test_pc_devtasks_schema_check.py tests/test_pc_devtasks_migrate_legacy.py`
+- Result: FAIL on first run (`black` reformatted files; offload id `262292da2517cff66098c6ef42781ed440149e1b8170117fac97e30e260823b6`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-devtasks-schema-check tools/pc-devtasks-migrate-legacy tests/test_pc_devtasks_schema_check.py tests/test_pc_devtasks_migrate_legacy.py`
+- Result: PASS (offload id `5be5793f628b9d4ee932bfdfe3d69d9de33c933369d362c2f433acbc61914036`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'`
+- Result: PASS (post-format rerun; offload id `45629e08d8c41ba474e149425cf4477b6ed2d14afbd48b41a5dea35ddb36ae32`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'`
+- Result: PASS (post-format rerun; offload id `17aac0710ed873e70190eee3908ef87f56b214e2f973aefb431b644fe396372a`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'`
+- Result: PASS (post-adjustment rerun; offload id `9d5cbf50af2b5d43b53292e22efa8ffa4ca03168aabba92fa0d3e90b2ff6a317`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'`
+- Result: PASS (post-adjustment rerun; offload id `ff3aa84ac62e401c36e50518baebc879b8b43bb3ebc93473f5fef682600e3c7f`)
+- Verified:
+  - Schema checker now rejects work items where `Test Results` is complete but `Tester Feedback` has no outcome.
+  - Legacy migrator now repairs the observed mismatch by injecting deterministic tester outcome evidence.

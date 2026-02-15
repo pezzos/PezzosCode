@@ -880,3 +880,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Consumer `make feature F=01` runs failed deterministically inside `make test` at `tools/pc-skills-metadata-check` with `ModuleNotFoundError: No module named 'yaml'`.
 - **Fix:** Added a fallback stdlib YAML parser in `tools/pc-skills-metadata-check` for environments without `PyYAML`, and forced deterministic no-site-packages execution for this check via `python3 -S` in live/template `Makefile` targets.
 - **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_skills_metadata_check.py'` (PASS, offload id `8e83c9e30711d3808140522c0a784c32a4a16bd2d9a482bfdc79f43bb50d7c5e`); `python3 -S tools/pc-skills-metadata-check --root /Users/alexandrepezzotta/repos/PezzosCode --verbose` (PASS); `tools/offload-proxy/pp make ci` (PASS, offload id `e888fc83d010b294980952b23d71df1d4f03f3a55cbe114deac3899fbe275d23`).
+
+## 2026-02-15 - Resume blocked by legacy work items with complete test results but missing tester outcome
+
+- **ID:** BUG-20260215-03
+- **Status:** Fixed
+- **Source:** User report (`make feature F=02` resume in consumer worktree)
+- **Summary:** `pc-feature` resume failed with `missing critical artifact: test results exist without tester feedback` because legacy work items had complete `Test Results` but `Tester Feedback` contained notes only (no parsable `Outcome`).
+- **Fix:** Added semantic invariant enforcement to `tools/pc-devtasks-schema-check` for this mismatch, and extended `tools/pc-devtasks-migrate-legacy` to deterministically inject `Tester Feedback` outcome from existing `Test Results` evidence.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'` (PASS, offload id `9d5cbf50af2b5d43b53292e22efa8ffa4ca03168aabba92fa0d3e90b2ff6a317`); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'` (PASS, offload id `ff3aa84ac62e401c36e50518baebc879b8b43bb3ebc93473f5fef682600e3c7f`); `tools/offload-proxy/pp pre-commit run --files tools/pc-devtasks-schema-check tools/pc-devtasks-migrate-legacy tests/test_pc_devtasks_schema_check.py tests/test_pc_devtasks_migrate_legacy.py` (PASS, offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`).

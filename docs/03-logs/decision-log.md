@@ -2539,5 +2539,27 @@ When a decision is reversed or replaced, document it here:
   - Add explicit regression coverage that executes the tool with `python3 -S`.
 - **Consequences:**
   - Bootstrapped/consumer repos no longer fail on missing site-packages for this check.
-  - CI now fails fast if a future change reintroduces hard third-party dependency assumptions.
-  - YAML parsing is intentionally constrained to the skill metadata schema in fallback mode.
+- CI now fails fast if a future change reintroduces hard third-party dependency assumptions.
+- YAML parsing is intentionally constrained to the skill metadata schema in fallback mode.
+
+### DEC-072 - Align dev-tasks schema/migration checks with resume tester-outcome invariant
+
+- **Date:** 2026-02-15
+- **Status:** Accepted
+- **Context:** Consumer work items could contain complete `Test Results` with no
+  parsed tester outcome in `Tester Feedback`, which passes
+  `pc-devtasks-schema-check` but deterministically blocks `pc-feature` resume
+  (`missing critical artifact: test results exist without tester feedback`).
+- **Decision:**
+  - Add a semantic invariant check in `tools/pc-devtasks-schema-check` that
+    fails when `Test Results` is complete and `Tester Feedback` lacks an
+    `Outcome`.
+  - Extend `tools/pc-devtasks-migrate-legacy` to auto-repair this mismatch by
+    upserting `Tester Feedback` outcome, derived deterministically from
+    `Test Results` evidence (explicit outcome first, then exit-code/pass-fail
+    inference, fallback `SKIPPED`).
+  - Keep `pc-feature` resume fail-closed invariant behavior unchanged.
+- **Consequences:**
+  - Schema validation now catches this contradiction before runtime resume.
+  - Legacy repos get a deterministic migration path without manual section edits.
+  - Resume contract remains strict and consistent across tools.
