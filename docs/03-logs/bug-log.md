@@ -871,3 +871,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Final CI autofix path could still abort with `patcher edited role-scoped files: .../dev-tasks.md` because scoped autofix candidate selection was followed by a broad patcher commit step that evaluated all dirty files.
 - **Fix:** Added `commit_scoped_patcher_autofix_changes(...)` to commit only dirty patcher-safe candidate paths and block unexpected staged paths; replaced CI autofix `commit_role_step(...)` usage with the scoped helper; aligned AGENTS role-scope wording with planner ownership of `dev-tasks.md`.
 - **Validation:** `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py` (PASS); `tools/offload-proxy/pp python3 -m unittest tests/test_pc_feature.py` (PASS, offload id `71d98179d947908fe7819192d67c7de92f1d5792ec54c98ab3df42be8a9c922e`).
+
+## 2026-02-15 - Cross-repo skills metadata check crash on missing `yaml` dependency
+
+- **ID:** BUG-20260215-02
+- **Status:** Fixed
+- **Source:** User report (`make feature F=01` in consumer worktree)
+- **Summary:** Consumer `make feature F=01` runs failed deterministically inside `make test` at `tools/pc-skills-metadata-check` with `ModuleNotFoundError: No module named 'yaml'`.
+- **Fix:** Added a fallback stdlib YAML parser in `tools/pc-skills-metadata-check` for environments without `PyYAML`, and forced deterministic no-site-packages execution for this check via `python3 -S` in live/template `Makefile` targets.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_skills_metadata_check.py'` (PASS, offload id `8e83c9e30711d3808140522c0a784c32a4a16bd2d9a482bfdc79f43bb50d7c5e`); `python3 -S tools/pc-skills-metadata-check --root /Users/alexandrepezzotta/repos/PezzosCode --verbose` (PASS); `tools/offload-proxy/pp make ci` (PASS, offload id `e888fc83d010b294980952b23d71df1d4f03f3a55cbe114deac3899fbe275d23`).

@@ -1998,3 +1998,22 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - CI scoped autofix commits only patcher-safe dirty candidate paths and no longer attempts to commit planner-owned `dev-tasks.md` deltas.
   - Scoped patcher autofix commit aborts deterministically if unexpected staged files are present outside the scoped candidate set.
   - AGENTS role-scope wording now matches runtime ownership (`dev-tasks.md` planner-owned, patcher role-scoped docs blocked).
+
+## 2026-02-15 - Validate missing-`yaml` root fix + deterministic no-site-packages guardrail
+
+- Command: `python3 -m py_compile tools/pc-skills-metadata-check tests/test_pc_skills_metadata_check.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests/test_pc_skills_metadata_check.py`
+- Result: FAIL (invocation path error; `ModuleNotFoundError: No module named 'tests.test_pc_skills_metadata_check'`; offload id `06054b51f051233f54969f5c89375717c4188353fbd49ef97834e04718020f37`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_skills_metadata_check.py'`
+- Result: PASS (`6` tests; offload id `8e83c9e30711d3808140522c0a784c32a4a16bd2d9a482bfdc79f43bb50d7c5e`)
+- Command: `python3 -S tools/pc-skills-metadata-check --root /Users/alexandrepezzotta/repos/PezzosCode --verbose`
+- Result: PASS (`pc-skills-metadata-check: ok (15 skills)`)
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `7ee06e21eb6d7b32b0d901a310014461c90a731fca63570c8a17d87f12d15b29`)
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload id `e888fc83d010b294980952b23d71df1d4f03f3a55cbe114deac3899fbe275d23`)
+- Verified:
+  - `pc-skills-metadata-check` no longer crashes when `yaml` is unavailable in site-packages.
+  - `skills-metadata-check` now runs in deterministic `python3 -S` mode through live/template `Makefile` targets.
+  - CI covers the regression path through `make test`/`make ci`.

@@ -2526,3 +2526,18 @@ When a decision is reversed or replaced, document it here:
   - Reporter retry loops no longer exhaust on non-actionable stale execution metadata.
   - Default behavior remains low-risk and side-effect constrained.
   - Operators retain explicit control to persist reconciliation updates when desired.
+
+### DEC-071 - Remove hard PyYAML runtime dependency from skills metadata check and enforce no-site-packages execution
+
+- **Date:** 2026-02-15
+- **Status:** Accepted
+- **Context:** Cross-repo `make feature F=01` runs in a consumer worktree failed deterministically at `tools/pc-skills-metadata-check` with `ModuleNotFoundError: No module named 'yaml'` (incident evidence offload ids `84871f42fee0a40815efe8bdcc30043b3e3de57cf2d949b065dfc65a22becfa3` and `30ea6a8cd205348489fa4f415110d6b39fcf12d4eafbc546f9d58e3b82a1f01f`).
+- **Decision:**
+  - Add a stdlib-backed YAML fallback parser in `tools/pc-skills-metadata-check` so skill metadata validation no longer hard-crashes when `PyYAML` is unavailable.
+  - Keep `PyYAML` as preferred parser when present; fallback parser is used only when `yaml` cannot be imported.
+  - Run `skills-metadata-check` via `python3 -S` in live/template `Makefile` targets to make dependency regressions deterministic in local and CI runs.
+  - Add explicit regression coverage that executes the tool with `python3 -S`.
+- **Consequences:**
+  - Bootstrapped/consumer repos no longer fail on missing site-packages for this check.
+  - CI now fails fast if a future change reintroduces hard third-party dependency assumptions.
+  - YAML parsing is intentionally constrained to the skill metadata schema in fallback mode.

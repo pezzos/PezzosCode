@@ -1,4 +1,5 @@
 import importlib.util
+import subprocess
 import tempfile
 import unittest
 from importlib.machinery import SourceFileLoader
@@ -133,6 +134,27 @@ class TestPcSkillsMetadataCheck(unittest.TestCase):
                     for item in errors
                 )
             )
+
+    def test_cli_runs_without_site_packages(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            seed_skill(root)
+
+            completed = subprocess.run(
+                ["python3", "-S", str(TOOL_PATH), "--root", str(root), "--verbose"],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+
+            self.assertEqual(
+                completed.returncode,
+                0,
+                f"expected success without site-packages; stderr:\n{completed.stderr}",
+            )
+            self.assertIn("pc-skills-metadata-check: ok (1 skills)", completed.stdout)
+            self.assertNotIn("ModuleNotFoundError", completed.stderr)
 
 
 if __name__ == "__main__":

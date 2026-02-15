@@ -109,7 +109,7 @@ skills-check:
 		echo "skills-check: ok"'
 
 skills-metadata-check:
-	@tools/pc-skills-metadata-check
+	@python3 -S tools/pc-skills-metadata-check
 
 docs-check:
 	@tools/pc-devtasks-schema-check

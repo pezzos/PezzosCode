@@ -7117,3 +7117,26 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Final-gate scoped autofix already filters candidate files, but the previous commit path could still attempt to commit all dirty files and re-trigger patcher role-scope failures.
 - Restricting commit scope to autofix candidate deltas keeps ownership boundaries deterministic and preserves planner-owned runtime metadata for final-stage sync.
+
+### 2026-02-15 - Harden skills metadata check against missing `yaml` module and add deterministic CI guardrail
+
+**Feature/Bug:** Cross-repo `make feature F=01` failed at `skills-metadata-check` with `ModuleNotFoundError: No module named 'yaml'`.
+
+**Changed Files:**
+
+- `tools/pc-skills-metadata-check`
+- `tests/test_pc_skills_metadata_check.py`
+- `Makefile`
+- `tools/templates/root/Makefile`
+
+**What Changed:**
+
+- Added a stdlib fallback YAML parser in `tools/pc-skills-metadata-check` that is used when `PyYAML` is not importable.
+- Preserved preferred behavior with `yaml.safe_load(...)` when `PyYAML` is available.
+- Added regression test coverage to execute the tool with `python3 -S` and assert successful validation without `ModuleNotFoundError`.
+- Updated `skills-metadata-check` target in live/template `Makefile` files to run `python3 -S tools/pc-skills-metadata-check`, making missing dependency regressions deterministic in local/CI pipelines.
+
+**Why:**
+
+- The failing consumer incidents showed deterministic crashes caused by assuming `yaml` is always installed in runtime environments.
+- Running this check in no-site-packages mode enforces the intended tool portability contract and prevents recurrence.
