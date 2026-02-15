@@ -7176,3 +7176,27 @@ with `pc-feature: missing section Patch in entry ...`.
   could still pass schema/migration tooling and then fail later at resume.
 - Aligning schema/migration checks with runtime invariants makes the failure
   detectable and fixable earlier, with deterministic consumer sync.
+
+### 2026-02-15 - Harden reporter metadata-drift classification against wording variants and retry-loop exhaustion
+
+**Feature/Bug:** Reporter retry exhaustion on metadata-only contradiction phrasing (`WI-20260215-03`).
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added structural status-parity contradiction detection for reporter feedback in `tools/pc-feature` via `has_metadata_drift_status_parity_contradiction(...)`.
+- Expanded metadata-drift blocking markers so actionable pending/missing-outcome handoff gaps are not normalized as metadata drift.
+- Updated metadata-drift classifier to combine legacy phrase markers with structural contradiction detection.
+- Clarified iteration logging text to explicitly state metadata-drift normalization occurs before retry escalation.
+- Added regression coverage for:
+  - metadata-drift wording variant classification,
+  - pending-placeholder negative classification,
+  - retry-loop prevention for wording variant normalization before escalation.
+
+**Why:**
+
+- Existing metadata-drift matching depended too much on specific wording and could misroute metadata-only contradictions into `scope_gap`, driving unnecessary planner loops and reporter retry-cap exits.

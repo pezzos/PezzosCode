@@ -2563,3 +2563,17 @@ When a decision is reversed or replaced, document it here:
   - Schema validation now catches this contradiction before runtime resume.
   - Legacy repos get a deterministic migration path without manual section edits.
   - Resume contract remains strict and consistent across tools.
+
+### DEC-073 - Treat machine-owned status-parity contradictions as metadata-drift-only reporter failures
+
+- **Date:** 2026-02-15
+- **Status:** Accepted
+- **Context:** `make feature F=02` could terminate with `pc-feature: max reporter retry attempts reached` when reporter feedback described stale machine-owned execution metadata using wording variants that did not match existing metadata-drift markers.
+- **Decision:**
+  - Extend reporter metadata-drift classification in `tools/pc-feature` with structural contradiction detection based on machine-owned field references + status-state contradictions (stale/mismatch/parity drift), not only fixed phrases.
+  - Keep fail-closed behavior for actionable scope gaps by expanding blocking markers (`pending placeholders`, `still pending`, `missing an outcome line`).
+  - Continue deterministic runtime metadata reconciliation in the metadata-drift normalization path before retry escalation.
+- **Consequences:**
+  - Reporter wording variants that describe machine-owned status contradictions are normalized to PASS consistently.
+  - Actionable handoff/scope issues remain `scope_gap` and continue through Planner rework.
+  - Reporter retry loops no longer exhaust on metadata-only contradiction phrasing.

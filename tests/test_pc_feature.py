@@ -5682,6 +5682,113 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("Runtime metadata auto-repair activity: mode=warn", dev_tasks)
 
+    def test_metadata_status_parity_wording_variant_normalizes_before_retry_escalation(
+        self,
+    ):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260215-03"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            planner_feedback_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    return (
+                        "Outcome: FAIL\n"
+                        "Docs/logs updated: docs/02-features/01-workflow-hardening/reporter-log.md\n"
+                        "File/Path: docs/02-features/01-workflow-hardening/dev-tasks.md\n"
+                        "Check: Status parity across machine-owned ticket metadata.\n"
+                        "Evidence: validation log reports PASS while dev-tasks Test Results and Reporter Review remain stale FAIL/needs replan values.\n"
+                        "Expected fix: apply deterministic machine-owned status parity reconciliation before retry escalation.\n"
+                        "Notes: metadata-only contradiction.\n"
+                    )
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    planner_feedback_calls["count"] += 1
+                    return "Decision: PLAN_STILL_VALID\nRationale: should not trigger\n"
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        side_effect=StopMain(),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(planner_feedback_calls["count"], 0)
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "Reporter metadata-drift-only FAIL normalized to PASS before retry escalation",
+                dev_tasks,
+            )
+            self.assertNotIn("reporter_retry=1/3", dev_tasks)
+
     def test_is_finalization_only_reporter_failure_classifier(self):
         finalization_only_feedback = (
             "Outcome: FAIL\n"
@@ -5748,6 +5855,20 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.is_metadata_drift_only_reporter_failure(metadata_feedback)
         )
 
+        parity_variant_feedback = (
+            "Outcome: FAIL\n"
+            "Docs/logs updated: reporter-log.md\n"
+            "Check: Status parity across machine-owned ticket metadata.\n"
+            "Evidence: validation log reports PASS while dev-tasks Test Results and Reporter Review remain stale FAIL/needs replan values.\n"
+            "Expected fix: apply deterministic machine-owned status parity reconciliation before retry escalation.\n"
+            "Notes: metadata-only contradiction.\n"
+        )
+        self.assertTrue(
+            self.pc_feature.is_metadata_drift_only_reporter_failure(
+                parity_variant_feedback
+            )
+        )
+
         blocking_feedback = (
             "Outcome: FAIL\n"
             "Docs/logs updated: reporter-log.md\n"
@@ -5757,6 +5878,19 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertFalse(
             self.pc_feature.is_metadata_drift_only_reporter_failure(blocking_feedback)
+        )
+
+        pending_scope_feedback = (
+            "Outcome: FAIL\n"
+            "Docs/logs updated: reporter-log.md\n"
+            "Check: Status parity across machine-owned ticket metadata.\n"
+            "Evidence: Reporter Review section still contains pending placeholders.\n"
+            "Expected fix: populate Reporter Review section outcome first.\n"
+        )
+        self.assertFalse(
+            self.pc_feature.is_metadata_drift_only_reporter_failure(
+                pending_scope_feedback
+            )
         )
 
     def test_classify_reporter_failure_reason(self):
@@ -5783,6 +5917,17 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertEqual(
             self.pc_feature.classify_reporter_failure_reason(metadata_feedback),
+            self.pc_feature.REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY,
+        )
+        self.assertEqual(
+            self.pc_feature.classify_reporter_failure_reason(
+                (
+                    "Outcome: FAIL\n"
+                    "Check: Status parity across machine-owned ticket metadata.\n"
+                    "Evidence: validation log reports PASS while dev-tasks Test Results and Reporter Review remain stale FAIL/needs replan values.\n"
+                    "Expected fix: apply deterministic machine-owned status parity reconciliation before retry escalation.\n"
+                )
+            ),
             self.pc_feature.REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY,
         )
         self.assertEqual(

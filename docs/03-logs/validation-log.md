@@ -2039,3 +2039,26 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - Schema checker now rejects work items where `Test Results` is complete but `Tester Feedback` has no outcome.
   - Legacy migrator now repairs the observed mismatch by injecting deterministic tester outcome evidence.
+
+## 2026-02-15 - Validate reporter metadata-drift wording-variant normalization and retry-loop prevention
+
+- Command: `tools/offload-proxy/pp python -m unittest tests.test_pc_feature.TestPcFeature.test_is_metadata_drift_only_reporter_failure_classifier tests.test_pc_feature.TestPcFeature.test_classify_reporter_failure_reason tests.test_pc_feature.TestPcFeature.test_metadata_status_parity_wording_variant_normalizes_before_retry_escalation`
+- Result: FAIL (invocation path error; `ModuleNotFoundError: No module named 'tests.test_pc_feature'`; offload id `56d52e284c6799e12f1ae87725764706f00a70fdff5b9cb6f13ee306cca55b12`)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "metadata_drift_only_reporter_failure_classifier or classify_reporter_failure_reason or metadata_status_parity_wording_variant_normalizes_before_retry_escalation"`
+- Result: FAIL (`NO TESTS RAN`; filter expression not matched by unittest `-k`; offload id `e70fec2825d9bf206d27463a792768195039599cb39bcca66339f47283f84cce`)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "metadata_status_parity_wording_variant_normalizes_before_retry_escalation"`
+- Result: PASS (`1` test; offload id `be2bbe534b49282ed5244cc386e12bb204875c4ae70230f905eb7cb7e6dee47d`)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "is_metadata_drift_only_reporter_failure_classifier"`
+- Result: PASS (`1` test; offload id `439b00f50e409b8ea6ff578f1c945904d9aa00f5e4759fcb4e71d9f1615c4084`)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "classify_reporter_failure_reason"`
+- Result: PASS (`1` test; offload id `439b00f50e409b8ea6ff578f1c945904d9aa00f5e4759fcb4e71d9f1615c4084`)
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (full `test_pc_feature.py`; offload id `82dc916e2cb3e964c0311f734e739c0f23ec61790538881912c9210e2c2e04c0`)
+- Verified:
+  - metadata-drift classification now handles machine-owned status-parity wording variants.
+  - pending placeholder wording remains fail-closed (not metadata-drift-only).
+  - metadata-only reporter failures normalize before retry escalation and avoid reporter retry-cap looping.
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py docs/03-logs/decision-log.md docs/03-logs/implementation-log.md docs/03-logs/validation-log.md docs/03-logs/bug-log.md`
+- Result: PASS (offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)
+- Command: `tools/offload-proxy/pp make test`
+- Result: FAIL at `docs-check` due existing semantic invariant violations in multiple `docs/02-features/*/dev-tasks.md` files (offload id `8b309fe846f9b4ff362515b2e762ee6a1a728eaa3390c9214bb760ccfbab7f0b`).

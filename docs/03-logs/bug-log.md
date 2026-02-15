@@ -889,3 +889,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** `pc-feature` resume failed with `missing critical artifact: test results exist without tester feedback` because legacy work items had complete `Test Results` but `Tester Feedback` contained notes only (no parsable `Outcome`).
 - **Fix:** Added semantic invariant enforcement to `tools/pc-devtasks-schema-check` for this mismatch, and extended `tools/pc-devtasks-migrate-legacy` to deterministically inject `Tester Feedback` outcome from existing `Test Results` evidence.
 - **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'` (PASS, offload id `9d5cbf50af2b5d43b53292e22efa8ffa4ca03168aabba92fa0d3e90b2ff6a317`); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'` (PASS, offload id `ff3aa84ac62e401c36e50518baebc879b8b43bb3ebc93473f5fef682600e3c7f`); `tools/offload-proxy/pp pre-commit run --files tools/pc-devtasks-schema-check tools/pc-devtasks-migrate-legacy tests/test_pc_devtasks_schema_check.py tests/test_pc_devtasks_migrate_legacy.py` (PASS, offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`).
+
+## 2026-02-15 - Reporter retry cap reached on metadata-only contradiction wording variant
+
+- **ID:** BUG-20260215-04
+- **Status:** Fixed
+- **Source:** User report (`WI-20260215-03`, `make feature F=02`, run_id `20260215202206-d5388a7a`)
+- **Summary:** Reporter FAIL feedback describing stale machine-owned status parity (validation PASS vs dev-tasks stale FAIL/needs-replan fields) could be classified as `scope_gap`, causing repeated planner loops and eventual `pc-feature: max reporter retry attempts reached`.
+- **Fix:** Added structural metadata-drift contradiction detection in `tools/pc-feature`, expanded fail-closed blocking markers for actionable pending/missing-outcome gaps, and kept deterministic runtime metadata reconciliation in metadata-drift normalization before retry escalation.
+- **Validation:** `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "metadata_status_parity_wording_variant_normalizes_before_retry_escalation"` (PASS, offload id `be2bbe534b49282ed5244cc386e12bb204875c4ae70230f905eb7cb7e6dee47d`); `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS, offload id `82dc916e2cb3e964c0311f734e739c0f23ec61790538881912c9210e2c2e04c0`).

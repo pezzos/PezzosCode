@@ -204,6 +204,39 @@ REPORTER_METADATA_DRIFT_BLOCKING_MARKERS = (
     "populate execution metadata",
     "top execution field is blank",
     "patch section",
+    "pending placeholders",
+    "still pending",
+    "missing an outcome line",
+)
+REPORTER_METADATA_DRIFT_STATUS_MARKERS = (
+    "needs replan",
+    "fail",
+    "pass",
+    "completed",
+)
+REPORTER_METADATA_DRIFT_CONTRADICTION_MARKERS = (
+    "stale",
+    "mismatch",
+    "misaligned",
+    "not aligned",
+    "inconsistent",
+    "contradiction",
+    "parity",
+    "drift",
+    "lagging",
+)
+REPORTER_METADATA_DRIFT_MACHINE_OWNED_FIELD_MARKERS = (
+    "execution summary",
+    "status summary",
+    "outcome",
+    "test results",
+    "reporter review",
+    "docs/logs updated",
+    "validation log",
+    "tester evidence",
+    "reporter evidence",
+    "machine-owned",
+    "runtime metadata",
 )
 RUNTIME_METADATA_AUTO_REPAIR_ALLOWED_UPDATES = frozenset(
     {
@@ -5224,6 +5257,27 @@ def reporter_feedback_focus_text(reporter_feedback: str) -> str:
     return " ".join((reporter_feedback or "").lower().split())
 
 
+def has_metadata_drift_status_parity_contradiction(focus: str) -> bool:
+    if not focus:
+        return False
+    if not any(
+        marker in focus for marker in REPORTER_METADATA_DRIFT_CONTRADICTION_MARKERS
+    ):
+        return False
+    machine_owned_hits = sum(
+        1
+        for marker in REPORTER_METADATA_DRIFT_MACHINE_OWNED_FIELD_MARKERS
+        if marker in focus
+    )
+    if machine_owned_hits < 2:
+        return False
+    has_status_state = any(
+        marker in focus for marker in REPORTER_METADATA_DRIFT_STATUS_MARKERS
+    )
+    has_status_context = "outcome" in focus or "status" in focus
+    return has_status_state and has_status_context
+
+
 def is_finalization_only_reporter_failure(reporter_feedback: str) -> bool:
     if parse_outcome(reporter_feedback) != "FAIL":
         return False
@@ -5286,14 +5340,20 @@ def is_metadata_drift_only_reporter_failure(reporter_feedback: str) -> bool:
     metadata_context_markers = (
         "execution summary",
         "closure consistency",
+        "status parity",
         "test results",
         "reporter review",
         "docs/logs updated",
+        "validation log",
+        "runtime metadata",
+        "machine-owned",
         "outcome:",
     )
     if not any(marker in focus for marker in metadata_context_markers):
         return False
-    return any(marker in focus for marker in REPORTER_METADATA_DRIFT_MARKERS)
+    return any(
+        marker in focus for marker in REPORTER_METADATA_DRIFT_MARKERS
+    ) or has_metadata_drift_status_parity_contradiction(focus)
 
 
 def classify_reporter_failure_reason(reporter_feedback: str) -> str:
@@ -7873,7 +7933,7 @@ def main() -> None:
                 content = append_iteration_log_note(
                     content,
                     work_item_id,
-                    "Reporter metadata-drift-only FAIL normalized to PASS; stale machine-owned runtime metadata is non-blocking.",
+                    "Reporter metadata-drift-only FAIL normalized to PASS before retry escalation; stale machine-owned runtime metadata is non-blocking.",
                 )
             if post_reporter_issues:
                 content = replace_entry_section(
