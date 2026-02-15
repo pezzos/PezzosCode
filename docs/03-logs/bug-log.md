@@ -844,3 +844,21 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Commit gate failed with `active ticket status is not completed: Outcome=needs replan` even after PASS reruns because `Reporter Review` stayed stale (`FAIL`) while latest reporter artifact was `PASS`; auto-repair only handled pending placeholders.
 - **Fix:** Updated `pc-feature` commit repair to reconcile stale non-pending `Test Results`/`Reporter Review` outcomes from latest role artifacts and to derive top `Outcome` from artifact-first outcomes; added non-skip reporter terminal event emission to keep workflow status consistent.
 - **Validation:** `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py` (PASS); `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_repair_commit_evidence_from_role_artifacts_fills_missing_fields tests.test_pc_feature.TestPcFeature.test_repair_commit_evidence_from_role_artifacts_reconciles_stale_reporter_review` (PASS, offload id `0d5f19ead2bf9676d74342ac6c647b4bf2294bed713605930a76f4b7d5b1c878`); `tools/offload-proxy/pp python3 -m unittest tests/test_pc_feature.py` (PASS, offload id `76e966c85e9d246bd36099481e193e07331f024f62884fced39365d7b921331d`); `tools/offload-proxy/pp make test` (PASS, offload id `b324a609661e28e2b83831364fc7bcca3aba143bb497e093ff13626bda22418e`).
+
+## 2026-02-14 - Bootstrapped target missing runtime prompts (`prompts/*.md`)
+
+- **ID:** BUG-20260214-01
+- **Status:** Fixed
+- **Source:** User report (`RESUME_MODE=fresh make feature F=01` in downstream repo)
+- **Summary:** `pc-feature` failed at planner startup because bootstrap did not materialize prompt templates into living `prompts/*.md` files; target repos could also carry `tools/templates/*` instead of living-only assets.
+- **Fix:** Updated `tools/bootstrap-into` to deploy `tools/templates/prompts/*.md` into `prompts/*.md`, stop copying `tools/templates/*` into target repos, add prompt sync policy for reapply, and align remediation/docs/parity checks.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_bootstrap_into.py'` (PASS, offload id `046d8905c2cbebd57895f0a1e05779dd51c5ea65ecde0263e2ed43f1520edf92`); `tools/offload-proxy/pp python3 -m unittest discover -s tests_extra -p 'test_bootstrap_into_extra.py'` (PASS, offload id `ef2942e72d74fe234eb4a31f57d47d1be35b3519bba2467d6ee21f55ee9e14dc`); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_template_sync.py'` (PASS, offload id `dfb4f236d75ba74e6478c52cec4691473eda77385960e42b1f5cc0edda7720a9`).
+
+## 2026-02-14 - Reporter retry exhaustion on sandbox git index lock commit errors
+
+- **ID:** BUG-20260214-02
+- **Status:** Fixed
+- **Source:** User report (`make feature F=01` in a bootstrapped repo)
+- **Summary:** Reporter retries could reach max attempts and abort even when reporter scope checks were complete, because feedback FAIL was driven by sandbox git index lock/permission errors during commit (`.git/index.lock`) instead of actionable handoff gaps.
+- **Fix:** Added script-based role commits (`tools/pc-role-commit`) and switched `pc-feature` role commit flow to use it; added reporter classifier/normalizer to auto-convert sandbox/index-lock-only FAIL feedback to PASS; updated reporter prompts to forbid direct git commits.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'` (PASS, offload id `2e18c264423b922c7aa09722eeb9266e0e21a61e0fea2fad17a4f0800913166b`); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_role_commit.py'` (PASS, offload id `ad4d35774bf0c86e40f21aa82925827615b66090a0d46b776bc3c936d9fbd14b`).

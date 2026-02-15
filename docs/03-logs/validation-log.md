@@ -1867,3 +1867,102 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - Bootstrap now copies runtime `lib/` modules required by tool imports.
   - New regression test confirms `lib/pc_runner.py` is copied and marker-stamped exactly once.
+
+## 2026-02-14 - Validate legacy bootstrap resume hardening + migration tooling
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `0eb2a6c42f021d97e3cb8cce01f218a23bd211a8b0c42337219a88a5fd07cb1d`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_prd_to_features.py'`
+- Result: PASS (`12` tests; offload id `7648ba9b8e06fc2670e0273e7d293585d6af926f24760546722dd3d9ca0543d3`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'`
+- Result: PASS (`8` tests; offload id `6ff8cb6673e52248481ba0fa0eca3657ce430b443dbc93e93c7a3e25938b7877`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'`
+- Result: PASS (`3` tests; offload id `973c31f7b1fe9f1cb8c41753333efc91409c1a687fb023d6ffa180b4bcb968de`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_commit.py'`
+- Result: PASS (`8` tests; offload id `e19e8e6898c9d1a7901e46af2eb8f652797557e6dcd514f67415ad46927bcc02`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature_status.py'`
+- Result: PASS (`8` tests; offload id `74202dc09a3347400de94f86db7081b0c92ff6270bca74570c143aa53888e576`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_tools_python_compat.py'`
+- Result: PASS (`2` tests; offload id `e216ebf78f8797adfe7d66b4abf55dfc592b31a5d1aa0c67bcd14bca48d6e4fd`)
+- Command: `python3 -m py_compile tools/pc-feature tools/prd-to-features tools/pc-devtasks-schema-check tools/pc-devtasks-migrate-legacy`
+- Result: PASS
+- Verified:
+  - Legacy summary-only bootstrap entries are skipped from resume and no longer
+    cause immediate `missing section Patch` startup failures.
+  - Startup auto-repair injects missing required sections for resumable entries.
+  - Generated feature `dev-tasks.md` now starts in a clean pre-run state.
+  - New migration utility deterministically repairs legacy entries (dry-run/apply).
+
+## 2026-02-14 - Validate bootstrap living-prompts deployment + templateless target behavior
+
+- Command: `python3 -m py_compile tools/pc-feature tools/pc-template-sync tests/test_bootstrap_into.py tests_extra/test_bootstrap_into_extra.py tests/test_pc_template_sync.py tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_bootstrap_into.py'`
+- Result: PASS (`19` tests; offload id `046d8905c2cbebd57895f0a1e05779dd51c5ea65ecde0263e2ed43f1520edf92`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests_extra -p 'test_bootstrap_into_extra.py'`
+- Result: PASS (`7` tests; offload id `ef2942e72d74fe234eb4a31f57d47d1be35b3519bba2467d6ee21f55ee9e14dc`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_template_sync.py'`
+- Result: PASS (`4` tests; offload id `dfb4f236d75ba74e6478c52cec4691473eda77385960e42b1f5cc0edda7720a9`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `bff6a00c51a4e50cb076e77d3526337dd8e275dd75fdab57477052d99fba7a31`)
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_load_prompt_template_missing_file_has_clear_error tests.test_pc_feature.TestPcFeature.test_missing_prompt_without_templates_mentions_bootstrap_remediation tests.test_pc_feature.TestPcFeature.test_prompt_templates_match_prompt_inventory`
+- Result: FAIL (invocation path error; `ModuleNotFoundError: No module named 'tests.test_pc_feature'`; offload id `56d52e284c6799e12f1ae87725764706f00a70fdff5b9cb6f13ee306cca55b12`)
+- Command: `tools/offload-proxy/pp tools/pc-template-sync`
+- Result: PASS (exit `0`, no mismatch output)
+- Command: `tmpdir=$(mktemp -d); git -C \"$tmpdir\" init >/dev/null 2>&1; bash tools/bootstrap-into \"$tmpdir\" >/dev/null 2>&1; test -d \"$tmpdir/prompts\"; test ! -d \"$tmpdir/tools/templates\"; find \"$tmpdir/prompts\" -maxdepth 1 -type f | wc -l`
+- Result: PASS (`prompts=present`, `tools_templates=missing`, `prompt_files=15`)
+- Verified:
+  - Bootstrap now materializes all prompt templates as living files under `prompts/`.
+  - Bootstrap no longer deploys `tools/templates` into target repos.
+  - Prompt/template parity checks now include `prompts/*.md`.
+  - Missing prompt remediation in `pc-feature` is deterministic for both template-enabled and templateless repos.
+
+## 2026-02-14 - Validate script-based role commits + reporter environment-lock normalization
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `2e18c264423b922c7aa09722eeb9266e0e21a61e0fea2fad17a4f0800913166b`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_role_commit.py'`
+- Result: PASS (`2` tests; offload id `ad4d35774bf0c86e40f21aa82925827615b66090a0d46b776bc3c936d9fbd14b`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_bootstrap_into.py'`
+- Result: PASS (`19` tests; offload id `1b20a7b22d41f67db2931c87a35ed9b73101e880a0cfb8339db483c4cb747096`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_template_sync.py'`
+- Result: PASS (`4` tests; offload id `f7d6bded21fdcd4ebeed1d825dc719e64cc947cce7a14b29c25c59df4f67b35d`)
+- Command: `tools/offload-proxy/pp tools/pc-template-sync`
+- Result: PASS (exit `0`, no mismatch output)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tools/pc-role-commit tests/test_pc_feature.py tests/test_pc_role_commit.py prompts/reporter.md prompts/reporter-review.md tools/templates/prompts/reporter.md tools/templates/prompts/reporter-review.md docs/03-logs/implementation-log.md docs/03-logs/decision-log.md docs/03-logs/bug-log.md docs/03-logs/validation-log.md`
+- Result: FAIL on first run (`black` reformatted Python files; offload id `aa8e28494b5698c10c44d2b3c01601f74553c9297d05a94cddd1633db2f05f98`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tools/pc-role-commit tests/test_pc_feature.py tests/test_pc_role_commit.py prompts/reporter.md prompts/reporter-review.md tools/templates/prompts/reporter.md tools/templates/prompts/reporter-review.md docs/03-logs/implementation-log.md docs/03-logs/decision-log.md docs/03-logs/bug-log.md docs/03-logs/validation-log.md`
+- Result: PASS (offload id `8a7f3abbea506a6d9620343102c66672af65e96e526d07635c42faa1f28dae74`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (post-format rerun; offload id `870e3f0d411fa094f9da33aeefe040d546894836f6f9754add7b7ac0ec7e9e4f`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_role_commit.py'`
+- Result: PASS (post-format rerun; offload id `fc4a9959cbcf15ea99e1e9f231765673132b70bc46588bb4b18f50e2a37861c0`)
+- Verified:
+  - `pc-feature` routes role commits through `tools/pc-role-commit` and no longer inlines role `git add`/`git commit`.
+  - Reporter FAIL feedback tied only to sandbox/index-lock commit restrictions is auto-normalized to PASS.
+  - Reporter prompt contracts explicitly prevent direct git commits.
+
+## 2026-02-15 - Validate scripted Codex auth sync + retry hardening
+
+- Command: `python3 -m py_compile tools/pc-autofix tools/pc-feature tests/test_pc_autofix.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_autofix.py'`
+- Result: PASS (`8` tests; offload id `bd86fcd6dadb05321b520475a46b0a6465b871620df13e97893c2635a0747845`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `d35ecce263af7c2fee6984722bf1623a34e6818dc9d5ac96b85617faf3cbf70a`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-autofix tools/pc-feature tests/test_pc_autofix.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md`
+- Result: FAIL on first run (`black` reformatted Python files; offload id `d9907af96148cba5d40b0bdb4ff6a2bb49470b92235caeff6e72041621a3f974`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-autofix tools/pc-feature tests/test_pc_autofix.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md`
+- Result: PASS (offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (post-format rerun; offload id `257178326db97e114ea6238fd8bd2ac939b2a10e59bb0902a07badab6d6aab29`)
+- Verified:
+  - `tools/pc-autofix` now syncs repo-local auth when home auth is newer and retries once when refresh-token reuse errors are detected.
+  - `tools/pc-feature` now applies the same auth sync + retry behavior for `.codex_subagent` runs.
+  - New `tests/test_pc_autofix.py` coverage validates freshness comparison, copy behavior, and refresh-error detection.
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-autofix tools/pc-feature tests/test_pc_autofix.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md`
+- Result: PASS (post-log append confirmation; offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (post-remediation-message update; offload id `fa74ccb24dfedfdea06eba83e8422246b8abbdd822b35b413ad0f3f5586e2c14`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-autofix tools/pc-feature tests/test_pc_autofix.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md`
+- Result: PASS (post-remediation-message update; offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)

@@ -6918,3 +6918,146 @@ feature-specific adaptation.
 **Why:**
 
 - Downstream repos bootstrap `tools/pc-feature`, `pc-commit`, and related scripts that import `lib.*`; missing `lib/` causes deterministic runtime failure before workflow execution starts.
+
+### 2026-02-14 - Harden legacy bootstrap resume handling and dev-tasks schema compatibility
+
+**Feature/Bug:** `make feature` fails on first run in legacy-bootstrapped repos
+with `pc-feature: missing section Patch in entry ...`.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/prd-to-features`
+- `tools/pc-devtasks-schema-check`
+- `tools/pc-devtasks-migrate-legacy`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tests/test_pc_feature.py`
+- `tests/test_prd_to_features.py`
+- `tests/test_pc_devtasks_schema_check.py`
+- `tests/test_pc_devtasks_migrate_legacy.py`
+
+**What Changed:**
+
+- Added legacy-bootstrap detection in `pc-feature` so summary-only bootstrap
+  entries are skipped for resume and a new work item is created.
+- Added startup auto-repair in `pc-feature` to inject missing required
+  `####` sections for resumable entries before resume routing.
+- Added actionable remediation text when required resume sections are still
+  missing after startup repair.
+- Updated `prd-to-features` generated `dev-tasks.md` to start with
+  `- No runs yet.` instead of a pre-seeded work-item entry.
+- Updated feature template execution-log guidance to align with current
+  canonical outcomes and startup flow.
+- Extended `pc-devtasks-schema-check` to validate required section presence for
+  numeric work-item entries.
+- Added `tools/pc-devtasks-migrate-legacy` for deterministic dry-run/apply
+  migration of legacy summary-only bootstrap entries.
+
+**Why:**
+
+- Prevent deterministic first-run startup failures in bootstrapped repos while
+  preserving strict commit-gate behavior.
+
+### 2026-02-14 - Bootstrap living prompts + stop shipping `tools/templates` to target repos
+
+**Feature/Bug:** Bootstrap into downstream repos failed at planner start when `prompts/` was absent; bootstrap also shipped template assets under `tools/templates` instead of deploying them as living files.
+
+**Changed Files:**
+
+- `tools/bootstrap-into`
+- `tools/pc-feature`
+- `tools/pc-template-sync`
+- `.pre-commit-config.yaml`
+- `tools/templates/root/.pre-commit-config.yaml`
+- `docs/04-process/dev-workflow.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+- `tests/test_bootstrap_into.py`
+- `tests_extra/test_bootstrap_into_extra.py`
+- `tests/test_pc_template_sync.py`
+- `tests/test_pc_feature.py`
+- `tools/templates/prompts/patcher-apply.md`
+- `tools/templates/prompts/plan-reviewer-gate.md`
+- `tools/templates/prompts/planner.md`
+- `tools/templates/prompts/reporter-review.md`
+- `tools/templates/prompts/tester.md`
+
+**What Changed:**
+
+- Updated `tools/bootstrap-into` to materialize prompt templates into living files at `prompts/*.md`.
+- Updated `tools/bootstrap-into` to skip copying `tools/templates/*` into target repos so template assets are deployed as living files, not shipped as templates.
+- Added `prompts/*` to bootstrap sync policy so reapply/update flow treats prompt files as sync-managed assets.
+- Updated `pc-feature` missing-prompt remediation text:
+  - if template prompt files exist locally, remediation still points to `tools/templates/prompts/`;
+  - if not, remediation points to restoring `prompts/` via bootstrap source reapply.
+- Extended `pc-template-sync` parity pairs to include `prompts/*.md <-> tools/templates/prompts/*.md`.
+- Extended `template-sync` pre-commit triggers to include `prompts/`, `tools/templates/prompts/`, and `tools/templates/root/`.
+- Updated process docs (live + template copies) so missing-prompt remediation supports both template-enabled and living-only bootstrap repos.
+- Added regression tests for:
+  - bootstrap deploying prompt templates as living files and not shipping `tools/templates/`,
+  - prompt pair synchronization in `pc-template-sync`,
+  - `pc-feature` missing prompt remediation when templates are absent.
+- Synchronized pre-existing prompt/template drift in five prompt files so new prompt parity checks pass.
+
+**Why:**
+
+- `pc-feature` is file-based and requires `prompts/*.md` at runtime; missing living prompts caused deterministic planner startup failure in bootstrapped repos.
+- Deploying templates as living files keeps downstream repos runtime-ready without requiring local template scaffolding.
+
+### 2026-02-14 - Script role commits + normalize reporter sandbox/index-lock failures to non-blocking PASS
+
+**Feature/Bug:** Reporter retry loops in bootstrapped repos could fail solely due to sandbox git index lock/commit permission errors, even when reporter scope checks were otherwise complete.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/pc-role-commit`
+- `prompts/reporter.md`
+- `prompts/reporter-review.md`
+- `tools/templates/prompts/reporter.md`
+- `tools/templates/prompts/reporter-review.md`
+- `tests/test_pc_feature.py`
+- `tests/test_pc_role_commit.py`
+
+**What Changed:**
+
+- Added `tools/pc-role-commit` as a dedicated script to stage allowed role paths and perform role-scoped commits.
+- Updated `pc-feature` `commit_worktree_changes(...)` to call `tools/pc-role-commit` instead of issuing direct `git add`/`git commit`.
+- Added reporter FAIL classifier/normalizer for sandbox/index-lock-only commit failures so this class is auto-normalized to PASS and does not consume retry budget.
+- Added deterministic reporter PASS feedback and iteration-log note for environment-lock normalization.
+- Extended reporter retry decision options with an explicit environment-lock normalization option.
+- Updated reporter prompts (live + template) to explicitly forbid direct `git commit` commands and point commit ownership to orchestrator tooling.
+- Added regression tests for role-commit script usage/failure surfacing, environment-lock normalization, classifier behavior, and script execution behavior.
+
+**Why:**
+
+- This prevents non-actionable reporter failures caused by sandbox git index lock restrictions from blocking workflow completion.
+- Scripted role commits provide a single deterministic commit path and remove prompt ambiguity about who should commit.
+
+### 2026-02-15 - Harden scripted Codex auth sync for pre-commit + feature orchestration
+
+**Feature/Bug:** Pre-commit/feature automation auth reliability (`refresh_token_reused` failures)
+
+**Changed Files:**
+
+- `tools/pc-autofix`
+- `tools/pc-feature`
+- `tests/test_pc_autofix.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Updated `tools/pc-autofix` auth handling to keep `.codex_precommit/auth.json` in sync when `~/.codex/auth.json` is newer (using `last_refresh` fallback to mtime).
+- Added targeted auth-failure recovery in `tools/pc-autofix`: when `codex exec` fails with refresh-token reuse indicators, force-resync auth and retry once.
+- Applied the same auth sync + single-retry behavior to `tools/pc-feature` so `.codex_subagent/auth.json` avoids stale-token failures.
+- Added deterministic remediation messaging in both scripts when auth refresh still fails after retry (`codex logout/login` + remove repo-local auth cache path).
+- Added unit coverage in `tests/test_pc_autofix.py` for auth freshness detection, sync copy behavior, and refresh-error classification.
+
+**Why:**
+
+- Scripted Codex runs used repo-local `CODEX_HOME` copies that could become stale and trigger deterministic `refresh_token_reused` failures during pre-commit autofix and orchestration runs.
+- Syncing newer auth state plus one deterministic retry reduces transient/manual recovery steps while preserving fail-closed behavior when auth truly cannot refresh.

@@ -19,6 +19,30 @@ TEMPLATE_ALLOWED_TESTS_GUIDANCE_MARKERS = (
     "list exact commands",
     "tools/pc-allowed-tests-check",
 )
+WORK_ITEM_ENTRY_PATTERN = re.compile(r"^###\s+(WI-\d{8}-\d{2})\b.*$", re.MULTILINE)
+SECTION_HEADING_PATTERN = re.compile(r"^####\s+(.+?)\s*$", re.MULTILINE)
+TESTS_RUN_PATTERN = re.compile(r"^-\s+Tests run:\s*\S+", re.MULTILINE)
+REQUIRED_WORK_ITEM_SECTIONS = (
+    "Preflight Report",
+    "TDD Plan",
+    "Allowed Tests",
+    "Files to Change",
+    "Docs Updated",
+    "Plan",
+    "Patch",
+    "Test Results",
+    "Reporter Review",
+    "Gates",
+    "Autofix Attempts",
+    "Tester Feedback",
+    "Reporter Feedback",
+    "Iteration Log",
+    "Commit",
+    "Final Report",
+)
+SECTION_ALIASES = {
+    "Files to Change": ("Files to Change + Change Budget",),
+}
 
 
 def section_pattern(section: str) -> re.Pattern[str]:
@@ -62,15 +86,50 @@ def missing_sections(content: str) -> List[str]:
     return missing
 
 
+def work_item_blocks(content: str) -> Iterable[tuple[str, str]]:
+    matches = list(WORK_ITEM_ENTRY_PATTERN.finditer(content))
+    for idx, marker in enumerate(matches):
+        start = marker.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(content)
+        yield marker.group(1), content[start:end]
+
+
+def missing_work_item_sections(block: str) -> List[str]:
+    headings = {
+        match.group(1).strip()
+        for match in SECTION_HEADING_PATTERN.finditer(block)
+        if match.group(1).strip()
+    }
+    tests_run_present = bool(TESTS_RUN_PATTERN.search(block))
+    missing: List[str] = []
+    for section in REQUIRED_WORK_ITEM_SECTIONS:
+        variants = (section,) + SECTION_ALIASES.get(section, ())
+        if any(variant in headings for variant in variants):
+            continue
+        if section == "Allowed Tests" and tests_run_present:
+            continue
+        missing.append(section)
+    return missing
+
+
 def check_dev_tasks_file(path: Path, *, label: str) -> List[str]:
     if not path.exists():
         return [f"{label}: missing file {path.as_posix()}"]
     content = path.read_text(encoding="utf-8")
     missing = missing_sections(content)
-    return [
+    errors = [
         f"{label}: missing section '## {section}' in {path.as_posix()}"
         for section in missing
     ]
+    for work_item_id, block in work_item_blocks(content):
+        missing_work_item = missing_work_item_sections(block)
+        if not missing_work_item:
+            continue
+        errors.append(
+            f"{label}: missing required work-item section(s) in {path.as_posix()} "
+            f"for {work_item_id}: {', '.join(missing_work_item)}"
+        )
+    return errors
 
 
 def check_template_allowed_tests(path: Path) -> List[str]:
@@ -106,6 +165,8 @@ def run_check(root: Path) -> List[str]:
     errors.extend(check_template_allowed_tests(template_path))
 
     for feature_dir in feature_dirs(features_root):
+        if not any(feature_dir.iterdir()):
+            continue
         dev_tasks_path = feature_dir / "dev-tasks.md"
         errors.extend(check_dev_tasks_file(dev_tasks_path, label=feature_dir.name))
     return errors

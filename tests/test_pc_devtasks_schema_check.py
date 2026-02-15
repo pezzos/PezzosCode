@@ -105,6 +105,66 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
                 any("tools/pc-allowed-tests-check" in item for item in errors)
             )
 
+    def test_feature_with_numeric_work_item_missing_sections_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._seed_template(root, self._valid_template_content())
+            self._seed_feature(
+                root,
+                "01-sample",
+                (
+                    "## Execution Log\n\n"
+                    "### WI-20260214-01 - Work item execution\n\n"
+                    "- Date: 2026-02-14\n"
+                    "- Outcome: needs replan\n"
+                ),
+            )
+
+            errors = self.checker.run_check(root)
+
+            self.assertTrue(
+                any(
+                    "missing required work-item section(s)" in item
+                    and "01-sample" in item
+                    for item in errors
+                )
+            )
+
+    def test_feature_with_numeric_work_item_and_required_sections_passes(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._seed_template(root, self._valid_template_content())
+            self._seed_feature(
+                root,
+                "01-sample",
+                (
+                    "## Execution Log\n\n"
+                    "### WI-20260214-01 - Work item execution\n\n"
+                    "- Date: 2026-02-14\n"
+                    "- Outcome: needs replan\n\n"
+                    "#### Preflight Report\n\n- (pending)\n\n"
+                    "#### TDD Plan\n\n- (pending)\n\n"
+                    "#### Allowed Tests\n\n- (pending)\n\n"
+                    "#### Files to Change\n\n- (pending)\n\n"
+                    "#### Docs Updated\n\n- (pending)\n\n"
+                    "#### Plan\n\n- (pending)\n\n"
+                    "#### Patch\n\n- (pending)\n\n"
+                    "#### Test Results\n\n- (pending)\n\n"
+                    "#### Reporter Review\n\n- (pending)\n\n"
+                    "#### Gates\n\n- (pending)\n\n"
+                    "#### Autofix Attempts\n\n- (none)\n\n"
+                    "#### Tester Feedback\n\n- (pending)\n\n"
+                    "#### Reporter Feedback\n\n- (pending)\n\n"
+                    "#### Iteration Log\n\n- (pending)\n\n"
+                    "#### Commit\n\n- (pending)\n\n"
+                    "#### Final Report\n\n- (pending)\n"
+                ),
+            )
+
+            errors = self.checker.run_check(root)
+
+            self.assertEqual(errors, [])
+
     def test_main_is_quiet_on_success_by_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

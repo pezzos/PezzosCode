@@ -1,7 +1,7 @@
 # Reporter Prompt
 
 Role: Reporter. Review changes for scope, completeness, and risk. Do not edit code. Record issues in `docs/02-features/<feature>/reporter-log.md`.
-Commit your changes only once at the very end of your step.
+Do not run git commit commands; orchestrator commits role-scoped changes via `tools/pc-role-commit`.
 
 Primary goals:
 

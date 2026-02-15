@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import tempfile
 import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
@@ -61,6 +63,64 @@ class PcAutofixTests(unittest.TestCase):
         with self.assertRaises(SystemExit) as raised:
             self.mod.validate_scope("pre-commit", [], Path("."))
         self.assertEqual(raised.exception.code, 1)
+
+    def test_source_auth_is_newer_uses_last_refresh(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src = Path(tmpdir) / "src-auth.json"
+            dst = Path(tmpdir) / "dst-auth.json"
+            src.write_text(
+                json.dumps(
+                    {
+                        "last_refresh": "2026-02-15T08:00:00.000000Z",
+                        "tokens": {"refresh_token": "src"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            dst.write_text(
+                json.dumps(
+                    {
+                        "last_refresh": "2026-02-10T08:00:00.000000Z",
+                        "tokens": {"refresh_token": "dst"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertTrue(self.mod.source_auth_is_newer(src, dst))
+
+    def test_sync_auth_file_copies_when_source_is_newer(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src = Path(tmpdir) / "src-auth.json"
+            dst = Path(tmpdir) / "dst-auth.json"
+            source_payload = {
+                "last_refresh": "2026-02-15T08:00:00.000000Z",
+                "tokens": {"refresh_token": "src"},
+            }
+            dst.write_text(
+                json.dumps(
+                    {
+                        "last_refresh": "2026-02-10T08:00:00.000000Z",
+                        "tokens": {"refresh_token": "dst"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            src.write_text(json.dumps(source_payload), encoding="utf-8")
+
+            copied = self.mod.sync_auth_file(src, dst)
+
+            self.assertTrue(copied)
+            self.assertEqual(
+                json.loads(dst.read_text(encoding="utf-8")), source_payload
+            )
+
+    def test_is_auth_refresh_error_detects_reuse_errors(self):
+        self.assertTrue(
+            self.mod.is_auth_refresh_error(
+                "ERROR: Your access token could not be refreshed because your refresh token was already used."
+            )
+        )
+        self.assertFalse(self.mod.is_auth_refresh_error("some unrelated codex failure"))
 
 
 if __name__ == "__main__":

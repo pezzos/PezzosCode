@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: tools/pc-role-commit --role <role> --work-item-id <id> [options]
+
+Options:
+  --allow <path>        Allow/stage path (repeatable, required)
+  --message <message>   Override commit message
+  -h, --help            Show help
+USAGE
+}
+
+role=""
+work_item_id=""
+message=""
+allow_paths=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --role)
+      role="$2"
+      shift 2
+      ;;
+    --work-item-id)
+      work_item_id="$2"
+      shift 2
+      ;;
+    --allow)
+      allow_paths+=("$2")
+      shift 2
+      ;;
+    --message)
+      message="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "pc-role-commit: unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "pc-role-commit: not inside a git repository" >&2
+  exit 1
+fi
+
+if [[ -z "$role" ]]; then
+  echo "pc-role-commit: --role is required" >&2
+  exit 1
+fi
+if [[ -z "$work_item_id" ]]; then
+  echo "pc-role-commit: --work-item-id is required" >&2
+  exit 1
+fi
+if [[ ${#allow_paths[@]} -eq 0 ]]; then
+  echo "pc-role-commit: at least one --allow path is required" >&2
+  exit 1
+fi
+
+if [[ -z "$message" ]]; then
+  message="${role}: updates for ${work_item_id}"
+fi
+
+git add -- "${allow_paths[@]}"
+
+if git diff --cached --quiet --; then
+  echo "pc-role-commit: no staged changes to commit for ${role}"
+  exit 0
+fi
+
+commit_output=""
+if ! commit_output="$(git commit --no-verify -m "$message" 2>&1)"; then
+  echo "$commit_output" >&2
+  exit 1
+fi
+
+if [[ -n "$commit_output" ]]; then
+  echo "$commit_output"
+fi

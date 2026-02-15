@@ -32,7 +32,9 @@
 Record each execution round here. Link any related logs in `docs/03-logs/`.
 Work Item IDs increment per feature; the sequence continues across dates.
 
-**Format:**
+- No runs yet.
+
+**Format (when execution starts):**
 
 ### WI-YYYYMMDD-01 - Work item execution
 
@@ -42,7 +44,7 @@ Work Item IDs increment per feature; the sequence continues across dates.
 - Patcher:
 - Tester:
 - Reporter:
-- Outcome: [pass | fail | needs replan]
+- Outcome: [completed | needs replan | awaiting po approval]
 - Tests run:
 - Offload ids (if any):
 - Docs/logs updated:

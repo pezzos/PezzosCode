@@ -26,7 +26,7 @@
    - Enforce role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
    - Plan Reviewer validates the plan (no code edits) before patching.
    - Use `prompts/<role>.md` and task variants like `prompts/<role>-<task>.md` (ex: `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`) for role-specific instructions.
-   - If a prompt file is missing, copy it from `tools/templates/prompts/` and rerun the step (prompt loading is file-based only).
+   - If a prompt file is missing, restore it under `prompts/` and rerun the step (prompt loading is file-based only). In template-enabled repos, copy from `tools/templates/prompts/`; in living-only bootstrap repos, re-run bootstrap from the source tooling repo.
    - The PO loop now routes offload violations through docs/03-logs/decision-log.md so the enforced workflow is recorded before progressing.
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - Preflight `files_to_change` is patcher-scope only; role/global-log targets are retained as reporter/orchestrator handoff notes instead of patcher plan edits.
@@ -59,7 +59,7 @@
    - Enforce role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
    - Plan Reviewer validates the plan (no code edits) before patching.
    - Use `prompts/<role>.md` and task variants like `prompts/<role>-<task>.md` (ex: `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`) for role-specific instructions.
-   - If a prompt file is missing, copy it from `tools/templates/prompts/` and rerun the step (prompt loading is file-based only).
+   - If a prompt file is missing, restore it under `prompts/` and rerun the step (prompt loading is file-based only). In template-enabled repos, copy from `tools/templates/prompts/`; in living-only bootstrap repos, re-run bootstrap from the source tooling repo.
    - The orchestrator logs each gate handoff in docs/03-logs/decision-log.md and docs/03-logs/validation-log.md before the PO loop continues.
    - Preflight `files_to_change` is patcher-scope only; role/global-log targets are retained as reporter/orchestrator handoff notes instead of patcher plan edits.
    - If tester/reporter raises issues, planner and patcher must iterate and log in the execution log entry.

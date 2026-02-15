@@ -95,6 +95,15 @@ def build_pairs(root: Path) -> list[Pair]:
             live_path = root / rel
             pairs.append(Pair(live=live_path, template=template_path))
 
+    prompts_template_root = root / "tools" / "templates" / "prompts"
+    prompts_live_root = root / "prompts"
+    for template_path in prompts_template_root.glob("*.md"):
+        if template_path.is_dir():
+            continue
+        rel = template_path.relative_to(prompts_template_root)
+        live_path = prompts_live_root / rel
+        pairs.append(Pair(live=live_path, template=template_path))
+
     unique: dict[tuple[Path, Path], Pair] = {}
     for pair in pairs:
         unique[(pair.live, pair.template)] = pair

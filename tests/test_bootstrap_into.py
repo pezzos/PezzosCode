@@ -165,6 +165,32 @@ class TestBootstrapInto(unittest.TestCase):
             )
             self.assertIn("lib/pc_runner.py", result.stdout)
 
+    def test_bootstrap_into_deploys_prompts_as_living_files_only(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            init_git_repo(tmp_dir)
+            result = run_bootstrap_into([tmp_dir])
+            self.assertEqual(result.returncode, 0)
+
+            source_prompts = sorted(
+                path.name
+                for path in (ROOT / "tools" / "templates" / "prompts").glob("*.md")
+            )
+            prompt_dir = Path(tmp_dir) / "prompts"
+            self.assertTrue(
+                prompt_dir.exists(),
+                "prompts/ should be created from template prompt assets",
+            )
+            target_prompts = sorted(path.name for path in prompt_dir.glob("*.md"))
+            self.assertEqual(
+                target_prompts,
+                source_prompts,
+                "Bootstrap should materialize all prompt templates under prompts/",
+            )
+            self.assertFalse(
+                (Path(tmp_dir) / "tools" / "templates").exists(),
+                "Bootstrap should deploy template assets as living files, not ship tools/templates/",
+            )
+
     def test_bootstrap_into_copies_log_assets(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)

@@ -118,7 +118,7 @@ Use separate sessions when parallelizing work. Use a single feature worktree by 
 Preferred worktree naming: `../<repo_name>-<feature_name>-<agent_name>`.
 
 Use `prompts/<role>.md` and task variants like `prompts/<role>-<task>.md` (for example `plan-reviewer-gate`, `patcher-apply`, `planner-update_from_feedback`) for role-specific instructions.
-If a prompt file is missing, copy the matching template from `tools/templates/prompts/` and rerun the step (prompt loading is file-based only; keep `prompts/` and `tools/templates/prompts/` in sync).
+If a prompt file is missing, restore it under `prompts/` and rerun the step (prompt loading is file-based only). In template-enabled repos, copy from `tools/templates/prompts/`; in living-only bootstrap repos, re-run bootstrap from the source tooling repo.
 
 Role worktree scope:
 

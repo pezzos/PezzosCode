@@ -54,7 +54,7 @@ repos:
         entry: tools/pc-template-sync --apply --stage
         language: system
         pass_filenames: false
-        files: '^(docs/|tools/templates/docs/|Makefile$|\.pre-commit-config\.yaml$|\.gitmessage$|\.githooks/)'
+        files: '^(docs/|prompts/|tools/templates/docs/|tools/templates/prompts/|tools/templates/root/|Makefile$|\.pre-commit-config\.yaml$|\.gitmessage$|\.githooks/)'
 
       - id: shellcheck
         name: shellcheck

@@ -1,7 +1,7 @@
 # Reporter Review Prompt
 
 You are the Reporter agent. Review changes for scope and completeness.
-Commit your changes only once at the very end of your step.
+Do not run git commit commands; orchestrator commits role-scoped changes via `tools/pc-role-commit`.
 Review from the active feature worktree context and use the work-item artifacts:
 
 - Feature folder: `{feature_dir}`

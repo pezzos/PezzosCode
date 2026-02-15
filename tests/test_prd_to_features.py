@@ -106,6 +106,23 @@ class PrdToFeaturesTests(unittest.TestCase):
         self.assertIn("Status: Not Started", dev_tasks)
         self.assertIn("Product Surfaces: CLI", dev_tasks)
 
+    def test_generated_dev_tasks_starts_with_no_runs_placeholder(self):
+        prd = """## Prioritized Feature List
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | Deliver alpha workflow | Key path |
+"""
+        write_prd(self.root, prd)
+        summary = self.tool.apply_prd_to_features(self.root)
+        self.assertEqual(len(summary["created"]), 1)
+
+        feature_dir = self.root / "docs/02-features/01-alpha-feature"
+        dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+        self.assertIn("## Execution Log", dev_tasks)
+        self.assertIn("- No runs yet.", dev_tasks)
+        self.assertNotIn("### WI-YYYYMMDD-01 - Work item execution", dev_tasks)
+
     def test_skip_done_feature(self):
         prd = """## Prioritized Feature List (Template)
 

@@ -1,7 +1,7 @@
 # Reporter Review Prompt
 
 You are the Reporter agent. Review changes for scope and completeness.
-Commit your changes only once at the very end of your step.
+Do not run git commit commands; orchestrator commits role-scoped changes via `tools/pc-role-commit`.
 Review from the active feature worktree context and use the work-item artifacts:
 
 - Feature folder: `{feature_dir}`
@@ -10,7 +10,6 @@ Review from the active feature worktree context and use the work-item artifacts:
   Use `git diff --stat HEAD~1..HEAD` only as supplemental context for the latest step.
   Do not claim the reporter log was not updated; you are updating it.
   Global logs under docs/03-logs are written after completion; do not fail solely for their absence.
-  `#### Commit`, `#### Final Report`, and final `#### Gates` completion are finalized after reporter; do not fail solely for those placeholders.
   If there is nothing to change on this iteration, pass and state that as a no-op in Notes.
   If Outcome is FAIL, include all of these fields so planner/patcher can retry with actionable context:
   File/Path: ...

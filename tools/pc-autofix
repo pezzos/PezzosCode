@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -17,6 +19,11 @@ FORBIDDEN_PREFIXES = (
     "docs/03-logs/",
     "docs/02-features/",
 )
+AUTH_REFRESH_ERROR_TOKENS = (
+    "refresh token",
+    "refresh_token_reused",
+    "access token could not be refreshed",
+)
 
 
 def die(message: str) -> None:
@@ -24,13 +31,51 @@ def die(message: str) -> None:
     sys.exit(1)
 
 
-def run(
-    cmd: list[str], *, cwd: Optional[Path] = None, env: Optional[dict] = None
-) -> None:
+def parse_last_refresh(path: Path) -> Optional[datetime]:
     try:
-        subprocess.run(cmd, check=True, cwd=str(cwd) if cwd else None, env=env)
-    except subprocess.CalledProcessError:
-        die("pc-autofix: codex exec failed")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    raw = payload.get("last_refresh")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def source_auth_is_newer(auth_src: Path, auth_dst: Path) -> bool:
+    src_refresh = parse_last_refresh(auth_src)
+    dst_refresh = parse_last_refresh(auth_dst)
+    if src_refresh and dst_refresh:
+        return src_refresh > dst_refresh
+    if src_refresh and not dst_refresh:
+        return True
+    if not src_refresh and dst_refresh:
+        return False
+    return auth_src.stat().st_mtime > auth_dst.stat().st_mtime
+
+
+def sync_auth_file(auth_src: Path, auth_dst: Path, *, force: bool = False) -> bool:
+    if not auth_src.exists():
+        return False
+    should_copy = force or not auth_dst.exists()
+    if not should_copy and auth_dst.exists():
+        should_copy = source_auth_is_newer(auth_src, auth_dst)
+    if not should_copy:
+        return False
+    try:
+        shutil.copy2(auth_src, auth_dst)
+        return True
+    except Exception as exc:
+        print(f"pc-autofix: failed to copy auth.json: {exc}", file=sys.stderr)
+        return False
+
+
+def is_auth_refresh_error(output: str) -> bool:
+    lowered = output.lower()
+    return any(token in lowered for token in AUTH_REFRESH_ERROR_TOKENS)
 
 
 def read_text(path: str) -> str:
@@ -51,7 +96,7 @@ def git_root() -> Path:
     return Path(result.stdout.strip())
 
 
-def codex_env(root: Path) -> dict:
+def codex_env(root: Path) -> tuple[dict, Path, Path]:
     env = os.environ.copy()
     env.pop("OPENAI_API_KEY", None)
     codex_home = root / ".codex_precommit"
@@ -65,18 +110,14 @@ def codex_env(root: Path) -> dict:
     )
     auth_src = Path.home() / ".codex" / "auth.json"
     auth_dst = codex_home / "auth.json"
-    if auth_src.exists() and not auth_dst.exists():
-        try:
-            shutil.copy2(auth_src, auth_dst)
-        except Exception as exc:
-            print(f"pc-autofix: failed to copy auth.json: {exc}", file=sys.stderr)
+    sync_auth_file(auth_src, auth_dst)
     if not auth_dst.exists():
         print(
             "pc-autofix: warning: auth.json missing; codex exec may fail.",
             file=sys.stderr,
         )
     env["CODEX_HOME"] = str(codex_home)
-    return env
+    return env, auth_src, auth_dst
 
 
 def codex_profile() -> str:
@@ -87,7 +128,7 @@ def codex_exec(prompt: str) -> None:
     if shutil.which("codex") is None:
         die("pc-autofix: codex CLI not found in PATH")
     root = git_root()
-    env = codex_env(root)
+    env, auth_src, auth_dst = codex_env(root)
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         output_path = tmp.name
     cmd = [
@@ -108,7 +149,42 @@ def codex_exec(prompt: str) -> None:
         ]
     )
     try:
-        run(cmd, cwd=root, env=env)
+        result = subprocess.run(
+            cmd,
+            check=False,
+            cwd=str(root),
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        combined = (result.stdout or "") + (result.stderr or "")
+        if result.returncode != 0 and is_auth_refresh_error(combined):
+            if sync_auth_file(auth_src, auth_dst, force=True):
+                print(
+                    "pc-autofix: retrying codex exec after auth sync.",
+                    file=sys.stderr,
+                )
+                result = subprocess.run(
+                    cmd,
+                    check=False,
+                    cwd=str(root),
+                    env=env,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                combined = (result.stdout or "") + (result.stderr or "")
+        if result.returncode != 0:
+            if is_auth_refresh_error(combined):
+                die(
+                    "pc-autofix: codex auth refresh failed after retry. "
+                    "Run `codex logout`, `codex login`, then remove "
+                    f"`{auth_dst}` before retrying.\n{combined}"
+                )
+            if combined.strip():
+                die(f"pc-autofix: codex exec failed\n{combined}")
+            die("pc-autofix: codex exec failed")
     finally:
         try:
             Path(output_path).unlink(missing_ok=True)

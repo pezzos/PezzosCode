@@ -2456,5 +2456,57 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - New features generated from PRD are immediately usable and contextualized.
   - Incremental safety remains intact while eliminating template-only drift.
-  - Existing authored feature docs are preserved unless clearly template-like or
-    incomplete.
+- Existing authored feature docs are preserved unless clearly template-like or
+  incomplete.
+
+### DEC-067 - Legacy bootstrap resume compatibility without weakening commit status gate
+
+- **Date:** 2026-02-14
+- **Status:** Accepted
+- **Context:** Some bootstrapped repositories contain legacy summary-only work
+  item entries (`Outcome: pass`, missing `####` sections). Startup resume in
+  `pc-feature` hard-fails on missing sections, but commit gates intentionally
+  require normalized `Outcome: completed`.
+- **Decision:**
+  - Keep commit-evidence strictness unchanged (`Outcome: completed` remains the
+    only accepted completed status at commit gate).
+  - Add startup compatibility in `pc-feature` to treat legacy bootstrap
+    summary-only entries as non-resumable and start a fresh work item.
+  - Add deterministic startup section auto-repair for resumable entries missing
+    required section headers.
+  - Add dedicated migration utility for legacy bootstrap entries.
+- **Consequences:**
+  - Freshly bootstrapped legacy repos no longer crash on first `make feature`.
+- Commit policy remains fail-closed and consistent with protocol/docs.
+- Teams can migrate legacy docs explicitly without forcing destructive rewrites.
+
+### DEC-068 - Bootstrap target repos as living-runtime assets (including prompts) without shipping `tools/templates`
+
+- **Date:** 2026-02-14
+- **Status:** Accepted
+- **Context:** Downstream bootstrapped repos failed at planner startup because `pc-feature` requires runtime prompts from `prompts/*.md`, while `bootstrap-into` copied template assets and tooling but did not materialize prompts as living files. The target repo also carried `tools/templates/*` despite a living-file deployment intent.
+- **Decision:**
+  - Update `bootstrap-into` to deploy `tools/templates/prompts/*.md` as living files into `prompts/*.md`.
+  - Stop copying `tools/templates/*` into downstream target repos during bootstrap.
+  - Treat `prompts/*` as sync-managed bootstrap assets for reapply behavior.
+  - Keep source-repo prompt/template parity guardrails by extending `pc-template-sync` and template-sync hook triggers to include prompt paths.
+  - Update process docs/remediation text to support both template-enabled repos and living-only bootstrapped repos.
+- **Consequences:**
+- Fresh bootstraps are runtime-ready for `pc-feature` without additional prompt-file recovery.
+- Target repos become lighter and avoid stale template directories.
+- Source repo retains explicit parity controls for managed templates and prompts.
+
+### DEC-069 - Treat reporter sandbox/index-lock commit failures as non-blocking and centralize role commits via script
+
+- **Date:** 2026-02-14
+- **Status:** Accepted
+- **Context:** Reporter runs in bootstrapped/downstream environments can emit `Outcome: FAIL` solely because commit operations are blocked by sandbox git index lock permissions (`.git/index.lock`), creating false-negative reporter failures and retry-loop exhaustion.
+- **Decision:**
+  - Route role commits through a dedicated script (`tools/pc-role-commit`) invoked by `pc-feature` instead of inline `git add`/`git commit` calls.
+  - Classify reporter FAIL feedback that is limited to sandbox/index-lock commit restrictions as environment-only and auto-normalize it to PASS.
+  - Keep fail-closed behavior for real reporter scope/handoff gaps by requiring no actionable scope markers for the environment-lock normalization path.
+  - Update reporter prompt contracts (live + template) to prohibit direct `git commit` commands and make commit ownership explicit.
+- **Consequences:**
+  - Reporter retry loops no longer fail on non-actionable environment commit restrictions.
+  - Role-commit behavior is deterministic and script-owned, improving consistency across repos and runtimes.
+  - Genuine reporter completeness failures remain blocking.

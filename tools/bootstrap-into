@@ -349,6 +349,11 @@ is_syncable_path() {
     return
   fi
 
+  if [[ "$rel" == "prompts/"* ]]; then
+    echo "sync"
+    return
+  fi
+
   if [[ "$rel" == "docs/00-context/"* ]]; then
     echo "protected"
     return
@@ -477,12 +482,16 @@ copy_dir_files() {
     if [[ "$rel" == *"/__pycache__/"* || "$rel" == *".pyc" ]]; then
       continue
     fi
+    if [[ "$rel_prefix" == "tools" && "$rel" == "templates/"* ]]; then
+      continue
+    fi
     copy_file "$src_file" "$dest_dir/$rel" "$dest_rel"
   done < <(find "$src_dir" -type f -print0)
 }
 
 copy_dir_files "$repo_root/tools/templates/root" "$target_repo" ""
 copy_dir_files "$repo_root/tools/templates/docs" "$target_repo/docs" "docs"
+copy_dir_files "$repo_root/tools/templates/prompts" "$target_repo/prompts" "prompts"
 copy_dir_files "$repo_root/.codex/skills" "$target_repo/.codex/skills" ".codex/skills"
 copy_dir_files "$repo_root/lib" "$target_repo/lib" "lib"
 copy_dir_files "$repo_root/tools" "$target_repo/tools" "tools"

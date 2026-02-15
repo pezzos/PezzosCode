@@ -132,6 +132,25 @@ class BootstrapIntoLogTests(unittest.TestCase):
                 "Skill files should include bootstrap marker",
             )
 
+    def test_deploys_prompt_templates_as_living_prompts_only(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            init_git_repo(tmp_dir)
+            result = run_bootstrap_into([tmp_dir])
+            self.assertEqual(result.returncode, 0)
+
+            source_prompts = sorted(
+                path.name
+                for path in (ROOT / "tools" / "templates" / "prompts").glob("*.md")
+            )
+            prompt_dir = Path(tmp_dir) / "prompts"
+            self.assertTrue(prompt_dir.exists(), "prompts/ should be created")
+            target_prompts = sorted(path.name for path in prompt_dir.glob("*.md"))
+            self.assertEqual(target_prompts, source_prompts)
+            self.assertFalse(
+                (Path(tmp_dir) / "tools" / "templates").exists(),
+                "bootstrap should not ship tools/templates into target repos",
+            )
+
     def test_logs_keep_headers(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)

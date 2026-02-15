@@ -101,6 +101,28 @@ class TestPcTemplateSync(unittest.TestCase):
         self.assertEqual(live.read_text(encoding="utf-8"), "live-branch\n")
         self.assertEqual(template.read_text(encoding="utf-8"), "template-branch\n")
 
+    def test_prompt_pair_syncs_when_live_prompt_changes(self):
+        repo = self._init_repo()
+        live_prompt = repo / "prompts" / "planner.md"
+        template_prompt = repo / "tools" / "templates" / "prompts" / "planner.md"
+        live_prompt.parent.mkdir(parents=True, exist_ok=True)
+        template_prompt.parent.mkdir(parents=True, exist_ok=True)
+        live_prompt.write_text("prompt-v1\n", encoding="utf-8")
+        template_prompt.write_text("prompt-v1\n", encoding="utf-8")
+        run(repo, ["git", "add", "."], check=True)
+        run(repo, ["git", "commit", "-m", "add prompt pair"], check=True)
+
+        live_prompt.write_text("prompt-v2\n", encoding="utf-8")
+        run(repo, ["git", "add", "prompts/planner.md"], check=True)
+
+        result = self._run_sync(repo)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(template_prompt.read_text(encoding="utf-8"), "prompt-v2\n")
+        staged = run(
+            repo, ["git", "diff", "--cached", "--name-only"], check=True
+        ).stdout
+        self.assertIn("tools/templates/prompts/planner.md", staged.splitlines())
+
 
 if __name__ == "__main__":
     unittest.main()

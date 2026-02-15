@@ -106,8 +106,8 @@
      - The Tester runs only those commands.
      - `make ci`, `make feature`, and `pc-feature` are forbidden as tests.
      - If Allowed Tests remain missing/invalid after planner remediation, fail with explicit remediation guidance (no placeholder smoke commands).
-   - If a required prompt file is missing, copy it from `tools/templates/prompts/` and rerun the step (prompt loading is file-based only).
-   - Keep `prompts/` and `tools/templates/prompts/` in parity to avoid runtime prompt-loading failures.
+   - If a required prompt file is missing, restore it under `prompts/` and rerun the step (prompt loading is file-based only).
+   - In template-enabled repos, copy from `tools/templates/prompts/`; in living-only bootstrap repos, re-run bootstrap from the source tooling repo to restore `prompts/`.
    - Report: summarize what changed, commands run, and outcomes.
 
 7. **Feedback Loop (Planner ↔ Plan Reviewer ↔ Patcher ↔ Tester ↔ Reporter)**
