@@ -726,6 +726,91 @@ class TestPcFeature(unittest.TestCase):
             self.pc_feature.get_entry_field(updated, work_item_id, "Docs/logs updated"),
         )
 
+    def test_reconcile_runtime_execution_record_overwrite_updates_stale_fields(self):
+        work_item_id = "WI-20260213-41"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Test Results",
+            (
+                "- Runtime reconciliation: stale\n"
+                "- Outcome: FAIL\n"
+                "- Tests run: `python -m unittest tests.old`\n"
+                "- Notes: stale tester entry"
+            ),
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Reporter Review",
+            (
+                "- Runtime reconciliation: stale\n"
+                "- Outcome: FAIL\n"
+                "- Docs/logs updated: reporter deferred\n"
+                "- Notes: stale reporter entry"
+            ),
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tester", "Human"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Reporter", "Human"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tests run", "`python -m unittest tests.old`"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Docs/logs updated", "reporter deferred"
+        )
+        tester_feedback = (
+            "Outcome: PASS\n"
+            "Tests run: `python -m unittest tests.test_pc_feature.TestPcFeature`\n"
+            "Notes: refreshed tester evidence\n"
+            f"Work Item ID: {work_item_id}\n"
+        )
+        reporter_feedback = (
+            "Outcome: PASS\n"
+            "Docs/logs updated: docs/03-logs/validation-log.md\n"
+            "Notes: refreshed reporter evidence\n"
+            f"Work Item ID: {work_item_id}\n"
+        )
+
+        updated, repaired = self.pc_feature.reconcile_runtime_execution_record(
+            content,
+            work_item_id,
+            patch_completed=True,
+            tester_feedback=tester_feedback,
+            reporter_feedback=reporter_feedback,
+            reporter_outcome="PASS",
+            overwrite_existing=True,
+        )
+
+        self.assertIn("Test Results:overwrite", repaired)
+        self.assertIn("Reporter Review:overwrite", repaired)
+        self.assertIn("field:Tester:overwrite", repaired)
+        self.assertIn("field:Reporter:overwrite", repaired)
+        self.assertIn("field:Tests run:overwrite", repaired)
+        self.assertIn("field:Docs/logs updated:overwrite", repaired)
+        self.assertEqual(
+            self.pc_feature.get_entry_field(updated, work_item_id, "Tester"), "Codex"
+        )
+        self.assertEqual(
+            self.pc_feature.get_entry_field(updated, work_item_id, "Reporter"), "Codex"
+        )
+        self.assertIn(
+            "TestPcFeature",
+            self.pc_feature.get_entry_field(updated, work_item_id, "Tests run"),
+        )
+        self.assertIn(
+            "validation-log",
+            self.pc_feature.get_entry_field(updated, work_item_id, "Docs/logs updated"),
+        )
+        self.assertIn(
+            "- Outcome: PASS",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Reporter Review"),
+        )
+
     def test_execution_handoff_completeness_issues_detects_pending_placeholders(self):
         work_item_id = "WI-20260212-11"
         content = self._build_entry_content(work_item_id)
@@ -5378,6 +5463,111 @@ class TestPcFeature(unittest.TestCase):
                 dev_tasks,
             )
 
+    def test_metadata_drift_reporter_fail_is_normalized_before_retry_loop(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260214-12"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            planner_feedback_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    return (
+                        "Outcome: FAIL\n"
+                        "Docs/logs updated: docs/02-features/01-workflow-hardening/reporter-log.md\n"
+                        "File/Path: docs/02-features/01-workflow-hardening/dev-tasks.md\n"
+                        "Check: Closure consistency against latest tester evidence and execution summary.\n"
+                        "Evidence: dev-tasks execution summary still `Outcome: needs replan`; Test Results still `Outcome: FAIL`; Docs/logs updated still `reporter deferred`.\n"
+                        "Expected fix: align machine-owned execution summary metadata with latest tester/reporter evidence.\n"
+                        "Notes: stale execution summary metadata only.\n"
+                    )
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    planner_feedback_calls["count"] += 1
+                    return "Decision: PLAN_STILL_VALID\nRationale: should not trigger\n"
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log",
+                        side_effect=StopMain(),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(planner_feedback_calls["count"], 0)
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "Reporter metadata-drift-only FAIL normalized to PASS",
+                dev_tasks,
+            )
+            self.assertIn("Runtime metadata auto-repair activity: mode=warn", dev_tasks)
+
     def test_is_finalization_only_reporter_failure_classifier(self):
         finalization_only_feedback = (
             "Outcome: FAIL\n"
@@ -5431,6 +5621,61 @@ class TestPcFeature(unittest.TestCase):
             )
         )
 
+    def test_is_metadata_drift_only_reporter_failure_classifier(self):
+        metadata_feedback = (
+            "Outcome: FAIL\n"
+            "Docs/logs updated: reporter-log.md\n"
+            "Check: Closure consistency against latest tester evidence and execution summary.\n"
+            "Evidence: dev-tasks still `Outcome: needs replan`; Test Results still `Outcome: FAIL`; Docs/logs updated still `reporter deferred`.\n"
+            "Expected fix: align machine-owned execution summary metadata with latest tester/reporter evidence.\n"
+            "Notes: stale execution summary metadata only.\n"
+        )
+        self.assertTrue(
+            self.pc_feature.is_metadata_drift_only_reporter_failure(metadata_feedback)
+        )
+
+        blocking_feedback = (
+            "Outcome: FAIL\n"
+            "Docs/logs updated: reporter-log.md\n"
+            "Check: Reporter handoff completeness.\n"
+            "Evidence: required compacted output missing: docs/03-logs/compacted/decision-log-compact.md.\n"
+            "Expected fix: regenerate compacted output.\n"
+        )
+        self.assertFalse(
+            self.pc_feature.is_metadata_drift_only_reporter_failure(blocking_feedback)
+        )
+
+    def test_classify_reporter_failure_reason(self):
+        environment_feedback = (
+            "Outcome: FAIL\n"
+            "Evidence: fatal: unable to create '.git/index.lock': Operation not permitted in sandbox.\n"
+            "Notes: sandbox permission barrier only.\n"
+        )
+        metadata_feedback = (
+            "Outcome: FAIL\n"
+            "Check: Closure consistency against latest tester evidence and execution summary.\n"
+            "Evidence: Test Results still `Outcome: FAIL`; Docs/logs updated still `reporter deferred`.\n"
+            "Notes: stale execution summary metadata only.\n"
+        )
+        scope_feedback = (
+            "Outcome: FAIL\n"
+            "Check: Reporter handoff completeness.\n"
+            "Evidence: Reporter Review is still pending.\n"
+            "Expected fix: populate Reporter Review section.\n"
+        )
+        self.assertEqual(
+            self.pc_feature.classify_reporter_failure_reason(environment_feedback),
+            self.pc_feature.REPORTER_FAILURE_REASON_ENV_LOCK_ONLY,
+        )
+        self.assertEqual(
+            self.pc_feature.classify_reporter_failure_reason(metadata_feedback),
+            self.pc_feature.REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY,
+        )
+        self.assertEqual(
+            self.pc_feature.classify_reporter_failure_reason(scope_feedback),
+            self.pc_feature.REPORTER_FAILURE_REASON_SCOPE_GAP,
+        )
+
     def test_split_reporter_handoff_issues_classifies_repairability(self):
         issues = [
             "Patch section still contains pending placeholders",
@@ -5471,6 +5716,26 @@ class TestPcFeature(unittest.TestCase):
             self.assertEqual(
                 self.pc_feature.parse_reporter_auto_repair_mode(),
                 self.pc_feature.AUTO_REPAIR_REPORTER_GATE_APPLY,
+            )
+
+    def test_parse_runtime_metadata_auto_repair_mode_defaults_to_warn(self):
+        with mock.patch.dict(self.pc_feature.os.environ, {}, clear=True):
+            self.assertEqual(
+                self.pc_feature.parse_runtime_metadata_auto_repair_mode(),
+                self.pc_feature.AUTO_REPAIR_RUNTIME_METADATA_WARN,
+            )
+
+    def test_parse_runtime_metadata_auto_repair_mode_normalizes_valid_values(self):
+        with mock.patch.dict(
+            self.pc_feature.os.environ,
+            {
+                self.pc_feature.AUTO_REPAIR_RUNTIME_METADATA_ENV: "  APPLY  ",
+            },
+            clear=False,
+        ):
+            self.assertEqual(
+                self.pc_feature.parse_runtime_metadata_auto_repair_mode(),
+                self.pc_feature.AUTO_REPAIR_RUNTIME_METADATA_APPLY,
             )
 
     def test_run_reporter_auto_repair_pass_warn_has_no_side_effect(self):
@@ -5538,6 +5803,169 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn("applied=yes", ledger)
             self.assertIn("disallowed_updates=none", ledger)
 
+    def test_run_runtime_metadata_auto_repair_warn_has_no_side_effect(self):
+        work_item_id = "WI-20260213-26"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Patch",
+            "- Runtime reconciliation: patch already completed.",
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Patcher", "Codex"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Test Results",
+            (
+                "- Runtime reconciliation: stale\n"
+                "- Outcome: FAIL\n"
+                "- Tests run: `python -m unittest tests.old`\n"
+                "- Notes: stale tester entry"
+            ),
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Reporter Review",
+            (
+                "- Runtime reconciliation: stale\n"
+                "- Outcome: FAIL\n"
+                "- Docs/logs updated: reporter deferred\n"
+                "- Notes: stale reporter entry"
+            ),
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tester", "Human"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Reporter", "Human"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tests run", "`python -m unittest tests.old`"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Docs/logs updated", "reporter deferred"
+        )
+        next_content, updates, ledger, applied = (
+            self.pc_feature.run_runtime_metadata_auto_repair_pass(
+                mode=self.pc_feature.AUTO_REPAIR_RUNTIME_METADATA_WARN,
+                content=content,
+                work_item_id=work_item_id,
+                tester_feedback=(
+                    "Outcome: PASS\n"
+                    "Tests run: `python -m unittest tests.test_pc_feature.TestPcFeature`\n"
+                    "Notes: all tests passed\n"
+                ),
+                reporter_feedback=(
+                    "Outcome: PASS\n"
+                    "Docs/logs updated: docs/03-logs/implementation-log.md\n"
+                    "Notes: reporter approved\n"
+                ),
+                reporter_outcome="PASS",
+            )
+        )
+
+        self.assertFalse(applied)
+        self.assertEqual(next_content, content)
+        self.assertIn("mode=warn", ledger)
+        self.assertIn("no-side-effect", ledger)
+        self.assertIn("Test Results:overwrite", updates)
+        self.assertIn("field:Tester:overwrite", updates)
+        self.assertIn("Reporter Review:overwrite", updates)
+
+    def test_run_runtime_metadata_auto_repair_apply_overwrites_owned_fields(self):
+        work_item_id = "WI-20260213-27"
+        content = self._build_entry_content(work_item_id)
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Patch",
+            "- Runtime reconciliation: patch already completed.",
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Patcher", "Codex"
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Test Results",
+            (
+                "- Runtime reconciliation: stale\n"
+                "- Outcome: FAIL\n"
+                "- Tests run: `python -m unittest tests.old`\n"
+                "- Notes: stale tester entry"
+            ),
+        )
+        content = self.pc_feature.replace_entry_section(
+            content,
+            work_item_id,
+            "Reporter Review",
+            (
+                "- Runtime reconciliation: stale\n"
+                "- Outcome: FAIL\n"
+                "- Docs/logs updated: reporter deferred\n"
+                "- Notes: stale reporter entry"
+            ),
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tester", "Human"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Reporter", "Human"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Tests run", "`python -m unittest tests.old`"
+        )
+        content = self.pc_feature.update_entry_field(
+            content, work_item_id, "Docs/logs updated", "reporter deferred"
+        )
+        next_content, updates, ledger, applied = (
+            self.pc_feature.run_runtime_metadata_auto_repair_pass(
+                mode=self.pc_feature.AUTO_REPAIR_RUNTIME_METADATA_APPLY,
+                content=content,
+                work_item_id=work_item_id,
+                tester_feedback=(
+                    "Outcome: PASS\n"
+                    "Tests run: `python -m unittest tests.test_pc_feature.TestPcFeature`\n"
+                    "Notes: all tests passed\n"
+                ),
+                reporter_feedback=(
+                    "Outcome: PASS\n"
+                    "Docs/logs updated: docs/03-logs/implementation-log.md\n"
+                    "Notes: reporter approved\n"
+                ),
+                reporter_outcome="PASS",
+            )
+        )
+
+        self.assertTrue(applied)
+        self.assertNotEqual(next_content, content)
+        self.assertIn("mode=apply", ledger)
+        self.assertIn("applied=yes", ledger)
+        self.assertIn("disallowed_updates=none", ledger)
+        self.assertIn("Reporter Review:overwrite", updates)
+        self.assertEqual(
+            self.pc_feature.get_entry_field(next_content, work_item_id, "Tester"),
+            "Codex",
+        )
+        self.assertEqual(
+            self.pc_feature.get_entry_field(next_content, work_item_id, "Reporter"),
+            "Codex",
+        )
+        self.assertIn(
+            "TestPcFeature",
+            self.pc_feature.get_entry_field(next_content, work_item_id, "Tests run"),
+        )
+        self.assertIn(
+            "- Outcome: PASS",
+            self.pc_feature.get_entry_section(
+                next_content, work_item_id, "Reporter Review"
+            ),
+        )
+
     def test_reporter_handoff_block_feedback_contains_decision_options(self):
         decision_options = self.pc_feature.build_reporter_retry_decision_options_summary(
             [
@@ -5561,6 +5989,7 @@ class TestPcFeature(unittest.TestCase):
         self.assertIn(
             "D) classify sandbox/index-lock reporter commit failures", feedback
         )
+        self.assertIn("E) enable AUTO_REPAIR_RUNTIME_METADATA=apply", feedback)
         self.assertIn("Auto-repair activity:", feedback)
 
     def test_post_reporter_gate_blocks_pass_when_compacted_outputs_missing(self):

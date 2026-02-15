@@ -69,6 +69,15 @@ AUTO_REPAIR_REPORTER_GATE_VALUES = {
     AUTO_REPAIR_REPORTER_GATE_WARN,
     AUTO_REPAIR_REPORTER_GATE_APPLY,
 }
+AUTO_REPAIR_RUNTIME_METADATA_ENV = "AUTO_REPAIR_RUNTIME_METADATA"
+AUTO_REPAIR_RUNTIME_METADATA_OFF = "off"
+AUTO_REPAIR_RUNTIME_METADATA_WARN = "warn"
+AUTO_REPAIR_RUNTIME_METADATA_APPLY = "apply"
+AUTO_REPAIR_RUNTIME_METADATA_VALUES = {
+    AUTO_REPAIR_RUNTIME_METADATA_OFF,
+    AUTO_REPAIR_RUNTIME_METADATA_WARN,
+    AUTO_REPAIR_RUNTIME_METADATA_APPLY,
+}
 IGNORED_PATH_PREFIXES = (
     ".tmp/",
     ".codex_subagent/",
@@ -173,6 +182,42 @@ REPORTER_ENV_LOCK_CONTEXT_MARKERS = (
     "read-only file system",
     "resource temporarily unavailable",
 )
+REPORTER_METADATA_DRIFT_MARKERS = (
+    "closure consistency",
+    "latest tester evidence",
+    "execution summary",
+    "reporter deferred",
+    "still `outcome: needs replan`",
+    "still `outcome: fail`",
+)
+REPORTER_METADATA_DRIFT_BLOCKING_MARKERS = (
+    "required compacted output missing",
+    "traceability evidence",
+    "allowed tests",
+    "missing prompt template",
+    "scope expanded",
+    "out-of-scope",
+    "index.lock",
+    "git index lock",
+    "sandbox",
+    "handoff completeness",
+    "populate execution metadata",
+    "top execution field is blank",
+    "patch section",
+)
+RUNTIME_METADATA_AUTO_REPAIR_ALLOWED_UPDATES = frozenset(
+    {
+        "Test Results:overwrite",
+        "Reporter Review:overwrite",
+        "field:Tester:overwrite",
+        "field:Reporter:overwrite",
+        "field:Tests run:overwrite",
+        "field:Docs/logs updated:overwrite",
+    }
+)
+REPORTER_FAILURE_REASON_ENV_LOCK_ONLY = "env_lock_only"
+REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY = "metadata_drift_only"
+REPORTER_FAILURE_REASON_SCOPE_GAP = "scope_gap"
 ESCALATION_ALLOWLIST_PREFIXES: Tuple[Tuple[str, ...], ...] = (
     ("git", "status"),
     ("git", "diff"),
@@ -3721,6 +3766,22 @@ def parse_reporter_auto_repair_mode() -> str:
     return value
 
 
+def parse_runtime_metadata_auto_repair_mode() -> str:
+    raw = os.environ.get(
+        AUTO_REPAIR_RUNTIME_METADATA_ENV,
+        AUTO_REPAIR_RUNTIME_METADATA_WARN,
+    )
+    value = raw.strip().lower()
+    if not value:
+        return AUTO_REPAIR_RUNTIME_METADATA_WARN
+    if value not in AUTO_REPAIR_RUNTIME_METADATA_VALUES:
+        die(
+            f"pc-feature: invalid {AUTO_REPAIR_RUNTIME_METADATA_ENV} value '{raw}'; "
+            "expected one of: " + ", ".join(sorted(AUTO_REPAIR_RUNTIME_METADATA_VALUES))
+        )
+    return value
+
+
 def parse_resume_contradiction_policy() -> str:
     raw = os.environ.get(
         RESUME_CONTRADICTION_POLICY_ENV,
@@ -4308,6 +4369,17 @@ def ensure_entry_field_if_missing(
     return update_entry_field(content, work_item_id, field, candidate), True
 
 
+def overwrite_entry_field_if_different(
+    content: str, work_item_id: str, field: str, value: str
+) -> Tuple[str, bool]:
+    candidate = value.strip()
+    if not candidate:
+        return content, False
+    if get_entry_field(content, work_item_id, field).strip() == candidate:
+        return content, False
+    return update_entry_field(content, work_item_id, field, candidate), True
+
+
 def reconcile_runtime_execution_record(
     content: str,
     work_item_id: str,
@@ -4316,6 +4388,7 @@ def reconcile_runtime_execution_record(
     tester_feedback: str,
     reporter_feedback: str,
     reporter_outcome: str,
+    overwrite_existing: bool = False,
 ) -> Tuple[str, List[str]]:
     updated = content
     repaired: List[str] = []
@@ -4336,48 +4409,102 @@ def reconcile_runtime_execution_record(
             repaired.append("field:Patcher")
 
     if tester_feedback.strip():
-        if resume_section_is_pending(updated, work_item_id, "Test Results"):
-            updated = replace_entry_section(
-                updated,
-                work_item_id,
-                "Test Results",
-                build_runtime_test_results_body(tester_feedback),
+        next_test_results_body = build_runtime_test_results_body(tester_feedback)
+        if overwrite_existing or resume_section_is_pending(
+            updated, work_item_id, "Test Results"
+        ):
+            current_test_results_body = get_entry_section(
+                updated, work_item_id, "Test Results"
             )
-            repaired.append("Test Results")
-        updated, field_changed = ensure_entry_field_if_missing(
-            updated, work_item_id, "Tester", "Codex"
-        )
+            if current_test_results_body.strip() != next_test_results_body.strip():
+                updated = replace_entry_section(
+                    updated,
+                    work_item_id,
+                    "Test Results",
+                    next_test_results_body,
+                )
+                repaired.append(
+                    "Test Results:overwrite" if overwrite_existing else "Test Results"
+                )
+        if overwrite_existing:
+            updated, field_changed = overwrite_entry_field_if_different(
+                updated, work_item_id, "Tester", "Codex"
+            )
+        else:
+            updated, field_changed = ensure_entry_field_if_missing(
+                updated, work_item_id, "Tester", "Codex"
+            )
         if field_changed:
-            repaired.append("field:Tester")
+            repaired.append(
+                "field:Tester:overwrite" if overwrite_existing else "field:Tester"
+            )
         tests_run = parse_labeled_line(tester_feedback, "Tests run")
-        updated, field_changed = ensure_entry_field_if_missing(
-            updated, work_item_id, "Tests run", tests_run
-        )
+        if overwrite_existing:
+            updated, field_changed = overwrite_entry_field_if_different(
+                updated, work_item_id, "Tests run", tests_run
+            )
+        else:
+            updated, field_changed = ensure_entry_field_if_missing(
+                updated, work_item_id, "Tests run", tests_run
+            )
         if field_changed:
-            repaired.append("field:Tests run")
+            repaired.append(
+                "field:Tests run:overwrite" if overwrite_existing else "field:Tests run"
+            )
 
     if reporter_feedback.strip():
-        updated, field_changed = ensure_entry_field_if_missing(
-            updated, work_item_id, "Reporter", "Codex"
-        )
-        if field_changed:
-            repaired.append("field:Reporter")
-        docs_updated = parse_labeled_line(reporter_feedback, "Docs/logs updated")
-        updated, field_changed = ensure_entry_field_if_missing(
-            updated, work_item_id, "Docs/logs updated", docs_updated
-        )
-        if field_changed:
-            repaired.append("field:Docs/logs updated")
-        if reporter_outcome != "SKIPPED" and resume_section_is_pending(
-            updated, work_item_id, "Reporter Review"
-        ):
-            updated = replace_entry_section(
-                updated,
-                work_item_id,
-                "Reporter Review",
-                build_runtime_reporter_review_body(reporter_feedback),
+        if overwrite_existing:
+            updated, field_changed = overwrite_entry_field_if_different(
+                updated, work_item_id, "Reporter", "Codex"
             )
-            repaired.append("Reporter Review")
+        else:
+            updated, field_changed = ensure_entry_field_if_missing(
+                updated, work_item_id, "Reporter", "Codex"
+            )
+        if field_changed:
+            repaired.append(
+                "field:Reporter:overwrite" if overwrite_existing else "field:Reporter"
+            )
+        docs_updated = parse_labeled_line(reporter_feedback, "Docs/logs updated")
+        if overwrite_existing:
+            updated, field_changed = overwrite_entry_field_if_different(
+                updated, work_item_id, "Docs/logs updated", docs_updated
+            )
+        else:
+            updated, field_changed = ensure_entry_field_if_missing(
+                updated, work_item_id, "Docs/logs updated", docs_updated
+            )
+        if field_changed:
+            repaired.append(
+                "field:Docs/logs updated:overwrite"
+                if overwrite_existing
+                else "field:Docs/logs updated"
+            )
+        next_reporter_review_body = build_runtime_reporter_review_body(
+            reporter_feedback
+        )
+        if reporter_outcome != "SKIPPED" and (
+            overwrite_existing
+            or resume_section_is_pending(updated, work_item_id, "Reporter Review")
+        ):
+            current_reporter_review_body = get_entry_section(
+                updated, work_item_id, "Reporter Review"
+            )
+            if (
+                current_reporter_review_body.strip()
+                != next_reporter_review_body.strip()
+            ):
+                updated = replace_entry_section(
+                    updated,
+                    work_item_id,
+                    "Reporter Review",
+                    next_reporter_review_body,
+                )
+                repaired.append(
+                    "Reporter Review:overwrite"
+                    if overwrite_existing
+                    else "Reporter Review"
+                )
 
     return updated, repaired
 
@@ -4783,6 +4910,123 @@ def run_reporter_auto_repair_pass(
     return next_content, next_issues, ledger, apply_change
 
 
+def split_runtime_metadata_auto_repair_updates(
+    updates: List[str],
+) -> Tuple[List[str], List[str]]:
+    allowed: List[str] = []
+    disallowed: List[str] = []
+    seen_allowed: Set[str] = set()
+    seen_disallowed: Set[str] = set()
+    for update in updates:
+        normalized = update.strip()
+        if not normalized:
+            continue
+        if normalized in RUNTIME_METADATA_AUTO_REPAIR_ALLOWED_UPDATES:
+            if normalized not in seen_allowed:
+                allowed.append(normalized)
+                seen_allowed.add(normalized)
+            continue
+        if normalized not in seen_disallowed:
+            disallowed.append(normalized)
+            seen_disallowed.add(normalized)
+    return allowed, disallowed
+
+
+def build_runtime_metadata_auto_repair_ledger(
+    *,
+    mode: str,
+    applied: bool,
+    proposed_updates: List[str],
+    disallowed_updates: List[str],
+    skipped_reason: str = "",
+) -> str:
+    update_signature = hashlib.sha256(
+        "\n".join(sorted(set(proposed_updates + disallowed_updates))).encode("utf-8")
+    ).hexdigest()[:12]
+    risk_tags: List[str] = []
+    if disallowed_updates:
+        risk_tags.append("non-allowlisted-update-blocked")
+    if mode == AUTO_REPAIR_RUNTIME_METADATA_APPLY and applied:
+        risk_tags.append("metadata-overwrite")
+    if mode in {
+        AUTO_REPAIR_RUNTIME_METADATA_OFF,
+        AUTO_REPAIR_RUNTIME_METADATA_WARN,
+    }:
+        risk_tags.append("no-side-effect")
+    return (
+        f"mode={mode}; applied={'yes' if applied else 'no'}; "
+        + (f"skipped_reason={skipped_reason}; " if skipped_reason else "")
+        + "proposed_updates="
+        + (",".join(proposed_updates) if proposed_updates else "none")
+        + "; disallowed_updates="
+        + (",".join(disallowed_updates) if disallowed_updates else "none")
+        + "; update_sig="
+        + update_signature
+        + "; risk_tags="
+        + (",".join(risk_tags) if risk_tags else "none")
+    )
+
+
+def run_runtime_metadata_auto_repair_pass(
+    *,
+    mode: str,
+    content: str,
+    work_item_id: str,
+    tester_feedback: str,
+    reporter_feedback: str,
+    reporter_outcome: str,
+) -> Tuple[str, List[str], str, bool]:
+    if mode == AUTO_REPAIR_RUNTIME_METADATA_OFF:
+        ledger = build_runtime_metadata_auto_repair_ledger(
+            mode=mode,
+            applied=False,
+            proposed_updates=[],
+            disallowed_updates=[],
+            skipped_reason="mode-off",
+        )
+        return content, [], ledger, False
+
+    candidate_content, candidate_updates = reconcile_runtime_execution_record(
+        content,
+        work_item_id,
+        patch_completed=True,
+        tester_feedback=tester_feedback,
+        reporter_feedback=reporter_feedback,
+        reporter_outcome=reporter_outcome,
+        overwrite_existing=True,
+    )
+    allowed_updates, disallowed_updates = split_runtime_metadata_auto_repair_updates(
+        candidate_updates
+    )
+    preview_content = candidate_content
+    if disallowed_updates:
+        preview_content = content
+
+    apply_change = (
+        mode == AUTO_REPAIR_RUNTIME_METADATA_APPLY
+        and not disallowed_updates
+        and preview_content != content
+    )
+    next_content = preview_content if apply_change else content
+    skipped_reason = ""
+    if not apply_change and mode == AUTO_REPAIR_RUNTIME_METADATA_APPLY:
+        if disallowed_updates:
+            skipped_reason = "disallowed-updates"
+        elif preview_content == content:
+            skipped_reason = "no-content-change"
+    elif mode == AUTO_REPAIR_RUNTIME_METADATA_WARN:
+        skipped_reason = "warn-mode-preview-only"
+
+    ledger = build_runtime_metadata_auto_repair_ledger(
+        mode=mode,
+        applied=apply_change,
+        proposed_updates=allowed_updates,
+        disallowed_updates=disallowed_updates,
+        skipped_reason=skipped_reason,
+    )
+    return next_content, allowed_updates, ledger, apply_change
+
+
 def build_tester_retry_decision_options_summary(context: str) -> str:
     issue_summary = summarize_feedback(
         context or "unresolved tester failures", max_chars=220
@@ -4805,6 +5049,7 @@ def build_reporter_retry_decision_options_summary(issues: List[str]) -> str:
         "B) reopen Plan->Patch->Test loop before reporting again (risk: extra cycle time); "
         "C) take a human closeout waiver decision and continue (risk: weaker traceability/audit signal); "
         "D) classify sandbox/index-lock reporter commit failures as environment-only and continue (risk: may hide a real scope gap if misclassified); "
+        "E) enable AUTO_REPAIR_RUNTIME_METADATA=apply for deterministic machine-owned metadata reconciliation (risk: may overwrite manual execution-summary wording in owned fields); "
         f"unresolved issues: {issue_summary}"
     )
 
@@ -4966,6 +5211,33 @@ def is_environment_lock_only_reporter_failure(reporter_feedback: str) -> bool:
     return not any(marker in focus for marker in actionable_scope_markers)
 
 
+def is_metadata_drift_only_reporter_failure(reporter_feedback: str) -> bool:
+    if parse_outcome(reporter_feedback) != "FAIL":
+        return False
+    focus = reporter_feedback_focus_text(reporter_feedback)
+    if any(marker in focus for marker in REPORTER_METADATA_DRIFT_BLOCKING_MARKERS):
+        return False
+    metadata_context_markers = (
+        "execution summary",
+        "closure consistency",
+        "test results",
+        "reporter review",
+        "docs/logs updated",
+        "outcome:",
+    )
+    if not any(marker in focus for marker in metadata_context_markers):
+        return False
+    return any(marker in focus for marker in REPORTER_METADATA_DRIFT_MARKERS)
+
+
+def classify_reporter_failure_reason(reporter_feedback: str) -> str:
+    if is_environment_lock_only_reporter_failure(reporter_feedback):
+        return REPORTER_FAILURE_REASON_ENV_LOCK_ONLY
+    if is_metadata_drift_only_reporter_failure(reporter_feedback):
+        return REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY
+    return REPORTER_FAILURE_REASON_SCOPE_GAP
+
+
 def build_finalization_only_reporter_pass_feedback(
     *, work_item_id: str, dev_tasks_repo_path: str, original_feedback: str
 ) -> str:
@@ -4994,6 +5266,41 @@ def build_environment_lock_reporter_pass_feedback(
         f"Evidence: Normalized non-actionable reporter FAIL feedback ({summary}).\n"
         "Expected fix: none for reporter scope; role commits are handled by tools/pc-role-commit.\n"
         "Notes: Reporter FAIL reflected environment commit/index-lock restrictions only; treated as PASS.\n"
+        f"Work Item ID: {work_item_id}\n"
+    )
+
+
+def build_metadata_drift_reporter_pass_feedback(
+    *,
+    work_item_id: str,
+    dev_tasks_repo_path: str,
+    original_feedback: str,
+    mode: str,
+    proposed_updates: List[str],
+    applied: bool,
+) -> str:
+    summary = summarize_feedback(original_feedback, max_chars=220)
+    proposed = ", ".join(proposed_updates) if proposed_updates else "none"
+    if applied:
+        expected_fix = (
+            "none; deterministic machine-owned metadata reconciliation was applied."
+        )
+    elif mode == AUTO_REPAIR_RUNTIME_METADATA_WARN:
+        expected_fix = "Optional: set AUTO_REPAIR_RUNTIME_METADATA=apply to persist deterministic machine-owned metadata reconciliation."
+    elif mode == AUTO_REPAIR_RUNTIME_METADATA_OFF:
+        expected_fix = "Optional: set AUTO_REPAIR_RUNTIME_METADATA=warn/apply for deterministic reconciliation previews or writes."
+    else:
+        expected_fix = "none"
+    return (
+        "Outcome: PASS\n"
+        "Docs/logs updated: reporter review complete; metadata-drift-only execution-summary mismatch normalized as non-blocking.\n"
+        f"File/Path: {dev_tasks_repo_path}\n"
+        "Check: Reporter scope is complete; failure was limited to stale machine-owned runtime metadata.\n"
+        f"Evidence: Normalized non-actionable reporter FAIL feedback ({summary}).\n"
+        f"Expected fix: {expected_fix}\n"
+        "Notes: "
+        f"Runtime metadata auto-repair mode={mode}; applied={'yes' if applied else 'no'}; "
+        f"proposed_updates={proposed}; treated as PASS.\n"
         f"Work Item ID: {work_item_id}\n"
     )
 
@@ -6052,6 +6359,7 @@ def main() -> None:
 
     requires_global_logs = False
     reporter_auto_repair_mode = parse_reporter_auto_repair_mode()
+    runtime_metadata_auto_repair_mode = parse_runtime_metadata_auto_repair_mode()
     reviewer_blocks = 0
     planner_revision_attempts = 0
     tester_failures = 0
@@ -7236,7 +7544,9 @@ def main() -> None:
             )
             reporter_finalization_normalized = False
             reporter_environment_lock_normalized = False
+            reporter_metadata_drift_normalized = False
             reporter_gate_auto_repair_notes: List[str] = []
+            runtime_metadata_auto_repair_notes: List[str] = []
             reporter_auto_repair_consumed = False
             reporter_feedback = ""
             if (
@@ -7315,17 +7625,63 @@ def main() -> None:
                     )
                     reporter_outcome = "PASS"
                     reporter_finalization_normalized = True
-                elif (
-                    reporter_outcome == "FAIL"
-                    and is_environment_lock_only_reporter_failure(reporter_feedback)
-                ):
-                    reporter_feedback = build_environment_lock_reporter_pass_feedback(
-                        work_item_id=work_item_id,
-                        dev_tasks_repo_path=dev_tasks_repo_path,
-                        original_feedback=reporter_feedback,
+                elif reporter_outcome == "FAIL":
+                    reporter_failure_reason = classify_reporter_failure_reason(
+                        reporter_feedback
                     )
-                    reporter_outcome = "PASS"
-                    reporter_environment_lock_normalized = True
+                    if reporter_failure_reason == REPORTER_FAILURE_REASON_ENV_LOCK_ONLY:
+                        reporter_feedback = (
+                            build_environment_lock_reporter_pass_feedback(
+                                work_item_id=work_item_id,
+                                dev_tasks_repo_path=dev_tasks_repo_path,
+                                original_feedback=reporter_feedback,
+                            )
+                        )
+                        reporter_outcome = "PASS"
+                        reporter_environment_lock_normalized = True
+                    elif (
+                        reporter_failure_reason
+                        == REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY
+                    ):
+                        normalized_reporter_feedback = (
+                            build_metadata_drift_reporter_pass_feedback(
+                                work_item_id=work_item_id,
+                                dev_tasks_repo_path=dev_tasks_repo_path,
+                                original_feedback=reporter_feedback,
+                                mode=runtime_metadata_auto_repair_mode,
+                                proposed_updates=[],
+                                applied=False,
+                            )
+                        )
+                        (
+                            repaired_content,
+                            runtime_metadata_updates,
+                            runtime_metadata_ledger,
+                            runtime_metadata_applied,
+                        ) = run_runtime_metadata_auto_repair_pass(
+                            mode=runtime_metadata_auto_repair_mode,
+                            content=content,
+                            work_item_id=work_item_id,
+                            tester_feedback=tester_feedback,
+                            reporter_feedback=normalized_reporter_feedback,
+                            reporter_outcome="PASS",
+                        )
+                        runtime_metadata_auto_repair_notes.append(
+                            runtime_metadata_ledger
+                        )
+                        if repaired_content != content:
+                            content = repaired_content
+                            write_file(dev_tasks_path, content)
+                        reporter_feedback = build_metadata_drift_reporter_pass_feedback(
+                            work_item_id=work_item_id,
+                            dev_tasks_repo_path=dev_tasks_repo_path,
+                            original_feedback=reporter_feedback,
+                            mode=runtime_metadata_auto_repair_mode,
+                            proposed_updates=runtime_metadata_updates,
+                            applied=runtime_metadata_applied,
+                        )
+                        reporter_outcome = "PASS"
+                        reporter_metadata_drift_normalized = True
             content = read_file(dev_tasks_path)
             content, _preview_updates = reconcile_runtime_execution_record(
                 content,
@@ -7427,6 +7783,14 @@ def main() -> None:
                     + " | ".join(reporter_gate_auto_repair_notes)
                     + ".",
                 )
+            if runtime_metadata_auto_repair_notes:
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Runtime metadata auto-repair activity: "
+                    + " | ".join(runtime_metadata_auto_repair_notes)
+                    + ".",
+                )
             if reporter_finalization_normalized:
                 content = append_iteration_log_note(
                     content,
@@ -7438,6 +7802,12 @@ def main() -> None:
                     content,
                     work_item_id,
                     "Reporter environment-lock FAIL normalized to PASS; sandbox/index-lock commit failures are non-blocking and handled by tools/pc-role-commit.",
+                )
+            if reporter_metadata_drift_normalized:
+                content = append_iteration_log_note(
+                    content,
+                    work_item_id,
+                    "Reporter metadata-drift-only FAIL normalized to PASS; stale machine-owned runtime metadata is non-blocking.",
                 )
             if post_reporter_issues:
                 content = replace_entry_section(

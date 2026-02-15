@@ -1966,3 +1966,20 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Result: PASS (post-remediation-message update; offload id `fa74ccb24dfedfdea06eba83e8422246b8abbdd822b35b413ad0f3f5586e2c14`)
 - Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-autofix tools/pc-feature tests/test_pc_autofix.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md`
 - Result: PASS (post-remediation-message update; offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)
+
+## 2026-02-15 - Validate reporter metadata-drift normalization + runtime metadata repair guards
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `b0b193a82b8c14bb18fa27484f8cda34ddf298bf8a03f249b1a18dcc3a895978`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md docs/03-logs/decision-log.md`
+- Result: FAIL on first run (`black` reformatted Python files; offload id `d9907af96148cba5d40b0bdb4ff6a2bb49470b92235caeff6e72041621a3f974`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (post-format rerun; offload id `1f552d4bd57e8c8c1a509f602253d855db4e2cc7bcf9e36557b909d3a1aeca6e`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md docs/03-logs/decision-log.md`
+- Result: PASS (offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)
+- Verified:
+  - Metadata-drift-only reporter `FAIL` is normalized to non-blocking `PASS`.
+  - Runtime metadata reconciliation defaults to no-side-effect preview mode (`warn`).
+  - Runtime metadata `apply` mode is restricted to allowlisted machine-owned fields and blocked on disallowed updates.

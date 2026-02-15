@@ -7061,3 +7061,32 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Scripted Codex runs used repo-local `CODEX_HOME` copies that could become stale and trigger deterministic `refresh_token_reused` failures during pre-commit autofix and orchestration runs.
 - Syncing newer auth state plus one deterministic retry reduces transient/manual recovery steps while preserving fail-closed behavior when auth truly cannot refresh.
+
+### 2026-02-15 - Normalize metadata-drift-only reporter failures + add safe runtime metadata reconciliation modes
+
+**Feature/Bug:** Reporter retries in bootstrapped repos could fail on stale execution-summary metadata (`Outcome`/`Test Results`/`Docs/logs updated`) even when tester evidence was already green.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added reporter failure classification for metadata-drift-only failures and centralized reason classification (`env_lock_only`, `metadata_drift_only`, `scope_gap`).
+- Added `AUTO_REPAIR_RUNTIME_METADATA` parsing with modes `off|warn|apply` (default `warn` for no-side-effect behavior).
+- Added runtime metadata reconciliation pass with explicit allowlist gating and deterministic ledger output.
+- Scoped runtime metadata apply writes to machine-owned fields/sections only (`Test Results`, `Reporter Review`, `Tester`, `Reporter`, `Tests run`, `Docs/logs updated`).
+- Wired reporter loop handling to normalize metadata-drift-only reporter `FAIL` as non-blocking `PASS`, with iteration-log evidence and optional reconciliation apply.
+- Added decision-option `E` in reporter retry guidance for explicit `AUTO_REPAIR_RUNTIME_METADATA=apply` opt-in.
+- Added regression coverage for:
+  - overwrite-capable runtime reconciliation,
+  - metadata-drift classifier + reason classification,
+  - runtime metadata mode parsing,
+  - runtime metadata warn/apply behavior,
+  - end-to-end reporter-loop normalization for metadata drift.
+
+**Why:**
+
+- Prevent false-negative reporter retry exhaustion when failures are limited to stale machine-owned metadata.
+- Keep default behavior side-effect-free while providing a controlled deterministic apply path when operators explicitly opt in.

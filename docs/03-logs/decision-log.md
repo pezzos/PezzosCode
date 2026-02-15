@@ -2510,3 +2510,19 @@ When a decision is reversed or replaced, document it here:
   - Reporter retry loops no longer fail on non-actionable environment commit restrictions.
   - Role-commit behavior is deterministic and script-owned, improving consistency across repos and runtimes.
   - Genuine reporter completeness failures remain blocking.
+
+### DEC-070 - Treat metadata-drift-only reporter failures as non-blocking with opt-in deterministic reconciliation writes
+
+- **Date:** 2026-02-15
+- **Status:** Accepted
+- **Context:** In bootstrapped/downstream repos, reporter can return `Outcome: FAIL` due to stale machine-owned execution-summary metadata (for example `Outcome: needs replan`, stale `Test Results`, stale `Docs/logs updated`) even when tester evidence is current and scope checks are otherwise complete.
+- **Decision:**
+  - Add a dedicated reporter-failure classifier for metadata-drift-only failures and normalize this class to reporter `PASS` (non-blocking).
+  - Introduce `AUTO_REPAIR_RUNTIME_METADATA` modes: `off`, `warn`, `apply`, with default `warn`.
+  - Keep `warn` as no-side-effect preview-only behavior; allow deterministic writes only in explicit `apply` mode.
+  - Restrict runtime metadata apply writes to an allowlist of machine-owned fields/sections and block apply when non-allowlisted updates would be required.
+  - Emit deterministic runtime metadata reconciliation ledger notes in execution logs for traceability.
+- **Consequences:**
+  - Reporter retry loops no longer exhaust on non-actionable stale execution metadata.
+  - Default behavior remains low-risk and side-effect constrained.
+  - Operators retain explicit control to persist reconciliation updates when desired.
