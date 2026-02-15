@@ -1736,6 +1736,72 @@ def commit_worktree_changes(
         die(f"pc-feature: failed to commit changes for {role}\n{detail}")
 
 
+def commit_scoped_patcher_autofix_changes(
+    worktree_path: str, work_item_id: str, scoped_paths: List[str]
+) -> bool:
+    candidate_paths = sorted(set(filter_ignored_paths(scoped_paths)))
+    if not candidate_paths:
+        return False
+    illegal = [
+        path for path in candidate_paths if role_scoped_path_forbidden_for_patcher(path)
+    ]
+    if illegal:
+        die(
+            "pc-feature: scoped patcher autofix commit includes role-scoped files: "
+            + ", ".join(sorted(illegal))
+        )
+    dirty_paths = set(filter_ignored_paths(get_status_paths(worktree_path)))
+    commit_paths = [path for path in candidate_paths if path in dirty_paths]
+    if not commit_paths:
+        return False
+    add_result = subprocess.run(
+        ["git", "add", "--"] + commit_paths,
+        check=False,
+        cwd=worktree_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if add_result.returncode != 0:
+        die("pc-feature: failed to stage scoped patcher autofix files")
+    staged_paths = get_staged_paths(worktree_path)
+    commit_path_set = set(commit_paths)
+    unexpected_staged = sorted(
+        path for path in staged_paths if path not in commit_path_set
+    )
+    if unexpected_staged:
+        die(
+            "pc-feature: scoped patcher autofix commit found unexpected staged files: "
+            + ", ".join(unexpected_staged)
+        )
+    commit_cmd = [
+        "tools/pc-role-commit",
+        "--role",
+        "patcher",
+        "--work-item-id",
+        work_item_id,
+    ]
+    for path in commit_paths:
+        commit_cmd.extend(["--allow", path])
+    result = subprocess.run(
+        commit_cmd,
+        check=False,
+        cwd=worktree_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = ""
+        if result.stdout:
+            detail += result.stdout
+        if result.stderr:
+            detail += result.stderr
+        die(f"pc-feature: failed to commit scoped patcher autofix changes\n{detail}")
+    output = (result.stdout or "") + (result.stderr or "")
+    return "no staged changes to commit for patcher" not in output.lower()
+
+
 def commit_role_step(
     root: str,
     worktree_path: str,
@@ -8114,15 +8180,22 @@ def main() -> None:
                     autofix_exit,
                 )
             )
-            if filter_ignored_paths(get_status_paths(patcher_path)):
-                commit_role_step(
-                    root,
-                    patcher_path,
-                    patcher_branch,
-                    "patcher",
-                    work_item_id,
-                    feature_dir,
+            autofix_committed = commit_scoped_patcher_autofix_changes(
+                patcher_path,
+                work_item_id,
+                candidate_autofix_paths,
+            )
+            if not autofix_committed:
+                remaining_dirty = filter_ignored_paths(get_status_paths(patcher_path))
+                candidate_set = set(candidate_autofix_paths)
+                non_candidate_dirty = sorted(
+                    path for path in remaining_dirty if path not in candidate_set
                 )
+                if non_candidate_dirty:
+                    print(
+                        "pc-feature: scoped autofix preserved non-candidate dirty paths: "
+                        + ", ".join(non_candidate_dirty)
+                    )
         else:
             if skipped_autofix_paths:
                 autofix_notes.append(

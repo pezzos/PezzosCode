@@ -3704,6 +3704,120 @@ class TestPcFeature(unittest.TestCase):
         self.assertEqual(status, 0)
         add_mock.assert_called_once()
 
+    def test_commit_scoped_patcher_autofix_changes_skips_non_candidate_dirty_paths(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            candidate_path = "tools/pc-feature"
+            non_candidate_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            with mock.patch.object(
+                self.pc_feature,
+                "get_status_paths",
+                return_value=[non_candidate_path],
+            ):
+                with mock.patch.object(
+                    self.pc_feature.subprocess,
+                    "run",
+                    return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+                ) as run_mock:
+                    committed = self.pc_feature.commit_scoped_patcher_autofix_changes(
+                        str(root),
+                        "WI-20260215-01",
+                        [candidate_path],
+                    )
+        self.assertFalse(committed)
+        run_mock.assert_not_called()
+
+    def test_commit_scoped_patcher_autofix_changes_commits_only_scoped_paths(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            candidate_path = "tools/pc-feature"
+            non_candidate_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            calls = []
+
+            def fake_subprocess_run(
+                cmd,
+                check=False,
+                cwd=None,
+                stdout=None,
+                stderr=None,
+                text=None,
+            ):
+                calls.append(list(cmd))
+                return SimpleNamespace(returncode=0, stdout="committed", stderr="")
+
+            with mock.patch.object(
+                self.pc_feature,
+                "get_status_paths",
+                return_value=[candidate_path, non_candidate_path],
+            ):
+                with mock.patch.object(
+                    self.pc_feature,
+                    "get_staged_paths",
+                    return_value=[candidate_path],
+                ):
+                    with mock.patch.object(
+                        self.pc_feature.subprocess,
+                        "run",
+                        side_effect=fake_subprocess_run,
+                    ):
+                        committed = (
+                            self.pc_feature.commit_scoped_patcher_autofix_changes(
+                                str(root),
+                                "WI-20260215-02",
+                                [candidate_path],
+                            )
+                        )
+        self.assertTrue(committed)
+        self.assertEqual(
+            calls[0],
+            ["git", "add", "--", candidate_path],
+        )
+        self.assertEqual(
+            calls[1][0:4],
+            ["tools/pc-role-commit", "--role", "patcher", "--work-item-id"],
+        )
+        self.assertIn("WI-20260215-02", calls[1])
+        self.assertIn(candidate_path, calls[1])
+        self.assertNotIn(non_candidate_path, calls[1])
+
+    def test_commit_scoped_patcher_autofix_changes_blocks_unexpected_staged_paths(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            candidate_path = "tools/pc-feature"
+            unexpected_path = "docs/02-features/01-workflow-hardening/dev-tasks.md"
+            stderr_capture = io.StringIO()
+            with mock.patch.object(
+                self.pc_feature,
+                "get_status_paths",
+                return_value=[candidate_path],
+            ):
+                with mock.patch.object(
+                    self.pc_feature,
+                    "get_staged_paths",
+                    return_value=[candidate_path, unexpected_path],
+                ):
+                    with mock.patch.object(
+                        self.pc_feature.subprocess,
+                        "run",
+                        return_value=SimpleNamespace(
+                            returncode=0, stdout="", stderr=""
+                        ),
+                    ):
+                        with self.assertRaises(SystemExit):
+                            with contextlib.redirect_stderr(stderr_capture):
+                                self.pc_feature.commit_scoped_patcher_autofix_changes(
+                                    str(root),
+                                    "WI-20260215-03",
+                                    [candidate_path],
+                                )
+        self.assertIn(
+            "scoped patcher autofix commit found unexpected staged files",
+            stderr_capture.getvalue(),
+        )
+        self.assertIn(unexpected_path, stderr_capture.getvalue())
+
     def test_main_manual_mode_prints_feature_status_hints_when_tracking_enabled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

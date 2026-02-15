@@ -7090,3 +7090,30 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Prevent false-negative reporter retry exhaustion when failures are limited to stale machine-owned metadata.
 - Keep default behavior side-effect-free while providing a controlled deterministic apply path when operators explicitly opt in.
+
+### 2026-02-15 - Scope final CI autofix commits to patcher-safe dirty paths
+
+**Feature/Bug:** Cross-repo `make feature F=01` abort on `patcher edited role-scoped files` after CI autofix.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `AGENTS.md`
+- `tools/templates/root/AGENTS.md`
+
+**What Changed:**
+
+- Added `commit_scoped_patcher_autofix_changes(...)` to commit only dirty scoped autofix candidates via `tools/pc-role-commit`.
+- Added deterministic guardrails for scoped patcher autofix commits:
+  - block forbidden role-scoped candidate paths,
+  - block unexpected staged paths outside the scoped candidate set.
+- Replaced final CI autofix patcher commit flow to use scoped commit helper instead of `commit_role_step(...)`, so planner-owned `dev-tasks.md` dirt does not trigger patcher role-scope aborts.
+- Added diagnostics for preserved non-candidate dirty paths after scoped autofix commit attempts.
+- Added regression coverage for scoped commit behavior and staged-path guardrails.
+- Aligned live/template `AGENTS.md` role-scope wording with planner ownership of `dev-tasks.md`.
+
+**Why:**
+
+- Final-gate scoped autofix already filters candidate files, but the previous commit path could still attempt to commit all dirty files and re-trigger patcher role-scope failures.
+- Restricting commit scope to autofix candidate deltas keeps ownership boundaries deterministic and preserves planner-owned runtime metadata for final-stage sync.

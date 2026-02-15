@@ -33,7 +33,7 @@ Rules:
 - Planner writes only `docs/02-features/<feature>/planner-log.md`.
 - Tester writes only `docs/02-features/<feature>/validation-log.md`.
 - Reporter writes only `docs/02-features/<feature>/reporter-log.md`.
-- Patcher can edit anywhere except the role-scoped log files.
+- Patcher edits implementation scope only and must not edit planner-owned `dev-tasks.md` or role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
 - Orchestrator uses a single worktree per feature and squashes role outputs into `main` (no `feature-worktrees.json`).
 
 ## Setup commands

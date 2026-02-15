@@ -862,3 +862,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Reporter retries could reach max attempts and abort even when reporter scope checks were complete, because feedback FAIL was driven by sandbox git index lock/permission errors during commit (`.git/index.lock`) instead of actionable handoff gaps.
 - **Fix:** Added script-based role commits (`tools/pc-role-commit`) and switched `pc-feature` role commit flow to use it; added reporter classifier/normalizer to auto-convert sandbox/index-lock-only FAIL feedback to PASS; updated reporter prompts to forbid direct git commits.
 - **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'` (PASS, offload id `2e18c264423b922c7aa09722eeb9266e0e21a61e0fea2fad17a4f0800913166b`); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_role_commit.py'` (PASS, offload id `ad4d35774bf0c86e40f21aa82925827615b66090a0d46b776bc3c936d9fbd14b`).
+
+## 2026-02-15 - Final-gate scoped autofix still hit patcher role-scope abort with dirty `dev-tasks.md`
+
+- **ID:** BUG-20260215-01
+- **Status:** Fixed
+- **Source:** User report (`make feature F=01` in bootstrapped consumer repo/worktree)
+- **Summary:** Final CI autofix path could still abort with `patcher edited role-scoped files: .../dev-tasks.md` because scoped autofix candidate selection was followed by a broad patcher commit step that evaluated all dirty files.
+- **Fix:** Added `commit_scoped_patcher_autofix_changes(...)` to commit only dirty patcher-safe candidate paths and block unexpected staged paths; replaced CI autofix `commit_role_step(...)` usage with the scoped helper; aligned AGENTS role-scope wording with planner ownership of `dev-tasks.md`.
+- **Validation:** `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py` (PASS); `tools/offload-proxy/pp python3 -m unittest tests/test_pc_feature.py` (PASS, offload id `71d98179d947908fe7819192d67c7de92f1d5792ec54c98ab3df42be8a9c922e`).

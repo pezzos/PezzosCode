@@ -1983,3 +1983,18 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Metadata-drift-only reporter `FAIL` is normalized to non-blocking `PASS`.
   - Runtime metadata reconciliation defaults to no-side-effect preview mode (`warn`).
   - Runtime metadata `apply` mode is restricted to allowlisted machine-owned fields and blocked on disallowed updates.
+
+## 2026-02-15 - Validate scoped patcher autofix commit path for CI retries
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest tests/test_pc_feature.py`
+- Result: PASS (offload id `7f35989c303a6cb333b8df25c06e1e588870a7805a4533f2229cc95050463d2e`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py AGENTS.md tools/templates/root/AGENTS.md docs/03-logs/implementation-log.md docs/03-logs/bug-log.md`
+- Result: FAIL on first run (`black` reformatted Python files; offload id `d9907af96148cba5d40b0bdb4ff6a2bb49470b92235caeff6e72041621a3f974`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py AGENTS.md tools/templates/root/AGENTS.md docs/03-logs/implementation-log.md docs/03-logs/bug-log.md`
+- Result: PASS (offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)
+- Verified:
+  - CI scoped autofix commits only patcher-safe dirty candidate paths and no longer attempts to commit planner-owned `dev-tasks.md` deltas.
+  - Scoped patcher autofix commit aborts deterministically if unexpected staged files are present outside the scoped candidate set.
+  - AGENTS role-scope wording now matches runtime ownership (`dev-tasks.md` planner-owned, patcher role-scoped docs blocked).
