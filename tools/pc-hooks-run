@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -16,6 +17,10 @@ from typing import List, Sequence, Tuple
 
 DEFAULT_AGENT_NAME = "pc-hooks-run"
 MAX_SUMMARY_LINES = 120
+AUTOFIX_RETRY_PATTERN = re.compile(
+    r"\bfiles?\s+were\s+modified\s+by\s+this\s+hook\b",
+    re.IGNORECASE,
+)
 
 
 def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
@@ -42,6 +47,11 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         "--verbose",
         action="store_true",
         help="Print raw pre-commit output.",
+    )
+    parser.add_argument(
+        "--retry-on-autofix",
+        action="store_true",
+        help="Retry once when hooks fail because files were auto-modified.",
     )
     parser.add_argument(
         "--pre-commit-bin",
@@ -141,13 +151,34 @@ def summarize_output(
     return summary_lines[:max_lines], omitted
 
 
-def run_quiet(command: Sequence[str]) -> int:
+def should_retry_autofix(output: str) -> bool:
+    return bool(AUTOFIX_RETRY_PATTERN.search(output))
+
+
+def run_quiet(command: Sequence[str], *, retry_on_autofix: bool = False) -> int:
     completed = subprocess.run(
         command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
     output = completed.stdout or ""
     if completed.returncode == 0:
         return 0
+
+    return_code = completed.returncode
+    if retry_on_autofix and should_retry_autofix(output):
+        retry_completed = subprocess.run(
+            command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
+        retry_output = retry_completed.stdout or ""
+        if retry_completed.returncode == 0:
+            return 0
+        output = (
+            "[pc-hooks-run] autofix retry executed after modified-file hook failure.\n"
+            "=== first run ===\n"
+            f"{output.rstrip()}\n"
+            "=== retry run ===\n"
+            f"{retry_output}"
+        )
+        return_code = retry_completed.returncode
 
     cwd = Path.cwd()
     command_str = command_to_string(command)
@@ -175,7 +206,7 @@ def run_quiet(command: Sequence[str]) -> int:
         log_reference = str(log_path)
     print(f"pre-commit: full log: {log_reference}", file=sys.stderr)
     print(f"pre-commit: offload id: {pointer_id}", file=sys.stderr)
-    return completed.returncode
+    return return_code
 
 
 def run_verbose(command: Sequence[str]) -> int:
@@ -189,7 +220,7 @@ def main(argv: List[str] | None = None) -> int:
     try:
         if args.verbose:
             return run_verbose(command)
-        return run_quiet(command)
+        return run_quiet(command, retry_on_autofix=args.retry_on_autofix)
     except FileNotFoundError:
         print(f"{args.pre_commit_bin} not found.", file=sys.stderr)
         return 127

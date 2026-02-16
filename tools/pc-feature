@@ -38,6 +38,9 @@ EXPLICIT_COMMAND_CONTEXT_PATTERN = re.compile(
 HIGH_RISK_APPROVAL_NOTE = "High-risk gate approved interactively."
 MAIN_FREEZE_NOTE_PREFIX = "Main head locked:"
 PRECOMMIT_FORMAT_SKIP = "markdown-lint,template-sync,tests"
+SCOPED_AUTOFIX_REVIEW_COMMAND = (
+    "tools/pc-hooks-run --hook-stage pre-commit --retry-on-autofix --files <scoped>"
+)
 AUTO_REVIEWER_HYGIENE_ENV = "AUTO_REVIEWER_HYGIENE"
 RESUME_MODE_ENV = "RESUME_MODE"
 RESUME_MODE_AUTO = "auto"
@@ -1651,6 +1654,18 @@ def remove_worktree(root: str, path: str, branch: str) -> None:
         subprocess.run(["git", "branch", "-D", branch], check=False, cwd=root)
 
 
+def resolve_pc_hooks_run_cmd(worktree_path: str) -> Optional[List[str]]:
+    hooks_run_path = os.path.join(worktree_path, "tools", "pc-hooks-run")
+    if not os.path.isfile(hooks_run_path):
+        return None
+    if os.access(hooks_run_path, os.X_OK):
+        return ["tools/pc-hooks-run"]
+    if shutil.which("python3") is not None:
+        return ["python3", "tools/pc-hooks-run"]
+    print("pc-feature: python3 is required to run tools/pc-hooks-run fallback")
+    return None
+
+
 def format_role_changes(role: str, worktree_path: str, feature_dir: str) -> None:
     paths = get_status_paths(worktree_path)
     if not paths:
@@ -1672,7 +1687,26 @@ def format_role_changes(role: str, worktree_path: str, feature_dir: str) -> None
     if shutil.which("pre-commit") is None:
         print("pc-feature: pre-commit not found; skipping role formatting")
         return
-    cmd = ["tools/offload-proxy/pp", "pre-commit", "run", "--files"] + paths
+    hooks_run_cmd = resolve_pc_hooks_run_cmd(worktree_path)
+    if hooks_run_cmd:
+        cmd = (
+            hooks_run_cmd
+            + ["--hook-stage", "pre-commit", "--retry-on-autofix", "--files"]
+            + paths
+        )
+    else:
+        print(
+            "pc-feature: warning: tools/pc-hooks-run missing; "
+            "falling back to direct pre-commit."
+        )
+        cmd = [
+            "tools/offload-proxy/pp",
+            "pre-commit",
+            "run",
+            "--hook-stage",
+            "pre-commit",
+            "--files",
+        ] + paths
     env = os.environ.copy()
     env["SKIP"] = PRECOMMIT_FORMAT_SKIP
     subprocess.run(cmd, check=False, cwd=worktree_path, env=env)
@@ -5794,12 +5828,22 @@ def run_scoped_autofix_paths(root: str, scoped_paths: List[str]) -> int:
     if not scoped_paths:
         die("pc-feature: no scoped files available for scoped autofix")
     before_snapshot = collect_dirty_snapshot(root)
-    autofix_cmd = [
-        "tools/offload-proxy/pp",
-        "pre-commit",
-        "run",
-        "--files",
-    ] + scoped_paths
+    hooks_run_cmd = resolve_pc_hooks_run_cmd(root)
+    if hooks_run_cmd:
+        autofix_cmd = (
+            hooks_run_cmd
+            + ["--hook-stage", "pre-commit", "--retry-on-autofix", "--files"]
+            + scoped_paths
+        )
+    else:
+        autofix_cmd = [
+            "tools/offload-proxy/pp",
+            "pre-commit",
+            "run",
+            "--hook-stage",
+            "pre-commit",
+            "--files",
+        ] + scoped_paths
     autofix_exit = run_command(autofix_cmd, cwd=root)
     after_snapshot = collect_dirty_snapshot(root)
     scoped_set = set(scoped_paths)
@@ -8236,7 +8280,7 @@ def main() -> None:
             )
             autofix_notes.append(
                 format_review_item(
-                    "tools/offload-proxy/pp pre-commit run --files <scoped>",
+                    SCOPED_AUTOFIX_REVIEW_COMMAND,
                     autofix_exit,
                 )
             )
@@ -8259,12 +8303,12 @@ def main() -> None:
         else:
             if skipped_autofix_paths:
                 autofix_notes.append(
-                    "tools/offload-proxy/pp pre-commit run --files <scoped>: skipped "
+                    f"{SCOPED_AUTOFIX_REVIEW_COMMAND}: skipped "
                     "(no patcher-safe candidate paths)"
                 )
             else:
                 autofix_notes.append(
-                    "tools/offload-proxy/pp pre-commit run --files <scoped>: skipped (no candidate paths)"
+                    f"{SCOPED_AUTOFIX_REVIEW_COMMAND}: skipped (no candidate paths)"
                 )
         second_ci_exit = run_command_with_step_log(
             ci_cmd,

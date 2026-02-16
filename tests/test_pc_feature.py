@@ -7506,12 +7506,27 @@ class TestPcFeature(unittest.TestCase):
                 return "ok"
 
             def fake_run_command(cmd, cwd=None):
-                if cmd[:4] == [
+                is_hooks_run = bool(
+                    cmd
+                    and (
+                        cmd[0] == "tools/pc-hooks-run"
+                        or (
+                            cmd[0] == "python3"
+                            and len(cmd) > 1
+                            and cmd[1] == "tools/pc-hooks-run"
+                        )
+                    )
+                )
+                is_precommit_fallback = cmd[:2] == [
                     "tools/offload-proxy/pp",
                     "pre-commit",
-                    "run",
-                    "--files",
-                ]:
+                ]
+                if is_hooks_run or is_precommit_fallback:
+                    self.assertIn("--hook-stage", cmd)
+                    self.assertIn("pre-commit", cmd)
+                    self.assertIn("--files", cmd)
+                    if is_hooks_run:
+                        self.assertIn("--retry-on-autofix", cmd)
                     self.assertNotIn("--all-files", cmd)
                     self.assertIn(scoped_path, cmd)
                     self.assertNotIn(forbidden_autofix_path, cmd)

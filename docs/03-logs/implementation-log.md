@@ -27,6 +27,37 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-16 - Quiet scoped pre-commit output and autofix retry normalization
+
+**Feature/Bug:** `make feature` flows still emitted noisy per-hook status lines and surfaced transient `Failed` states for auto-fixed hooks.
+
+**Changed Files:**
+
+- `tools/pc-hooks-run`
+- `tools/pc-feature`
+- `tests/test_pc_hooks_run.py`
+- `tests/test_pc_feature.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added `--retry-on-autofix` to `tools/pc-hooks-run`:
+  - detects modified-file hook failures (`files were modified by this hook`),
+  - reruns pre-commit once on that condition,
+  - remains silent when the retry succeeds,
+  - writes combined first-run/retry diagnostics to offload only when retry still fails.
+- Updated `tools/pc-feature` pre-commit execution paths to prefer `tools/pc-hooks-run --hook-stage pre-commit --retry-on-autofix --files ...` for:
+  - role-scoped formatting before role commits,
+  - scoped autofix during CI retry flow.
+- Kept deterministic fallback to direct `pre-commit` (offloaded via `pp`) when `tools/pc-hooks-run` is unavailable.
+- Updated scoped autofix reporting labels and adjusted regression tests to validate the new runner contract.
+
+**Why:**
+
+- Align `make feature` behavior with quiet-green / concise-failure policy.
+- Remove non-actionable `Passed/Skipped` noise and suppress transient auto-fix `Failed` output when rerun validation passes.
+
 ### 2026-02-14 - Context refresh for post-MVP optimization phase
 
 **Feature/Bug:** Context alignment after MVP completion

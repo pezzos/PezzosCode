@@ -184,6 +184,112 @@ class TestPcHooksRun(unittest.TestCase):
             self.assertIn("Skipped", raw_log)
             self.assertIn("Failed", raw_log)
 
+    def test_main_retry_on_autofix_succeeds_quietly(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            fake_precommit = root / "fake-pre-commit"
+            fake_precommit.write_text(
+                "#!/usr/bin/env bash\n"
+                "marker='.pc-hooks-run-retry-marker'\n"
+                'if [[ ! -f "$marker" ]]; then\n'
+                "  printf 'fix end of files.........................................................Failed\\n'\n"
+                "  printf -- '- files were modified by this hook\\n'\n"
+                '  touch "$marker"\n'
+                "  exit 1\n"
+                "fi\n"
+                "printf 'fix end of files.........................................................Passed\\n'\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            fake_precommit.chmod(0o755)
+
+            previous_cwd = Path.cwd()
+            try:
+                os.chdir(root)
+                stderr = io.StringIO()
+                with redirect_stderr(stderr):
+                    status = self.pc_hooks.main(
+                        [
+                            "--hook-stage",
+                            "pre-commit",
+                            "--all-files",
+                            "--retry-on-autofix",
+                            "--pre-commit-bin",
+                            str(fake_precommit),
+                        ]
+                    )
+            finally:
+                os.chdir(previous_cwd)
+
+            self.assertEqual(status, 0)
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertFalse((root / ".offload").exists())
+
+    def test_main_retry_on_autofix_reports_failure_when_retry_fails(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            fake_precommit = root / "fake-pre-commit"
+            fake_precommit.write_text(
+                "#!/usr/bin/env bash\n"
+                "marker='.pc-hooks-run-retry-marker'\n"
+                'if [[ ! -f "$marker" ]]; then\n'
+                "  printf 'fix end of files.........................................................Failed\\n'\n"
+                "  printf -- '- files were modified by this hook\\n'\n"
+                '  touch "$marker"\n'
+                "  exit 1\n"
+                "fi\n"
+                "printf 'ruff................................................................Failed\\n'\n"
+                "printf -- '- hook id: ruff\\n'\n"
+                "printf -- '- exit code: 1\\n'\n"
+                "exit 1\n",
+                encoding="utf-8",
+            )
+            fake_precommit.chmod(0o755)
+
+            previous_cwd = Path.cwd()
+            try:
+                os.chdir(root)
+                stderr = io.StringIO()
+                with redirect_stderr(stderr):
+                    status = self.pc_hooks.main(
+                        [
+                            "--hook-stage",
+                            "pre-commit",
+                            "--all-files",
+                            "--retry-on-autofix",
+                            "--pre-commit-bin",
+                            str(fake_precommit),
+                        ]
+                    )
+            finally:
+                os.chdir(previous_cwd)
+
+            self.assertEqual(status, 1)
+            err = stderr.getvalue()
+            self.assertIn("pre-commit: checks failed.", err)
+            self.assertIn(
+                "ruff................................................................Failed",
+                err,
+            )
+            self.assertIn("pre-commit: offload id:", err)
+
+            pointer_line = next(
+                line
+                for line in err.splitlines()
+                if line.startswith("pre-commit: offload id:")
+            )
+            pointer_id = pointer_line.rsplit(":", 1)[1].strip()
+            log_path = root / ".offload" / f"{pointer_id}.txt"
+            self.assertTrue(log_path.exists())
+            raw_log = log_path.read_text(encoding="utf-8")
+            self.assertIn("=== first run ===", raw_log)
+            self.assertIn("=== retry run ===", raw_log)
+            self.assertIn("files were modified by this hook", raw_log)
+            self.assertIn(
+                "ruff................................................................Failed",
+                raw_log,
+            )
+
     def test_main_returns_127_when_precommit_binary_missing(self):
         stderr = io.StringIO()
         with redirect_stderr(stderr):

@@ -27,6 +27,17 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-16 - Quiet scoped pre-commit + autofix retry validation
+
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-hooks-run tools/pc-feature tests/test_pc_hooks_run.py tests/test_pc_feature.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md` (RUN1 FAIL: `black` auto-formatted files; offload id `d9907af96148cba5d40b0bdb4ff6a2bb49470b92235caeff6e72041621a3f974`; RUN2 PASS; offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_hooks_run.py"` (PASS: 8 tests; offload id `6d21d4748db4669622770c0446f1a27fccb5610de26553c3975b6ad826ab43dd`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS: 227 tests; offload id `00bd99660259f9aee4410c35f2bf620f3fa5c44e0bd684857a41afd75a2a082e`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 17 tests; offload id `42e0f8db8968a646d85a7742f25969a30a439788af0b1b66c4cf035b2123532b`)
+- Verified:
+  - Scoped `pc-feature` pre-commit paths now target `pc-hooks-run` with one-shot autofix retry.
+  - Auto-fixed hook failures no longer need to surface as terminal failures when retry passes.
+  - Quiet-success behavior remains intact in `pc-hooks-run`.
+
 ### 2026-02-14 - Post-MVP context refresh validation
 
 - `python3 .codex/skills/update-context/scripts/detect_context_mode.py --json` (PASS: all six context files detected as `enrich-existing`)
