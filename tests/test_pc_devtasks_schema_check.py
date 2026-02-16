@@ -171,7 +171,7 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
 
             self.assertEqual(errors, [])
 
-    def test_work_item_passes_without_semantic_tester_feedback_invariant(self):
+    def test_semantic_invariant_missing_tester_outcome_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             self._seed_template(root, self._valid_template_content())
@@ -181,6 +181,29 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
                 self._work_item_with_required_sections(
                     test_results="- `tools/pc-devtasks-schema-check` -> pass (exit 0).",
                     tester_feedback="- Notes: Pending.",
+                ),
+            )
+
+            errors = self.checker.run_check(root)
+
+            self.assertTrue(
+                any(
+                    "semantic invariant violation" in item
+                    and "missing critical artifact" in item
+                    for item in errors
+                )
+            )
+
+    def test_semantic_invariant_passes_when_tester_outcome_exists(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._seed_template(root, self._valid_template_content())
+            self._seed_feature(
+                root,
+                "01-sample",
+                self._work_item_with_required_sections(
+                    test_results="- `tools/pc-devtasks-schema-check` -> pass (exit 0).",
+                    tester_feedback="- Outcome: PASS\n- Notes: clean.",
                 ),
             )
 
@@ -208,7 +231,7 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
 
             self.assertEqual(status, 1)
             self.assertIn(
-                "ensure required sections are present for each work item",
+                "Tester Feedback outcome when Test Results are complete",
                 stderr.getvalue(),
             )
 

@@ -7261,3 +7261,39 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - The root issue was that default feedback sections with `- Notes:` were not considered pending, so reconciliation updated `Test Results` but skipped `Tester Feedback`, creating invariant failures at schema/pre-commit gates.
 - Writing normalized feedback outcomes from runtime feedback keeps execution records internally consistent and prevents this class of contradiction from reappearing.
+
+### 2026-02-16 - Re-enable semantic schema invariant and wire pre-commit legacy autofix guardrail
+
+**Feature/Bug:** Recurring downstream `devtasks-schema-check` failures when `Test Results` was complete but `Tester Feedback` had no `Outcome`.
+
+**Changed Files:**
+
+- `tools/pc-devtasks-schema-check`
+- `tests/test_pc_devtasks_schema_check.py`
+- `.pre-commit-config.yaml`
+- `tools/templates/root/.pre-commit-config.yaml`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `docs/02-features/06-worktree-policy-naming-convention/dev-tasks.md`
+- `docs/02-features/07-anti-cheat-testing-strategy/dev-tasks.md`
+- `docs/02-features/09-runner-structured-logs/dev-tasks.md`
+- `docs/02-features/15-offload-audit-and-log-compaction/dev-tasks.md`
+- `docs/02-features/17-resume-in-progress-tickets/dev-tasks.md`
+- `docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md`
+- `docs/02-features/19-template-drift-hardening-autofix-recovery/dev-tasks.md`
+- `docs/02-features/20-synthetic-feature-workflow-smoke-test/dev-tasks.md`
+
+**What Changed:**
+
+- Restored semantic invariant enforcement in `tools/pc-devtasks-schema-check`:
+  complete `Test Results` now requires a parsable tester `Outcome` in `Tester Feedback`.
+- Updated schema-check remediation text to explicitly call out the tester-feedback outcome requirement.
+- Updated `tests/test_pc_devtasks_schema_check.py` to assert invariant failure when outcome is missing and success when outcome is present.
+- Added a deterministic pre-commit autofix hook (`devtasks-legacy-autofix`) in live/template `.pre-commit-config.yaml` to run `tools/pc-devtasks-migrate-legacy` before `devtasks-schema-check`.
+- Enabled `--retry-on-autofix` for `lint` and `lint-verbose` in live/template `Makefile` targets so modified-file hooks rerun automatically.
+- Ran `tools/pc-devtasks-migrate-legacy` in this repo to backfill existing feature docs and remove current semantic mismatches.
+
+**Why:**
+
+- The invariant drift reintroduced the exact downstream/manual-repair failure mode.
+- Keeping strict schema validation plus deterministic autofix/backfill prevents recurrence while preserving fail-closed resume semantics.

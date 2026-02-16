@@ -22,6 +22,9 @@ TEMPLATE_ALLOWED_TESTS_GUIDANCE_MARKERS = (
 WORK_ITEM_ENTRY_PATTERN = re.compile(r"^###\s+(WI-\d{8}-\d{2})\b.*$", re.MULTILINE)
 SECTION_HEADING_PATTERN = re.compile(r"^####\s+(.+?)\s*$", re.MULTILINE)
 TESTS_RUN_PATTERN = re.compile(r"^-\s+Tests run:\s*\S+", re.MULTILINE)
+SECTION_OUTCOME_PATTERN = re.compile(
+    r"Outcome:\s*(PASS|FAIL|NEEDS REPLAN|SKIPPED)", re.IGNORECASE
+)
 REQUIRED_WORK_ITEM_SECTIONS = (
     "Preflight Report",
     "TDD Plan",
@@ -125,6 +128,19 @@ def work_item_section_bodies(block: str) -> dict[str, str]:
     return sections
 
 
+def parse_section_outcome(text: str) -> str | None:
+    match = SECTION_OUTCOME_PATTERN.search(text or "")
+    if not match:
+        return None
+    return match.group(1).upper()
+
+
+def section_complete(text: str) -> bool:
+    if not text.strip():
+        return False
+    return "(pending)" not in text.lower()
+
+
 def section_body_for_variants(sections: dict[str, str], section: str) -> str:
     variants = (section,) + SECTION_ALIASES.get(section, ())
     for variant in variants:
@@ -136,8 +152,16 @@ def section_body_for_variants(sections: dict[str, str], section: str) -> str:
 def semantic_work_item_errors(
     work_item_id: str, block: str, *, label: str, path: Path
 ) -> List[str]:
-    # Reserved for future semantic invariants once legacy logs are backfilled.
-    _ = (work_item_id, block, label, path)
+    sections = work_item_section_bodies(block)
+    test_results = section_body_for_variants(sections, "Test Results")
+    tester_feedback = section_body_for_variants(sections, "Tester Feedback")
+
+    if section_complete(test_results) and not parse_section_outcome(tester_feedback):
+        return [
+            f"{label}: semantic invariant violation in {path.as_posix()} "
+            f"for {work_item_id}: missing critical artifact: "
+            "test results exist without tester feedback outcome"
+        ]
     return []
 
 
@@ -221,8 +245,9 @@ def main(argv: List[str] | None = None) -> int:
         for item in errors:
             print(f"- {item}", file=sys.stderr)
         print(
-            "remediation: align files with docs/02-features/feature-template/dev-tasks.md and "
-            "ensure required sections are present for each work item",
+            "remediation: align files with docs/02-features/feature-template/dev-tasks.md, "
+            "ensure required sections are present for each work item, and add "
+            "Tester Feedback outcome when Test Results are complete",
             file=sys.stderr,
         )
         return 1

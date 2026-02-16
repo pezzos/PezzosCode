@@ -160,6 +160,7 @@ Work Item ID: WI-20260209-01
 
 #### Tester Feedback
 
+- Outcome: SKIPPED
 - Notes:
 
 #### Reporter Feedback

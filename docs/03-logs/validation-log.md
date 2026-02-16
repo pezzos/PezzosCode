@@ -2088,3 +2088,30 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Result: FAIL only at `devtasks-schema-check` due pre-existing semantic invariant violations in unrelated feature docs; formatting/lint hooks for changed files passed (offload id `746dad15bfef4559bcd603ec3810c29264ce011c6f96de1e8a849ab8acc9df9c`).
 - Command: `tools/offload-proxy/pp make test`
 - Result: FAIL at `docs-check` for the same pre-existing unrelated semantic invariant violations (offload id `8b13d0012f3b5931ca2e4950d0b67ae5f7c71ac41222643195b690fa180cc378`).
+
+## 2026-02-16 - Validate restored tester-outcome invariant + pre-commit autofix/backfill guardrail
+
+- Command: `tools/offload-proxy/pp tools/pc-devtasks-migrate-legacy --root /Users/alexandrepezzotta/repos/PezzosCode`
+- Result: PASS (`updated 8 file(s)`; repaired legacy work items missing tester outcomes).
+- Command: `tools/offload-proxy/pp tools/pc-devtasks-schema-check --root /Users/alexandrepezzotta/repos/PezzosCode --verbose`
+- Result: PASS (`pc-devtasks-schema-check: ok (23 files)`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'`
+- Result: PASS (`11` tests; offload id `6e2c2e2d0c5d4f2445feb5005937a4d47635379f8adf4113de6f692d171b2766`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'`
+- Result: PASS (`4` tests; offload id `17aac0710ed873e70190eee3908ef87f56b214e2f973aefb431b644fe396372a`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k 'reconcile_runtime_execution_record_populates_sections_and_fields'`
+- Result: PASS (`1` test; offload id `24cefc2bc38a1c71e18591075993695fc72546b32ff6b5baab3d98032ce96fb5`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k 'reconcile_runtime_execution_record_overwrite_updates_stale_fields'`
+- Result: PASS (`1` test; offload id `24cefc2bc38a1c71e18591075993695fc72546b32ff6b5baab3d98032ce96fb5`).
+- Command: `tools/offload-proxy/pp bash -lc 'pre-commit run --files $(git diff --name-only)'`
+- Result: FAIL first run (`prettier` modified files), PASS second run (all hooks passed; includes `devtasks-legacy-autofix` then `devtasks-schema-check`).
+- Command: `tools/offload-proxy/pp make lint`
+- Result: PASS (quiet success via `pc-hooks-run --retry-on-autofix`).
+- Command: `tools/offload-proxy/pp tools/pc-devtasks-migrate-legacy --root /Users/alexandrepezzotta/repos/PezzosCode --dry-run`
+- Result: PASS (`pc-devtasks-migrate-legacy: no legacy entries found`).
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `c983b20d29068063198879a9f326a424851e20964ca96b4990f7ad027029cc6a`).
+- Verified:
+  - Semantic invariant is restored: complete `Test Results` requires tester outcome evidence.
+  - Pre-commit now auto-runs legacy dev-tasks repair before schema validation.
+  - Repository dev-tasks backfill removed current legacy mismatches; `docs-check` now passes inside `make test`.

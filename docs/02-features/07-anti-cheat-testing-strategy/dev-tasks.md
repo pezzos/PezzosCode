@@ -370,7 +370,8 @@ Notes: Reporter review not run because `make feature` failed before orchestratio
 
 #### Tester Feedback
 
-Notes: make feature failed before Tester gate could complete; make ci failure recorded above.
+- Outcome: FAIL
+  Notes: make feature failed before Tester gate could complete; make ci failure recorded above.
 
 #### Reporter Feedback
 
@@ -970,6 +971,7 @@ Work Item ID: WI-20260204-03
 
 #### Tester Feedback
 
+- Outcome: SKIPPED
 - Notes:
 
 #### Reporter Feedback
@@ -1064,6 +1066,7 @@ Work Item ID: WI-20260204-03
 
 #### Tester Feedback
 
+- Outcome: SKIPPED
 - Notes:
 
 #### Reporter Feedback

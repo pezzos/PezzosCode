@@ -769,6 +769,7 @@ Work Item ID: WI-20260211-01
 
 #### Tester Feedback
 
+- Outcome: FAIL
 - Notes: PASS. `python -m pytest tests/test_pc_feature.py::TestPcFeature` succeeded.
 
 #### Reporter Feedback

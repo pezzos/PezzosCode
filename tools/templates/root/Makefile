@@ -7,10 +7,10 @@ fmt-verbose:
 	@tools/pc-hooks-run --hook-stage manual --all-files --verbose
 
 lint:
-	@tools/pc-hooks-run --hook-stage pre-commit --all-files
+	@tools/pc-hooks-run --hook-stage pre-commit --retry-on-autofix --all-files
 
 lint-verbose:
-	@tools/pc-hooks-run --hook-stage pre-commit --all-files --verbose
+	@tools/pc-hooks-run --hook-stage pre-commit --retry-on-autofix --all-files --verbose
 
 test:
 	@python -m unittest discover -s tests -p "test_*.py"
