@@ -2184,6 +2184,23 @@ def missing_touched_test_references(
     return missing
 
 
+def allowed_tests_touched_test_coverage_issues(
+    *, touched_test_paths: List[str], allowed_tests: List[str]
+) -> List[str]:
+    touched = sorted(
+        set(normalize_repo_path(path) for path in touched_test_paths if path.strip())
+    )
+    if not touched:
+        return []
+    missing_allowed = missing_touched_test_references(touched, allowed_tests)
+    if not missing_allowed:
+        return []
+    return [
+        "allowed tests are missing explicit coverage for touched test files: "
+        + ", ".join(missing_allowed)
+    ]
+
+
 def work_item_test_evidence_parity_issues(
     *,
     touched_test_paths: List[str],
@@ -2196,16 +2213,12 @@ def work_item_test_evidence_parity_issues(
     if not touched:
         return []
 
-    issues: List[str] = []
-    missing_allowed = missing_touched_test_references(touched, allowed_tests)
+    issues: List[str] = allowed_tests_touched_test_coverage_issues(
+        touched_test_paths=touched,
+        allowed_tests=allowed_tests,
+    )
     tests_run_commands = parse_tests_run_evidence_commands(tests_run_evidence)
     missing_evidence = missing_touched_test_references(touched, tests_run_commands)
-
-    if missing_allowed:
-        issues.append(
-            "allowed tests are missing explicit coverage for touched test files: "
-            + ", ".join(missing_allowed)
-        )
     if missing_evidence:
         issues.append(
             "latest tester evidence is missing explicit coverage for touched test files: "
@@ -7332,12 +7345,20 @@ def main() -> None:
         allowed_tests: List[str] = []
         forbidden: List[str] = []
         missing: List[str] = []
+        touched_test_paths = collect_touched_work_item_test_paths(
+            root, "refs/heads/main", patcher_branch
+        )
+        missing_touched_allowed: List[str] = []
         for attempt_fix in range(2):
             allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
             allowed_tests = parse_allowed_tests(allowed_section)
             forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
             missing = check_allowed_tests_exist(allowed_tests, planner_path)
-            if not allowed_tests or forbidden or missing:
+            missing_touched_allowed = allowed_tests_touched_test_coverage_issues(
+                touched_test_paths=touched_test_paths,
+                allowed_tests=allowed_tests,
+            )
+            if not allowed_tests or forbidden or missing or missing_touched_allowed:
                 issues: List[str] = []
                 if not allowed_tests:
                     issues.append("No allowed tests are listed.")
@@ -7345,6 +7366,7 @@ def main() -> None:
                     issues.append("Forbidden commands detected (do not use `make ci`).")
                 if missing:
                     issues.append("Missing tests: " + "; ".join(sorted(set(missing))))
+                issues.extend(missing_touched_allowed)
                 planner_prompt = render_prompt_template(
                     load_prompt_template("planner", "update-allowed-tests"),
                     {
@@ -7424,7 +7446,7 @@ def main() -> None:
         else:
             emit_workflow_event("planner", "DONE", attempt=attempt, outcome="NO_CHANGE")
 
-        if not allowed_tests or forbidden or missing:
+        if not allowed_tests or forbidden or missing or missing_touched_allowed:
             emit_workflow_event(
                 "plan-reviewer",
                 "SKIP",
@@ -7445,8 +7467,11 @@ def main() -> None:
                 issues.append("forbidden commands: " + "; ".join(forbidden))
             if missing:
                 issues.append("missing targets: " + "; ".join(sorted(set(missing))))
+            if missing_touched_allowed:
+                issues.append(" | ".join(missing_touched_allowed))
             remediation = (
-                "Allowed Tests must contain only specific, existing unittest/pytest commands. "
+                "Allowed Tests must contain only specific, existing unittest/pytest commands "
+                "and explicitly cover each touched test file path/module. "
                 "Do not include `make ci`, `make feature`, `pc-feature`, or placeholders."
             )
             issue_summary = " | ".join(issues)
@@ -7456,7 +7481,7 @@ def main() -> None:
                 f"Notes: Invalid Allowed Tests after planner remediation attempts ({issue_summary}). "
                 f"{remediation}\n"
                 f"File/Path: {dev_tasks_repo_path}\n"
-                "Check: Allowed Tests must list existing scoped unittest/pytest commands.\n"
+                "Check: Allowed Tests must list existing scoped unittest/pytest commands and touched-test coverage.\n"
                 f"Evidence: {issue_summary}\n"
                 f"Expected fix: {remediation}\n"
                 f"Work Item ID: {work_item_id}\n"

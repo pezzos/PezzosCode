@@ -9,6 +9,7 @@ Prefer file-path or discover forms that are robust in repo worktrees, for exampl
 - `python3 -m unittest discover -s tests -p "test_*.py"`
 - `python3 -m pytest tests/test_pc_feature.py -q`
   If Issues mention missing dotted unittest selectors (for example `tests.test_x.Class`), rewrite to a file-path or discover command.
+  If Issues mention touched test files missing explicit coverage, include commands that explicitly reference every missing touched test file or module marker.
   Do not edit any files.
   Do not run commands.
   Do not update `docs/03-logs/*`.

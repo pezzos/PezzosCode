@@ -7656,3 +7656,30 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Marker footer injection is invalid in JSON and caused first-time bootstrap breakage for config files.
 - In the stabilized workflow, deterministic reapply overwrite behavior reduces manual prompting and aligns with desired template refresh semantics.
+
+### 2026-02-16 - Enforce touched-test coverage during planner Allowed Tests validation
+
+**Feature/Bug:** Reporter retry loops could continue after planner approval when touched test files were not explicitly covered in Allowed Tests.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `prompts/planner-update-allowed-tests.md`
+- `tools/templates/prompts/planner-update-allowed-tests.md`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added `allowed_tests_touched_test_coverage_issues(...)` in `tools/pc-feature`.
+- Reused the same touched-test coverage policy in both planner-stage Allowed Tests validation and pre-reporter parity checks.
+- Extended planner-stage invalid Allowed Tests gating to include missing explicit touched-test coverage paths.
+- Strengthened remediation/check text to require explicit touched-test coverage in Allowed Tests.
+- Updated planner allowed-tests prompt guidance to require explicit commands for each missing touched test file/module when the issue is reported.
+- Added regression tests for:
+  - helper-level missing touched-test coverage detection;
+  - planner allowed-tests update prompt including missing touched-test coverage details.
+
+**Why:**
+
+- This removes the planner/reporter policy mismatch that allowed discover-only commands through planner validation and then failed deterministically at reporter.
+- Failures now occur earlier with direct remediation instructions, reducing retry churn.

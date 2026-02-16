@@ -766,6 +766,22 @@ class TestPcFeature(unittest.TestCase):
 
         self.assertEqual(issues, [])
 
+    def test_allowed_tests_touched_test_coverage_issues_detects_missing_coverage(self):
+        issues = self.pc_feature.allowed_tests_touched_test_coverage_issues(
+            touched_test_paths=["tests/test_offload_proxy.py"],
+            allowed_tests=[
+                "python -m unittest discover -s tests -p test_pc_feature.py"
+            ],
+        )
+
+        self.assertEqual(
+            issues,
+            [
+                "allowed tests are missing explicit coverage for touched test files: "
+                "tests/test_offload_proxy.py"
+            ],
+        )
+
     def test_reconcile_runtime_execution_record_populates_sections_and_fields(self):
         work_item_id = "WI-20260212-10"
         content = self._build_entry_content(work_item_id)
@@ -5083,6 +5099,83 @@ class TestPcFeature(unittest.TestCase):
                 "reporter no-op; reason=blocked by invalid allowed tests", dev_tasks
             )
 
+    def test_main_allowed_tests_prompt_includes_missing_touched_test_coverage(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260216-11"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- existing plan"
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            captured = {"prompt": ""}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "Allowed Tests must list specific, meaningful" in prompt:
+                    captured["prompt"] = prompt
+                    raise StopMain()
+                return "Decision: Approve\nReasons:\n- clear"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "check_allowed_tests_exist",
+                        return_value=[],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_touched_work_item_test_paths",
+                        return_value=["tests/test_offload_proxy.py"],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertIn(
+                "allowed tests are missing explicit coverage for touched test files: "
+                "tests/test_offload_proxy.py",
+                captured["prompt"],
+            )
+
     def test_main_planner_create_quality_failure_sets_failed_state_and_reverts_plan_side_effects(
         self,
     ):
@@ -6635,10 +6728,9 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("required compacted output missing", dev_tasks)
 
-    def test_pre_reporter_parity_gate_blocks_missing_touched_test_coverage(self):
-        class StopMain(RuntimeError):
-            pass
-
+    def test_allowed_tests_gate_blocks_missing_touched_test_coverage_before_reporter(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             patcher_path = root / "patcher"
@@ -6677,7 +6769,7 @@ class TestPcFeature(unittest.TestCase):
                     "Re-evaluate the current plan using tester/reporter failure feedback"
                     in prompt
                 ):
-                    raise StopMain()
+                    return "Decision: Plan Still Valid\nRationale: continue"
                 return "ok"
 
             with contextlib.ExitStack() as stack:
@@ -6730,7 +6822,7 @@ class TestPcFeature(unittest.TestCase):
                         side_effect=fake_codex_exec,
                     )
                 )
-                with self.assertRaises(StopMain):
+                with self.assertRaises(SystemExit):
                     self.pc_feature.main()
 
             self.assertEqual(reporter_prompt_calls["count"], 0)
@@ -6738,7 +6830,7 @@ class TestPcFeature(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn(
-                "Reporter blocked by pre-handoff completeness gate",
+                "allowed-tests validation failed",
                 dev_tasks,
             )
             self.assertIn(
@@ -6746,7 +6838,11 @@ class TestPcFeature(unittest.TestCase):
                 dev_tasks,
             )
             self.assertIn(
-                "latest tester evidence is missing explicit coverage for touched test",
+                "plan-reviewer no-op; reason=blocked by invalid allowed tests",
+                dev_tasks,
+            )
+            self.assertIn(
+                "reporter no-op; reason=blocked by invalid allowed tests",
                 dev_tasks,
             )
 
