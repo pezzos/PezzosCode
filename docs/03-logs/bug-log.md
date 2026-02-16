@@ -126,6 +126,72 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-008] - Plan-reviewer conflict remediation was generic and env-prefixed test commands bypassed normalization
+
+**Date Discovered:** 2026-02-16
+
+**Discovered By:** Cross-repo workflow investigation (`make feature F=08`, WI-20260216-02)
+
+**Severity:** Medium
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Internal maintainers running `make feature` / `tools/pc-feature`
+
+**Symptoms:**
+`Decision: Conflict` stopped execution with a generic message while actionable required changes were only visible in `plan-reviewer-log.md`. Env-prefixed test commands (for example `PYTHONHASHSEED=0 ...`) were not normalized, allowing Plan/Allowed Tests alignment checks to miss contradictions.
+
+**Steps to Reproduce:**
+
+1. Include env-prefixed test commands in Plan or Allowed Tests.
+2. Trigger a plan-reviewer `Conflict` with `Required changes`.
+3. Observe generic CLI remediation without surfaced required changes.
+
+**Expected Behavior:**
+Conflict stderr includes concrete required changes and points to the reviewer log; env-prefixed unittest/pytest commands normalize deterministically for alignment checks.
+
+**Actual Behavior:**
+Conflict stderr remained generic and env-prefixed commands could be ignored by normalization.
+
+**Root Cause:**
+
+- `normalize_allowed_test` only recognized direct command starts (`pytest`, `python -m unittest|pytest`, optional `tools/offload-proxy/pp`) and did not strip leading env assignments.
+- Conflict handling used a fixed `die(...)` string instead of reusing parsed reviewer `Required changes`.
+
+**Fix:**
+
+- Added leading env-assignment stripping in `normalize_allowed_test` (before and after offload wrapper stripping).
+- Added conflict message formatter that includes parsed `Required changes` and repo-relative `plan-reviewer-log.md` pointer.
+- Added regression tests for env-prefixed normalization, env-prefixed plan alignment mismatch detection, and conflict stderr remediation detail.
+
+**Files Changed:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**Prevention:**
+
+- Tests added for command-canonicalization and conflict-message contract to prevent silent drift.
+- Plan-policy mismatch message now includes explicit remediation wording.
+
+- Tests added: `tests/test_pc_feature.py` (`normalize_allowed_test`, `plan_policy_violations`, conflict flow)
+- Process changes: none
+- Monitoring added: none
+
+**Related Issues:**
+
+- Consumer run: `Agenda-Assistant` WI-20260216-02 (`plan-reviewer CONFLICT` mismatch visibility)
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-16
+
+**Deployed:** N/A (tooling repo local fix)
+
+**Verified By:** Codex (targeted unit tests)
+
 ### [BUG-006] - Skill metadata drift was not gated by CI
 
 **Date Discovered:** 2026-02-14

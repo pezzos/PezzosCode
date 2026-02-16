@@ -655,6 +655,19 @@ class TestPcFeature(unittest.TestCase):
             ),
             "python3 -m unittest tests.test_pc_feature",
         )
+        self.assertEqual(
+            self.pc_feature.normalize_allowed_test(
+                "PYTHONHASHSEED=0 pytest tests/test_pc_feature.py -q"
+            ),
+            "pytest tests/test_pc_feature.py -q",
+        )
+        self.assertEqual(
+            self.pc_feature.normalize_allowed_test(
+                "PYTHONHASHSEED=0 tools/offload-proxy/pp pytest tests/test_pc_feature.py -q"
+            ),
+            "pytest tests/test_pc_feature.py -q",
+        )
+        self.assertIsNone(self.pc_feature.normalize_allowed_test("PYTHONHASHSEED=0"))
         self.assertIsNone(self.pc_feature.normalize_allowed_test("bash -lc 'echo hi'"))
         self.assertIsNone(
             self.pc_feature.normalize_allowed_test(
@@ -1307,6 +1320,41 @@ class TestPcFeature(unittest.TestCase):
         self.assertTrue(
             any(
                 "plan test commands must be listed in Allowed Tests" in item
+                for item in violations
+            )
+        )
+
+    def test_plan_policy_violations_requires_env_prefixed_plan_tests_to_match_allowed_tests(
+        self,
+    ):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior and note docs/03-logs updates are handled by reporter/orchestrator; patcher will not edit those files.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `PYTHONHASHSEED=0 tools/offload-proxy/pp pytest tests/test_learning_loop_proposals.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertTrue(
+            any(
+                "plan test commands must be listed in Allowed Tests" in item
+                for item in violations
+            )
+        )
+        self.assertTrue(
+            any(
+                "`pytest tests/test_learning_loop_proposals.py`" in item
                 for item in violations
             )
         )
@@ -7959,7 +8007,14 @@ class TestPcFeature(unittest.TestCase):
                     with contextlib.redirect_stderr(stderr_capture):
                         self.pc_feature.main()
 
-            self.assertIn("plan reviewer conflict", stderr_capture.getvalue())
+            stderr_output = stderr_capture.getvalue()
+            self.assertIn("plan reviewer conflict", stderr_output)
+            self.assertIn("Required changes:", stderr_output)
+            self.assertIn("reconcile scope", stderr_output)
+            expected_log_path = (
+                Path(feature_dir).relative_to(root) / "plan-reviewer-log.md"
+            ).as_posix()
+            self.assertIn(expected_log_path, stderr_output)
             dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
                 encoding="utf-8"
             )

@@ -27,6 +27,18 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-16 - `pc-feature` conflict remediation + env-prefixed allowed-test normalization validation
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS: 230 tests; offload id `185c58434be177ab54002c6d5fbb45dbaf88dbe0b90046ede61abf70329cbc13`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 20 tests; offload id `0e73b611c6bb988fe31effbdf59fb2eadfa0640760f05c5f80ada8a05e6489b6`)
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py docs/03-logs/implementation-log.md docs/03-logs/bug-log.md docs/03-logs/validation-log.md` (RUN1 FAIL: `black`/`prettier` auto-formatted files; offload id `8632815394a988065cdb305639d60e855bf40756388572bf7152bff97dc49ec8`; RUN2 PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+
+Verified:
+
+- Env-prefixed commands now normalize to deterministic unittest/pytest command forms for policy checks.
+- Plan vs Allowed Tests mismatch detection still fails closed and now emits clearer remediation wording.
+- Plan-reviewer `CONFLICT` stderr now surfaces parsed `Required changes` and a direct `plan-reviewer-log.md` pointer.
+
 ### 2026-02-16 - Phase 5/6 docs-contract hardening validation
 
 - `tools/offload-proxy/pp bash -lc 'python3 -m unittest discover -s tests -p "test_docs_logs.py" && python3 -m unittest discover -s tests -p "test_pc_prepare_features.py" && python3 -m unittest discover -s tests -p "test_pc_review_features.py" && python3 -m unittest discover -s tests -p "test_prd_to_features.py"'` (PASS: 20 + 4 + 3 + 13 tests)

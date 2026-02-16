@@ -27,6 +27,33 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-16 - Plan-reviewer conflict remediation output and env-prefixed Allowed Tests normalization
+
+**Feature/Bug:** Improve `pc-feature` conflict remediation clarity and deterministic Plan/Allowed Tests policy alignment when commands include env prefixes.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Updated `normalize_allowed_test` to canonicalize leading env assignments (for example `PYTHONHASHSEED=0`) before evaluating supported unittest/pytest commands.
+- Kept `tools/offload-proxy/pp` canonicalization and added env-prefix handling after offload wrapper stripping.
+- Tightened Plan/Allowed Tests mismatch text with explicit remediation wording.
+- Added `format_plan_reviewer_conflict_message(...)` and switched the `Decision: Conflict` failure path to emit:
+  - parsed `Required changes` lines from reviewer feedback,
+  - direct pointer to `plan-reviewer-log.md`.
+- Added/updated regression coverage for:
+  - env-prefixed normalization behavior,
+  - env-prefixed plan-command alignment checks,
+  - conflict stderr remediation content and log pointer.
+
+**Why:**
+
+- Existing conflict failures stopped safely but surfaced only generic CLI guidance, forcing users to manually inspect role logs for actionable next steps.
+- Env-prefixed commands were ignored during normalization, which could cause deterministic alignment checks to miss real Plan vs Allowed Tests contradictions.
+
 ### 2026-02-16 - Phase 5/6 docs and contract hardening for prepare/review artifacts
 
 **Feature/Bug:** Align live/template workflow docs and documentation tests with new prepare/review state/report artifacts.

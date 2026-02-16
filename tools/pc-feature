@@ -3188,7 +3188,8 @@ def plan_test_command_alignment_issues(
     if not disallowed:
         return []
     return [
-        "plan test commands must be listed in Allowed Tests: "
+        "plan test commands must be listed in Allowed Tests "
+        "(remediation: align Plan test commands and Allowed Tests to identical normalized commands): "
         + ", ".join(f"`{cmd}`" for cmd in disallowed)
     ]
 
@@ -3270,6 +3271,26 @@ def parse_required_changes(feedback_text: str) -> List[str]:
         seen.add(issue)
         issues.append(issue)
     return issues
+
+
+def format_plan_reviewer_conflict_message(
+    reviewer_feedback: str, reviewer_log_path: str
+) -> str:
+    required_changes = parse_required_changes(reviewer_feedback)
+    lines = [
+        "pc-feature: plan reviewer conflict; resolve conflicting plan guidance "
+        "and update the Plan/Allowed Tests before retrying",
+    ]
+    if required_changes:
+        lines.append("Required changes:")
+        for issue in required_changes:
+            lines.append(f"- {issue}")
+    else:
+        lines.append(
+            "Required changes: (none parsed; review plan-reviewer feedback for details)"
+        )
+    lines.append(f"Plan reviewer log: {reviewer_log_path}")
+    return "\n".join(lines)
 
 
 def summarize_policy_issue_delta(previous: List[str], current: List[str]) -> str:
@@ -4131,6 +4152,16 @@ def sanitize_allowed_tests_response(response: str) -> str:
     return format_allowed_tests_body(parsed)
 
 
+def strip_leading_env_assignments(parts: List[str]) -> List[str]:
+    idx = 0
+    while idx < len(parts):
+        token = parts[idx]
+        if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", token):
+            break
+        idx += 1
+    return parts[idx:]
+
+
 def normalize_allowed_test(raw: str) -> Optional[str]:
     text = raw.strip()
     if not text:
@@ -4143,10 +4174,11 @@ def normalize_allowed_test(raw: str) -> Optional[str]:
         parts = shlex.split(text)
     except ValueError:
         return None
+    parts = strip_leading_env_assignments(parts)
     if not parts:
         return None
     if parts[0] == "tools/offload-proxy/pp":
-        parts = parts[1:]
+        parts = strip_leading_env_assignments(parts[1:])
         if not parts:
             return None
     if parts[0] in {"pytest", "py.test"}:
@@ -7370,6 +7402,9 @@ def main() -> None:
         )
 
         if reviewer_decision == "CONFLICT":
+            conflict_message = format_plan_reviewer_conflict_message(
+                reviewer_feedback, role_paths["plan-reviewer"]
+            )
             emit_workflow_event(
                 "plan-reviewer",
                 "FAIL",
@@ -7395,10 +7430,7 @@ def main() -> None:
             )
             write_file(dev_tasks_path, content)
             flush_pending_failure_proposals("plan reviewer conflict")
-            die(
-                "pc-feature: plan reviewer conflict; resolve conflicting plan guidance "
-                "and update the Plan/Allowed Tests before retrying"
-            )
+            die(conflict_message)
 
         if reviewer_decision == "BLOCK":
             emit_workflow_event(
