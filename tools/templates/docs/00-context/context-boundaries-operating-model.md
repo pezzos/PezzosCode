@@ -74,5 +74,3 @@ Provide guardrails that keep the PRD aligned with an intentional, manual workflo
 - Do not expand scope beyond the stated boundaries.
 - Do not invent features, automation paths, or future use cases.
 - Do not optimize away safety or add convenience features not explicitly required.
-
-<!-- PezzosCode bootstrap -->

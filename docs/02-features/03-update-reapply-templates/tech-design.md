@@ -10,7 +10,7 @@
 
 **Status:** Draft
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-16
 
 ### Summary
 
@@ -30,8 +30,8 @@ No new services or external dependencies required.
 
 ### From Feature Spec
 
-- Detect existing files and avoid destructive overwrites
-- Provide overwrite/merge/skip options
+- Detect existing files and preserve protected paths
+- In `--reapply`, overwrite syncable files without interactive prompts
 - Performance: reasonable local execution time
 - Security: local-only operations
 

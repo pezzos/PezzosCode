@@ -12,11 +12,11 @@
 
 **Owner:** Developer/PO
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-16
 
 ### Summary
 
-Reapply updated templates to an existing repo without clobbering local changes.
+Reapply updated templates to an existing repo with deterministic overwrite in `--reapply` mode while preserving protected paths.
 
 ## User Intent
 
@@ -46,12 +46,12 @@ Reapply updated templates to an existing repo without clobbering local changes.
 
 #### Core Functionality
 
-- [ ] **Requirement 1:** Detect existing files and avoid destructive overwrites
+- [ ] **Requirement 1:** Detect existing files and preserve protected paths
   - **User action:** Run the relevant CLI/tooling step
   - **System response:** Perform the workflow action
   - **Expected outcome:** Existing repos stay in sync
 
-- [ ] **Requirement 2:** Provide overwrite/merge/skip options
+- [ ] **Requirement 2:** `--reapply` overwrites syncable files without interactive prompts
   - **User action:** Execute the next required step
   - **System response:** Enforce rules and record results
   - **Expected outcome:** Consistent, repeatable behavior
@@ -59,7 +59,7 @@ Reapply updated templates to an existing repo without clobbering local changes.
 #### Edge Cases
 
 - [ ] **Edge Case 1:** Local changes diverge from template
-  - **Expected behavior:** Provide a clear prompt or error and avoid state corruption
+  - **Expected behavior:** Default mode remains conservative; `--reapply` force-overwrites syncable files and reports the action
 
 - [ ] **Edge Case 2:** Partial reapply after failure
   - **Expected behavior:** Fail safely and allow a clean retry
@@ -93,10 +93,10 @@ The documented workflow behavior steps, gates, and outputs ensure every CLI run 
 
 #### Error Handling
 
-| Scenario             | User Sees                | System Does | Recovery Path      |
-| -------------------- | ------------------------ | ----------- | ------------------ |
-| Unmergeable conflict | Clear conflict report    | Skip file   | Resolve manually   |
-| Partial update       | Summary of applied files | Safe re-run | Re-run after fixes |
+| Scenario                 | User Sees                | System Does                       | Recovery Path      |
+| ------------------------ | ------------------------ | --------------------------------- | ------------------ |
+| Reapply overwrite action | Clear overwrite summary  | Overwrite syncable files in-place | Re-run if needed   |
+| Partial update           | Summary of applied files | Safe re-run                       | Re-run after fixes |
 
 ### Non-Functional Requirements
 

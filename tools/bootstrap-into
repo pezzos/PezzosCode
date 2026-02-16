@@ -4,12 +4,13 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF' >&2
-Usage: bootstrap-into [--self] [--dry-run] [-v|--verbose] <target-repo-path>
+Usage: bootstrap-into [--self] [--reapply] [--dry-run] [-v|--verbose] <target-repo-path>
 EOF
 }
 use_self=false
 verbose=false
 dry_run=false
+reapply=false
 preflight_gate_emitted=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,6 +27,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --reapply)
+      reapply=true
       shift
       ;;
     -h|--help)
@@ -77,142 +79,12 @@ require_cmd() {
   fi
 }
 
-for cmd in awk cmp find mktemp shasum; do
+for cmd in cmp find; do
   require_cmd "$cmd"
 done
 
 # Preserve original stdin for prompts (loops below use process substitution).
 exec 3<&0
-
-marker_for_file() {
-  local file="$1"
-  local hash="$2"
-  local base
-  base="$(basename "$file")"
-
-  if [[ "$base" == "Makefile" ]]; then
-    if [[ -n "$hash" ]]; then
-      echo "# PezzosCode bootstrap sha256:${hash}"
-    else
-      echo "# PezzosCode bootstrap"
-    fi
-    return
-  fi
-
-  case "${file##*.}" in
-    md)
-      if [[ -n "$hash" ]]; then
-        echo "<!-- PezzosCode bootstrap sha256:${hash} -->"
-      else
-        echo "<!-- PezzosCode bootstrap -->"
-      fi
-      ;;
-    sh|bash|zsh|yml|yaml|toml|txt)
-      if [[ -n "$hash" ]]; then
-        echo "# PezzosCode bootstrap sha256:${hash}"
-      else
-        echo "# PezzosCode bootstrap"
-      fi
-      ;;
-    *)
-      if [[ -n "$hash" ]]; then
-        echo "# PezzosCode bootstrap sha256:${hash}"
-      else
-        echo "# PezzosCode bootstrap"
-      fi
-      ;;
-  esac
-}
-
-marker_prefix_for_file() {
-  local file="$1"
-  local base
-  base="$(basename "$file")"
-
-  if [[ "$base" == "Makefile" ]]; then
-    echo "# PezzosCode bootstrap"
-    return
-  fi
-
-  case "${file##*.}" in
-    md)
-      echo "<!-- PezzosCode bootstrap"
-      ;;
-    sh|bash|zsh|yml|yaml|toml|txt)
-      echo "# PezzosCode bootstrap"
-      ;;
-    *)
-      echo "# PezzosCode bootstrap"
-      ;;
-  esac
-}
-
-has_marker() {
-  local file="$1"
-  local marker_prefix
-  marker_prefix="$(marker_prefix_for_file "$file")"
-
-  [[ -f "$file" ]] || return 1
-  local last
-  last="$(awk 'NF {line=$0} END {print line}' "$file" 2>/dev/null || true)"
-  [[ "$last" == "$marker_prefix"* ]]
-}
-
-append_marker() {
-  local file="$1"
-  local marker
-  local hash
-  hash="$(file_hash_without_marker "$file")"
-  marker="$(marker_for_file "$file" "$hash")"
-
-  if [[ -f "$file" ]]; then
-    if has_marker "$file"; then
-      return
-    fi
-    printf "\n%s\n" "$marker" >> "$file"
-  fi
-}
-
-normalize_for_compare() {
-  local file="$1"
-  local out="$2"
-  local marker_prefix
-
-  marker_prefix="$(marker_prefix_for_file "$file")"
-
-  awk -v marker_prefix="$marker_prefix" '
-  { lines[NR] = $0 }
-  END {
-    n = NR
-    while (n > 0 && lines[n] ~ /^[[:space:]]*$/) { n-- }
-    if (n > 0 && index(lines[n], marker_prefix) == 1) { n-- }
-    while (n > 0 && lines[n] ~ /^[[:space:]]*$/) { n-- }
-    for (i = 1; i <= n; i++) { print lines[i] }
-  }' "$file" > "$out"
-}
-
-file_hash_without_marker() {
-  local file="$1"
-  local tmp
-  tmp="$(mktemp)"
-  normalize_for_compare "$file" "$tmp"
-  local hash
-  hash="$(shasum -a 256 "$tmp" | awk '{print $1}')"
-  rm -f "$tmp"
-  echo "$hash"
-}
-
-marker_hash_from_file() {
-  local file="$1"
-  local marker_prefix
-  marker_prefix="$(marker_prefix_for_file "$file")"
-  local last
-  last="$(awk 'NF {line=$0} END {print line}' "$file" 2>/dev/null || true)"
-  if [[ "$last" != "$marker_prefix"* ]]; then
-    return
-  fi
-  echo "$last" | awk -F 'sha256:' 'NF>1 {print $2}' | awk '{gsub(/[^0-9a-f]/,"",$0); print}'
-}
 
 log_skip() {
   local message="$1"
@@ -221,25 +93,11 @@ log_skip() {
   fi
 }
 
-files_equal_ignoring_marker() {
+files_equal() {
   local src="$1"
   local dest="$2"
-  local tmp_src
-  local tmp_dest
-
-  tmp_src="$(mktemp)"
-  tmp_dest="$(mktemp)"
-
-  normalize_for_compare "$src" "$tmp_src"
-  normalize_for_compare "$dest" "$tmp_dest"
-
-  if cmp -s "$tmp_src" "$tmp_dest"; then
-    rm -f "$tmp_src" "$tmp_dest"
-    return 0
-  fi
-
-  rm -f "$tmp_src" "$tmp_dest"
-  return 1
+  [[ -f "$dest" ]] || return 1
+  cmp -s "$src" "$dest"
 }
 
 prompt_action() {
@@ -382,6 +240,7 @@ copy_file() {
   local dest="$2"
   local rel="$3"
   local policy
+  local choice
 
   policy="$(is_syncable_path "$rel")"
 
@@ -395,60 +254,48 @@ copy_file() {
     return 0
   fi
 
-  if [[ "$policy" == "conditional" && -f "$dest" ]]; then
-    local marker_hash
-    local current_hash
-    marker_hash="$(marker_hash_from_file "$dest")"
-    current_hash="$(file_hash_without_marker "$dest")"
-    if [[ -n "$marker_hash" ]]; then
-      if [[ "$marker_hash" == "$current_hash" ]]; then
-        if files_equal_ignoring_marker "$src" "$dest"; then
-          log_skip "Skipping (no changes): $dest"
-          return 0
-        fi
-      else
-        log_skip "Skipping (locally modified): $dest"
-        return 0
-      fi
-    else
-      if files_equal_ignoring_marker "$src" "$dest"; then
-        log_skip "Skipping (no changes): $dest"
-        return 0
-      fi
-      log_skip "Skipping (locally modified): $dest"
-      return 0
-    fi
-  fi
-
-  if [[ -f "$dest" ]] && files_equal_ignoring_marker "$src" "$dest"; then
+  if [[ -f "$dest" ]] && files_equal "$src" "$dest"; then
     log_skip "Skipping (no changes): $dest"
     return 0
   fi
 
-  if [[ -f "$dest" && "$policy" == "sync" ]]; then
-    if "$dry_run"; then
-      echo "Dry-run: would update: $dest"
+  if [[ -f "$dest" ]]; then
+    if "$reapply" && [[ "$policy" == "sync" || "$policy" == "conditional" ]]; then
+      if "$dry_run"; then
+        echo "Dry-run: would update: $dest"
+        return 0
+      fi
+      emit_preflight_validation_gate
+      emit_template_diff_gate "$rel"
+      emit_conflict_summary "$rel" "overwrite (reapply)"
+    elif [[ "$policy" == "conditional" ]]; then
+      log_skip "Skipping (locally modified): $dest"
       return 0
+    elif [[ "$policy" == "sync" ]]; then
+      if "$dry_run"; then
+        echo "Dry-run: would update: $dest"
+        return 0
+      fi
+      emit_preflight_validation_gate
+      emit_template_diff_gate "$rel"
+      choice="$(prompt_action "$dest")"
+      case "$choice" in
+        overwrite)
+          emit_conflict_summary "$rel" "overwrite"
+          ;;
+        merge)
+          echo "Merge not supported yet; skipping: $dest" >&2
+          log_skip "Skipping (merge unsupported): $dest"
+          emit_conflict_summary "$rel" "merge unsupported"
+          return 0
+          ;;
+        skip)
+          log_skip "Skipping (user): $dest"
+          emit_conflict_summary "$rel" "skipped by user"
+          return 0
+          ;;
+      esac
     fi
-    emit_preflight_validation_gate
-    emit_template_diff_gate "$rel"
-    choice="$(prompt_action "$dest")"
-    case "$choice" in
-      overwrite)
-        emit_conflict_summary "$rel" "overwrite"
-        ;;
-      merge)
-        echo "Merge not supported yet; skipping: $dest" >&2
-        log_skip "Skipping (merge unsupported): $dest"
-        emit_conflict_summary "$rel" "merge unsupported"
-        return 0
-        ;;
-      skip)
-        log_skip "Skipping (user): $dest"
-        emit_conflict_summary "$rel" "skipped by user"
-        return 0
-        ;;
-    esac
   fi
 
   if "$dry_run"; then
@@ -458,7 +305,6 @@ copy_file() {
 
   mkdir -p "$(dirname "$dest")"
   cp "$src" "$dest"
-  append_marker "$dest"
   echo "Updated: $dest"
 }
 

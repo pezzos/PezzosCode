@@ -1,3 +1,4 @@
+import json
 import subprocess
 import tempfile
 import unittest
@@ -10,8 +11,7 @@ LOG_FILES = (
     Path("docs/03-logs/implementation-log.md"),
     Path("docs/03-logs/validation-log.md"),
 )
-LOG_MARKER = "<!-- PezzosCode bootstrap sha256:"
-SCRIPT_MARKER = "# PezzosCode bootstrap sha256:"
+LEGACY_BOOTSTRAP_MARKER = "PezzosCode bootstrap sha256:"
 
 
 def run_bootstrap_into(args, input_text=None):
@@ -44,8 +44,10 @@ class BootstrapIntoLogTests(unittest.TestCase):
             readme = Path(tmp_dir) / "docs" / "README.md"
             self.assertTrue(readme.exists(), "docs/README.md should be created")
             content = readme.read_text(encoding="utf-8")
-            self.assertEqual(
-                content.count(LOG_MARKER), 1, "README should have one marker"
+            self.assertNotIn(
+                LEGACY_BOOTSTRAP_MARKER,
+                content,
+                "README should not contain legacy markers",
             )
             self.assertIn("docs/README.md", result.stdout, "CLI should mention README")
 
@@ -59,7 +61,10 @@ class BootstrapIntoLogTests(unittest.TestCase):
                 Path(tmp_dir) / "docs" / "04-process" / "ticket-execution-protocol.md"
             )
             self.assertTrue(protocol.exists(), "protocol doc should exist")
-            self.assertIn(LOG_MARKER, protocol.read_text(encoding="utf-8"))
+            self.assertNotIn(
+                LEGACY_BOOTSTRAP_MARKER,
+                protocol.read_text(encoding="utf-8"),
+            )
             self.assertIn(
                 "docs/04-process/ticket-execution-protocol.md",
                 result.stdout,
@@ -69,13 +74,28 @@ class BootstrapIntoLogTests(unittest.TestCase):
             tool = Path(tmp_dir) / "tools" / "pc-ticket"
             self.assertTrue(tool.exists(), "pc-ticket should be copied")
             tool_content = tool.read_text(encoding="utf-8")
-            self.assertIn(SCRIPT_MARKER, tool_content)
-            self.assertEqual(
-                tool_content.count(SCRIPT_MARKER),
-                1,
-                "Tooling script should show only one marker",
+            self.assertNotIn(
+                LEGACY_BOOTSTRAP_MARKER,
+                tool_content,
+                "Tooling scripts should not have marker footers",
             )
             self.assertIn("tools/pc-ticket", result.stdout)
+
+    def test_json_configs_remain_valid(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            init_git_repo(tmp_dir)
+            result = run_bootstrap_into([tmp_dir])
+            self.assertEqual(result.returncode, 0)
+
+            json_paths = (
+                Path(tmp_dir) / "tools" / "pc-ticket-config.json",
+                Path(tmp_dir) / "tools" / "log-compaction-config.json",
+            )
+            for path in json_paths:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                self.assertIsInstance(
+                    payload, dict, f"{path.name} should parse as JSON"
+                )
 
     def test_logs_are_copied_and_reported_once(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -116,20 +136,20 @@ class BootstrapIntoLogTests(unittest.TestCase):
             for name in ("AGENTS.md", "pp.yml"):
                 target = Path(tmp_dir) / name
                 self.assertTrue(target.exists(), f"{name} should exist")
-                self.assertIn(
-                    "PezzosCode bootstrap",
+                self.assertNotIn(
+                    LEGACY_BOOTSTRAP_MARKER,
                     target.read_text(encoding="utf-8"),
-                    f"{name} should include a bootstrap marker",
+                    f"{name} should not include a legacy marker footer",
                 )
 
             skill_path = (
                 Path(tmp_dir) / ".codex" / "skills" / "context-to-product" / "SKILL.md"
             )
             self.assertTrue(skill_path.exists(), "skill should be present")
-            self.assertIn(
-                "PezzosCode bootstrap",
+            self.assertNotIn(
+                LEGACY_BOOTSTRAP_MARKER,
                 skill_path.read_text(encoding="utf-8"),
-                "Skill files should include bootstrap marker",
+                "Skill files should not include legacy marker footers",
             )
 
     def test_deploys_prompt_templates_as_living_prompts_only(self):
@@ -192,10 +212,10 @@ class BootstrapIntoLogTests(unittest.TestCase):
                     f"verbose rerun should mention {rel_path.name}",
                 )
                 content = (Path(tmp_dir) / rel_path).read_text(encoding="utf-8")
-                self.assertEqual(
-                    content.count(LOG_MARKER),
-                    1,
-                    f"{rel_path.name} should retain one marker",
+                self.assertNotIn(
+                    LEGACY_BOOTSTRAP_MARKER,
+                    content,
+                    f"{rel_path.name} should not contain legacy markers",
                 )
 
 

@@ -7618,3 +7618,41 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Prevents retry-loop churn caused by missing deterministic WI evidence parity for touched test scope.
 - Removes the terminal observability gap where workflow status could remain `RUNNING` after retry-cap exit.
+
+### 2026-02-16 - Remove bootstrap EOF markers and add deterministic --reapply overwrite mode
+
+**Feature/Bug:** Initial bootstrap appended legacy marker footers that broke JSON parsing, and reapply required interactive overwrite/skip prompts.
+
+**Changed Files:**
+
+- `tools/bootstrap-into`
+- `tests/test_bootstrap_into.py`
+- `tests_extra/test_bootstrap_into_extra.py`
+- `tools/templates/docs/00-context/context-boundaries-operating-model.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- `docs/00-context/context-boundaries-operating-model.md`
+- `docs/04-process/dev-workflow.md`
+- `LICENSE`
+- `docs/02-features/03-update-reapply-templates/feature-spec.md`
+- `docs/02-features/03-update-reapply-templates/tech-design.md`
+- `docs/02-features/03-update-reapply-templates/test-plan.md`
+- `tools/README.md`
+
+**What Changed:**
+
+- Removed all bootstrap marker append/hash logic from `tools/bootstrap-into` so copied files are written byte-for-byte from source templates (no end-of-file marker injection).
+- Added explicit `--reapply` behavior in `tools/bootstrap-into`:
+  - existing `sync` and `conditional` targets are now force-overwritten without interactive prompt,
+  - `protected`/`never` path rules remain unchanged,
+  - existing gate output (`preflight validation gate`, `template diff review gate`, `conflict summary output`) is still emitted with `overwrite (reapply)` summaries.
+- Updated bootstrap tests to stop asserting marker insertion and instead assert:
+  - no legacy marker footer text,
+  - JSON configs parse cleanly after bootstrap,
+  - `--reapply` is non-interactive and overwrites modified syncable files.
+- Removed previously committed legacy marker footer lines from affected template/live docs and `LICENSE`.
+- Updated reapply feature docs to document the new deterministic `--reapply` overwrite model.
+
+**Why:**
+
+- Marker footer injection is invalid in JSON and caused first-time bootstrap breakage for config files.
+- In the stabilized workflow, deterministic reapply overwrite behavior reduces manual prompting and aligns with desired template refresh semantics.

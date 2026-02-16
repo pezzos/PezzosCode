@@ -77,7 +77,8 @@
 ### Edge Cases
 
 - **TC-E001:** Missing dependency or precondition
-- **TC-E002:** Conflict or existing state handled safely
+- **TC-E002:** `--reapply` overwrites syncable files without prompting
+- **TC-E003:** Protected paths remain untouched during `--reapply`
 
 ### Documentation Tests
 

@@ -96,5 +96,3 @@ Provide guardrails that keep the workflow aligned with a simple, robust, AI-firs
 - When a ticket is HIGH risk, the CLI must present the risk summary and prompt for approval.
 - The prompt should be explicit (e.g., "Do you approve the HIGH-risk ticket? (y/n)").
 - Approval can be recorded as `approval: "granted"` in ticket frontmatter.
-
-<!-- PezzosCode bootstrap -->

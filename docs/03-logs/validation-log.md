@@ -2270,3 +2270,27 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - Pre-reporter gate now blocks touched `tests/test_*.py` changes when explicit parity is missing in Allowed Tests or WI-level tester evidence.
   - Retry-cap terminal path now emits `planner-feedback FAIL` and closes workflow status instead of leaving `planner-feedback` open.
+
+## 2026-02-16 - Validate marker-free bootstrap and deterministic `--reapply`
+
+- Command: `bash -n tools/bootstrap-into`
+- Result: PASS.
+- Command: `python3 -m py_compile tests/test_bootstrap_into.py tests_extra/test_bootstrap_into_extra.py`
+- Result: PASS.
+- Command: `tools/offload-proxy/pp python3 tests/test_bootstrap_into.py`
+- Result: PASS (`20` tests).
+- Command: `tools/offload-proxy/pp python3 tests_extra/test_bootstrap_into_extra.py`
+- Result: PASS (`8` tests).
+- Command: `tools/offload-proxy/pp python3 tests/test_update_reapply_templates_docs.py`
+- Result: PASS (`4` tests).
+- Command: `tools/offload-proxy/pp pre-commit run --files LICENSE docs/00-context/context-boundaries-operating-model.md docs/02-features/03-update-reapply-templates/feature-spec.md docs/02-features/03-update-reapply-templates/tech-design.md docs/02-features/03-update-reapply-templates/test-plan.md docs/04-process/dev-workflow.md tests/test_bootstrap_into.py tests_extra/test_bootstrap_into_extra.py tools/README.md tools/bootstrap-into tools/templates/docs/00-context/context-boundaries-operating-model.md tools/templates/docs/04-process/dev-workflow.md`
+- Result: FAIL first run due formatter rewrites (`black`/`prettier`, offload id `7ac442567255af68fd7301f1ab56e7686560bdbc4180343d6bdd6068d75cb4e5`), PASS second run (offload id `7c0a6505e2af8dc4004a59c845f151dcfbe0da5e878ba635b1e4246484b4b02e`).
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `ad2fa1282f6523f17dc6ec100bcd09fb01cbf9eb9f4ee984719dfdaea8f90195`).
+- Command: `tmpdir=$(mktemp -d); git -C "$tmpdir" init >/dev/null 2>&1; bash tools/bootstrap-into "$tmpdir" >/dev/null 2>&1; python3 -m json.tool "$tmpdir/tools/pc-ticket-config.json" >/dev/null; python3 -m json.tool "$tmpdir/tools/log-compaction-config.json" >/dev/null; printf '\nlocal change\n' >> "$tmpdir/docs/README.md"; out=$(bash tools/bootstrap-into --reapply --verbose "$tmpdir" 2>&1 >/dev/null); echo "$out" | rg -n "Choose action:" && exit 1 || true; rg -n "local change" "$tmpdir/docs/README.md" && exit 1 || true; echo "bootstrap-json-reapply-check: ok"`
+- Result: PASS (`bootstrap-json-reapply-check: ok`).
+
+- Verified:
+  - Bootstrapped JSON configs remain valid (no marker footer injection).
+  - `--reapply` force-overwrites changed syncable files without interactive prompt.
+  - Protected logs remain protected when already present.
