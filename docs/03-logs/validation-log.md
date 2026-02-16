@@ -2247,3 +2247,14 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Planner-feedback prompt contract is consistent and non-contradictory across live/template sources.
   - Missing/malformed Decision/Revised Plan combinations now resolve deterministically without the previous hard-fail mode for body-only revised plans.
   - Terminal planner-feedback failures now emit explicit `planner-feedback FAIL` workflow events before exit.
+
+## 2026-02-16 - Validate actionable file-scope policy recovery hardening
+
+- Command: `tools/offload-proxy/pp python3 -m pytest tests/test_pc_feature.py -k "policy_recovery_plan_template or actionable_files_scope or auto_rewrite_plan_for_policy_issues_recovers_non_contract_plan" -q`
+- Result: PASS (`4 passed, 233 deselected`).
+- Command: `tools/offload-proxy/pp python3 -m pytest tests/test_pc_feature.py -q`
+- Result: PASS (`237 passed, 72 subtests passed`).
+- Verified:
+  - Recovery template keeps concrete file targets when candidate paths are available.
+  - Policy checks now block non-actionable `Files to change` placeholders deterministically.
+  - Existing `test_pc_feature.py` coverage remains green after tooling changes.

@@ -7565,3 +7565,25 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - The feedback prompt contract ambiguity plus brittle fallback parsing produced a deterministic terminal abort in real workflow retries.
 - Emitting explicit planner-feedback fail events closes the workflow observability gap (START without terminal planner-feedback status).
+
+### 2026-02-16 - Harden deterministic plan-policy recovery to keep `Files to change` actionable
+
+**Feature/Bug:** Repeated Plan Reviewer `BLOCK` loops in cross-repo runs caused by policy-recovery plans rewriting `Files to change` to `(none...)`.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added plan file-scope extraction/normalization helpers for deterministic policy checks and recovery seeding.
+- Updated policy-recovery template generation to preserve concrete fallback file scope (when available) and to derive fallback test-file paths from Allowed Tests (including `unittest` module notation like `tests.test_*`).
+- Added deterministic plan-policy violation for non-actionable `Files to change` (placeholder/empty scope).
+- Updated planner-reviewer stagnation recovery to seed recovery template files from the current/revised plan before applying deterministic recovery.
+- Added/updated regression tests for non-contract recovery seeding, fallback-file template behavior, and non-actionable file-scope policy blocking.
+
+**Why:**
+
+- This removes a key self-induced loop where deterministic recovery made plans non patch-ready, then Plan Reviewer repeatedly blocked the same condition.
+- Deterministic policy checks now fail earlier with explicit remediation when file scope is non-actionable.

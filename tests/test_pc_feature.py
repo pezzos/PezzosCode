@@ -369,6 +369,7 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertIn("Plan Contract v1", rewritten)
         self.assertIn("Allowed test commands:", rewritten)
+        self.assertIn("`tools/pc-hooks-run`", rewritten)
         self.assertTrue(
             any("replaced malformed non-contract plan" in note for note in notes)
         )
@@ -384,11 +385,21 @@ class TestPcFeature(unittest.TestCase):
             allowed_tests=allowed_tests,
         )
         self.assertEqual(issues, [])
+        self.assertIn("`tests/test_pc_feature.py`", plan)
+        self.assertIn("`tests/test_orchestrator_workflow_docs.py`", plan)
         self.assertIn("baseline pass path and gate/resume failure path", plan)
         self.assertIn("fixed scenario-id/seed mapping", plan)
         self.assertIn("role routing sequence", plan)
         self.assertIn("Allowed Tests command whitelist matching", plan)
         self.assertIn("required structured log artifact presence", plan)
+
+    def test_build_policy_recovery_plan_template_uses_fallback_files(self):
+        plan = self.pc_feature.build_policy_recovery_plan_template(
+            ["python3 -m pytest tests/test_pc_feature.py -q"],
+            fallback_files=["src/agenda_assistant/service.py", "tests/test_service.py"],
+        )
+        self.assertIn("`src/agenda_assistant/service.py`", plan)
+        self.assertIn("`tests/test_service.py`", plan)
 
     def test_classify_risk_flags_restore_touch(self):
         data = {"touches_restore": True, "files_to_change": []}
@@ -1295,6 +1306,30 @@ class TestPcFeature(unittest.TestCase):
                 "forbidden path in plan: docs/possible-improvements.md" in item
                 for item in violations
             )
+        )
+
+    def test_plan_policy_violations_requires_actionable_files_scope(self):
+        plan = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Implement behavior.\n"
+            "Files to change:\n"
+            "- (none; planner must list implementation targets only)\n"
+            "Risks:\n"
+            "- regression risk\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+            "- Deterministic seed strategy: fixed ordering\n"
+            "- Invariant checks: no deletes\n"
+            "- Contract boundary coverage: parser + output\n"
+            "- Allowed test commands: `pytest tests/test_pc_feature.py`\n"
+        )
+        violations = self.pc_feature.plan_policy_violations(
+            plan,
+            allowed_tests=["pytest tests/test_pc_feature.py"],
+        )
+        self.assertTrue(
+            any("`Files to change` is not actionable" in item for item in violations)
         )
 
     def test_plan_policy_violations_requires_plan_tests_to_match_allowed_tests(self):

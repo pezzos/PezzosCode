@@ -3382,6 +3382,109 @@ def remove_forbidden_paths_from_files_section(
     return rewritten, removed
 
 
+def non_actionable_files_scope_entry(text: str) -> bool:
+    normalized = " ".join(text.strip().lower().replace("`", "").split())
+    if not normalized:
+        return True
+    if normalized in {"(none)", "none", "(n/a)", "n/a"}:
+        return True
+    if normalized.startswith("(none") or normalized.startswith("none"):
+        return True
+    return "planner must list implementation targets only" in normalized
+
+
+def normalize_plan_file_candidate(raw: str) -> Optional[str]:
+    candidate = raw.strip()
+    if not candidate:
+        return None
+    if candidate.lower().startswith("files:"):
+        candidate = candidate.split(":", 1)[1].strip()
+    if not candidate:
+        return None
+    candidate = candidate.strip("`").strip()
+    if not candidate:
+        return None
+    candidate = candidate.strip("()[]{}").rstrip(".,;:")
+    if not candidate:
+        return None
+    if re.search(r"\s", candidate):
+        candidate = candidate.split()[0].strip()
+    if not candidate:
+        return None
+    if candidate.startswith("-"):
+        return None
+    if non_actionable_files_scope_entry(candidate):
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9._/*?-]+(?:/[A-Za-z0-9._/*?-]+)*", candidate):
+        return None
+    normalized = normalize_repo_rel(candidate)
+    if not normalized:
+        return None
+    if plan_path_forbidden_for_patcher(normalized):
+        return None
+    return normalized
+
+
+def dedupe_plan_file_candidates(candidates: List[str]) -> List[str]:
+    unique: List[str] = []
+    seen = set()
+    for candidate in candidates:
+        normalized = normalize_plan_file_candidate(candidate)
+        if not normalized:
+            continue
+        key = normalize_repo_path(normalized)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(normalized)
+    return unique
+
+
+def extract_plan_files_to_change_entries(plan_text: str) -> List[str]:
+    sections = extract_plan_contract_sections(plan_text)
+    files_scope = sections.get(PLAN_CONTRACT_FILES_SECTION, "")
+    candidates: List[str] = []
+    for raw_line in files_scope.splitlines():
+        normalized_line = normalize_plan_line(raw_line)
+        if not normalized_line:
+            continue
+        candidates.extend(re.findall(r"`([^`]+)`", normalized_line))
+        for piece in normalized_line.split(","):
+            piece = piece.strip()
+            if piece:
+                candidates.append(piece)
+    return dedupe_plan_file_candidates(candidates)
+
+
+def extract_plan_file_candidates_from_text(plan_text: str) -> List[str]:
+    candidates: List[str] = []
+    candidates.extend(re.findall(r"`([^`]+)`", plan_text))
+    candidates.extend(re.findall(r"(?:[A-Za-z0-9._-]+/)+[A-Za-z0-9._/*?-]+", plan_text))
+    return dedupe_plan_file_candidates(candidates)
+
+
+def derive_recovery_files_from_allowed_tests(allowed_tests: List[str]) -> List[str]:
+    candidates: List[str] = []
+    for command in allowed_tests:
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            continue
+        parts = strip_leading_env_assignments(parts)
+        if parts and parts[0] == "tools/offload-proxy/pp":
+            parts = strip_leading_env_assignments(parts[1:])
+        for token in parts:
+            if token.startswith("-"):
+                continue
+            if token in {"python", "python3", "-m", "pytest", "py.test", "unittest"}:
+                continue
+            if token.startswith("tests.") and "/" not in token:
+                candidates.append(token.replace(".", "/") + ".py")
+                continue
+            candidates.append(token)
+    return dedupe_plan_file_candidates(candidates)
+
+
 def ensure_plan_docs_handoff_note(plan_text: str) -> Tuple[str, bool]:
     lowered = plan_text.lower()
     if "docs/03-logs/" in lowered and plan_line_mentions_patcher_handoff(lowered):
@@ -3402,7 +3505,11 @@ def auto_rewrite_plan_for_policy_issues(
     rewritten = plan_text
     notes: List[str] = []
     if not plan_uses_contract_sections(rewritten):
-        recovery_plan = build_policy_recovery_plan_template(allowed_tests or [])
+        recovery_seed_files = extract_plan_file_candidates_from_text(plan_text)
+        recovery_plan = build_policy_recovery_plan_template(
+            allowed_tests or [],
+            fallback_files=recovery_seed_files,
+        )
         recovery_issues = plan_policy_violations(
             recovery_plan,
             allowed_tests=allowed_tests,
@@ -3434,18 +3541,27 @@ def auto_rewrite_plan_for_policy_issues(
     return rewritten, notes
 
 
-def build_policy_recovery_plan_template(allowed_tests: List[str]) -> str:
+def build_policy_recovery_plan_template(
+    allowed_tests: List[str],
+    *,
+    fallback_files: Optional[List[str]] = None,
+) -> str:
     allowed_lines = ["  - (none listed; use Allowed Tests section commands)"]
     if allowed_tests:
         allowed_lines = [f"  - `{command}`" for command in allowed_tests]
+    recovery_files = dedupe_plan_file_candidates(fallback_files or [])
+    if not recovery_files:
+        recovery_files = derive_recovery_files_from_allowed_tests(allowed_tests)
+    files_lines = ["- (none; planner must list implementation targets only)"]
+    if recovery_files:
+        files_lines = [f"- `{path}`" for path in recovery_files]
     return (
         "Plan Contract v1\n"
         "Approach:\n"
         "1. Keep implementation scope limited to non-role-scoped patcher targets.\n"
         "2. Reporter/orchestrator own required non-compacted docs/03-logs updates; "
         "patcher will not edit those files.\n"
-        "Files to change:\n"
-        "- (none; planner must list implementation targets only)\n"
+        "Files to change:\n" + "\n".join(files_lines) + "\n"
         "Risks:\n"
         "- Feature-specific implementation files may need refinement before patching.\n"
         "Tests (anti-hardcode coverage required):\n"
@@ -3494,6 +3610,16 @@ def plan_policy_violations(
                 entry = f"forbidden path in plan: {match}"
                 if entry not in violations:
                     violations.append(entry)
+    if plan_uses_contract_sections(plan_text):
+        actionable_files = extract_plan_files_to_change_entries(plan_text)
+        if not actionable_files:
+            issue = (
+                "`Files to change` is not actionable "
+                "(`(none; planner must list implementation targets only)`); "
+                "planner must list concrete implementation/test file paths."
+            )
+            if issue not in violations:
+                violations.append(issue)
     for issue in plan_command_violations(plan_text, sections):
         if issue not in violations:
             violations.append(issue)
@@ -6835,8 +6961,14 @@ def main() -> None:
                 last_stagnation_signature = stagnation_signature
                 stagnation_count = 1
             if stagnation_count >= 2:
+                recovery_seed_files = extract_plan_files_to_change_entries(revised_plan)
+                if not recovery_seed_files:
+                    recovery_seed_files = extract_plan_files_to_change_entries(
+                        current_plan
+                    )
                 recovery_plan = build_policy_recovery_plan_template(
-                    allowed_tests_for_policy
+                    allowed_tests_for_policy,
+                    fallback_files=recovery_seed_files,
                 )
                 recovery_issues = plan_policy_violations(
                     recovery_plan,
