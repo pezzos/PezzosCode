@@ -1,5 +1,6 @@
 import importlib.util
 from importlib.machinery import SourceFileLoader
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,6 +52,23 @@ def write_logs(root: Path, implementation: str = "", decision: str = "") -> None
     logs_dir.mkdir(parents=True, exist_ok=True)
     (logs_dir / "implementation-log.md").write_text(implementation, encoding="utf-8")
     (logs_dir / "decision-log.md").write_text(decision, encoding="utf-8")
+
+
+def write_order_plan(root: Path, ordered_feature_slugs: list[str]) -> None:
+    features_dir = root / "docs" / "02-features"
+    features_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "generated_at": "2026-02-16T00:00:00Z",
+        "ordered_feature_slugs": ordered_feature_slugs,
+        "dependencies": {},
+        "ordered_features": [],
+        "decisions": [],
+    }
+    (features_dir / "feature-order.json").write_text(
+        json.dumps(payload, ensure_ascii=True, indent=2),
+        encoding="utf-8",
+    )
 
 
 class PrdToFeaturesTests(unittest.TestCase):
@@ -105,6 +123,21 @@ class PrdToFeaturesTests(unittest.TestCase):
         self.assertNotIn("[Feature Name]", feature_spec)
         self.assertIn("Status: Not Started", dev_tasks)
         self.assertIn("Product Surfaces: CLI", dev_tasks)
+
+    def test_feature_order_plan_reorders_feature_indexes_for_creation(self):
+        prd = """## Prioritized Feature List
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | Deliver alpha workflow | Key path |
+| P1       | Beta Feature | Deliver beta workflow | Depends on alpha |
+"""
+        write_prd(self.root, prd)
+        write_order_plan(self.root, ["beta-feature", "alpha-feature"])
+
+        summary = self.tool.apply_prd_to_features(self.root)
+        created_names = [item.name for item in summary["created"]]
+        self.assertEqual(created_names, ["01-beta-feature", "02-alpha-feature"])
 
     def test_generated_dev_tasks_starts_with_no_runs_placeholder(self):
         prd = """## Prioritized Feature List

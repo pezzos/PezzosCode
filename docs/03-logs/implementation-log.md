@@ -27,6 +27,112 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-16 - Phase 5/6 docs and contract hardening for prepare/review artifacts
+
+**Feature/Bug:** Align live/template workflow docs and documentation tests with new prepare/review state/report artifacts.
+
+**Changed Files:**
+
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/README.md`
+- `tools/templates/docs/README.md`
+- `tools/README.md`
+- `tests/test_docs_logs.py`
+
+**What Changed:**
+
+- Updated human orchestration workflow docs (live + template) to explicitly document:
+  - `docs/03-logs/prepare-features-state.json` output from `make prepare-features`,
+  - `docs/03-logs/review-features-report.json` output from `make review-features`.
+- Extended chain-of-truth and update-in-place sections to include these artifacts.
+- Updated docs readme workflow text to mention both artifacts as expected outputs.
+- Added `tools/README.md` generated-artifacts section for `pc-prepare-features` and `pc-review-features`.
+- Added/extended docs contract tests to fail closed if artifact references are removed from workflow/docs/template docs.
+
+**Why:**
+
+- Phase 3/4 introduced runtime artifacts; phase 5/6 closes documentation drift risk by making artifact contracts explicit and test-enforced.
+- Keeping live and template docs synchronized prevents bootstrap repos from missing updated workflow expectations.
+
+### 2026-02-16 - Phase 3/4 hardening for prepare/review orchestration artifacts
+
+**Feature/Bug:** Add deterministic state/report artifacts for `make prepare-features` and `make review-features` loops.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `tools/pc-review-features`
+- `tests/test_pc_prepare_features.py`
+- `tests/test_pc_review_features.py`
+
+**What Changed:**
+
+- `tools/pc-prepare-features` now persists loop/runtime state to `docs/03-logs/prepare-features-state.json`:
+  - dependency decisions,
+  - Product Manager gate history/decision trace,
+  - execution stage status (`feature_generation_status`, `schema_check_status`).
+- Added prefix-alias override support for interactive decisions (for example `PREPARE_DECISIONS=PM-BLOCK:2` applies to `PM-BLOCK-001`, `PM-BLOCK-002`, ...).
+- Added deterministic state writes on PM abort/max-block and during generation/schema progression.
+- `tools/pc-review-features` now emits a structured global report to `docs/03-logs/review-features-report.json` with per-feature findings and aggregate totals.
+- Extended regression tests to assert:
+  - prepare state artifact creation/content,
+  - override alias behavior,
+  - review report artifact creation/content.
+
+**Why:**
+
+- Phase 3/4 needed the same traceability and rerun diagnostics discipline used in mature `make feature` loops.
+- Structured artifacts reduce ambiguity after failures and let humans inspect gate outcomes without re-reading terminal output.
+
+### 2026-02-16 - Add prepare/review feature workflow with dependency ordering and global blueprints
+
+**Feature/Bug:** Extend pre-generation and post-generation workflow without changing `make feature` runtime behavior.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `tools/pc-review-features`
+- `tools/prd-to-features`
+- `.codex/skills/prd-to-features/SKILL.md`
+- `.codex/skills/prd-to-features/scripts/plan_feature_folders.py`
+- `.codex/skills/prd-to-features/references/selection-and-update-rules.md`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `docs/01-product/design.md`
+- `docs/01-product/ux-ui.md`
+- `docs/02-features/feature-order.json`
+- `docs/02-features/feature-order.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tests/test_pc_prepare_features.py`
+- `tests/test_pc_review_features.py`
+- `tests/test_prd_to_features.py`
+- `tests/test_docs_logs.py`
+
+**What Changed:**
+
+- Added `tools/pc-prepare-features` to run:
+  - Architect design doc generation (`docs/01-product/design.md`)
+  - UX blueprint generation (`docs/01-product/ux-ui.md`)
+  - dependency graph resolution + topological ordering
+  - Product Manager gate loop
+  - handoff to `tools/prd-to-features`.
+- Added interactive dependency ambiguity/cycle resolution with 2-4 numbered options and risk explanations, plus deterministic override support via `PREPARE_DECISIONS`.
+- Added machine-readable order artifacts:
+  - `docs/02-features/feature-order.json`
+  - `docs/02-features/feature-order.md`
+- Updated `tools/prd-to-features` to consume `feature-order.json` when present and reindex generation order accordingly while preserving non-destructive behavior for existing folders.
+- Added `tools/pc-review-features` for post-generation `Security Reviewer -> Product Manager` checks; findings are written idempotently into machine-managed sections in `feature-spec.md` and `dev-tasks.md`.
+- Added `make prepare-features` and `make review-features` targets (live + template Makefiles).
+- Updated workflow/docs/contracts to include new prepare/review stages while keeping `make feature` protocol/order unchanged.
+- Added/extended tests covering ordered-plan consumption, prepare workflow dependency decisions, review findings injection, and docs references.
+
+**Why:**
+
+- Move architecture/UX/dependency alignment earlier in the lifecycle and inject security/product findings before feature execution starts.
+- Preserve existing `make feature` runtime guarantees and avoid regressions in the established role/gate flow.
+
 ### 2026-02-16 - Enforce required feature-template dev-tasks pair in template sync and improve coherence remediation
 
 **Feature/Bug:** Consumer repos can fail `devtasks-schema-check` when `tools/templates/docs/02-features/feature-template/dev-tasks.md` is missing, while migration tooling is a no-op.

@@ -107,11 +107,11 @@
 
 <!-- Ordered list of features tied to the PRD scope -->
 
-| Priority | Feature        | Outcome        | Notes                |
-| -------- | -------------- | -------------- | -------------------- |
-| P0       | [Feature name] | [user outcome] | [dependencies/risks] |
-| P1       | [Feature name] | [user outcome] | [dependencies/risks] |
-| P2       | [Feature name] | [user outcome] | [dependencies/risks] |
+| Priority | Feature        | Outcome        | Notes                | Dependencies |
+| -------- | -------------- | -------------- | -------------------- | ------------ |
+| P0       | [Feature name] | [user outcome] | [dependencies/risks] | -            |
+| P1       | [Feature name] | [user outcome] | [dependencies/risks] | -            |
+| P2       | [Feature name] | [user outcome] | [dependencies/risks] | -            |
 
 ## Process Features (Template)
 

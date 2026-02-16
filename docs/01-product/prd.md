@@ -122,17 +122,17 @@ Execution stays local (macOS CLI), with explicit human gates for HIGH-risk work 
 
 <!-- Ordered list of features tied to the PRD scope -->
 
-| Priority | Feature                                                         | Outcome                                                           | Notes                                               |
-| -------- | --------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------- |
-| P0       | Bootstrap + safe template reapply                               | New/existing repos become execution-ready with idempotent reruns  | Conflict handling: overwrite/merge/skip             |
-| P0       | Deterministic work-item execution with explicit gates           | Plan → Patch → Test → Report runs predictably and is auditable    | Command authority remains with the human PO/user    |
-| P0       | Output offload + structured logs + shared runner                | Noisy output stays token-efficient and every step is traceable    | `pp` pointers + `logs/<WI>/<step>.log` + metadata   |
-| P0       | Resume safety + fail-closed commit gate + scoped autofix        | Interrupted runs resume safely; commits require complete evidence | Active-WIP preserve by default; strict commit gate  |
-| P0       | Single-worktree orchestration + template-drift hardening        | Reliable role collaboration without worktree tracking-file drift  | No `feature-worktrees.json`; deterministic recovery |
-| P1       | Orchestrator roles + Plan Reviewer gate + role-specific prompts | Cleaner separation of responsibilities and better plan quality    | Dedicated planner/reviewer/patcher/tester/reporter  |
-| P1       | Anti-hardcode test policy + synthetic end-to-end smoke feature  | Better regression resistance and early workflow break detection   | Fixtures + seeds + invariants + boundary contracts  |
-| P1       | Incremental PRD-to-features + post-run learning loop            | Feature docs evolve safely and repeated failures are reduced      | Add-missing only; human-gated improvements          |
-| P2       | Offload audit + compacted logs + workflow quality nudges        | Better long-run maintainability and signal-to-noise               | Index lifecycle, compact logs, precommit warnings   |
+| Priority | Feature                                                         | Outcome                                                           | Notes                                               | Dependencies |
+| -------- | --------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------- | ------------ |
+| P0       | Bootstrap + safe template reapply                               | New/existing repos become execution-ready with idempotent reruns  | Conflict handling: overwrite/merge/skip             | -            |
+| P0       | Deterministic work-item execution with explicit gates           | Plan → Patch → Test → Report runs predictably and is auditable    | Command authority remains with the human PO/user    | -            |
+| P0       | Output offload + structured logs + shared runner                | Noisy output stays token-efficient and every step is traceable    | `pp` pointers + `logs/<WI>/<step>.log` + metadata   | -            |
+| P0       | Resume safety + fail-closed commit gate + scoped autofix        | Interrupted runs resume safely; commits require complete evidence | Active-WIP preserve by default; strict commit gate  | -            |
+| P0       | Single-worktree orchestration + template-drift hardening        | Reliable role collaboration without worktree tracking-file drift  | No `feature-worktrees.json`; deterministic recovery | -            |
+| P1       | Orchestrator roles + Plan Reviewer gate + role-specific prompts | Cleaner separation of responsibilities and better plan quality    | Dedicated planner/reviewer/patcher/tester/reporter  | -            |
+| P1       | Anti-hardcode test policy + synthetic end-to-end smoke feature  | Better regression resistance and early workflow break detection   | Fixtures + seeds + invariants + boundary contracts  | -            |
+| P1       | Incremental PRD-to-features + post-run learning loop            | Feature docs evolve safely and repeated failures are reduced      | Add-missing only; human-gated improvements          | -            |
+| P2       | Offload audit + compacted logs + workflow quality nudges        | Better long-run maintainability and signal-to-noise               | Index lifecycle, compact logs, precommit warnings   | -            |
 
 ## Process Features
 

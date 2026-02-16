@@ -14,6 +14,7 @@ creation or destructive overwrite).
 ## Inputs
 
 - `docs/01-product/prd.md`
+- `docs/02-features/feature-order.json` (when present)
 - `docs/02-features/AGENTS.md`
 - `docs/02-features/feature-template/`
 - `docs/03-logs/implementation-log.md`
@@ -29,9 +30,10 @@ skip logic, output contract, and full DoD requirements.
 1. Read `docs/02-features/AGENTS.md` and follow the selection rule for product surfaces.
 2. Read `docs/01-product/prd.md` and extract the prioritized feature list and scope boundaries.
 3. Run the planning helper to preview folder mapping before writes.
-4. Execute creation/update with `tools/prd-to-features` (hydrate mode is the only default behavior).
-5. Verify that output respects incremental rules from `references/selection-and-update-rules.md`.
-6. If a feature cannot be specified safely, stop and request missing context.
+4. If `docs/02-features/feature-order.json` exists, enforce its ordered slug plan while preserving update-in-place safety.
+5. Execute creation/update with `tools/prd-to-features` (hydrate mode is the only default behavior).
+6. Verify that output respects incremental rules from `references/selection-and-update-rules.md`.
+7. If a feature cannot be specified safely, stop and request missing context.
 
 ## Deterministic Helpers
 

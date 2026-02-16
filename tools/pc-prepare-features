@@ -1,0 +1,1330 @@
+#!/usr/bin/env python3
+"""Prepare global product artifacts and generate feature folders safely."""
+
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import os
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Set, Tuple
+
+ROOT = Path(__file__).resolve().parents[1]
+PRD_PATH = Path("docs/01-product/prd.md")
+DESIGN_PATH = Path("docs/01-product/design.md")
+UX_PATH = Path("docs/01-product/ux-ui.md")
+CONTEXT_BOUNDARIES_PATH = Path("docs/00-context/context-boundaries-operating-model.md")
+ORDER_JSON_PATH = Path("docs/02-features/feature-order.json")
+ORDER_MD_PATH = Path("docs/02-features/feature-order.md")
+PREPARE_STATE_PATH = Path("docs/03-logs/prepare-features-state.json")
+PRD_TOOL_PATH = Path("tools/prd-to-features")
+MAX_PM_BLOCKS = 6
+
+
+@dataclass(frozen=True)
+class Feature:
+    title: str
+    priority: str
+    slug: str
+    dependencies: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ReviewIssue:
+    issue_id: str
+    step: str
+    summary: str
+    risk: str
+    remediation: str
+
+
+@dataclass(frozen=True)
+class DecisionOption:
+    key: str
+    label: str
+    explanation: str
+    risk: str
+
+
+def die(message: str) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run global prepare workflow: Architect -> UX -> dependency ordering "
+            "-> Product Manager gate -> feature generation."
+        )
+    )
+    parser.add_argument(
+        "--root",
+        default=str(ROOT),
+        help="Repository root (defaults to detected root).",
+    )
+    parser.add_argument(
+        "--skip-generation",
+        action="store_true",
+        help="Generate docs/order and PM-review only; skip tools/prd-to-features.",
+    )
+    parser.add_argument(
+        "--skip-schema-check",
+        action="store_true",
+        help="Skip tools/pc-devtasks-schema-check at the end of generation.",
+    )
+    return parser.parse_args(argv)
+
+
+def load_prd_tool(root: Path):
+    tool_path = root / PRD_TOOL_PATH
+    if not tool_path.exists():
+        raise FileNotFoundError(f"Missing tool: {tool_path}")
+    loader = SourceFileLoader("prepare_features_prd_tool", str(tool_path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None:
+        raise RuntimeError("pc-prepare-features: failed to initialize PRD tool loader")
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def parse_override_choices(raw: str) -> Dict[str, int]:
+    overrides: Dict[str, int] = {}
+    if not raw.strip():
+        return overrides
+    for item in raw.split(","):
+        token = item.strip()
+        if not token:
+            continue
+        if ":" not in token:
+            continue
+        issue_id, value = token.split(":", 1)
+        issue_key = issue_id.strip()
+        try:
+            choice = int(value.strip())
+        except ValueError:
+            continue
+        if issue_key:
+            overrides[issue_key] = choice
+    return overrides
+
+
+def resolve_override_choice(
+    issue_id: str, overrides: Dict[str, int]
+) -> Tuple[Optional[int], Optional[str]]:
+    if issue_id in overrides:
+        return overrides[issue_id], issue_id
+
+    fallback_key: Optional[str] = None
+    fallback_choice: Optional[int] = None
+    for key, choice in overrides.items():
+        if key == issue_id:
+            continue
+        if not issue_id.startswith(key):
+            continue
+        if fallback_key is None or len(key) > len(fallback_key):
+            fallback_key = key
+            fallback_choice = choice
+    return fallback_choice, fallback_key
+
+
+def choose_option(
+    *,
+    issue_id: str,
+    title: str,
+    options: Sequence[DecisionOption],
+    overrides: Dict[str, int],
+) -> DecisionOption:
+    if len(options) < 2:
+        die(f"pc-prepare-features: issue {issue_id} requires at least 2 choices")
+    if len(options) > 4:
+        die(f"pc-prepare-features: issue {issue_id} supports at most 4 choices")
+
+    override_choice, override_key = resolve_override_choice(issue_id, overrides)
+    if override_choice is not None:
+        if 1 <= override_choice <= len(options):
+            selected = options[override_choice - 1]
+            alias_note = ""
+            if override_key and override_key != issue_id:
+                alias_note = f" via alias '{override_key}'"
+            print(
+                f"pc-prepare-features: {issue_id} override selected "
+                f"[{override_choice}] {selected.label}{alias_note}"
+            )
+            return selected
+        die(
+            "pc-prepare-features: invalid PREPARE_DECISIONS entry for "
+            f"{override_key or issue_id}; expected 1..{len(options)}"
+        )
+
+    print(f"\npc-prepare-features: {issue_id}")
+    print(title)
+    for idx, option in enumerate(options, start=1):
+        print(f"  {idx}. {option.label}")
+        print(f"     - Explanation: {option.explanation}")
+        print(f"     - Risk: {option.risk}")
+
+    if not sys.stdin.isatty():
+        die(
+            "pc-prepare-features: interactive decision required in non-interactive "
+            "session. Re-run with PREPARE_DECISIONS='<issue-id>:<choice>'."
+        )
+
+    while True:
+        raw = input(f"Select option [1-{len(options)}]: ").strip()
+        if not raw:
+            continue
+        if not raw.isdigit():
+            print("Please enter a number.")
+            continue
+        number = int(raw)
+        if 1 <= number <= len(options):
+            return options[number - 1]
+        print(f"Please enter a number between 1 and {len(options)}.")
+
+
+def normalize_tokens(raw: str) -> str:
+    return re.sub(r"\s+", " ", raw.strip().lower())
+
+
+def compact_slug(raw: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", raw.strip().lower()).strip("-")
+
+
+def parse_features(prd_module, prd_text: str) -> List[Feature]:
+    parsed = prd_module.parse_prd_features(prd_text)
+    features: List[Feature] = []
+    for item in parsed:
+        dependencies = tuple(getattr(item, "dependencies", ()) or ())
+        features.append(
+            Feature(
+                title=str(item.title).strip(),
+                priority=str(item.priority).strip(),
+                slug=str(item.slug).strip(),
+                dependencies=tuple(
+                    str(dep).strip() for dep in dependencies if str(dep).strip()
+                ),
+            )
+        )
+    return features
+
+
+def feature_title_map(features: Sequence[Feature]) -> Dict[str, str]:
+    mapping: Dict[str, str] = {}
+    for feature in features:
+        key = normalize_tokens(feature.title)
+        if key and key not in mapping:
+            mapping[key] = feature.slug
+    return mapping
+
+
+def try_resolve_dependency(
+    token: str,
+    *,
+    all_slugs: Set[str],
+    title_map: Dict[str, str],
+    index_to_slug: Dict[str, str],
+) -> Optional[str]:
+    candidate = token.strip()
+    if not candidate:
+        return None
+
+    slug_candidate = compact_slug(candidate)
+    if slug_candidate in all_slugs:
+        return slug_candidate
+
+    if candidate in index_to_slug:
+        return index_to_slug[candidate]
+    if candidate.zfill(2) in index_to_slug:
+        return index_to_slug[candidate.zfill(2)]
+
+    prefixed = re.match(r"^(\d{1,2})-", candidate)
+    if prefixed:
+        idx = prefixed.group(1).zfill(2)
+        if idx in index_to_slug:
+            return index_to_slug[idx]
+
+    title_key = normalize_tokens(candidate)
+    if title_key in title_map:
+        return title_map[title_key]
+
+    no_quotes = candidate.replace("`", "").replace('"', "")
+    no_quotes_key = normalize_tokens(no_quotes)
+    if no_quotes_key in title_map:
+        return title_map[no_quotes_key]
+
+    return None
+
+
+def suggest_dependency_candidates(token: str, features: Sequence[Feature]) -> List[str]:
+    token_slug = compact_slug(token)
+    scored: List[Tuple[int, str]] = []
+    for feature in features:
+        score = 0
+        if token_slug and token_slug in feature.slug:
+            score += 3
+        title_key = normalize_tokens(feature.title)
+        if token_slug and token_slug in compact_slug(title_key):
+            score += 2
+        if token.strip() and token.strip().lower() in feature.title.lower():
+            score += 2
+        if score > 0:
+            scored.append((score, feature.slug))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    ordered: List[str] = []
+    for _, slug in scored:
+        if slug in ordered:
+            continue
+        ordered.append(slug)
+        if len(ordered) == 2:
+            break
+    return ordered
+
+
+def find_cycle_nodes(graph: Dict[str, Set[str]]) -> List[str]:
+    visiting: Set[str] = set()
+    visited: Set[str] = set()
+    stack: List[str] = []
+
+    def dfs(node: str) -> List[str]:
+        visiting.add(node)
+        stack.append(node)
+        for dep in sorted(graph.get(node, set())):
+            if dep not in graph:
+                continue
+            if dep in visiting:
+                start_idx = stack.index(dep)
+                return stack[start_idx:] + [dep]
+            if dep in visited:
+                continue
+            cycle = dfs(dep)
+            if cycle:
+                return cycle
+        stack.pop()
+        visiting.remove(node)
+        visited.add(node)
+        return []
+
+    for node in sorted(graph):
+        if node in visited:
+            continue
+        cycle = dfs(node)
+        if cycle:
+            return cycle
+    return []
+
+
+def topo_order(
+    slugs_in_priority_order: Sequence[str], graph: Dict[str, Set[str]]
+) -> List[str]:
+    incoming = {slug: set(graph.get(slug, set())) for slug in slugs_in_priority_order}
+    dependents: Dict[str, Set[str]] = {slug: set() for slug in slugs_in_priority_order}
+    for slug, deps in incoming.items():
+        for dep in deps:
+            if dep not in dependents:
+                continue
+            dependents[dep].add(slug)
+
+    priority_idx = {slug: idx for idx, slug in enumerate(slugs_in_priority_order)}
+    ready = [slug for slug, deps in incoming.items() if not deps]
+    ready.sort(key=lambda value: priority_idx.get(value, 10_000))
+
+    ordered: List[str] = []
+    while ready:
+        current = ready.pop(0)
+        ordered.append(current)
+        for dependent in sorted(
+            dependents.get(current, set()),
+            key=lambda value: priority_idx.get(value, 10_000),
+        ):
+            deps = incoming[dependent]
+            if current in deps:
+                deps.remove(current)
+            if not deps and dependent not in ordered and dependent not in ready:
+                ready.append(dependent)
+        ready.sort(key=lambda value: priority_idx.get(value, 10_000))
+
+    return ordered
+
+
+def resolve_dependency_graph(
+    features: Sequence[Feature],
+    *,
+    overrides: Dict[str, int],
+) -> Tuple[Dict[str, Set[str]], List[Dict[str, str]]]:
+    slugs_in_priority_order = [feature.slug for feature in features]
+    all_slugs = set(slugs_in_priority_order)
+    title_map = feature_title_map(features)
+    index_to_slug = {
+        f"{idx + 1:02d}": slug for idx, slug in enumerate(slugs_in_priority_order)
+    }
+
+    decisions: List[Dict[str, str]] = []
+    graph: Dict[str, Set[str]] = {feature.slug: set() for feature in features}
+    issue_counter = 1
+
+    for feature in features:
+        for token in feature.dependencies:
+            resolved = try_resolve_dependency(
+                token,
+                all_slugs=all_slugs,
+                title_map=title_map,
+                index_to_slug=index_to_slug,
+            )
+            if resolved and resolved != feature.slug:
+                graph[feature.slug].add(resolved)
+                continue
+            if resolved == feature.slug:
+                issue_id = f"AMB-{issue_counter:03d}"
+                issue_counter += 1
+                options = [
+                    DecisionOption(
+                        key="ignore",
+                        label="Ignore self-dependency (Recommended)",
+                        explanation=(
+                            f"Drop self-dependency '{token}' on '{feature.slug}' so ordering can proceed."
+                        ),
+                        risk="May hide a mistaken PRD dependency if self-reference was accidental.",
+                    ),
+                    DecisionOption(
+                        key="abort",
+                        label="Abort and fix PRD manually",
+                        explanation="Stop now and update PRD dependency definitions.",
+                        risk="Preparation run stops until PRD is corrected.",
+                    ),
+                ]
+                choice = choose_option(
+                    issue_id=issue_id,
+                    title=(
+                        f"Dependency '{token}' on '{feature.title}' resolves to the same feature."
+                    ),
+                    options=options,
+                    overrides=overrides,
+                )
+                decisions.append(
+                    {
+                        "issue_id": issue_id,
+                        "type": "self_dependency",
+                        "feature_slug": feature.slug,
+                        "dependency": token,
+                        "selected": choice.key,
+                        "risk": choice.risk,
+                    }
+                )
+                if choice.key == "abort":
+                    die(
+                        "pc-prepare-features: aborted by user during dependency resolution"
+                    )
+                continue
+
+            suggestions = suggest_dependency_candidates(token, features)
+            issue_id = f"AMB-{issue_counter:03d}"
+            issue_counter += 1
+            options: List[DecisionOption] = []
+            if suggestions:
+                options.append(
+                    DecisionOption(
+                        key=f"map:{suggestions[0]}",
+                        label=f"Map to '{suggestions[0]}' (Recommended)",
+                        explanation=(
+                            f"Resolve unknown dependency '{token}' to closest known feature slug '{suggestions[0]}'."
+                        ),
+                        risk="Could map to the wrong prerequisite if naming is ambiguous.",
+                    )
+                )
+                if len(suggestions) > 1:
+                    options.append(
+                        DecisionOption(
+                            key=f"map:{suggestions[1]}",
+                            label=f"Map to '{suggestions[1]}'",
+                            explanation=(
+                                f"Alternative mapping for '{token}' to '{suggestions[1]}'."
+                            ),
+                            risk="Alternative mapping may still be incorrect and alter generation order.",
+                        )
+                    )
+            options.append(
+                DecisionOption(
+                    key="ignore",
+                    label="Ignore this dependency",
+                    explanation=(
+                        "Continue without this edge; feature ordering will not enforce this prerequisite."
+                    ),
+                    risk="Feature may be generated before a true prerequisite.",
+                )
+            )
+            options.append(
+                DecisionOption(
+                    key="abort",
+                    label="Abort and fix PRD manually",
+                    explanation="Stop now and update PRD dependency definitions.",
+                    risk="Preparation run stops until PRD is corrected.",
+                )
+            )
+
+            choice = choose_option(
+                issue_id=issue_id,
+                title=(
+                    f"Dependency '{token}' on feature '{feature.title}' does not match any known feature."
+                ),
+                options=options,
+                overrides=overrides,
+            )
+            decisions.append(
+                {
+                    "issue_id": issue_id,
+                    "type": "unknown_dependency",
+                    "feature_slug": feature.slug,
+                    "dependency": token,
+                    "selected": choice.key,
+                    "risk": choice.risk,
+                }
+            )
+            if choice.key == "abort":
+                die("pc-prepare-features: aborted by user during dependency resolution")
+            if choice.key.startswith("map:"):
+                mapped = choice.key.split(":", 1)[1]
+                if mapped and mapped != feature.slug:
+                    graph[feature.slug].add(mapped)
+
+    cycle_counter = 1
+    while True:
+        ordered = topo_order(slugs_in_priority_order, graph)
+        if len(ordered) == len(slugs_in_priority_order):
+            break
+        cycle_nodes = find_cycle_nodes(graph)
+        if not cycle_nodes:
+            die("pc-prepare-features: dependency graph contains unresolved cycle")
+
+        cycle_edges: List[Tuple[str, str]] = []
+        for idx in range(len(cycle_nodes) - 1):
+            left = cycle_nodes[idx]
+            right = cycle_nodes[idx + 1]
+            if right in graph.get(left, set()):
+                cycle_edges.append((left, right))
+        if not cycle_edges:
+            die("pc-prepare-features: cycle detected but no removable edge found")
+
+        issue_id = f"CYCLE-{cycle_counter:03d}"
+        cycle_counter += 1
+        options: List[DecisionOption] = []
+        for left, right in cycle_edges[:3]:
+            options.append(
+                DecisionOption(
+                    key=f"drop:{left}:{right}",
+                    label=f"Drop edge '{left}' depends on '{right}' (Recommended)",
+                    explanation=(
+                        f"Remove dependency edge '{left} -> {right}' to break the cycle."
+                    ),
+                    risk="May allow this feature to be generated before a true prerequisite.",
+                )
+            )
+        options.append(
+            DecisionOption(
+                key="abort",
+                label="Abort and fix PRD manually",
+                explanation="Stop now and rewrite cyclical dependencies in PRD.",
+                risk="Preparation run stops until PRD dependencies are corrected.",
+            )
+        )
+
+        cycle_path = " -> ".join(cycle_nodes)
+        choice = choose_option(
+            issue_id=issue_id,
+            title=f"Dependency cycle detected: {cycle_path}",
+            options=options,
+            overrides=overrides,
+        )
+        decisions.append(
+            {
+                "issue_id": issue_id,
+                "type": "cycle",
+                "cycle": cycle_path,
+                "selected": choice.key,
+                "risk": choice.risk,
+            }
+        )
+        if choice.key == "abort":
+            die("pc-prepare-features: aborted by user due to dependency cycle")
+
+        _, left, right = choice.key.split(":", 2)
+        if right in graph.get(left, set()):
+            graph[left].remove(right)
+
+    return graph, decisions
+
+
+def extract_section_bullets(content: str, heading: str) -> List[str]:
+    section_pattern = re.compile(
+        rf"^##\s+{re.escape(heading)}\s*$", re.MULTILINE | re.IGNORECASE
+    )
+    match = section_pattern.search(content)
+    if not match:
+        return []
+    start = match.end()
+    next_heading = re.search(r"^##\s+", content[start:], re.MULTILINE)
+    end = start + next_heading.start() if next_heading else len(content)
+    section = content[start:end]
+    bullets: List[str] = []
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            bullets.append(stripped[2:].strip())
+    return bullets
+
+
+def design_markdown(
+    *,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    context_boundaries: str,
+) -> str:
+    generated_on = datetime.now().strftime("%Y-%m-%d")
+    scope_boundaries = extract_section_bullets(context_boundaries, "Scope Boundaries")
+    non_goals = extract_section_bullets(context_boundaries, "Non-Goals")
+    operating_model = extract_section_bullets(context_boundaries, "Operating Model")
+
+    by_slug = {feature.slug: feature for feature in features}
+    ordered_features = [by_slug[slug] for slug in ordered_slugs if slug in by_slug]
+
+    architecture_lines = [
+        "```text",
+        "Human PO",
+        "  -> make prepare-features",
+        "     -> docs/01-product/design.md (Architect)",
+        "     -> docs/01-product/ux-ui.md (UX)",
+        "     -> docs/02-features/feature-order.json (Dependency Planner)",
+        "     -> tools/prd-to-features (Feature Generation)",
+        "  -> make review-features (Security + Product review)",
+        "  -> make feature F=<feature-id> (execution loop)",
+        "```",
+    ]
+
+    module_rows = [
+        "| Module | Responsibility | Boundaries |",
+        "| ------ | -------------- | ---------- |",
+        "| docs/00-context | Product context and operating limits | Input-only for preparation, not regenerated by tooling |",
+        "| docs/01-product | PRD + architecture/UX blueprints | Global product blueprint consumed by generation and reviews |",
+        "| docs/02-features | Feature-level implementation specs/tasks/tests | Generated/updated in dependency order, never delete existing folders |",
+        "| tools/prd-to-features | Feature docs hydrator | Consumes PRD + ordered plan and updates in place |",
+        "| tools/pc-feature | Work-item execution runtime | Unchanged by prepare/review workflows |",
+    ]
+
+    infra_lines = [
+        "- Local-only CLI execution on macOS with git-backed repository state.",
+        "- No cloud services, no background daemons, no remote state storage.",
+        "- Structured logs and offloaded command output remain mandatory for noisy steps.",
+        "- Existing command authority remains: only the human PO triggers orchestrator commands.",
+    ]
+
+    constraints_lines = scope_boundaries[:6] if scope_boundaries else []
+    if not constraints_lines:
+        constraints_lines = [
+            "Local CLI tool only; manual execution with explicit human gates.",
+            "Idempotent reruns required; do not duplicate or delete existing completed feature docs.",
+            "Avoid scope creep beyond documented boundaries and non-goals.",
+        ]
+
+    if non_goals:
+        constraints_lines.extend(
+            f"Non-goal: {item}"
+            for item in non_goals[:4]
+            if item not in constraints_lines
+        )
+
+    build_strategy_lines = [
+        "1. Update context docs when assumptions or constraints change.",
+        "2. Refresh PRD from context before preparation.",
+        "3. Run `make prepare-features` to regenerate design/ux/order artifacts and feature docs.",
+        "4. Run `make review-features` to inject security/product findings before execution.",
+        "5. Execute work items with `make feature F=<feature-id>` using existing runtime gates.",
+    ]
+
+    if operating_model:
+        build_strategy_lines.append(
+            f"6. Maintain operating model guardrails: {operating_model[0]}"
+        )
+
+    coverage_rows = [
+        "| Ordered # | Priority | Feature | Dependencies |",
+        "| --------- | -------- | ------- | ------------ |",
+    ]
+    for idx, feature in enumerate(ordered_features, start=1):
+        deps = sorted(graph.get(feature.slug, set()))
+        deps_value = ", ".join(deps) if deps else "(none)"
+        coverage_rows.append(
+            f"| {idx:02d} | {feature.priority} | {feature.title} | {deps_value} |"
+        )
+
+    return "\n".join(
+        [
+            "# Global Architecture / Design",
+            "",
+            "> Machine-managed by `tools/pc-prepare-features`. Edit PRD/context and rerun instead of hand-editing this file.",
+            "",
+            f"**Last Updated:** {generated_on}",
+            "",
+            "## System architecture",
+            "",
+            *architecture_lines,
+            "",
+            "## Module boundaries",
+            "",
+            *module_rows,
+            "",
+            "## Infra considerations",
+            "",
+            *infra_lines,
+            "",
+            "## Design constraints",
+            "",
+            *[f"- {line}" for line in constraints_lines],
+            "",
+            "## Build strategy",
+            "",
+            *[f"- {line}" for line in build_strategy_lines],
+            "",
+            "## Feature alignment map",
+            "",
+            *coverage_rows,
+            "",
+        ]
+    )
+
+
+def ux_markdown(
+    *,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+) -> str:
+    generated_on = datetime.now().strftime("%Y-%m-%d")
+    by_slug = {feature.slug: feature for feature in features}
+    ordered_features = [by_slug[slug] for slug in ordered_slugs if slug in by_slug]
+
+    journeys: List[str] = [
+        "## User journeys",
+        "",
+        "Primary persona: Developer/PO running local CLI workflows with explicit gates.",
+        "",
+    ]
+    workflows_rows = [
+        "| Feature | Workflow | Dependencies | Human validation checkpoint |",
+        "| ------- | -------- | ------------ | --------------------------- |",
+    ]
+
+    for idx, feature in enumerate(ordered_features, start=1):
+        deps = sorted(graph.get(feature.slug, set()))
+        deps_text = ", ".join(deps) if deps else "(none)"
+        journey_block = [
+            f"### Journey {idx:02d}: {feature.title}",
+            f"- Goal: deliver `{feature.slug}` with deterministic scope and traceability.",
+            "- Entry: updated PRD + approved prepare workflow artifacts.",
+            "- Steps:",
+            "  1. Human runs `make prepare-features` and verifies PM gate approval.",
+            f"  2. Feature docs are generated/updated in dependency order with prerequisites: {deps_text}.",
+            "  3. Human runs `make review-features` and confirms findings are reflected in feature docs.",
+            "  4. Human executes the feature with `make feature F=<feature-id>`.",
+            "- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.",
+            "",
+        ]
+        journeys.extend(journey_block)
+
+        workflows_rows.append(
+            f"| {feature.title} | Prepare -> Review -> Execute | {deps_text} | Before first `make feature` |"
+        )
+
+    workflow_notes = [
+        "## Workflows",
+        "",
+        *workflows_rows,
+        "",
+        "## UX constraints",
+        "",
+        "- Keep command UX explicit and deterministic; avoid hidden background behavior.",
+        "- Any ambiguity must present numbered options (2-4) with explanation and risk.",
+        "- Decisions must be persisted so reruns remain deterministic.",
+        "- Manual checkpoints happen only at explicit gates; no implicit pauses.",
+        "",
+    ]
+
+    return "\n".join(
+        [
+            "# Global UX / UI Blueprint",
+            "",
+            "> Machine-managed by `tools/pc-prepare-features`. Edit PRD/context and rerun instead of hand-editing this file.",
+            "",
+            f"**Last Updated:** {generated_on}",
+            "",
+            *journeys,
+            *workflow_notes,
+        ]
+    )
+
+
+def build_order_payload(
+    *,
+    ordered_slugs: Sequence[str],
+    features: Sequence[Feature],
+    graph: Dict[str, Set[str]],
+    decisions: Sequence[Dict[str, str]],
+) -> Dict[str, object]:
+    by_slug = {feature.slug: feature for feature in features}
+    ordered_features_payload = []
+    for idx, slug in enumerate(ordered_slugs, start=1):
+        feature = by_slug[slug]
+        ordered_features_payload.append(
+            {
+                "index": idx,
+                "slug": feature.slug,
+                "title": feature.title,
+                "priority": feature.priority,
+                "dependencies": sorted(graph.get(feature.slug, set())),
+            }
+        )
+
+    return {
+        "version": 1,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "ordered_feature_slugs": list(ordered_slugs),
+        "dependencies": {
+            slug: sorted(graph.get(slug, set())) for slug in ordered_slugs
+        },
+        "ordered_features": ordered_features_payload,
+        "decisions": list(decisions),
+        "notes": [
+            "This file is machine-managed by tools/pc-prepare-features.",
+            "tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order.",
+        ],
+    }
+
+
+def order_markdown(payload: Dict[str, object]) -> str:
+    rows = [
+        "# Feature Order Plan",
+        "",
+        "> Machine-managed by `tools/pc-prepare-features`.",
+        "",
+        f"**Generated At (UTC):** {payload.get('generated_at', '')}",
+        "",
+        "## Ordered features",
+        "",
+        "| # | Priority | Slug | Title | Dependencies |",
+        "| - | -------- | ---- | ----- | ------------ |",
+    ]
+    for item in payload.get("ordered_features", []):
+        if not isinstance(item, dict):
+            continue
+        deps = item.get("dependencies", [])
+        deps_text = ", ".join(deps) if isinstance(deps, list) and deps else "(none)"
+        rows.append(
+            "| {index:02d} | {priority} | {slug} | {title} | {deps} |".format(
+                index=int(item.get("index", 0)),
+                priority=str(item.get("priority", "")),
+                slug=str(item.get("slug", "")),
+                title=str(item.get("title", "")),
+                deps=deps_text,
+            )
+        )
+
+    decisions = payload.get("decisions", [])
+    rows.extend(["", "## Decisions", ""])
+    if not isinstance(decisions, list) or not decisions:
+        rows.append("- No manual decision overrides were required.")
+    else:
+        for decision in decisions:
+            if not isinstance(decision, dict):
+                continue
+            rows.append(
+                "- `{issue}` ({type}): selected `{selected}`; risk: {risk}".format(
+                    issue=decision.get("issue_id", "unknown"),
+                    type=decision.get("type", "decision"),
+                    selected=decision.get("selected", ""),
+                    risk=decision.get("risk", ""),
+                )
+            )
+
+    rows.append("")
+    return "\n".join(rows)
+
+
+def check_required_headings(content: str, headings: Sequence[str]) -> List[str]:
+    missing = []
+    lowered = content.lower()
+    for heading in headings:
+        needle = f"## {heading}".lower()
+        if needle not in lowered:
+            missing.append(heading)
+    return missing
+
+
+def dependency_order_violations(
+    ordered_slugs: Sequence[str], graph: Dict[str, Set[str]]
+) -> List[str]:
+    position = {slug: idx for idx, slug in enumerate(ordered_slugs, start=1)}
+    violations: List[str] = []
+    for feature_slug, deps in graph.items():
+        current_pos = position.get(feature_slug)
+        if current_pos is None:
+            continue
+        for dep in sorted(deps):
+            dep_pos = position.get(dep)
+            if dep_pos is None:
+                continue
+            if dep_pos > current_pos:
+                violations.append(
+                    f"dependency order violation: {feature_slug} depends on {dep} but appears earlier"
+                )
+    return violations
+
+
+def product_manager_review(
+    *,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    design_text: str,
+    ux_text: str,
+    order_payload: Dict[str, object],
+) -> List[ReviewIssue]:
+    issues: List[ReviewIssue] = []
+    issue_count = 1
+
+    required_design_headings = (
+        "System architecture",
+        "Module boundaries",
+        "Infra considerations",
+        "Design constraints",
+        "Build strategy",
+    )
+    missing_design = check_required_headings(design_text, required_design_headings)
+    if missing_design:
+        issues.append(
+            ReviewIssue(
+                issue_id=f"PM-{issue_count:03d}",
+                step="architect",
+                summary=f"design.md missing required sections: {', '.join(missing_design)}",
+                risk="Feature generation may drift from incomplete architecture constraints.",
+                remediation="Regenerate design.md and keep mandatory architecture sections.",
+            )
+        )
+        issue_count += 1
+
+    required_ux_headings = (
+        "User journeys",
+        "Workflows",
+    )
+    missing_ux = check_required_headings(ux_text, required_ux_headings)
+    if missing_ux:
+        issues.append(
+            ReviewIssue(
+                issue_id=f"PM-{issue_count:03d}",
+                step="ux",
+                summary=f"ux-ui.md missing required sections: {', '.join(missing_ux)}",
+                risk="User journeys/workflows may be under-specified for feature generation.",
+                remediation="Regenerate ux-ui.md and keep journeys + workflows sections complete.",
+            )
+        )
+        issue_count += 1
+
+    for feature in features:
+        title_lower = feature.title.lower()
+        if title_lower not in design_text.lower():
+            issues.append(
+                ReviewIssue(
+                    issue_id=f"PM-{issue_count:03d}",
+                    step="architect",
+                    summary=f"design.md does not mention feature '{feature.title}'",
+                    risk="Feature may be generated without architecture alignment.",
+                    remediation=f"Ensure design.md feature alignment map includes '{feature.title}'.",
+                )
+            )
+            issue_count += 1
+        if title_lower not in ux_text.lower():
+            issues.append(
+                ReviewIssue(
+                    issue_id=f"PM-{issue_count:03d}",
+                    step="ux",
+                    summary=f"ux-ui.md does not mention feature '{feature.title}'",
+                    risk="Feature may be generated without UX journey/workflow alignment.",
+                    remediation=f"Ensure ux-ui.md journeys/workflows include '{feature.title}'.",
+                )
+            )
+            issue_count += 1
+
+    payload_slugs = order_payload.get("ordered_feature_slugs", [])
+    if not isinstance(payload_slugs, list):
+        payload_slugs = []
+    payload_slug_set = {str(item) for item in payload_slugs}
+    for feature in features:
+        if feature.slug not in payload_slug_set:
+            issues.append(
+                ReviewIssue(
+                    issue_id=f"PM-{issue_count:03d}",
+                    step="dependency-planner",
+                    summary=f"feature-order.json missing '{feature.slug}'",
+                    risk="Feature generation order may be incomplete or non-deterministic.",
+                    remediation="Regenerate feature-order artifacts and include every P0/P1 feature.",
+                )
+            )
+            issue_count += 1
+
+    for violation in dependency_order_violations(ordered_slugs, graph):
+        issues.append(
+            ReviewIssue(
+                issue_id=f"PM-{issue_count:03d}",
+                step="dependency-planner",
+                summary=violation,
+                risk="Dependent features may be generated before their prerequisites.",
+                remediation="Fix dependency graph or choose a safer cycle/ambiguity resolution.",
+            )
+        )
+        issue_count += 1
+
+    return issues
+
+
+def review_issue_payload(issue: ReviewIssue) -> Dict[str, str]:
+    return {
+        "issue_id": issue.issue_id,
+        "step": issue.step,
+        "summary": issue.summary,
+        "risk": issue.risk,
+        "remediation": issue.remediation,
+    }
+
+
+def build_prepare_state_payload(
+    *,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    dependency_decisions: Sequence[Dict[str, str]],
+    pm_history: Sequence[Dict[str, object]],
+    pm_final_decision: str,
+    skip_generation: bool,
+    feature_generation_status: str,
+    schema_check_status: str,
+) -> Dict[str, object]:
+    by_slug = {feature.slug: feature for feature in features}
+    ordered_features = []
+    for index, slug in enumerate(ordered_slugs, start=1):
+        feature = by_slug.get(slug)
+        if not feature:
+            continue
+        ordered_features.append(
+            {
+                "index": index,
+                "slug": feature.slug,
+                "title": feature.title,
+                "priority": feature.priority,
+                "dependencies": sorted(graph.get(feature.slug, set())),
+            }
+        )
+
+    return {
+        "version": 1,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "ordered_feature_slugs": list(ordered_slugs),
+        "ordered_features": ordered_features,
+        "dependency_decisions": list(dependency_decisions),
+        "pm_gate": {
+            "blocked_count": len(
+                [entry for entry in pm_history if int(entry.get("issue_count", 0)) > 0]
+            ),
+            "final_decision": pm_final_decision,
+            "history": list(pm_history),
+        },
+        "execution": {
+            "skip_generation": skip_generation,
+            "feature_generation_status": feature_generation_status,
+            "schema_check_status": schema_check_status,
+        },
+        "notes": [
+            "Machine-managed by tools/pc-prepare-features.",
+            "Captures PM-gate outcomes and execution status for deterministic reruns.",
+        ],
+    }
+
+
+def render_pm_issues(issues: Sequence[ReviewIssue]) -> str:
+    lines = ["Product Manager findings:"]
+    for issue in issues:
+        lines.append(f"- [{issue.issue_id}] step={issue.step}")
+        lines.append(f"  summary: {issue.summary}")
+        lines.append(f"  risk: {issue.risk}")
+        lines.append(f"  remediation: {issue.remediation}")
+    return "\n".join(lines)
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def run_command(root: Path, cmd: Sequence[str], *, label: str) -> None:
+    printable = " ".join(cmd)
+    print(f"pc-prepare-features: running {label}: {printable}")
+    result = subprocess.run(
+        list(cmd),
+        cwd=str(root),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    if result.returncode != 0:
+        die(
+            f"pc-prepare-features: command failed ({label}) with exit {result.returncode}"
+        )
+
+
+def run_prepare(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    prd_file = root / PRD_PATH
+    if not prd_file.exists():
+        die(f"pc-prepare-features: missing PRD: {prd_file}")
+
+    prd_module = load_prd_tool(root)
+    prd_text = prd_file.read_text(encoding="utf-8")
+    features = parse_features(prd_module, prd_text)
+    if not features:
+        die("pc-prepare-features: no P0/P1 features found in PRD")
+
+    overrides = parse_override_choices(os.environ.get("PREPARE_DECISIONS", ""))
+
+    context_boundaries_file = root / CONTEXT_BOUNDARIES_PATH
+    context_boundaries = (
+        context_boundaries_file.read_text(encoding="utf-8")
+        if context_boundaries_file.exists()
+        else ""
+    )
+
+    pm_blocks = 0
+    pm_history: List[Dict[str, object]] = []
+    graph: Dict[str, Set[str]] = {}
+    ordered_slugs: List[str] = []
+    dependency_decisions: List[Dict[str, str]] = []
+    pm_final_decision = "pending"
+
+    def persist_prepare_state(
+        *,
+        feature_generation_status: str,
+        schema_check_status: str,
+    ) -> None:
+        payload = build_prepare_state_payload(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            dependency_decisions=dependency_decisions,
+            pm_history=pm_history,
+            pm_final_decision=pm_final_decision,
+            skip_generation=bool(args.skip_generation),
+            feature_generation_status=feature_generation_status,
+            schema_check_status=schema_check_status,
+        )
+        write_text(
+            root / PREPARE_STATE_PATH,
+            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True),
+        )
+        print(f"pc-prepare-features: wrote state artifact -> {PREPARE_STATE_PATH}")
+
+    while True:
+        print(
+            "pc-prepare-features: architect step -> generating docs/01-product/design.md"
+        )
+        graph, dependency_decisions = resolve_dependency_graph(
+            features, overrides=overrides
+        )
+        ordered_slugs = topo_order([feature.slug for feature in features], graph)
+        if len(ordered_slugs) != len(features):
+            die(
+                "pc-prepare-features: failed to compute deterministic ordered feature list"
+            )
+
+        design_doc = design_markdown(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            context_boundaries=context_boundaries,
+        )
+        write_text(root / DESIGN_PATH, design_doc)
+
+        print("pc-prepare-features: ux step -> generating docs/01-product/ux-ui.md")
+        ux_doc = ux_markdown(
+            features=features, ordered_slugs=ordered_slugs, graph=graph
+        )
+        write_text(root / UX_PATH, ux_doc)
+
+        print(
+            "pc-prepare-features: dependency planner step -> generating docs/02-features/feature-order.{json,md}"
+        )
+        order_payload = build_order_payload(
+            ordered_slugs=ordered_slugs,
+            features=features,
+            graph=graph,
+            decisions=dependency_decisions,
+        )
+        write_text(
+            root / ORDER_JSON_PATH,
+            json.dumps(order_payload, ensure_ascii=True, indent=2, sort_keys=True),
+        )
+        write_text(root / ORDER_MD_PATH, order_markdown(order_payload))
+
+        print("pc-prepare-features: product manager gate -> reviewing artifacts")
+        issues = product_manager_review(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            design_text=design_doc,
+            ux_text=ux_doc,
+            order_payload=order_payload,
+        )
+        if not issues:
+            pm_history.append(
+                {
+                    "iteration": pm_blocks + 1,
+                    "gate_id": f"PM-REVIEW-{pm_blocks + 1:03d}",
+                    "decision": "approve",
+                    "issue_count": 0,
+                    "issues": [],
+                }
+            )
+            pm_final_decision = "approve"
+            print("pc-prepare-features: Product Manager decision: APPROVE")
+            break
+
+        pm_blocks += 1
+        print("pc-prepare-features: Product Manager decision: BLOCK")
+        print(render_pm_issues(issues))
+        if pm_blocks >= MAX_PM_BLOCKS:
+            pm_history.append(
+                {
+                    "iteration": pm_blocks,
+                    "gate_id": f"PM-BLOCK-{pm_blocks:03d}",
+                    "decision": "max-block-limit",
+                    "issue_count": len(issues),
+                    "issues": [review_issue_payload(issue) for issue in issues],
+                }
+            )
+            pm_final_decision = "blocked-max-limit"
+            persist_prepare_state(
+                feature_generation_status="not-run",
+                schema_check_status="not-run",
+            )
+            die(
+                "pc-prepare-features: PM gate reached max block limit; manual intervention required"
+            )
+
+        options = [
+            DecisionOption(
+                key="retry",
+                label="Retry failing steps automatically (Recommended)",
+                explanation=(
+                    "Re-run architect/ux/dependency planner in the same command and retry PM review."
+                ),
+                risk="If source PRD/context is inconsistent, repeated retries may still block.",
+            ),
+            DecisionOption(
+                key="waive",
+                label="Continue with PM waiver",
+                explanation="Proceed to generation despite PM findings.",
+                risk="Features may be generated with architecture/UX drift.",
+            ),
+            DecisionOption(
+                key="abort",
+                label="Abort and fix inputs manually",
+                explanation="Stop now and edit PRD/context before rerunning.",
+                risk="Preparation run stops until docs are corrected.",
+            ),
+        ]
+        choice = choose_option(
+            issue_id=f"PM-BLOCK-{pm_blocks:03d}",
+            title="Product Manager blocked prepare loop.",
+            options=options,
+            overrides=overrides,
+        )
+        pm_history.append(
+            {
+                "iteration": pm_blocks,
+                "gate_id": f"PM-BLOCK-{pm_blocks:03d}",
+                "decision": choice.key,
+                "issue_count": len(issues),
+                "issues": [review_issue_payload(issue) for issue in issues],
+            }
+        )
+        if choice.key == "retry":
+            continue
+        if choice.key == "waive":
+            pm_final_decision = "waive"
+            print("pc-prepare-features: proceeding with PM waiver")
+            break
+        pm_final_decision = "abort"
+        persist_prepare_state(
+            feature_generation_status="not-run",
+            schema_check_status="not-run",
+        )
+        die("pc-prepare-features: aborted by user at PM gate")
+
+    feature_generation_status = "skipped" if args.skip_generation else "pending"
+    schema_check_status = (
+        "skipped" if args.skip_generation or args.skip_schema_check else "pending"
+    )
+    persist_prepare_state(
+        feature_generation_status=feature_generation_status,
+        schema_check_status=schema_check_status,
+    )
+
+    if args.skip_generation:
+        print(
+            "pc-prepare-features: --skip-generation set; stopping before tools/prd-to-features"
+        )
+        return 0
+
+    run_command(
+        root,
+        [str(root / PRD_TOOL_PATH), f"--root={root}"],
+        label="feature generation",
+    )
+    feature_generation_status = "completed"
+    persist_prepare_state(
+        feature_generation_status=feature_generation_status,
+        schema_check_status=schema_check_status,
+    )
+
+    if not args.skip_schema_check:
+        run_command(
+            root,
+            [str(root / "tools" / "pc-devtasks-schema-check"), f"--root={root}"],
+            label="feature schema validation",
+        )
+        schema_check_status = "completed"
+        persist_prepare_state(
+            feature_generation_status=feature_generation_status,
+            schema_check_status=schema_check_status,
+        )
+
+    print("pc-prepare-features: complete")
+    return 0
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv)
+    return run_prepare(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

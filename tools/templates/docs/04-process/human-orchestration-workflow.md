@@ -12,15 +12,24 @@
    - Fill `docs/00-context/*.md` as the source of truth.
 2. **Update PRD (context-to-product)**
    - Run the skill `context-to-product` to update `docs/01-product/prd.md` in place.
-3. **Update Features (prd-to-features)**
-   - Run the skill `prd-to-features` to update `docs/02-features/` in place.
+3. **Prepare Features (`make prepare-features`)**
+   - Runs `Architect → UX → dependency ordering → Product Manager gate → feature generation`.
+   - Generates/updates `docs/01-product/design.md` and `docs/01-product/ux-ui.md`.
+   - Generates `docs/02-features/feature-order.json` + `docs/02-features/feature-order.md`.
+   - Persists loop/runtime state to `docs/03-logs/prepare-features-state.json`.
+   - Resolves dependency ambiguity/cycles with numbered CLI choices (2-4 options + risk notes).
+   - `tools/prd-to-features` consumes the ordered plan and updates `docs/02-features/` in dependency order.
    - No duplicate feature folders.
    - Never delete existing feature folders.
    - Never re-add features whose `dev-tasks.md` has `Status: Done`.
    - Keep each feature small enough to execute as a single work item; split oversized features here, not during execution.
-4. **Audit Feature Status (feature-status-audit)**
+4. **Review Features (`make review-features`)**
+   - Runs `Security Reviewer → Product Manager` over generated feature folders.
+   - Injects actionable findings into `feature-spec.md` and `dev-tasks.md` before execution starts.
+   - Persists aggregated findings to `docs/03-logs/review-features-report.json`.
+5. **Audit Feature Status (feature-status-audit)**
    - Run the skill `feature-status-audit` to update task statuses for the current feature.
-5. **Execute Work Item**
+6. **Execute Work Item**
    - Use `docs/02-features/<feature>/dev-tasks.md` as the source of truth.
    - Follow `docs/04-process/ticket-execution-protocol.md` (TDD + gates + docs + commit).
    - Enforce role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
@@ -37,8 +46,8 @@
    - Restart rules: reviewer `BLOCK` returns to Planner; tester `FAIL` returns to Planner; reporter `FAIL` returns to Planner; only reporter `PASS` advances to final orchestrator gates/commit.
    - If any role has no work on a restart pass, record a no-op note in the iteration log and continue to the next role.
    - During the run, roles can propose improvements in feedback fields; after the run completes or stops, the orchestrator writes a clarified, deduplicated collection to `docs/possible-improvements.md`.
-6. **Repeat**
-   - Go back to step 4 for the next feature.
+7. **Repeat**
+   - Go back to step 5 for the next feature.
 
 ## Add Features / Existing Project
 
@@ -46,14 +55,18 @@
    - Update `docs/00-context/*.md` only if assumptions, constraints, users, or system state changed.
 2. **Update PRD (context-to-product)**
    - Run the skill `context-to-product` to update `docs/01-product/prd.md` in place.
-3. **Incremental Features (prd-to-features)**
-   - Run the skill `prd-to-features` in incremental mode (default for existing projects) to add only missing features.
+3. **Prepare Features (`make prepare-features`)**
+   - Refreshes `design.md`, `ux-ui.md`, dependency order plan, and incremental feature generation from the updated PRD.
+   - Refreshes `docs/03-logs/prepare-features-state.json` with PM gate/runtime status.
    - Do not delete existing features.
    - Skip any feature whose `dev-tasks.md` shows `Status: Done`.
    - Keep each feature small enough to execute as a single work item; split oversized features here, not during execution.
-4. **Audit Feature Status**
+4. **Review Features (`make review-features`)**
+   - Runs security/product findings pass on generated features and writes actionable fixes to feature docs.
+   - Refreshes `docs/03-logs/review-features-report.json` with per-feature findings/totals.
+5. **Audit Feature Status**
    - Run the skill `feature-status-audit` to update task statuses for the current feature.
-5. **Execute Work Item**
+6. **Execute Work Item**
    - Use `docs/02-features/<feature>/dev-tasks.md` as the source of truth.
    - Follow the execution protocol in `docs/04-process/ticket-execution-protocol.md`.
    - Enforce role-scoped logs (`planner-log.md`, `plan-reviewer-log.md`, `reporter-log.md`, `validation-log.md`).
@@ -69,18 +82,22 @@
    - Restart rules: reviewer `BLOCK` returns to Planner; tester `FAIL` returns to Planner; reporter `FAIL` returns to Planner; only reporter `PASS` advances to final orchestrator gates/commit.
    - If any role has no work on a restart pass, record a no-op note in the iteration log and continue to the next role.
    - During the run, roles can propose improvements in feedback fields; after the run completes or stops, the orchestrator writes a clarified, deduplicated collection to `docs/possible-improvements.md`.
-6. **Repeat**
-   - Continue from step 4 until P0/P1 items are complete.
+7. **Repeat**
+   - Continue from step 5 until P0/P1 items are complete.
 
 ## Chain of Truth
 
-Context docs → PRD → Feature folders → dev-tasks → execution logs → Implementation/Decision logs
+Context docs → PRD → design/ux blueprints → dependency order plan + prepare state artifact → feature folders → review findings in feature docs + review report artifact → dev-tasks execution logs → Implementation/Decision logs
 
 ## Update-in-Place Rules (by skill)
 
 - **context-to-product:** update `docs/01-product/prd.md` only; do not create a new PRD file.
-- **prd-to-features:** update existing `docs/02-features/` and add only missing folders; do not duplicate.
-- **prd-to-features:** never delete feature folders; skip features marked `Status: Done` in `dev-tasks.md`.
+- **make prepare-features:** update `docs/01-product/design.md`, `docs/01-product/ux-ui.md`, and `docs/02-features/feature-order.{json,md}` before running generation.
+- **make prepare-features:** persist PM loop/runtime state to `docs/03-logs/prepare-features-state.json`.
+- **make prepare-features:** `tools/prd-to-features` consumes `feature-order.json`, updates existing `docs/02-features/` in place, and adds only missing folders.
+- **make prepare-features:** never delete feature folders; skip features marked `Status: Done` in `dev-tasks.md`.
+- **make review-features:** update machine-managed findings sections in `feature-spec.md` and `dev-tasks.md` only.
+- **make review-features:** write aggregated findings report to `docs/03-logs/review-features-report.json`.
 - **feature-status-audit:** update task `status` fields for the current feature.
 
 ## Skill Invocation Guide
@@ -89,10 +106,14 @@ Context docs → PRD → Feature folders → dev-tasks → execution logs → Im
   - Reads: `docs/00-context/*.md`
   - Writes: `docs/01-product/prd.md` (update in place)
   - Logs: update `docs/03-logs/decision-log.md` when scope/priorities change
-- **prd-to-features**
-  - Reads: `docs/01-product/prd.md`, `docs/02-features/AGENTS.md`
-  - Writes: `docs/02-features/<feature>/` (update in place, add only missing)
-  - Logs: update `docs/03-logs/implementation-log.md` when new features are added
+- **make prepare-features / tools/pc-prepare-features**
+  - Reads: `docs/01-product/prd.md`, `docs/00-context/context-boundaries-operating-model.md`, `docs/02-features/AGENTS.md`
+  - Writes: `docs/01-product/design.md`, `docs/01-product/ux-ui.md`, `docs/02-features/feature-order.{json,md}`, `docs/03-logs/prepare-features-state.json`, and incremental feature folder updates via `tools/prd-to-features`
+  - Logs: update `docs/03-logs/implementation-log.md` when preparation updates artifacts/features
+- **make review-features / tools/pc-review-features**
+  - Reads: generated `docs/02-features/<feature>/feature-spec.md` + `dev-tasks.md`, plus `docs/01-product/ux-ui.md`
+  - Writes: machine-managed review findings into `feature-spec.md` and `dev-tasks.md`, plus `docs/03-logs/review-features-report.json`
+  - Logs: update `docs/03-logs/validation-log.md` when review pass completes
 - **feature-status-audit**
   - Reads: `docs/02-features/<feature>/dev-tasks.md`
   - Writes: updates task `status` in dev-tasks

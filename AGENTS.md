@@ -18,6 +18,8 @@ Rules:
 - If context is missing or unclear, ask for the relevant document rather than
   guessing.
 - For any work item implementation, run `make feature F=<feature-id>` and follow `docs/04-process/ticket-execution-protocol.md`.
+- Run `make prepare-features` before generating/updating feature folders from the PRD.
+- Run `make review-features` after generation and before first `make feature` for affected features.
 - **Execution authority:** Only the human PO/user may run `make feature` or `pc-feature`. Codex is forbidden from invoking either command unless the user gives explicit approval in the current turn.
 - Treat `make feature` as an orchestrator/bootstrap command, not a Planner plan step or test command.
 - Enforce **Plan → Patch → Test → Report** for every work item.

@@ -27,6 +27,46 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-16 - Phase 5/6 docs-contract hardening validation
+
+- `tools/offload-proxy/pp bash -lc 'python3 -m unittest discover -s tests -p "test_docs_logs.py" && python3 -m unittest discover -s tests -p "test_pc_prepare_features.py" && python3 -m unittest discover -s tests -p "test_pc_review_features.py" && python3 -m unittest discover -s tests -p "test_prd_to_features.py"'` (PASS: 20 + 4 + 3 + 13 tests)
+- `tools/offload-proxy/pp pre-commit run --files docs/04-process/human-orchestration-workflow.md tools/templates/docs/04-process/human-orchestration-workflow.md docs/README.md tools/README.md tools/templates/docs/README.md tests/test_docs_logs.py` (PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+
+Verified:
+
+- Live and template workflow docs both require prepare/review artifact outputs (`prepare-features-state.json`, `review-features-report.json`).
+- Docs contract tests fail closed if these artifact references drift.
+- Runtime/tool behavior from phases 3/4 remains green.
+
+### 2026-02-16 - Phase 3/4 artifact hardening validation
+
+- `tools/offload-proxy/pp bash -lc 'python3 -m unittest discover -s tests -p "test_pc_prepare_features.py" && python3 -m unittest discover -s tests -p "test_pc_review_features.py"'` (RUN1 FAIL: `pc-review-features` report write missed parent-directory creation; RUN2 PASS after fix: 4 + 3 tests)
+- `tools/offload-proxy/pp bash -lc 'python3 -m unittest discover -s tests -p "test_prd_to_features.py" && python3 -m unittest discover -s tests -p "test_docs_logs.py"'` (PASS: 13 + 18 tests)
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-prepare-features tools/pc-review-features tests/test_pc_prepare_features.py tests/test_pc_review_features.py docs/03-logs/implementation-log.md docs/03-logs/decision-log.md docs/03-logs/validation-log.md` (PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+
+Verified:
+
+- `pc-prepare-features` writes `docs/03-logs/prepare-features-state.json` with PM gate history and execution status.
+- Prefix override aliases in `PREPARE_DECISIONS` work for recurring gate ids (`PM-BLOCK-*`).
+- `pc-review-features` writes `docs/03-logs/review-features-report.json` with per-feature findings and aggregate totals.
+
+### 2026-02-16 - Prepare/review feature workflow validation
+
+- `tools/offload-proxy/pp bash -lc 'python3 -m unittest discover -s tests -p "test_prd_to_features.py" && python3 -m unittest discover -s tests -p "test_pc_prepare_features.py" && python3 -m unittest discover -s tests -p "test_pc_review_features.py" && python3 -m unittest discover -s tests -p "test_docs_logs.py" && python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py" && python3 -m unittest discover -s tests -p "test_pc_feature.py"'` (PASS: 13 + 3 + 3 + 18 + 14 + 229 tests; offload id `9af30617914645a0d869671a8ad61512e42c8f470dce771be145dd86212e9116`)
+- `tools/offload-proxy/pp bash -lc 'python3 -m unittest discover -s tests -p "test_prd_to_features.py" && python3 -m unittest discover -s tests -p "test_pc_prepare_features.py" && python3 -m unittest discover -s tests -p "test_pc_review_features.py" && python3 -m unittest discover -s tests -p "test_docs_logs.py" && python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"'` (PASS: 13 + 3 + 3 + 18 + 14 tests; offload id `705d5ac9058219bf8be9cab9cb8c6adf88fc5cfe8fcb84f4cc93f12678af35c4`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS: existing runtime regression suite remains green; offload id `cf3c555b9bfcf025acb4704f07220dfef32a4e8246fe2da90d01f6ac7f99d896`)
+- `make lint` (PASS)
+- `python3 -S tools/pc-skills-metadata-check` (PASS)
+- `tools/pc-devtasks-schema-check --root=/Users/alexandrepezzotta/repos/PezzosCode` (PASS)
+- `make skills-check && make docs-check` (PASS)
+- `tools/offload-proxy/pp make test` (INTERRUPTED: full suite did not complete in-session; targeted suites above were run and passed)
+
+Verified:
+
+- `make prepare-features` + `make review-features` command contracts are implemented.
+- `tools/prd-to-features` consumes dependency order plan when present.
+- New prepare/review flows do not regress `test_pc_feature.py` runtime behavior.
+
 ### 2026-02-16 - Required template dev-tasks pair + coherence remediation validation
 
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_devtasks_schema_check.py"` (PASS: 15 tests; offload id `83ad79a1e26467e2445a1816751b66d64a11dbbbac25b9002f6e48960864f468`)

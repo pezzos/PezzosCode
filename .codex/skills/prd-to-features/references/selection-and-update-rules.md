@@ -3,6 +3,7 @@
 ## Naming Convention
 
 - Prefix feature folders with an ordered index that matches the PRD prioritized feature list.
+- When `docs/02-features/feature-order.json` is present, use its ordered slug list as the primary index order source.
 - Use two-digit padding: `01-<feature-name>`, `02-<feature-name>`, etc.
 
 ## Update-in-Place Rules
@@ -30,7 +31,7 @@
 ## Definition of Done
 
 - Feature folders created only for missing P0/P1 items in the PRD.
-- Folder order matches PRD list via numeric prefixes.
+- Folder order matches `feature-order.json` when present, otherwise PRD list order.
 - Template sections match the chosen product surfaces.
 - Hydrated content is feature-specific and removes unresolved template markers.
 - No TODO placeholders remain unless blocked by missing PRD context.

@@ -7,6 +7,8 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 ## Structure / Map
 
 - `tools/bootstrap-into` - Seed a target repo with templates, docs, tools, and skills.
+- `tools/pc-prepare-features` - Generate global design/UX/dependency-order artifacts and run feature generation.
+- `tools/pc-review-features` - Run security/product review over generated feature folders and inject findings.
 - `tools/pc-feature` - Run the work item protocol end-to-end.
 - `tools/pc-commit` - Enforce commit scope/message policy.
 - `tools/offload-proxy/pp` - Offload noisy command output to `.offload/`.
@@ -14,9 +16,16 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 ## Workflow
 
 1. Use `bootstrap-into` to initialize or refresh a target repo.
-2. Use `pc-feature` to execute approved work items.
-3. Use `pc-commit` to finalize scoped commits.
-4. Use `tools/offload-proxy/pp` for large-output read commands.
+2. Use `pc-prepare-features` to refresh design/UX/order artifacts and generate feature docs.
+3. Use `pc-review-features` to inject pre-execution security/product findings.
+4. Use `pc-feature` to execute approved work items.
+5. Use `pc-commit` to finalize scoped commits.
+6. Use `tools/offload-proxy/pp` for large-output read commands.
+
+## Generated Artifacts
+
+- `pc-prepare-features` writes `docs/03-logs/prepare-features-state.json` (PM gate decisions + runtime state).
+- `pc-review-features` writes `docs/03-logs/review-features-report.json` (per-feature findings + totals).
 
 ## Related Docs
 

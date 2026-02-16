@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check skills-metadata-check feature feature-help feature-status ci
+.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check skills-metadata-check feature feature-help feature-status prepare-features review-features ci
 
 fmt:
 	@tools/pc-hooks-run --hook-stage manual --all-files
@@ -37,6 +37,26 @@ feature-status:
 	if [ -n "$(LIMIT)" ]; then args="$$args --limit $(LIMIT)"; fi; \
 	if [ -n "$(INTERVAL)" ]; then args="$$args --interval $(INTERVAL)"; fi; \
 	tools/pc-feature-status $$args
+
+prepare-features:
+	@if [[ "$(HELP)" == "1" || "$(HELP)" == "true" || "$(HELP)" == "yes" ]]; then \
+		tools/pc-prepare-features --help; \
+	else \
+		args=""; \
+		if [ "$(SKIP_GENERATION)" = "1" ] || [ "$(SKIP_GENERATION)" = "true" ]; then args="$$args --skip-generation"; fi; \
+		if [ "$(SKIP_SCHEMA_CHECK)" = "1" ] || [ "$(SKIP_SCHEMA_CHECK)" = "true" ]; then args="$$args --skip-schema-check"; fi; \
+		tools/pc-prepare-features $$args; \
+	fi
+
+review-features:
+	@if [[ "$(HELP)" == "1" || "$(HELP)" == "true" || "$(HELP)" == "yes" ]]; then \
+		tools/pc-review-features --help; \
+	else \
+		args=""; \
+		if [ -n "$(F)" ]; then args="$$args --feature $(F)"; fi; \
+		if [ "$(SKIP_SCHEMA_CHECK)" = "1" ] || [ "$(SKIP_SCHEMA_CHECK)" = "true" ]; then args="$$args --skip-schema-check"; fi; \
+		tools/pc-review-features $$args; \
+	fi
 
 skills-check:
 	@bash -euo pipefail -c '\

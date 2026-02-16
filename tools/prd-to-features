@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import re
 import shutil
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PRD_PATH = Path("docs/01-product/prd.md")
 DEFAULT_FEATURES_DIR = Path("docs/02-features")
+FEATURE_ORDER_PLAN_PATH = Path("docs/02-features/feature-order.json")
 TEMPLATE_DIRNAME = "feature-template"
 EXEC_LOG_HEADER = "## Execution Log"
 CORE_DOC_FILES = (
@@ -53,6 +55,7 @@ class FeatureRecord:
     title: str
     priority: str
     slug: str
+    dependencies: Tuple[str, ...]
     source: str
     outcome: str
     notes: str
@@ -99,21 +102,21 @@ def ordered_unique(values: Iterable[str]) -> List[str]:
 
 
 def parse_prd_features(prd_text: str) -> List[FeatureRecord]:
-    features: List[Tuple[str, str, str, str, str]] = []
+    features: List[Tuple[str, str, str, str, Tuple[str, ...], str]] = []
     lines = prd_text.splitlines()
     features.extend(_parse_feature_table(lines))
     features.extend(_parse_process_features(lines))
     seen = set()
-    ordered: List[Tuple[str, str, str, str, str]] = []
-    for priority, title, outcome, notes, source in features:
+    ordered: List[Tuple[str, str, str, str, Tuple[str, ...], str]] = []
+    for priority, title, outcome, notes, dependencies, source in features:
         key = slugify(title)
         if key in seen:
             continue
         seen.add(key)
-        ordered.append((priority, title, outcome, notes, source))
+        ordered.append((priority, title, outcome, notes, dependencies, source))
     prd_features: List[FeatureRecord] = []
     index = 1
-    for priority, title, outcome, notes, source in ordered:
+    for priority, title, outcome, notes, dependencies, source in ordered:
         if priority not in {"P0", "P1"}:
             continue
         prd_features.append(
@@ -122,6 +125,7 @@ def parse_prd_features(prd_text: str) -> List[FeatureRecord]:
                 title=title,
                 priority=priority,
                 slug=slugify(title),
+                dependencies=tuple(ordered_unique(dependencies)),
                 source=source,
                 outcome=outcome,
                 notes=notes,
@@ -131,9 +135,29 @@ def parse_prd_features(prd_text: str) -> List[FeatureRecord]:
     return prd_features
 
 
-def _parse_feature_table(lines: Iterable[str]) -> List[Tuple[str, str, str, str, str]]:
+def parse_dependencies(value: str) -> Tuple[str, ...]:
+    if not value:
+        return ()
+    separators = re.compile(r"[,\|;/]")
+    raw_parts = separators.split(value)
+    parsed: List[str] = []
+    for raw in raw_parts:
+        candidate = raw.strip()
+        if not candidate:
+            continue
+        lowered = candidate.lower()
+        if lowered in {"none", "n/a", "na", "-", "[]"}:
+            continue
+        parsed.append(candidate)
+    return tuple(ordered_unique(parsed))
+
+
+def _parse_feature_table(
+    lines: Iterable[str],
+) -> List[Tuple[str, str, str, str, Tuple[str, ...], str]]:
     in_section = False
-    rows: List[Tuple[str, str, str, str, str]] = []
+    rows: List[Tuple[str, str, str, str, Tuple[str, ...], str]] = []
+    column_map: Dict[str, int] = {}
     for line in lines:
         stripped = line.strip()
         if stripped.lower().startswith("## prioritized feature list"):
@@ -149,22 +173,49 @@ def _parse_feature_table(lines: Iterable[str]) -> List[Tuple[str, str, str, str,
         if len(cells) < 2:
             continue
         if cells[0].lower() == "priority":
+            column_map = {cell.strip().lower(): idx for idx, cell in enumerate(cells)}
             continue
         if set(cells[0]) <= {"-"}:
             continue
-        priority = cells[0]
-        title = cells[1]
-        outcome = cells[2] if len(cells) >= 3 else ""
-        notes = cells[3] if len(cells) >= 4 else ""
-        rows.append((priority, title, outcome, notes, "table"))
+        if column_map:
+
+            def cell(col: str, fallback_idx: int) -> str:
+                idx = column_map.get(col, fallback_idx)
+                if idx < 0 or idx >= len(cells):
+                    return ""
+                return cells[idx]
+
+            priority = cell("priority", 0)
+            title = cell("feature", 1)
+            outcome = cell("outcome", 2)
+            notes = cell("notes", 3)
+            dependencies_raw = ""
+            if "dependencies" in column_map and column_map["dependencies"] < len(cells):
+                dependencies_raw = cells[column_map["dependencies"]]
+        else:
+            priority = cells[0]
+            title = cells[1]
+            outcome = cells[2] if len(cells) >= 3 else ""
+            notes = cells[3] if len(cells) >= 4 else ""
+            dependencies_raw = cells[4] if len(cells) >= 5 else ""
+        rows.append(
+            (
+                priority,
+                title,
+                outcome,
+                notes,
+                parse_dependencies(dependencies_raw),
+                "table",
+            )
+        )
     return rows
 
 
 def _parse_process_features(
     lines: Iterable[str],
-) -> List[Tuple[str, str, str, str, str]]:
+) -> List[Tuple[str, str, str, str, Tuple[str, ...], str]]:
     in_section = False
-    rows: List[Tuple[str, str, str, str, str]] = []
+    rows: List[Tuple[str, str, str, str, Tuple[str, ...], str]] = []
     pattern = re.compile(r"^- \[[ xX]\]\s*(.+?)\s*\((P\d)\)\s*:?\s*(.*)$")
     for line in lines:
         stripped = line.rstrip()
@@ -184,8 +235,67 @@ def _parse_process_features(
         outcome = normalize_sentence(
             details, f"Deliver {title.lower()} according to the PRD."
         )
-        rows.append((priority, title, outcome, details, "process"))
+        rows.append((priority, title, outcome, details, (), "process"))
     return rows
+
+
+def reindex_features(features: List[FeatureRecord]) -> List[FeatureRecord]:
+    reindexed: List[FeatureRecord] = []
+    for idx, feature in enumerate(features, start=1):
+        reindexed.append(
+            FeatureRecord(
+                index=idx,
+                title=feature.title,
+                priority=feature.priority,
+                slug=feature.slug,
+                dependencies=feature.dependencies,
+                source=feature.source,
+                outcome=feature.outcome,
+                notes=feature.notes,
+            )
+        )
+    return reindexed
+
+
+def apply_feature_order_plan(
+    root: Path,
+    features: List[FeatureRecord],
+    order_plan_path: Path = FEATURE_ORDER_PLAN_PATH,
+) -> List[FeatureRecord]:
+    if not features:
+        return features
+    plan_file = root / order_plan_path
+    if not plan_file.exists():
+        return features
+    try:
+        payload = json.loads(plan_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return features
+    if not isinstance(payload, dict):
+        return features
+    ordered_slugs = payload.get("ordered_feature_slugs", [])
+    if not isinstance(ordered_slugs, list):
+        return features
+    slug_to_feature = {feature.slug: feature for feature in features}
+    ordered: List[FeatureRecord] = []
+    seen = set()
+    for slug in ordered_slugs:
+        if not isinstance(slug, str):
+            continue
+        key = slug.strip()
+        if not key or key in seen:
+            continue
+        feature = slug_to_feature.get(key)
+        if not feature:
+            continue
+        ordered.append(feature)
+        seen.add(key)
+    for feature in features:
+        if feature.slug in seen:
+            continue
+        ordered.append(feature)
+        seen.add(feature.slug)
+    return reindex_features(ordered)
 
 
 def discover_existing_features(
@@ -684,6 +794,7 @@ def apply_prd_to_features(
         raise FileNotFoundError(f"Missing feature template: {template_dir}")
     prd_text = prd_file.read_text(encoding="utf-8")
     prd_features = parse_prd_features(prd_text)
+    prd_features = apply_feature_order_plan(root, prd_features)
     surfaces = infer_product_surfaces(prd_text, prd_features)
     log_skip_reasons = extract_log_skip_reasons(root, prd_features)
     existing = discover_existing_features(features_root)

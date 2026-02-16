@@ -8,6 +8,8 @@
 
 **Terminology:** A "work item" refers to an execution unit defined in `docs/02-features/<feature>/dev-tasks.md`.
 
+> `make prepare-features` and `make review-features` run before this protocol starts. They must not change runtime gate order or role behavior inside `make feature`.
+
 ## Scope Control (No Scope Creep)
 
 - Follow Context Boundaries and Non-Goals: `docs/00-context/context-boundaries-operating-model.md`.

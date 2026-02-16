@@ -1,0 +1,231 @@
+{
+  "decisions": [],
+  "dependencies": {
+    "anti-cheat-testing-strategy": [],
+    "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature": [],
+    "bootstrap-safe-template-reapply": [],
+    "commit-gated-by-completed-ticket-docs": [],
+    "deterministic-work-item-execution-with-explicit-gates": [],
+    "end-to-end-workflow-smoke-test-with-a-synthetic-feature": [],
+    "incremental-prd-to-features": [],
+    "incremental-prd-to-features-post-run-learning-loop": [],
+    "learning-loop-proposals": [],
+    "orchestrator-roles-plan-reviewer-gate-role-specific-prompts": [],
+    "orchestrator-sub-agent-roles": [],
+    "output-offload-enforcement": [],
+    "output-offload-structured-logs-shared-runner": [],
+    "precommit-restage-vanilla-codex-config": [],
+    "resume-in-progress-tickets": [],
+    "resume-safety-fail-closed-commit-gate-scoped-autofix": [],
+    "role-specific-prompts-plan-reviewer": [],
+    "shared-runner-library": [],
+    "single-worktree-orchestration-template-drift-hardening": [],
+    "single-worktree-per-feature": [],
+    "structured-logs-for-ci-tests-precommit-feature-runs": [],
+    "unified-autofix-script": [],
+    "workflow-hardening-for-template-drift-autofix-recovery": [],
+    "worktree-policy-naming-convention": []
+  },
+  "generated_at": "2026-02-16T11:19:51Z",
+  "notes": [
+    "This file is machine-managed by tools/pc-prepare-features.",
+    "tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order."
+  ],
+  "ordered_feature_slugs": [
+    "bootstrap-safe-template-reapply",
+    "deterministic-work-item-execution-with-explicit-gates",
+    "output-offload-structured-logs-shared-runner",
+    "resume-safety-fail-closed-commit-gate-scoped-autofix",
+    "single-worktree-orchestration-template-drift-hardening",
+    "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+    "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
+    "incremental-prd-to-features-post-run-learning-loop",
+    "output-offload-enforcement",
+    "resume-in-progress-tickets",
+    "commit-gated-by-completed-ticket-docs",
+    "shared-runner-library",
+    "structured-logs-for-ci-tests-precommit-feature-runs",
+    "unified-autofix-script",
+    "precommit-restage-vanilla-codex-config",
+    "single-worktree-per-feature",
+    "workflow-hardening-for-template-drift-autofix-recovery",
+    "orchestrator-sub-agent-roles",
+    "role-specific-prompts-plan-reviewer",
+    "incremental-prd-to-features",
+    "learning-loop-proposals",
+    "worktree-policy-naming-convention",
+    "anti-cheat-testing-strategy",
+    "end-to-end-workflow-smoke-test-with-a-synthetic-feature"
+  ],
+  "ordered_features": [
+    {
+      "dependencies": [],
+      "index": 1,
+      "priority": "P0",
+      "slug": "bootstrap-safe-template-reapply",
+      "title": "Bootstrap + safe template reapply"
+    },
+    {
+      "dependencies": [],
+      "index": 2,
+      "priority": "P0",
+      "slug": "deterministic-work-item-execution-with-explicit-gates",
+      "title": "Deterministic work-item execution with explicit gates"
+    },
+    {
+      "dependencies": [],
+      "index": 3,
+      "priority": "P0",
+      "slug": "output-offload-structured-logs-shared-runner",
+      "title": "Output offload + structured logs + shared runner"
+    },
+    {
+      "dependencies": [],
+      "index": 4,
+      "priority": "P0",
+      "slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
+      "title": "Resume safety + fail-closed commit gate + scoped autofix"
+    },
+    {
+      "dependencies": [],
+      "index": 5,
+      "priority": "P0",
+      "slug": "single-worktree-orchestration-template-drift-hardening",
+      "title": "Single-worktree orchestration + template-drift hardening"
+    },
+    {
+      "dependencies": [],
+      "index": 6,
+      "priority": "P1",
+      "slug": "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+      "title": "Orchestrator roles + Plan Reviewer gate + role-specific prompts"
+    },
+    {
+      "dependencies": [],
+      "index": 7,
+      "priority": "P1",
+      "slug": "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
+      "title": "Anti-hardcode test policy + synthetic end-to-end smoke feature"
+    },
+    {
+      "dependencies": [],
+      "index": 8,
+      "priority": "P1",
+      "slug": "incremental-prd-to-features-post-run-learning-loop",
+      "title": "Incremental PRD-to-features + post-run learning loop"
+    },
+    {
+      "dependencies": [],
+      "index": 9,
+      "priority": "P0",
+      "slug": "output-offload-enforcement",
+      "title": "Output offload enforcement"
+    },
+    {
+      "dependencies": [],
+      "index": 10,
+      "priority": "P0",
+      "slug": "resume-in-progress-tickets",
+      "title": "Resume in-progress tickets"
+    },
+    {
+      "dependencies": [],
+      "index": 11,
+      "priority": "P0",
+      "slug": "commit-gated-by-completed-ticket-docs",
+      "title": "Commit gated by completed ticket docs"
+    },
+    {
+      "dependencies": [],
+      "index": 12,
+      "priority": "P0",
+      "slug": "shared-runner-library",
+      "title": "Shared runner library"
+    },
+    {
+      "dependencies": [],
+      "index": 13,
+      "priority": "P0",
+      "slug": "structured-logs-for-ci-tests-precommit-feature-runs",
+      "title": "Structured logs for CI/tests/precommit/feature runs"
+    },
+    {
+      "dependencies": [],
+      "index": 14,
+      "priority": "P0",
+      "slug": "unified-autofix-script",
+      "title": "Unified autofix script"
+    },
+    {
+      "dependencies": [],
+      "index": 15,
+      "priority": "P0",
+      "slug": "precommit-restage-vanilla-codex-config",
+      "title": "Precommit restage + vanilla Codex config"
+    },
+    {
+      "dependencies": [],
+      "index": 16,
+      "priority": "P0",
+      "slug": "single-worktree-per-feature",
+      "title": "Single worktree per feature"
+    },
+    {
+      "dependencies": [],
+      "index": 17,
+      "priority": "P0",
+      "slug": "workflow-hardening-for-template-drift-autofix-recovery",
+      "title": "Workflow hardening for template drift + autofix recovery"
+    },
+    {
+      "dependencies": [],
+      "index": 18,
+      "priority": "P1",
+      "slug": "orchestrator-sub-agent-roles",
+      "title": "Orchestrator + sub-agent roles"
+    },
+    {
+      "dependencies": [],
+      "index": 19,
+      "priority": "P1",
+      "slug": "role-specific-prompts-plan-reviewer",
+      "title": "Role-specific prompts + Plan Reviewer"
+    },
+    {
+      "dependencies": [],
+      "index": 20,
+      "priority": "P1",
+      "slug": "incremental-prd-to-features",
+      "title": "Incremental prd-to-features"
+    },
+    {
+      "dependencies": [],
+      "index": 21,
+      "priority": "P1",
+      "slug": "learning-loop-proposals",
+      "title": "Learning loop proposals"
+    },
+    {
+      "dependencies": [],
+      "index": 22,
+      "priority": "P1",
+      "slug": "worktree-policy-naming-convention",
+      "title": "Worktree policy + naming convention"
+    },
+    {
+      "dependencies": [],
+      "index": 23,
+      "priority": "P1",
+      "slug": "anti-cheat-testing-strategy",
+      "title": "Anti-cheat testing strategy"
+    },
+    {
+      "dependencies": [],
+      "index": 24,
+      "priority": "P1",
+      "slug": "end-to-end-workflow-smoke-test-with-a-synthetic-feature",
+      "title": "End-to-end workflow smoke test with a synthetic feature"
+    }
+  ],
+  "version": 1
+}

@@ -104,6 +104,75 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-071] - Treat prepare/review state/report artifacts as workflow-level contracts in live and template docs
+
+**Date:** 2026-02-16
+
+**Status:** Implemented
+
+**Decision:**
+Document `docs/03-logs/prepare-features-state.json` and `docs/03-logs/review-features-report.json` as required outputs in:
+
+- live workflow/docs (`docs/04-process/human-orchestration-workflow.md`, `docs/README.md`, `tools/README.md`),
+- template workflow/docs (`tools/templates/docs/04-process/human-orchestration-workflow.md`, `tools/templates/docs/README.md`),
+
+and enforce references via `tests/test_docs_logs.py`.
+
+**Rationale:**
+Phase 3/4 added machine-readable runtime artifacts. Without explicit docs and tests, template/live drift can hide these outputs from operators and future bootstrap repos.
+
+**Implications:**
+
+- Operators now have explicit artifact expectations for prepare/review runs.
+- Template repos inherit the same artifact contract as the source repository.
+- `make feature` runtime remains unaffected.
+
+### [DEC-070] - Persist prepare/review orchestration outcomes as machine-readable artifacts
+
+**Date:** 2026-02-16
+
+**Status:** Implemented
+
+**Decision:**
+Add deterministic runtime artifacts for the global orchestration commands:
+
+- `docs/03-logs/prepare-features-state.json` from `tools/pc-prepare-features`
+- `docs/03-logs/review-features-report.json` from `tools/pc-review-features`
+
+and support prefix-based decision override aliases in `pc-prepare-features` (for example `PM-BLOCK:2`).
+
+**Rationale:**
+As prepare/review loops grow, terminal output alone is not enough for debugging reruns or auditing gate decisions. Machine-readable artifacts preserve dependency/PM outcomes and review findings in a stable, automatable format.
+
+**Implications:**
+
+- PM-gate retries/waivers/blocks are now traceable across runs.
+- Review findings are available both inline in feature docs and in one aggregated report.
+- `make feature` runtime remains unchanged.
+
+### [DEC-069] - Split global preparation/review from work-item execution and enforce dependency-aware feature ordering
+
+**Date:** 2026-02-16
+
+**Status:** Implemented
+
+**Decision:**
+Introduce two new orchestration commands outside `make feature` runtime:
+
+- `make prepare-features` (`Architect -> UX -> dependency planner -> PM gate -> feature generation`)
+- `make review-features` (`Security Reviewer -> Product Manager` findings pass)
+
+and make `tools/prd-to-features` consume `docs/02-features/feature-order.json` when present.
+
+**Rationale:**
+Architecture/UX alignment, dependency ordering, and pre-execution risk findings must happen before feature execution starts. Keeping these responsibilities outside `make feature` avoids runtime-role scope creep and preserves existing gate contracts.
+
+**Implications:**
+
+- `make feature` control-flow (`Orchestrator -> Planner -> Plan Reviewer -> Patcher -> Tester -> Reporter`) remains unchanged.
+- Feature generation now has an explicit dependency-order artifact and deterministic ambiguity/cycle resolution path.
+- Post-generation findings are injected into machine-managed sections of feature docs, giving patcher actionable backlog items without manual pre-editing.
+
 ### [DEC-068] - Treat feature-template `dev-tasks.md` pair as required in template-sync enforcement
 
 **Date:** 2026-02-16

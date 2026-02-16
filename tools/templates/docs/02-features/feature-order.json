@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "generated_at": "",
+  "ordered_feature_slugs": [],
+  "dependencies": {},
+  "ordered_features": [],
+  "decisions": [],
+  "notes": ["Run make prepare-features to generate this plan."]
+}

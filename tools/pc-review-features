@@ -1,0 +1,569 @@
+#!/usr/bin/env python3
+"""Run security and product review passes over generated feature docs."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable, List, Optional, Sequence
+
+ROOT = Path(__file__).resolve().parents[1]
+FEATURES_DIR = Path("docs/02-features")
+UX_PATH = Path("docs/01-product/ux-ui.md")
+REVIEW_REPORT_PATH = Path("docs/03-logs/review-features-report.json")
+
+SPEC_MARKER_START = "<!-- review-findings:start -->"
+SPEC_MARKER_END = "<!-- review-findings:end -->"
+TASK_MARKER_START = "<!-- review-backlog:start -->"
+TASK_MARKER_END = "<!-- review-backlog:end -->"
+
+
+@dataclass(frozen=True)
+class Finding:
+    finding_id: str
+    severity: str
+    title: str
+    risk: str
+    action: str
+
+
+def die(message: str) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Review feature folders for security and product risks and inject actionable findings."
+    )
+    parser.add_argument(
+        "--root",
+        default=str(ROOT),
+        help="Repository root (defaults to detected root).",
+    )
+    parser.add_argument(
+        "--feature",
+        default="",
+        help="Optional feature selector (e.g. '01' or '01-alpha-feature').",
+    )
+    parser.add_argument(
+        "--skip-schema-check",
+        action="store_true",
+        help="Skip tools/pc-devtasks-schema-check after updates.",
+    )
+    return parser.parse_args(argv)
+
+
+def feature_dirs(root: Path, selector: str) -> List[Path]:
+    features_root = root / FEATURES_DIR
+    if not features_root.exists():
+        return []
+    selected: List[Path] = []
+    normalized = selector.strip()
+    for entry in sorted(features_root.iterdir(), key=lambda item: item.name):
+        if not entry.is_dir():
+            continue
+        if entry.name == "feature-template":
+            continue
+        if not re.match(r"^\d+-", entry.name):
+            continue
+        if normalized:
+            if entry.name == normalized or entry.name.startswith(f"{normalized}-"):
+                selected.append(entry)
+            continue
+        selected.append(entry)
+    return selected
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
+def strip_managed_block(content: str, start_marker: str, end_marker: str) -> str:
+    pattern = re.compile(
+        rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}",
+        re.DOTALL,
+    )
+    return pattern.sub("", content)
+
+
+def contains_any(text: str, keywords: Iterable[str]) -> bool:
+    lowered = text.lower()
+    return any(keyword in lowered for keyword in keywords)
+
+
+def count_functional_requirements(feature_spec: str) -> int:
+    patterns = [
+        r"\*\*Requirement\s+\d+",  # markdown bold style
+        r"^- \[ \]\s+\*\*Requirement",  # checklist style
+    ]
+    total = 0
+    for pattern in patterns:
+        total += len(re.findall(pattern, feature_spec, re.MULTILINE | re.IGNORECASE))
+    return total
+
+
+def build_security_findings(feature_key: str, content: str) -> List[Finding]:
+    checks = [
+        (
+            "001",
+            "High",
+            "Input validation controls are not explicit",
+            "Unvalidated input can trigger data corruption or unsafe behavior.",
+            "Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.",
+            ("input validation", "sanitize", "schema validation", "validated"),
+        ),
+        (
+            "002",
+            "High",
+            "Authentication/authorization expectations are missing",
+            "Access controls may be implemented inconsistently or omitted.",
+            "Specify authN/authZ requirements, denied-path behavior, and least-privilege checks.",
+            ("authentication", "authorization", "auth", "permission"),
+        ),
+        (
+            "003",
+            "Medium",
+            "Secrets handling is not documented",
+            "Credentials or tokens may leak into code, logs, or config.",
+            "Document secret sources, redaction strategy, and prohibited storage locations.",
+            ("secret", "credential", "token", "redact"),
+        ),
+        (
+            "004",
+            "High",
+            "Injection defenses are not explicit",
+            "Missing injection controls can expose command, SQL, or script injection paths.",
+            "Define escaping/parameterization requirements and add dedicated injection test scenarios.",
+            ("injection", "xss", "sql", "escape", "parameterized"),
+        ),
+        (
+            "005",
+            "Medium",
+            "Infrastructure misconfiguration guardrails are missing",
+            "Unsafe defaults can bypass intended runtime protections.",
+            "Capture required config defaults, permission boundaries, and misconfiguration failure behavior.",
+            ("misconfiguration", "configuration", "fail-close", "least privilege"),
+        ),
+    ]
+
+    findings: List[Finding] = []
+    for suffix, severity, title, risk, action, keywords in checks:
+        if contains_any(content, keywords):
+            continue
+        findings.append(
+            Finding(
+                finding_id=f"SEC-{feature_key}-{suffix}",
+                severity=severity,
+                title=title,
+                risk=risk,
+                action=action,
+            )
+        )
+    return findings
+
+
+def build_product_findings(
+    feature_key: str,
+    feature_title: str,
+    feature_spec_content: str,
+    dev_tasks_content: str,
+    ux_content: str,
+) -> List[Finding]:
+    findings: List[Finding] = []
+
+    requirements_count = count_functional_requirements(feature_spec_content)
+    if requirements_count < 2:
+        findings.append(
+            Finding(
+                finding_id=f"PROD-{feature_key}-001",
+                severity="High",
+                title="Functional scope is under-specified",
+                risk="Key product capabilities may be missed during implementation.",
+                action="Expand functional requirements to cover primary and edge behaviors with acceptance criteria.",
+            )
+        )
+
+    if not contains_any(
+        feature_spec_content, ("user flow", "detailed steps", "journey")
+    ):
+        findings.append(
+            Finding(
+                finding_id=f"PROD-{feature_key}-002",
+                severity="Medium",
+                title="User journey details are missing in feature docs",
+                risk="Implementation may diverge from intended user path and onboarding flow.",
+                action="Add explicit user journey steps, entry points, and completion states.",
+            )
+        )
+
+    if feature_title.lower() not in ux_content.lower():
+        findings.append(
+            Finding(
+                finding_id=f"PROD-{feature_key}-003",
+                severity="Medium",
+                title="Global UX blueprint does not reference this feature",
+                risk="Cross-feature workflow alignment may be inconsistent.",
+                action=f"Update `docs/01-product/ux-ui.md` to include '{feature_title}' journey and workflow.",
+            )
+        )
+
+    if not contains_any(feature_spec_content, ("workflow", "flow")):
+        findings.append(
+            Finding(
+                finding_id=f"PROD-{feature_key}-004",
+                severity="Medium",
+                title="Workflow definition is incomplete",
+                risk="Execution order and handoff expectations may be unclear for delivery.",
+                action="Define end-to-end workflow states, system responses, and handoff boundaries.",
+            )
+        )
+
+    if (
+        "product owner" not in dev_tasks_content.lower()
+        and "po test" not in dev_tasks_content.lower()
+    ):
+        findings.append(
+            Finding(
+                finding_id=f"PROD-{feature_key}-005",
+                severity="Low",
+                title="PO validation checkpoint is missing",
+                risk="Human acceptance timing may be unclear before execution starts.",
+                action="Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.",
+            )
+        )
+
+    return findings
+
+
+def render_findings_table(findings: Sequence[Finding]) -> List[str]:
+    if not findings:
+        return ["- No findings."]
+    rows = [
+        "| ID | Severity | Risk | Action |",
+        "| -- | -------- | ---- | ------ |",
+    ]
+    for finding in findings:
+        rows.append(
+            f"| {finding.finding_id} | {finding.severity} | {finding.risk} | {finding.action} |"
+        )
+    return rows
+
+
+def finding_payload(finding: Finding) -> dict:
+    return {
+        "finding_id": finding.finding_id,
+        "severity": finding.severity,
+        "title": finding.title,
+        "risk": finding.risk,
+        "action": finding.action,
+    }
+
+
+def render_feature_spec_block(
+    security_findings: Sequence[Finding],
+    product_findings: Sequence[Finding],
+) -> str:
+    lines: List[str] = [
+        "## Automated Review Findings",
+        "",
+        SPEC_MARKER_START,
+        "",
+        "### Security Reviewer",
+        "",
+        *render_findings_table(security_findings),
+        "",
+        "### Product Manager",
+        "",
+        *render_findings_table(product_findings),
+        "",
+        SPEC_MARKER_END,
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def render_backlog_items(
+    security_findings: Sequence[Finding],
+    product_findings: Sequence[Finding],
+) -> List[str]:
+    lines: List[str] = []
+
+    if security_findings:
+        lines.extend(["### Security Reviewer Tasks", ""])
+        for finding in security_findings:
+            lines.append(f"- [ ] `{finding.finding_id}` {finding.title}")
+            lines.append(f"  - Severity: {finding.severity}")
+            lines.append(f"  - Action: {finding.action}")
+        lines.append("")
+    else:
+        lines.extend(
+            ["### Security Reviewer Tasks", "", "- [ ] No security findings.", ""]
+        )
+
+    if product_findings:
+        lines.extend(["### Product Manager Tasks", ""])
+        for finding in product_findings:
+            lines.append(f"- [ ] `{finding.finding_id}` {finding.title}")
+            lines.append(f"  - Severity: {finding.severity}")
+            lines.append(f"  - Action: {finding.action}")
+        lines.append("")
+    else:
+        lines.extend(
+            ["### Product Manager Tasks", "", "- [ ] No product findings.", ""]
+        )
+
+    return lines
+
+
+def render_dev_tasks_block(
+    security_findings: Sequence[Finding],
+    product_findings: Sequence[Finding],
+) -> str:
+    lines = [
+        "## Review Findings Backlog",
+        "",
+        TASK_MARKER_START,
+        "",
+        *render_backlog_items(security_findings, product_findings),
+        TASK_MARKER_END,
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def replace_or_insert_block(
+    content: str,
+    *,
+    start_marker: str,
+    end_marker: str,
+    replacement_block: str,
+    fallback_anchor: str,
+) -> str:
+    marker_pattern = re.compile(
+        rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}",
+        re.DOTALL,
+    )
+    replacement_match = marker_pattern.search(replacement_block)
+    replacement_marker_block = replacement_match.group(0) if replacement_match else ""
+    if marker_pattern.search(content) and replacement_marker_block:
+        return marker_pattern.sub(replacement_marker_block, content, count=1)
+
+    anchor_pattern = re.compile(
+        rf"^##\s+{re.escape(fallback_anchor)}\s*$", re.MULTILINE
+    )
+    match = anchor_pattern.search(content)
+    insertion = replacement_block.rstrip() + "\n\n"
+    if match:
+        return content[: match.start()] + insertion + content[match.start() :]
+    return content.rstrip() + "\n\n" + insertion
+
+
+def upsert_feature_spec(content: str, block: str) -> str:
+    return replace_or_insert_block(
+        content,
+        start_marker=SPEC_MARKER_START,
+        end_marker=SPEC_MARKER_END,
+        replacement_block=block,
+        fallback_anchor="Change Log",
+    )
+
+
+def upsert_dev_tasks(content: str, block: str) -> str:
+    return replace_or_insert_block(
+        content,
+        start_marker=TASK_MARKER_START,
+        end_marker=TASK_MARKER_END,
+        replacement_block=block,
+        fallback_anchor="Task Breakdown",
+    )
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def run_schema_check(root: Path) -> None:
+    cmd = [str(root / "tools" / "pc-devtasks-schema-check"), f"--root={root}"]
+    result = subprocess.run(
+        cmd,
+        cwd=str(root),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    if result.returncode != 0:
+        die("pc-review-features: schema validation failed after updates")
+
+
+def feature_key_from_dir(feature_dir: Path) -> str:
+    match = re.match(r"^(\d+)-", feature_dir.name)
+    if match:
+        return match.group(1).zfill(2)
+    return "00"
+
+
+def feature_title_from_spec(content: str, fallback_slug: str) -> str:
+    for line in content.splitlines():
+        if line.lower().startswith("# feature specification:"):
+            return line.split(":", 1)[1].strip() or fallback_slug
+    return fallback_slug
+
+
+def run_review(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    selected = feature_dirs(root, args.feature)
+    if not selected:
+        die("pc-review-features: no matching feature folders found")
+
+    ux_content = read_text(root / UX_PATH)
+    if not ux_content.strip():
+        print(
+            "pc-review-features: warning: docs/01-product/ux-ui.md missing or empty; "
+            "product alignment checks will emit findings"
+        )
+
+    updated = 0
+    total_security = 0
+    total_product = 0
+    features_with_findings = 0
+    reviewed = 0
+    skipped = 0
+    report_features: List[dict] = []
+
+    for feature_dir in selected:
+        spec_path = feature_dir / "feature-spec.md"
+        dev_tasks_path = feature_dir / "dev-tasks.md"
+        if not spec_path.exists() or not dev_tasks_path.exists():
+            print(
+                f"pc-review-features: skipping {feature_dir.name} "
+                "(missing feature-spec.md or dev-tasks.md)"
+            )
+            skipped += 1
+            report_features.append(
+                {
+                    "feature_id": feature_dir.name,
+                    "status": "skipped-missing-docs",
+                    "security_findings": [],
+                    "product_findings": [],
+                }
+            )
+            continue
+
+        spec_content = read_text(spec_path)
+        dev_tasks_content = read_text(dev_tasks_path)
+
+        analysis_spec = strip_managed_block(
+            spec_content, SPEC_MARKER_START, SPEC_MARKER_END
+        )
+        analysis_tasks = strip_managed_block(
+            dev_tasks_content, TASK_MARKER_START, TASK_MARKER_END
+        )
+
+        feature_key = feature_key_from_dir(feature_dir)
+        fallback_slug = feature_dir.name.split("-", 1)[-1]
+        feature_title = feature_title_from_spec(spec_content, fallback_slug)
+
+        security_findings = build_security_findings(
+            feature_key,
+            analysis_spec + "\n" + analysis_tasks,
+        )
+        product_findings = build_product_findings(
+            feature_key,
+            feature_title,
+            analysis_spec,
+            analysis_tasks,
+            ux_content,
+        )
+
+        reviewed += 1
+        total_security += len(security_findings)
+        total_product += len(product_findings)
+        if security_findings or product_findings:
+            features_with_findings += 1
+
+        spec_block = render_feature_spec_block(security_findings, product_findings)
+        tasks_block = render_dev_tasks_block(security_findings, product_findings)
+
+        next_spec = upsert_feature_spec(spec_content, spec_block)
+        next_tasks = upsert_dev_tasks(dev_tasks_content, tasks_block)
+
+        if next_spec != spec_content:
+            write_text(spec_path, next_spec)
+        if next_tasks != dev_tasks_content:
+            write_text(dev_tasks_path, next_tasks)
+
+        if next_spec != spec_content or next_tasks != dev_tasks_content:
+            updated += 1
+
+        report_features.append(
+            {
+                "feature_id": feature_dir.name,
+                "status": "reviewed",
+                "feature_title": feature_title,
+                "spec_path": str(spec_path.relative_to(root)),
+                "dev_tasks_path": str(dev_tasks_path.relative_to(root)),
+                "security_findings": [
+                    finding_payload(item) for item in security_findings
+                ],
+                "product_findings": [
+                    finding_payload(item) for item in product_findings
+                ],
+            }
+        )
+
+    report_payload = {
+        "version": 1,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "selector": args.feature.strip() or "all",
+        "totals": {
+            "features_selected": len(selected),
+            "features_reviewed": reviewed,
+            "features_updated": updated,
+            "features_skipped": skipped,
+            "features_with_findings": features_with_findings,
+            "security_findings": total_security,
+            "product_findings": total_product,
+        },
+        "features": report_features,
+        "notes": [
+            "Machine-managed by tools/pc-review-features.",
+            "Actionable findings are also mirrored into feature-spec.md and dev-tasks.md.",
+        ],
+    }
+    write_text(
+        root / REVIEW_REPORT_PATH,
+        json.dumps(report_payload, ensure_ascii=True, indent=2, sort_keys=True),
+    )
+    print(f"pc-review-features: wrote report artifact -> {REVIEW_REPORT_PATH}")
+
+    print(
+        "pc-review-features: complete "
+        f"(features_updated={updated}, security_findings={total_security}, product_findings={total_product})"
+    )
+
+    if not args.skip_schema_check:
+        run_schema_check(root)
+
+    return 0
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv)
+    return run_review(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

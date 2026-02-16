@@ -51,6 +51,8 @@ def build_plan(root: Path) -> Dict[str, Any]:
     features_root = root / FEATURES_DIR
     prd_text = prd_file.read_text(encoding="utf-8")
     prd_features = tool.parse_prd_features(prd_text)
+    if hasattr(tool, "apply_feature_order_plan"):
+        prd_features = tool.apply_feature_order_plan(root, prd_features)
     existing = tool.discover_existing_features(features_root)
     by_index = existing["by_index"]
     by_slug = existing["by_slug"]

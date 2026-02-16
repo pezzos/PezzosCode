@@ -17,13 +17,14 @@
    ./tools/bootstrap-into /path/to/your/project
    ```
 2. Fill core context in `docs/00-context/`.
-3. Define or update feature docs under `docs/02-features/`.
-4. Execute work using the ticket protocol in `docs/04-process/ticket-execution-protocol.md`.
+3. Refresh global blueprints + feature generation with `make prepare-features`.
+4. Run pre-execution findings pass with `make review-features`.
+5. Execute work using the ticket protocol in `docs/04-process/ticket-execution-protocol.md`.
 
 ## Structure / Map
 
 - `docs/` - Context, product, features, logs, and process docs.
-- `tools/` - Workflow scripts (`bootstrap-into`, `pc-feature`, `pc-commit`, offload proxy).
+- `tools/` - Workflow scripts (`bootstrap-into`, `pc-prepare-features`, `pc-review-features`, `pc-feature`, `pc-commit`, offload proxy).
 - `.codex/skills/` - Reusable Codex skills.
 - `AGENTS.md` - Repo execution rules for AI agents.
 
