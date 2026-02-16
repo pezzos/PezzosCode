@@ -12,6 +12,9 @@ from typing import Iterable, List
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 FEATURES_DIR = Path("docs/02-features")
 TEMPLATE_DIRNAME = "feature-template"
+TEMPLATE_SOURCE_DEV_TASKS_REL = Path(
+    "tools/templates/docs/02-features/feature-template/dev-tasks.md"
+)
 
 REQUIRED_SECTIONS = ("Execution Log",)
 TEMPLATE_ALLOWED_TESTS_HEADING = "Allowed Tests"
@@ -328,6 +331,27 @@ def tooling_coherence_errors(root: Path) -> List[str]:
     return errors
 
 
+def coherence_remediation_message(root: Path, coherence_errors: List[str]) -> str:
+    template_source_abs = (root / TEMPLATE_SOURCE_DEV_TASKS_REL).as_posix()
+    missing_template_source = any(
+        f"missing {template_source_abs} (template source copy)" in item
+        for item in coherence_errors
+    )
+    if missing_template_source:
+        return (
+            "remediation: sync tools/pc-feature plus both feature-template dev-tasks.md files "
+            "from the same PezzosCode revision, restore missing template source copy at "
+            f"{TEMPLATE_SOURCE_DEV_TASKS_REL.as_posix()}, run tools/pc-template-sync --apply --stage, "
+            "then rerun pre-commit. note: tools/pc-devtasks-migrate-legacy only migrates "
+            "existing docs/02-features entries and cannot create missing tools/templates files."
+        )
+    return (
+        "remediation: sync tools/pc-feature plus both feature-template dev-tasks.md files "
+        "from the same PezzosCode revision, run tools/pc-devtasks-migrate-legacy --root <repo>, "
+        "then rerun pre-commit."
+    )
+
+
 def run_check(root: Path) -> List[str]:
     features_root = root / FEATURES_DIR
     if not features_root.exists():
@@ -358,9 +382,7 @@ def main(argv: List[str] | None = None) -> int:
         for item in coherence_errors:
             print(f"- {item}", file=sys.stderr)
         print(
-            "remediation: sync tools/pc-feature plus both feature-template dev-tasks.md files "
-            "from the same PezzosCode revision, run tools/pc-devtasks-migrate-legacy --root <repo>, "
-            "then rerun pre-commit.",
+            coherence_remediation_message(root, coherence_errors),
             file=sys.stderr,
         )
         return 1

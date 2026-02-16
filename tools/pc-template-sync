@@ -12,6 +12,7 @@ from pathlib import Path
 class Pair:
     live: Path
     template: Path
+    required: bool = False
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,11 @@ class Mismatch:
     source: Path
     target: Path
     reason: str
+
+
+REQUIRED_DOC_TEMPLATE_RELATIVE_PATHS = (
+    Path("02-features/feature-template/dev-tasks.md"),
+)
 
 
 def die(message: str) -> None:
@@ -80,6 +86,15 @@ def build_pairs(root: Path) -> list[Pair]:
             live_path = docs_live_root / rel
             pairs.append(Pair(live=live_path, template=template_path))
 
+    for rel in REQUIRED_DOC_TEMPLATE_RELATIVE_PATHS:
+        pairs.append(
+            Pair(
+                live=docs_live_root / rel,
+                template=docs_template_root / rel,
+                required=True,
+            )
+        )
+
     root_template_root = root / "tools" / "templates" / "root"
     root_patterns = [
         "Makefile",
@@ -140,10 +155,29 @@ def main() -> int:
     errors: list[str] = []
 
     for pair in pairs:
-        if not pair.live.exists():
-            errors.append(f"missing live file: {pair.live}")
-            continue
-        if not pair.template.exists():
+        live_exists = pair.live.exists()
+        template_exists = pair.template.exists()
+        if not live_exists or not template_exists:
+            if pair.required and (live_exists ^ template_exists):
+                source = pair.live if live_exists else pair.template
+                target = pair.template if live_exists else pair.live
+                mismatches.append(
+                    Mismatch(
+                        source=source,
+                        target=target,
+                        reason="required pair missing one side; copied existing side",
+                    )
+                )
+                continue
+            if pair.required and not live_exists and not template_exists:
+                errors.append(
+                    "missing required pair: "
+                    f"{pair.live.relative_to(root)} <-> {pair.template.relative_to(root)}"
+                )
+                continue
+            if not live_exists:
+                errors.append(f"missing live file: {pair.live}")
+                continue
             errors.append(f"missing template file: {pair.template}")
             continue
         if pair.live.read_text(

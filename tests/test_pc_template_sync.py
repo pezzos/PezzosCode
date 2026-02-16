@@ -44,6 +44,23 @@ class TestPcTemplateSync(unittest.TestCase):
             "template-v0\n" if mismatch_initial else "live-v1\n", encoding="utf-8"
         )
 
+        required_live = (
+            repo / "docs" / "02-features" / "feature-template" / "dev-tasks.md"
+        )
+        required_template = (
+            repo
+            / "tools"
+            / "templates"
+            / "docs"
+            / "02-features"
+            / "feature-template"
+            / "dev-tasks.md"
+        )
+        required_live.parent.mkdir(parents=True, exist_ok=True)
+        required_template.parent.mkdir(parents=True, exist_ok=True)
+        required_live.write_text("## Execution Log\n", encoding="utf-8")
+        required_template.write_text("## Execution Log\n", encoding="utf-8")
+
         run(repo, ["git", "add", "."], check=True)
         run(repo, ["git", "commit", "-m", "init"], check=True)
         return repo
@@ -122,6 +139,68 @@ class TestPcTemplateSync(unittest.TestCase):
             repo, ["git", "diff", "--cached", "--name-only"], check=True
         ).stdout
         self.assertIn("tools/templates/prompts/planner.md", staged.splitlines())
+
+    def test_required_pair_missing_template_side_is_restored_on_apply(self):
+        repo = self._init_repo()
+        required_live = (
+            repo / "docs" / "02-features" / "feature-template" / "dev-tasks.md"
+        )
+        required_template = (
+            repo
+            / "tools"
+            / "templates"
+            / "docs"
+            / "02-features"
+            / "feature-template"
+            / "dev-tasks.md"
+        )
+        required_live.write_text(
+            "## Execution Log\n\n#### Allowed Tests\n", encoding="utf-8"
+        )
+        required_template.unlink()
+        run(
+            repo,
+            ["git", "add", "docs/02-features/feature-template/dev-tasks.md"],
+            check=True,
+        )
+
+        result = self._run_sync(repo)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            required_template.read_text(encoding="utf-8"),
+            required_live.read_text(encoding="utf-8"),
+        )
+        staged = run(
+            repo, ["git", "diff", "--cached", "--name-only"], check=True
+        ).stdout
+        self.assertIn(
+            "tools/templates/docs/02-features/feature-template/dev-tasks.md",
+            staged.splitlines(),
+        )
+
+    def test_required_pair_missing_template_side_without_apply_reports_sync_action(
+        self,
+    ):
+        repo = self._init_repo()
+        required_template = (
+            repo
+            / "tools"
+            / "templates"
+            / "docs"
+            / "02-features"
+            / "feature-template"
+            / "dev-tasks.md"
+        )
+        required_template.unlink()
+
+        result = run(repo, ["python3", str(SCRIPT)])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Run 'tools/pc-template-sync --apply'", result.stderr)
+        self.assertIn(
+            "docs/02-features/feature-template/dev-tasks.md -> "
+            "tools/templates/docs/02-features/feature-template/dev-tasks.md",
+            result.stderr,
+        )
 
 
 if __name__ == "__main__":

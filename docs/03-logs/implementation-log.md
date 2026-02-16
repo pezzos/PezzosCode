@@ -27,6 +27,41 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-16 - Enforce required feature-template dev-tasks pair in template sync and improve coherence remediation
+
+**Feature/Bug:** Consumer repos can fail `devtasks-schema-check` when `tools/templates/docs/02-features/feature-template/dev-tasks.md` is missing, while migration tooling is a no-op.
+
+**Changed Files:**
+
+- `tools/pc-template-sync`
+- `tools/pc-devtasks-schema-check`
+- `tests/test_pc_template_sync.py`
+- `tests/test_pc_devtasks_schema_check.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+- `docs/03-logs/decision-log.md`
+
+**What Changed:**
+
+- Added a required template/living pair contract in `tools/pc-template-sync` for:
+  - `docs/02-features/feature-template/dev-tasks.md`
+  - `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- Updated sync behavior so required one-sided-missing drift is deterministic:
+  - with `--apply`, copy existing side to missing side and stage when requested;
+  - without `--apply`, fail with explicit copy action guidance.
+- Kept fail-closed behavior when both sides of a required pair are missing.
+- Added targeted coherence remediation in `tools/pc-devtasks-schema-check` when template source copy is missing:
+  - explicit restore path for the missing template-source file,
+  - explicit note that `tools/pc-devtasks-migrate-legacy` cannot create missing `tools/templates` files.
+- Added regression tests for:
+  - missing template-source coherence remediation quality,
+  - required-pair missing-side recovery and no-`--apply` guidance.
+
+**Why:**
+
+- `pc-devtasks-migrate-legacy` migrates existing feature entries only; it cannot heal missing template-source files.
+- Required pair enforcement in `pc-template-sync` prevents this drift from escaping detection and gives deterministic recovery.
+
 ### 2026-02-16 - Add schema/tooling coherence guard for tester-feedback outcome invariant
 
 **Feature/Bug:** Prevent partial sync drift where `devtasks-schema-check` enforces tester-feedback outcomes but runtime/template artifacts lag behind.

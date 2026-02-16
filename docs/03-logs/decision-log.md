@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-068] - Treat feature-template `dev-tasks.md` pair as required in template-sync enforcement
+
+**Date:** 2026-02-16
+
+**Status:** Implemented
+
+**Decision:**
+Make `tools/pc-template-sync` enforce `docs/02-features/feature-template/dev-tasks.md` and `tools/templates/docs/02-features/feature-template/dev-tasks.md` as a required pair even if one side is missing from template discovery globs.
+
+**Rationale:**
+This pair is a hard dependency of `devtasks-schema-check` coherence guard. If template-source copy drift escapes sync detection, consumer repos fail pre-commit with no local migration path.
+
+**Implications:**
+
+- Required one-sided-missing pair drift is now handled deterministically by `tools/pc-template-sync --apply`.
+- Both-sides-missing remains fail-closed and requires manual restoration from a known-good revision.
+- Schema-check remediation now explicitly distinguishes missing template-source copy from legacy entry migration needs.
+
 ### [DEC-067] - Add explicit schema/runtime/template compatibility marker for dev-tasks feedback outcomes
 
 **Date:** 2026-02-16

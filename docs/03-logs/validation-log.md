@@ -27,6 +27,20 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-16 - Required template dev-tasks pair + coherence remediation validation
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_devtasks_schema_check.py"` (PASS: 15 tests; offload id `83ad79a1e26467e2445a1816751b66d64a11dbbbac25b9002f6e48960864f468`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"` (PASS: 6 tests; offload id `16960f09b848c66c2128d8a7db5e031b0fa10f92d0b788416913c49008582da4`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 17 tests; offload id `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- `tools/offload-proxy/pp pre-commit run --files tests/test_pc_devtasks_schema_check.py tests/test_pc_template_sync.py tools/pc-devtasks-schema-check tools/pc-template-sync` (RUN1 FAIL: `black` auto-formatted files; offload id `353c830085e5b83aa4b593af5a32693b641742e9c01ae90c98f09e13714e30bd`; RUN2 PASS; offload id `147af3834f07ddb1c05c881e7ee2a54a51dced7ce2030ba30e8b8c076b12df0d`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_devtasks_schema_check.py" && tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"` (PASS: 15 + 6 tests after formatting; offload ids `c7de476d1b78f867b2bbe4e9d11b5587cebe9384a2c3f2a5dc48ff78e0c49d6d`, `f04a5aef578d430460a33b38b474003b38e5f9e9d86592d6870a8b3d4fcd1f36`)
+- `tools/offload-proxy/pp pre-commit run --files docs/03-logs/decision-log.md docs/03-logs/implementation-log.md docs/03-logs/validation-log.md tests/test_pc_devtasks_schema_check.py tests/test_pc_template_sync.py tools/pc-devtasks-schema-check tools/pc-template-sync` (PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_devtasks_schema_check.py" && tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py" && tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 15 + 6 + 17 tests final sweep; offload ids `36e632bbf6589bac8037ace7030ead9f8c8947bdb0f34d0e4b025484e5464ee7`, `25b03c287976a8e2f06efb5cf2e054499ac868098efbd01295fc7cf7adc7f365`, `64e97fef4d71b60dbc333f1c83173aafdf2158e11c065edb202d68f0be8bd0a4`)
+- Verified:
+  - Missing template-source copy now triggers targeted schema-check remediation text.
+  - Template-sync now enforces the required feature-template `dev-tasks.md` pair even when one side is missing.
+  - Required one-sided-missing drift is auto-healed deterministically with `--apply`.
+
 ### 2026-02-16 - Quiet scoped pre-commit + autofix retry validation
 
 - `tools/offload-proxy/pp pre-commit run --files tools/pc-hooks-run tools/pc-feature tests/test_pc_hooks_run.py tests/test_pc_feature.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md` (RUN1 FAIL: `black` auto-formatted files; offload id `d9907af96148cba5d40b0bdb4ff6a2bb49470b92235caeff6e72041621a3f974`; RUN2 PASS; offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)

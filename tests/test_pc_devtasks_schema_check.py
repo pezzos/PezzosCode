@@ -349,6 +349,29 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
                 stderr.getvalue(),
             )
 
+    def test_main_reports_missing_template_source_copy_with_targeted_remediation(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            coherent_template = self._coherent_template_content()
+            self._seed_template(root, coherent_template)
+            self._seed_pc_feature(root, self._pc_feature_content())
+            self._seed_feature(root, "01-sample", self._valid_feature_content())
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                status = self.checker.main(["--root", str(root)])
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "restore missing template source copy at tools/templates/docs/02-features/feature-template/dev-tasks.md",
+                stderr.getvalue(),
+            )
+            self.assertIn(
+                "cannot create missing tools/templates files",
+                stderr.getvalue(),
+            )
+
     def test_main_passes_when_tooling_coherence_inputs_match(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
