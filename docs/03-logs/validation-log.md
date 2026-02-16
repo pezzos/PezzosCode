@@ -2258,3 +2258,15 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Recovery template keeps concrete file targets when candidate paths are available.
   - Policy checks now block non-actionable `Files to change` placeholders deterministically.
   - Existing `test_pc_feature.py` coverage remains green after tooling changes.
+
+## 2026-02-16 - Validate pre-reporter touched-test parity gate and retry-cap terminal closure
+
+- Command: `tools/offload-proxy/pp python -m pytest -q tests/test_pc_feature.py -k "collect_touched_work_item_test_paths_filters_to_tests_pattern or work_item_test_evidence_parity_issues_detects_missing_coverage or work_item_test_evidence_parity_issues_accepts_explicit_file_or_module or pre_reporter_parity_gate_blocks_missing_touched_test_coverage or reporter_retry_cap_auto_repair_reruns_once_without_decision_options"`
+- Result: FAIL first run (`1 failed, 4 passed`) due over-strict assertion text length in the new parity integration test, PASS after assertion tightening (`5 passed, 236 deselected`; inline output).
+- Command: `tools/offload-proxy/pp python -m pytest -q tests/test_pc_feature.py`
+- Result: PASS (`241 passed, 72 subtests passed`; inline output on both initial and post-format reruns).
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tests/test_pc_feature.py docs/03-logs/implementation-log.md docs/03-logs/bug-log.md docs/03-logs/validation-log.md`
+- Result: FAIL first run (`black` reformatted Python files; offload id `4a9b196a2082c19d99b71a179c219568b0311a3200a93ac83516b1b91a9b50bc`), PASS second run (offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`).
+- Verified:
+  - Pre-reporter gate now blocks touched `tests/test_*.py` changes when explicit parity is missing in Allowed Tests or WI-level tester evidence.
+  - Retry-cap terminal path now emits `planner-feedback FAIL` and closes workflow status instead of leaving `planner-feedback` open.

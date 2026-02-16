@@ -264,6 +264,7 @@ RUNTIME_METADATA_AUTO_REPAIR_ALLOWED_UPDATES = frozenset(
 REPORTER_FAILURE_REASON_ENV_LOCK_ONLY = "env_lock_only"
 REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY = "metadata_drift_only"
 REPORTER_FAILURE_REASON_SCOPE_GAP = "scope_gap"
+TOUCHED_WORK_ITEM_TEST_PATH_PATTERN = re.compile(r"^tests/test_[^/]+\.py$")
 ESCALATION_ALLOWLIST_PREFIXES: Tuple[Tuple[str, ...], ...] = (
     ("git", "status"),
     ("git", "diff"),
@@ -2118,6 +2119,99 @@ def branch_diff_paths(root: str, base_ref: str, branch: str) -> List[str]:
     if result.returncode != 0:
         die(f"pc-feature: failed to list changed paths for {branch}\n{result.stderr}")
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def collect_touched_work_item_test_paths(
+    root: str, base_ref: str, branch: str
+) -> List[str]:
+    touched: Set[str] = set()
+    for path in branch_diff_paths(root, base_ref, branch):
+        normalized = normalize_repo_path(path)
+        if TOUCHED_WORK_ITEM_TEST_PATH_PATTERN.match(normalized):
+            touched.add(normalized)
+    return sorted(touched)
+
+
+def touched_test_reference_markers(test_path: str) -> Set[str]:
+    normalized = normalize_repo_path(test_path).lower()
+    markers: Set[str] = set()
+    if normalized:
+        markers.add(normalized)
+    basename = os.path.basename(normalized)
+    if basename:
+        markers.add(basename)
+    if normalized.endswith(".py"):
+        markers.add(normalized[:-3].replace("/", "."))
+    return {marker for marker in markers if marker}
+
+
+def text_mentions_touched_test(text: str, test_path: str) -> bool:
+    focus = " ".join(str(text or "").replace("`", " ").lower().split())
+    if not focus:
+        return False
+    return any(marker in focus for marker in touched_test_reference_markers(test_path))
+
+
+def parse_tests_run_evidence_commands(tests_run_evidence: str) -> List[str]:
+    raw = str(tests_run_evidence or "").strip()
+    if not raw:
+        return []
+    commands = [
+        match.strip() for match in re.findall(r"`([^`]+)`", raw) if match.strip()
+    ]
+    if commands:
+        return commands
+    if ";" in raw:
+        return [part.strip() for part in raw.split(";") if part.strip()]
+    return [raw]
+
+
+def missing_touched_test_references(
+    touched_test_paths: List[str], evidence_lines: List[str]
+) -> List[str]:
+    missing: List[str] = []
+    normalized_evidence = [line.strip() for line in evidence_lines if line.strip()]
+    for path in sorted(
+        set(
+            normalize_repo_path(candidate)
+            for candidate in touched_test_paths
+            if candidate.strip()
+        )
+    ):
+        if any(text_mentions_touched_test(line, path) for line in normalized_evidence):
+            continue
+        missing.append(path)
+    return missing
+
+
+def work_item_test_evidence_parity_issues(
+    *,
+    touched_test_paths: List[str],
+    allowed_tests: List[str],
+    tests_run_evidence: str,
+) -> List[str]:
+    touched = sorted(
+        set(normalize_repo_path(path) for path in touched_test_paths if path.strip())
+    )
+    if not touched:
+        return []
+
+    issues: List[str] = []
+    missing_allowed = missing_touched_test_references(touched, allowed_tests)
+    tests_run_commands = parse_tests_run_evidence_commands(tests_run_evidence)
+    missing_evidence = missing_touched_test_references(touched, tests_run_commands)
+
+    if missing_allowed:
+        issues.append(
+            "allowed tests are missing explicit coverage for touched test files: "
+            + ", ".join(missing_allowed)
+        )
+    if missing_evidence:
+        issues.append(
+            "latest tester evidence is missing explicit coverage for touched test files: "
+            + ", ".join(missing_evidence)
+        )
+    return issues
 
 
 def branch_diff_name_status(
@@ -8020,6 +8114,19 @@ def main() -> None:
             pre_reporter_issues = execution_handoff_completeness_issues(
                 content, work_item_id, require_reporter_review=False
             )
+            tests_run_evidence = parse_labeled_line(tester_feedback, "Tests run")
+            if not tests_run_evidence:
+                tests_run_evidence = get_entry_field(content, work_item_id, "Tests run")
+            pre_reporter_issues.extend(
+                work_item_test_evidence_parity_issues(
+                    touched_test_paths=collect_touched_work_item_test_paths(
+                        root, "refs/heads/main", patcher_branch
+                    ),
+                    allowed_tests=allowed_tests,
+                    tests_run_evidence=tests_run_evidence,
+                )
+            )
+            pre_reporter_issues = sorted(set(pre_reporter_issues))
             reporter_finalization_normalized = False
             reporter_environment_lock_normalized = False
             reporter_metadata_drift_normalized = False
@@ -8543,6 +8650,16 @@ def main() -> None:
                     "Reporter retry limit reached after deterministic closeout metadata repair rerun; unresolved reporting failure still remains and must be fixed before continuing.",
                 )
                 write_file(dev_tasks_path, content)
+                emit_workflow_event(
+                    "planner-feedback",
+                    "FAIL",
+                    attempt=attempt,
+                    outcome="FAIL",
+                    reason=(
+                        "reporter retry limit reached after deterministic closeout metadata repair rerun"
+                    ),
+                    state="FAILED",
+                )
                 flush_pending_failure_proposals(
                     "reporter retry limit reached after deterministic closeout metadata repair rerun"
                 )

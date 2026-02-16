@@ -2,6 +2,7 @@ import contextlib
 import importlib.machinery
 import importlib.util
 import io
+import json
 import tempfile
 import unittest
 from datetime import datetime
@@ -223,6 +224,11 @@ class TestPcFeature(unittest.TestCase):
             ),
             mock.patch.object(
                 self.pc_feature, "collect_branch_merge_paths", return_value=[]
+            ),
+            mock.patch.object(
+                self.pc_feature,
+                "collect_touched_work_item_test_paths",
+                return_value=[],
             ),
             mock.patch.object(
                 self.pc_feature,
@@ -704,6 +710,61 @@ class TestPcFeature(unittest.TestCase):
             "- `python -m unittest tests.test_pc_feature`\n"
             "- `pytest tests/test_pc_feature.py -q`",
         )
+
+    def test_collect_touched_work_item_test_paths_filters_to_tests_pattern(self):
+        with mock.patch.object(
+            self.pc_feature,
+            "branch_diff_paths",
+            return_value=[
+                "tests/test_offload_proxy.py",
+                "tests/test_pc_feature.py",
+                "tests/helpers/test_helper.py",
+                "src/offload_proxy.py",
+            ],
+        ):
+            touched = self.pc_feature.collect_touched_work_item_test_paths(
+                str(ROOT),
+                "refs/heads/main",
+                "patcher-branch",
+            )
+
+        self.assertEqual(
+            touched,
+            ["tests/test_offload_proxy.py", "tests/test_pc_feature.py"],
+        )
+
+    def test_work_item_test_evidence_parity_issues_detects_missing_coverage(self):
+        issues = self.pc_feature.work_item_test_evidence_parity_issues(
+            touched_test_paths=["tests/test_offload_proxy.py"],
+            allowed_tests=[
+                "python -m unittest discover -s tests -p test_pc_feature.py"
+            ],
+            tests_run_evidence="`python -m unittest discover -s tests -p test_pc_feature.py`",
+        )
+
+        joined = " | ".join(issues)
+        self.assertIn(
+            "allowed tests are missing explicit coverage for touched test files",
+            joined,
+        )
+        self.assertIn(
+            "latest tester evidence is missing explicit coverage for touched test files",
+            joined,
+        )
+        self.assertIn("tests/test_offload_proxy.py", joined)
+
+    def test_work_item_test_evidence_parity_issues_accepts_explicit_file_or_module(
+        self,
+    ):
+        issues = self.pc_feature.work_item_test_evidence_parity_issues(
+            touched_test_paths=["tests/test_offload_proxy.py"],
+            allowed_tests=[
+                "python -m unittest discover -s tests -p test_offload_proxy.py"
+            ],
+            tests_run_evidence="`python -m unittest tests.test_offload_proxy.TestOffloadProxy`",
+        )
+
+        self.assertEqual(issues, [])
 
     def test_reconcile_runtime_execution_record_populates_sections_and_fields(self):
         work_item_id = "WI-20260212-10"
@@ -6574,6 +6635,121 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("required compacted output missing", dev_tasks)
 
+    def test_pre_reporter_parity_gate_blocks_missing_touched_test_coverage(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260216-11"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reporter_prompt_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    reporter_prompt_calls["count"] += 1
+                    return (
+                        "Outcome: PASS\n"
+                        "Docs/logs updated: docs/03-logs/implementation-log.md\n"
+                        "Notes: approved\n"
+                    )
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    raise StopMain()
+                return "ok"
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "execution_handoff_completeness_issues",
+                        return_value=[],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "collect_touched_work_item_test_paths",
+                        return_value=["tests/test_offload_proxy.py"],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            self.assertEqual(reporter_prompt_calls["count"], 0)
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "Reporter blocked by pre-handoff completeness gate",
+                dev_tasks,
+            )
+            self.assertIn(
+                "allowed tests are missing explicit coverage for touched test files",
+                dev_tasks,
+            )
+            self.assertIn(
+                "latest tester evidence is missing explicit coverage for touched test",
+                dev_tasks,
+            )
+
     def test_commit_evidence_gate_passes_when_required_evidence_present(self):
         work_item_id = "WI-20260212-40"
         content = self._build_commit_gate_ready_content(work_item_id)
@@ -9750,6 +9926,12 @@ class TestPcFeature(unittest.TestCase):
             original_entry_complete = self.pc_feature.entry_section_complete
             reporter_calls = {"count": 0}
             planner_feedback_calls = {"count": 0}
+            workflow_status_path = (
+                patcher_path / "logs" / work_item_id / "workflow-status.json"
+            )
+            workflow_history_path = (
+                patcher_path / "logs" / work_item_id / "workflow-history.ndjson"
+            )
 
             def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
                 if section in {"Preflight Report", "Plan", "Patch"}:
@@ -9828,6 +10010,17 @@ class TestPcFeature(unittest.TestCase):
                         side_effect=fake_codex_exec,
                     )
                 )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "build_metadata",
+                        return_value=SimpleNamespace(
+                            work_item_id=work_item_id,
+                            agent_name="pc-feature",
+                            run_id="run-retry-cap-01",
+                        ),
+                    )
+                )
                 with self.assertRaises(SystemExit):
                     with contextlib.redirect_stderr(stderr_capture):
                         self.pc_feature.main()
@@ -9848,6 +10041,29 @@ class TestPcFeature(unittest.TestCase):
                 dev_tasks.lower(),
             )
             self.assertNotIn("Decision options:", dev_tasks)
+            status_payload = json.loads(
+                workflow_status_path.read_text(encoding="utf-8")
+            )
+            self.assertEqual(status_payload.get("state"), "FAILED")
+            self.assertNotIn("planner-feedback", status_payload.get("open_steps", {}))
+            planner_feedback_state = status_payload.get("steps", {}).get(
+                "planner-feedback", {}
+            )
+            self.assertEqual(planner_feedback_state.get("last_event"), "FAIL")
+            workflow_events = [
+                json.loads(line)
+                for line in workflow_history_path.read_text(
+                    encoding="utf-8"
+                ).splitlines()
+                if line.strip()
+            ]
+            self.assertTrue(
+                any(
+                    event.get("step") == "planner-feedback"
+                    and event.get("event") == "FAIL"
+                    for event in workflow_events
+                )
+            )
 
 
 class ProposalGenerationTests(unittest.TestCase):

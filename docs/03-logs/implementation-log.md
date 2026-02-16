@@ -7587,3 +7587,34 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - This removes a key self-induced loop where deterministic recovery made plans non patch-ready, then Plan Reviewer repeatedly blocked the same condition.
 - Deterministic policy checks now fail earlier with explicit remediation when file scope is non-actionable.
+
+### 2026-02-16 - Enforce pre-reporter touched-test parity and close retry-cap workflow status
+
+**Feature/Bug:** Cross-repo `make feature F=08` (`WI-20260216-02`) looped on reporter scope/evidence parity and could terminate with workflow status still `RUNNING`.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Added deterministic touched-test parity helpers in `tools/pc-feature`:
+  - collect touched `tests/test_*.py` paths from branch diff,
+  - derive explicit file/module reference markers per touched test,
+  - compare touched tests against both `Allowed Tests` commands and WI-level `Tests run` evidence.
+- Wired a pre-reporter parity gate in the main flow:
+  - pre-reporter handoff issues now include missing touched-test parity,
+  - reporter is blocked before reviewer prompt execution when parity is missing.
+- Hardened reporter retry-cap terminal handling:
+  - emits `planner-feedback FAIL` with `state=FAILED` before terminal `die(...)`, closing open planner-feedback status deterministically.
+- Added regression coverage in `tests/test_pc_feature.py` for:
+  - touched-test path filtering,
+  - parity issue detect/pass behavior,
+  - pre-reporter parity gate integration,
+  - retry-cap terminal workflow closure (`planner-feedback FAIL`, no open planner-feedback step).
+
+**Why:**
+
+- Prevents retry-loop churn caused by missing deterministic WI evidence parity for touched test scope.
+- Removes the terminal observability gap where workflow status could remain `RUNNING` after retry-cap exit.
