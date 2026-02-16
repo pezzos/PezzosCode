@@ -112,10 +112,12 @@ Work Item IDs increment per feature; the sequence continues across dates.
 
 #### Tester Feedback
 
+- Outcome:
 - Notes:
 
 #### Reporter Feedback
 
+- Outcome:
 - Notes:
 
 #### Iteration Log

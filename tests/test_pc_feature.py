@@ -696,6 +696,8 @@ class TestPcFeature(unittest.TestCase):
         self.assertIn("Patch", repaired)
         self.assertIn("Test Results", repaired)
         self.assertIn("Reporter Review", repaired)
+        self.assertIn("Tester Feedback", repaired)
+        self.assertIn("Reporter Feedback", repaired)
         self.assertNotIn(
             "(pending)",
             self.pc_feature.get_entry_section(updated, work_item_id, "Patch"),
@@ -724,6 +726,16 @@ class TestPcFeature(unittest.TestCase):
         self.assertIn(
             "implementation-log",
             self.pc_feature.get_entry_field(updated, work_item_id, "Docs/logs updated"),
+        )
+        self.assertIn(
+            "- Outcome: PASS",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Tester Feedback"),
+        )
+        self.assertIn(
+            "- Outcome: PASS",
+            self.pc_feature.get_entry_section(
+                updated, work_item_id, "Reporter Feedback"
+            ),
         )
 
     def test_reconcile_runtime_execution_record_overwrite_updates_stale_fields(self):
@@ -788,6 +800,8 @@ class TestPcFeature(unittest.TestCase):
 
         self.assertIn("Test Results:overwrite", repaired)
         self.assertIn("Reporter Review:overwrite", repaired)
+        self.assertIn("Tester Feedback:overwrite", repaired)
+        self.assertIn("Reporter Feedback:overwrite", repaired)
         self.assertIn("field:Tester:overwrite", repaired)
         self.assertIn("field:Reporter:overwrite", repaired)
         self.assertIn("field:Tests run:overwrite", repaired)
@@ -809,6 +823,16 @@ class TestPcFeature(unittest.TestCase):
         self.assertIn(
             "- Outcome: PASS",
             self.pc_feature.get_entry_section(updated, work_item_id, "Reporter Review"),
+        )
+        self.assertIn(
+            "- Outcome: PASS",
+            self.pc_feature.get_entry_section(updated, work_item_id, "Tester Feedback"),
+        )
+        self.assertIn(
+            "- Outcome: PASS",
+            self.pc_feature.get_entry_section(
+                updated, work_item_id, "Reporter Feedback"
+            ),
         )
 
     def test_execution_handoff_completeness_issues_detects_pending_placeholders(self):

@@ -171,7 +171,7 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
 
             self.assertEqual(errors, [])
 
-    def test_semantic_invariant_missing_tester_outcome_is_reported(self):
+    def test_work_item_passes_without_semantic_tester_feedback_invariant(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             self._seed_template(root, self._valid_template_content())
@@ -186,30 +186,31 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
 
             errors = self.checker.run_check(root)
 
-            self.assertTrue(
-                any(
-                    "semantic invariant violation" in item
-                    and "missing critical artifact" in item
-                    for item in errors
-                )
-            )
+            self.assertEqual(errors, [])
 
-    def test_semantic_invariant_passes_when_tester_outcome_exists(self):
+    def test_main_reports_required_sections_remediation_guidance(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             self._seed_template(root, self._valid_template_content())
             self._seed_feature(
                 root,
                 "01-sample",
-                self._work_item_with_required_sections(
-                    test_results="- `tools/pc-devtasks-schema-check` -> pass (exit 0).",
-                    tester_feedback="Outcome: PASS\n- Notes: clean.",
-                ),
+                "## Execution Log\n\n"
+                "### WI-20260214-01 - Work item execution\n\n"
+                "- Date: 2026-02-14\n"
+                "- Outcome: needs replan\n",
             )
 
-            errors = self.checker.run_check(root)
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                status = self.checker.main(["--root", str(root)])
 
-            self.assertEqual(errors, [])
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "ensure required sections are present for each work item",
+                stderr.getvalue(),
+            )
 
     def test_main_is_quiet_on_success_by_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

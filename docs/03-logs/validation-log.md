@@ -2073,3 +2073,18 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Result: PASS (offload id `ab27e8ab7fc820124cafa7919d664776b8eea07db03af15e0423f7697894976d`)
 - Command: `tools/offload-proxy/pp make test`
 - Result: FAIL at `docs-check` due existing semantic invariant violations in multiple `docs/02-features/*/dev-tasks.md` files (offload id `8b309fe846f9b4ff362515b2e762ee6a1a728eaa3390c9214bb760ccfbab7f0b`).
+
+## 2026-02-16 - Validate runtime feedback reconciliation for tester/reporter outcomes
+
+- Command: `python3 -m py_compile tools/pc-feature tools/pc-devtasks-schema-check tools/pc-devtasks-migrate-legacy tests/test_pc_feature.py tests/test_pc_devtasks_schema_check.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k 'reconcile_runtime_execution_record'`
+- Result: PASS (`2` tests; offload id `121a8c46dc569fa3abc871d569cfafceb86973dc072049bcc17035cad2deb335`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'`
+- Result: PASS (`11` tests; offload id `6e2c2e2d0c5d4f2445feb5005937a4d47635379f8adf4113de6f692d171b2766`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'`
+- Result: PASS (`4` tests; offload id `ff3aa84ac62e401c36e50518baebc879b8b43bb3ebc93473f5fef682600e3c7f`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tools/pc-devtasks-schema-check tools/pc-devtasks-migrate-legacy tests/test_pc_feature.py tests/test_pc_devtasks_schema_check.py docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- Result: FAIL only at `devtasks-schema-check` due pre-existing semantic invariant violations in unrelated feature docs; formatting/lint hooks for changed files passed (offload id `746dad15bfef4559bcd603ec3810c29264ce011c6f96de1e8a849ab8acc9df9c`).
+- Command: `tools/offload-proxy/pp make test`
+- Result: FAIL at `docs-check` for the same pre-existing unrelated semantic invariant violations (offload id `8b13d0012f3b5931ca2e4950d0b67ae5f7c71ac41222643195b690fa180cc378`).

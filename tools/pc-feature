@@ -161,6 +161,8 @@ REPORTER_AUTO_REPAIR_ALLOWED_UPDATES = frozenset(
         "Patch",
         "Test Results",
         "Reporter Review",
+        "Tester Feedback",
+        "Reporter Feedback",
         "Test Results:artifact",
         "Reporter Review:artifact",
         "field:Patcher",
@@ -245,6 +247,8 @@ RUNTIME_METADATA_AUTO_REPAIR_ALLOWED_UPDATES = frozenset(
     {
         "Test Results:overwrite",
         "Reporter Review:overwrite",
+        "Tester Feedback:overwrite",
+        "Reporter Feedback:overwrite",
         "field:Tester:overwrite",
         "field:Reporter:overwrite",
         "field:Tests run:overwrite",
@@ -4063,7 +4067,7 @@ def approve_high_risk_interactive(risk_level: str, triggers: List[str]) -> bool:
 
 
 def build_execution_entry(work_item_id: str) -> str:
-    return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Plan Reviewer: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Allowed Tests\n\n- (list exact commands; do not include `make feature` or `pc-feature`)\n\n#### Files to Change\n\n- Files: \n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Notes: \n\n#### Reporter Feedback\n\n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
+    return f"""### {work_item_id} - Work item execution\n\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Scope / tasks covered: \n- Planner: \n- Plan Reviewer: \n- Patcher: \n- Tester: \n- Reporter: \n- Outcome: \n- Tests run: \n- Offload ids (if any): \n- Docs/logs updated: \n- Notes: \n\n#### Preflight Report\n\n- Work Item: {work_item_id}\n- PRD ref: \n- Risk level: \n- Triggers: \n- Scope in: \n- Scope out: \n- Non-goals reminder: \n- Files to change: \n- TDD plan: \n- Systematic review: \n\n#### TDD Plan\n\n- Tests to write first: \n\n#### Allowed Tests\n\n- (list exact commands; do not include `make feature` or `pc-feature`)\n\n#### Files to Change\n\n- Files: \n\n#### Docs Updated\n\n- [ ] Implementation log\n- [ ] Decision log (if needed)\n- [ ] Bug log (if needed)\n- [ ] Validation log (if needed)\n- [ ] Feature docs\n- [ ] PRD (if needed)\n\n#### Plan\n\n- (pending)\n\n#### Patch\n\n- (pending)\n\n#### Test Results\n\n- (pending)\n\n#### Reporter Review\n\n- (pending)\n\n#### Gates\n\n- make ci: \n\n#### Autofix Attempts\n\n- (none)\n\n#### Tester Feedback\n\n- Outcome: \n- Notes: \n\n#### Reporter Feedback\n\n- Outcome: \n- Notes: \n\n#### Iteration Log\n\n- \n\n#### Commit\n\n- Commit message: \n\n#### Final Report\n\n- \n"""
 
 
 def entry_section_complete(content: str, work_item_id: str, section: str) -> bool:
@@ -4338,7 +4342,7 @@ def section_default_body_lines(work_item_id: str, section_title: str) -> List[st
     if section_title == "Autofix Attempts":
         return ["- (none)"]
     if section_title in {"Tester Feedback", "Reporter Feedback"}:
-        return ["- Notes: "]
+        return ["- Outcome: ", "- Notes: "]
     if section_title == "Iteration Log":
         return ["- "]
     if section_title == "Commit":
@@ -4491,6 +4495,38 @@ def build_runtime_reporter_review_body(reporter_feedback: str) -> str:
     return "\n".join(lines)
 
 
+def build_runtime_tester_feedback_body(tester_feedback: str) -> str:
+    lines = [
+        "- Runtime reconciliation: normalized from tester feedback in this execution loop."
+    ]
+    outcome = parse_section_outcome(tester_feedback)
+    tests_run = parse_labeled_line(tester_feedback, "Tests run")
+    notes = parse_labeled_line(tester_feedback, "Notes")
+    if outcome:
+        lines.append(f"- Outcome: {outcome}")
+    if tests_run:
+        lines.append(f"- Tests run: {tests_run}")
+    if notes:
+        lines.append(f"- Notes: {summarize_feedback(notes, max_chars=220)}")
+    return "\n".join(lines)
+
+
+def build_runtime_reporter_feedback_body(reporter_feedback: str) -> str:
+    lines = [
+        "- Runtime reconciliation: normalized from reporter feedback in this execution loop."
+    ]
+    outcome = parse_section_outcome(reporter_feedback)
+    docs_updated = parse_labeled_line(reporter_feedback, "Docs/logs updated")
+    notes = parse_labeled_line(reporter_feedback, "Notes")
+    if outcome:
+        lines.append(f"- Outcome: {outcome}")
+    if docs_updated:
+        lines.append(f"- Docs/logs updated: {docs_updated}")
+    if notes:
+        lines.append(f"- Notes: {summarize_feedback(notes, max_chars=220)}")
+    return "\n".join(lines)
+
+
 def ensure_entry_field_if_missing(
     content: str, work_item_id: str, field: str, value: str
 ) -> Tuple[str, bool]:
@@ -4542,6 +4578,32 @@ def reconcile_runtime_execution_record(
             repaired.append("field:Patcher")
 
     if tester_feedback.strip():
+        tester_feedback_outcome = parse_section_outcome(tester_feedback)
+        current_tester_feedback_body = get_entry_section(
+            updated, work_item_id, "Tester Feedback"
+        )
+        current_tester_feedback_outcome = parse_section_outcome(
+            current_tester_feedback_body
+        )
+        next_tester_feedback_body = build_runtime_tester_feedback_body(tester_feedback)
+        if tester_feedback_outcome and (
+            overwrite_existing or not current_tester_feedback_outcome
+        ):
+            if (
+                current_tester_feedback_body.strip()
+                != next_tester_feedback_body.strip()
+            ):
+                updated = replace_entry_section(
+                    updated,
+                    work_item_id,
+                    "Tester Feedback",
+                    next_tester_feedback_body,
+                )
+                repaired.append(
+                    "Tester Feedback:overwrite"
+                    if overwrite_existing
+                    else "Tester Feedback"
+                )
         next_test_results_body = build_runtime_test_results_body(tester_feedback)
         if overwrite_existing or resume_section_is_pending(
             updated, work_item_id, "Test Results"
@@ -4586,6 +4648,34 @@ def reconcile_runtime_execution_record(
             )
 
     if reporter_feedback.strip():
+        reporter_feedback_outcome = parse_section_outcome(reporter_feedback)
+        current_reporter_feedback_body = get_entry_section(
+            updated, work_item_id, "Reporter Feedback"
+        )
+        current_reporter_feedback_outcome = parse_section_outcome(
+            current_reporter_feedback_body
+        )
+        next_reporter_feedback_body = build_runtime_reporter_feedback_body(
+            reporter_feedback
+        )
+        if reporter_feedback_outcome and (
+            overwrite_existing or not current_reporter_feedback_outcome
+        ):
+            if (
+                current_reporter_feedback_body.strip()
+                != next_reporter_feedback_body.strip()
+            ):
+                updated = replace_entry_section(
+                    updated,
+                    work_item_id,
+                    "Reporter Feedback",
+                    next_reporter_feedback_body,
+                )
+                repaired.append(
+                    "Reporter Feedback:overwrite"
+                    if overwrite_existing
+                    else "Reporter Feedback"
+                )
         if overwrite_existing:
             updated, field_changed = overwrite_entry_field_if_different(
                 updated, work_item_id, "Reporter", "Codex"

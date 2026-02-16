@@ -302,7 +302,7 @@ def section_default_lines(work_item_id: str, section: str) -> List[str]:
     if section == "Autofix Attempts":
         return ["- (none)"]
     if section in {"Tester Feedback", "Reporter Feedback"}:
-        return ["- Notes: "]
+        return ["- Outcome: ", "- Notes: "]
     if section == "Iteration Log":
         return ["- "]
     if section == "Commit":

@@ -898,3 +898,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Reporter FAIL feedback describing stale machine-owned status parity (validation PASS vs dev-tasks stale FAIL/needs-replan fields) could be classified as `scope_gap`, causing repeated planner loops and eventual `pc-feature: max reporter retry attempts reached`.
 - **Fix:** Added structural metadata-drift contradiction detection in `tools/pc-feature`, expanded fail-closed blocking markers for actionable pending/missing-outcome gaps, and kept deterministic runtime metadata reconciliation in metadata-drift normalization before retry escalation.
 - **Validation:** `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py" -k "metadata_status_parity_wording_variant_normalizes_before_retry_escalation"` (PASS, offload id `be2bbe534b49282ed5244cc386e12bb204875c4ae70230f905eb7cb7e6dee47d`); `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_pc_feature.py"` (PASS, offload id `82dc916e2cb3e964c0311f734e739c0f23ec61790538881912c9210e2c2e04c0`).
+
+## 2026-02-16 - Runtime reconciliation left feedback outcomes stale, causing schema gate failure
+
+- **ID:** BUG-20260216-01
+- **Status:** Fixed
+- **Source:** User report (`make feature F=02` in consumer worktree on 2026-02-16)
+- **Summary:** `pc-feature` runtime reconciliation could populate `Test Results` from tester feedback while leaving `Tester Feedback` on default notes-only content, which then failed `pc-devtasks-schema-check` with `test results exist without tester feedback outcome`.
+- **Fix:** Updated `tools/pc-feature` reconciliation to normalize/write `Tester Feedback` and `Reporter Feedback` section bodies from runtime role feedback when outcomes exist (including overwrite mode); aligned feedback defaults in runtime/template/migration paths; clarified schema-check remediation guidance.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k 'reconcile_runtime_execution_record'` (PASS, offload id `121a8c46dc569fa3abc871d569cfafceb86973dc072049bcc17035cad2deb335`); `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'` (PASS, offload id `6e2c2e2d0c5d4f2445feb5005937a4d47635379f8adf4113de6f692d171b2766`).

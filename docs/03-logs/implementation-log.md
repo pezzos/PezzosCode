@@ -7231,3 +7231,33 @@ with `pc-feature: missing section Patch in entry ...`.
 **Why:**
 
 - Existing metadata-drift matching depended too much on specific wording and could misroute metadata-only contradictions into `scope_gap`, driving unnecessary planner loops and reporter retry-cap exits.
+
+### 2026-02-16 - Reconcile tester/reporter feedback outcomes during runtime metadata repair
+
+**Feature/Bug:** `make feature F=02` final gate failure on semantic invariant (`Test Results` complete but `Tester Feedback` missing outcome).
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/pc-devtasks-schema-check`
+- `tools/pc-devtasks-migrate-legacy`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `tests/test_pc_feature.py`
+- `tests/test_pc_devtasks_schema_check.py`
+
+**What Changed:**
+
+- Updated `reconcile_runtime_execution_record(...)` in `tools/pc-feature` to normalize and write `Tester Feedback` and `Reporter Feedback` sections from runtime role feedback when outcomes are present, including overwrite mode behavior.
+- Added feedback-section update markers to reporter/runtime metadata auto-repair allowlists so deterministic apply-mode writes are not blocked as non-allowlisted updates.
+- Updated runtime execution entry defaults and missing-section defaults in `tools/pc-feature` to include explicit `Outcome` placeholders in feedback sections.
+- Aligned legacy migration defaults in `tools/pc-devtasks-migrate-legacy` and both live/template feature `dev-tasks.md` files to include feedback `Outcome` placeholders.
+- Updated `tools/pc-devtasks-schema-check` remediation text to explicitly call out the tester-feedback outcome invariant for completed `Test Results`.
+- Added regression coverage:
+  - `tests/test_pc_feature.py` now asserts runtime reconciliation writes `Outcome: PASS` into both feedback sections (normal and overwrite paths).
+  - `tests/test_pc_devtasks_schema_check.py` now asserts remediation guidance is printed when the semantic invariant fails.
+
+**Why:**
+
+- The root issue was that default feedback sections with `- Notes:` were not considered pending, so reconciliation updated `Test Results` but skipped `Tester Feedback`, creating invariant failures at schema/pre-commit gates.
+- Writing normalized feedback outcomes from runtime feedback keeps execution records internally consistent and prevents this class of contradiction from reappearing.
