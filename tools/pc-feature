@@ -298,6 +298,7 @@ SECTION_ORDER = [
     "Commit",
     "Final Report",
 ]
+DEVTASKS_SCHEMA_COMPAT_MARKER = "feedback-outcome-v1"
 COMMIT_EVIDENCE_REMEDIATION = commit_evidence_gate.COMMIT_EVIDENCE_REMEDIATION
 SECTION_ALIASES = {
     "Files to Change": ("Files to Change + Change Budget",),

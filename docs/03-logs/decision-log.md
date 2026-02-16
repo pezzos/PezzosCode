@@ -104,6 +104,28 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-067] - Add explicit schema/runtime/template compatibility marker for dev-tasks feedback outcomes
+
+**Date:** 2026-02-16
+
+**Status:** Implemented
+
+**Decision:**
+Introduce a deterministic compatibility contract (`feedback-outcome-v1`) across:
+
+- `tools/pc-devtasks-schema-check` (expected marker/version),
+- `tools/pc-feature` (runtime marker declaration),
+- live and template-source `docs/02-features/feature-template/dev-tasks.md` (marker + feedback outcome fields).
+
+**Rationale:**
+Consumer repositories can sync only schema checks while lagging runtime/template artifacts, causing deterministic pre-commit failures that are hard to diagnose. A shared marker plus guard fails early with explicit remediation.
+
+**Implications:**
+
+- Schema checks now surface tooling/template drift before work-item semantic validation.
+- Template feedback sections are contractually required to include `Outcome` fields.
+- Consumer sync paths are clearer: update tooling/templates together, then run migration backfill.
+
 ### [DEC-066] - Confirm post-MVP strategy: hardening and simplification only
 
 **Date:** 2026-02-14

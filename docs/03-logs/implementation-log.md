@@ -27,6 +27,44 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-16 - Add schema/tooling coherence guard for tester-feedback outcome invariant
+
+**Feature/Bug:** Prevent partial sync drift where `devtasks-schema-check` enforces tester-feedback outcomes but runtime/template artifacts lag behind.
+
+**Changed Files:**
+
+- `tools/pc-devtasks-schema-check`
+- `tools/pc-feature`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `tests/test_pc_devtasks_schema_check.py`
+- `tests/test_pc_feature.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+- `docs/03-logs/decision-log.md`
+
+**What Changed:**
+
+- Added a deterministic compatibility marker contract (`feedback-outcome-v1`) across:
+  - `tools/pc-feature` (`DEVTASKS_SCHEMA_COMPAT_MARKER`),
+  - live feature template `dev-tasks.md`,
+  - template source copy `dev-tasks.md`.
+- Added a fail-fast tooling/template coherence guard in `tools/pc-devtasks-schema-check` that runs before semantic work-item checks and blocks on:
+  - missing marker/mismatched marker,
+  - missing template copy/live template files in tooling-managed contexts,
+  - missing `Outcome:` fields in `Tester Feedback` / `Reporter Feedback` template sections.
+- Added explicit remediation output directing users to sync tooling/template artifacts and run `tools/pc-devtasks-migrate-legacy`.
+- Added regression coverage for:
+  - marker mismatch guard failures,
+  - missing feedback outcome field guard failures,
+  - matching-coherence pass path.
+- Added a focused `pc-feature` regression asserting runtime entry scaffolding still contains tester/reporter `Outcome` placeholders and the compat marker constant.
+
+**Why:**
+
+- Consumer repositories can drift into deterministic pre-commit failures when only schema checks are updated.
+- The new guard fails early with actionable remediation instead of allowing late semantic failures from mismatched artifacts.
+
 ### 2026-02-16 - Quiet scoped pre-commit output and autofix retry normalization
 
 **Feature/Bug:** `make feature` flows still emitted noisy per-hook status lines and surfaced transient `Failed` states for auto-fixed hooks.

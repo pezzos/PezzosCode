@@ -1,5 +1,7 @@
 # Development Tasks: [Feature Name]
 
+<!-- devtasks-schema-compat: feedback-outcome-v1 -->
+
 > **LLM-executable tasks**
 >
 > This document contains specific, actionable tasks that can be executed by developers (human or AI). Each task should be atomic, testable, and clearly defined.

@@ -267,6 +267,17 @@ class TestPcFeature(unittest.TestCase):
             mock.patch.object(self.pc_feature, "append_log_line", return_value=None),
         ]
 
+    def test_build_execution_entry_preserves_feedback_outcome_fields(self):
+        entry = self.pc_feature.build_execution_entry("WI-20260216-42")
+
+        self.assertEqual(
+            self.pc_feature.DEVTASKS_SCHEMA_COMPAT_MARKER, "feedback-outcome-v1"
+        )
+        self.assertIn("#### Tester Feedback", entry)
+        self.assertIn("#### Reporter Feedback", entry)
+        self.assertIn("- Outcome: ", entry)
+        self.assertIn("- Notes: ", entry)
+
     def test_build_preflight_block_accepts_missing_review_summary(self):
         block = self.pc_feature.build_preflight_block(
             {},

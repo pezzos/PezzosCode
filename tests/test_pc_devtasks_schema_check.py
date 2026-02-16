@@ -34,12 +34,52 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
         template_dir.mkdir(parents=True, exist_ok=True)
         (template_dir / "dev-tasks.md").write_text(content, encoding="utf-8")
 
+    def _seed_template_copy(self, root: Path, content: str) -> None:
+        template_copy = (
+            root / "tools" / "templates" / "docs" / "02-features" / "feature-template"
+        )
+        template_copy.mkdir(parents=True, exist_ok=True)
+        (template_copy / "dev-tasks.md").write_text(content, encoding="utf-8")
+
+    def _seed_pc_feature(self, root: Path, content: str) -> None:
+        tools_dir = root / "tools"
+        tools_dir.mkdir(parents=True, exist_ok=True)
+        (tools_dir / "pc-feature").write_text(content, encoding="utf-8")
+
     @staticmethod
     def _valid_template_content() -> str:
         return (
             "## Execution Log\n\n"
             "#### Allowed Tests\n\n"
             "- (list exact commands; each command must resolve via `tools/pc-allowed-tests-check`)\n"
+        )
+
+    @staticmethod
+    def _coherent_template_content(
+        *,
+        marker: str = "feedback-outcome-v1",
+        include_tester_outcome: bool = True,
+        include_reporter_outcome: bool = True,
+    ) -> str:
+        tester_outcome = "- Outcome: \n" if include_tester_outcome else ""
+        reporter_outcome = "- Outcome: \n" if include_reporter_outcome else ""
+        return (
+            f"<!-- devtasks-schema-compat: {marker} -->\n\n"
+            "## Execution Log\n\n"
+            "#### Tester Feedback\n\n"
+            f"{tester_outcome}"
+            "- Notes: \n\n"
+            "#### Reporter Feedback\n\n"
+            f"{reporter_outcome}"
+            "- Notes: \n\n"
+            "#### Allowed Tests\n\n"
+            "- (list exact commands; each command must resolve via `tools/pc-allowed-tests-check`)\n"
+        )
+
+    @staticmethod
+    def _pc_feature_content(*, marker: str = "feedback-outcome-v1") -> str:
+        return (
+            "#!/usr/bin/env python3\n" f'DEVTASKS_SCHEMA_COMPAT_MARKER = "{marker}"\n'
         )
 
     @staticmethod
@@ -265,6 +305,65 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
 
             self.assertEqual(status, 0)
             self.assertIn("pc-devtasks-schema-check: ok (2 files)", stdout.getvalue())
+            self.assertEqual(stderr.getvalue(), "")
+
+    def test_main_reports_coherence_guard_when_marker_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            coherent_template = self._coherent_template_content()
+            self._seed_template(root, coherent_template)
+            self._seed_template_copy(root, coherent_template)
+            self._seed_pc_feature(root, self._pc_feature_content(marker="legacy-v0"))
+            self._seed_feature(root, "01-sample", self._valid_feature_content())
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                status = self.checker.main(["--root", str(root)])
+
+            self.assertEqual(status, 1)
+            self.assertIn("tooling/template coherence guard failed", stderr.getvalue())
+            self.assertIn("marker mismatch", stderr.getvalue())
+
+    def test_main_reports_coherence_guard_when_template_feedback_outcome_missing(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            live_template = self._coherent_template_content()
+            template_copy_missing_outcome = self._coherent_template_content(
+                include_tester_outcome=False
+            )
+            self._seed_template(root, live_template)
+            self._seed_template_copy(root, template_copy_missing_outcome)
+            self._seed_pc_feature(root, self._pc_feature_content())
+            self._seed_feature(root, "01-sample", self._valid_feature_content())
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                status = self.checker.main(["--root", str(root)])
+
+            self.assertEqual(status, 1)
+            self.assertIn("tooling/template coherence guard failed", stderr.getvalue())
+            self.assertIn(
+                "missing Outcome field in 'Tester Feedback'",
+                stderr.getvalue(),
+            )
+
+    def test_main_passes_when_tooling_coherence_inputs_match(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            coherent_template = self._coherent_template_content()
+            self._seed_template(root, coherent_template)
+            self._seed_template_copy(root, coherent_template)
+            self._seed_pc_feature(root, self._pc_feature_content())
+            self._seed_feature(root, "01-sample", self._valid_feature_content())
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                status = self.checker.main(["--root", str(root)])
+
+            self.assertEqual(status, 0)
             self.assertEqual(stderr.getvalue(), "")
 
 

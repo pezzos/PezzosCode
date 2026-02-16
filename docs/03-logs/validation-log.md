@@ -2115,3 +2115,30 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Semantic invariant is restored: complete `Test Results` requires tester outcome evidence.
   - Pre-commit now auto-runs legacy dev-tasks repair before schema validation.
   - Repository dev-tasks backfill removed current legacy mismatches; `docs-check` now passes inside `make test`.
+
+## 2026-02-16 - Validate schema/tooling coherence guard for feedback-outcome contract
+
+- Command: `tools/offload-proxy/pp make feature F=02`
+- Result: BLOCKED/STALLED in planner subagent for `WI-20260216-01` (no completion event emitted; process terminated to unblock scoped patch execution).
+- Command: `python3 -m py_compile tools/pc-devtasks-schema-check tools/pc-feature tests/test_pc_devtasks_schema_check.py tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'`
+- Result: FAIL first run (coherence guard over-triggered in docs-only fixture setup; offload id `a06ed81ef7d52e585ba4b56df6556ef19e5374f49d73ab4d0011ff84d45370c8`), PASS after guard trigger narrowing (offload id `a36435e8b0acbdb4ba4a34ca6401451332e28c6854e3ee41093717379b597bdc`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `c504883e7da2e1ca8fd8bf628c4c86e9712a4c0390b51bb79304cdcf10ca8807`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'`
+- Result: PASS (offload id `4bdba7a5731d60382cff5ee475296c6d96adea237d09fe6d2e6444163295c3c5`).
+- Command: `tools/offload-proxy/pp pre-commit run --files docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md tools/pc-devtasks-schema-check tools/pc-feature tests/test_pc_devtasks_schema_check.py tests/test_pc_feature.py`
+- Result: FAIL first run (`ruff` unused var + `black`/`prettier` rewrites; offload id `927cb482c6701ca32d31ccdaa52954e9820f965d5f8c62dc93f7747afc96a1f0`), PASS second run (offload id `9a128b78570e5d7353c1ffb3bf2010b7b3382151c2c1c8ea75f28e7c1be56a64`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_schema_check.py'`
+- Result: PASS (`14` tests; offload id `35183794784a293116669bf0e27fedb2cb6efff4c5a4ac0ad88b97a0e1136ef0`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (offload id `9f046467e719b72c2d513a02bed7b7e66cb4d3d20bcffc4059b8db37288c2610`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_devtasks_migrate_legacy.py'`
+- Result: PASS (`4` tests; offload id `12ee8f9c568dc72d71638a4fa19e96955b77b3fb1eac79813abe5cbccde8d4e9`).
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `e33ef6f8f6a5ce0250169967dc4d5f4d0475436ebeecdd4d861a17408a4591cc`).
+- Verified:
+  - `pc-devtasks-schema-check` now fails fast with explicit coherence remediation when schema-check/template/runtime markers drift.
+  - Template contract now requires explicit feedback `Outcome` fields in both live and template-source `dev-tasks.md`.
+  - Runtime contract remains covered (`pc-feature` tests) and includes explicit compat marker declaration.
