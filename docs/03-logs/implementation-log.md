@@ -7370,3 +7370,33 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - The invariant drift reintroduced the exact downstream/manual-repair failure mode.
 - Keeping strict schema validation plus deterministic autofix/backfill prevents recurrence while preserving fail-closed resume semantics.
+
+### 2026-02-16 - Auto-apply deterministic closeout metadata repair at reporter retry cap
+
+**Feature/Bug:** Cross-repo reporter retry-cap failure in `make feature F=02` (`WI-20260216-03`) due metadata-only wording variant and manual decision-option escalation.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Expanded metadata-drift classifier markers in `tools/pc-feature` to cover the observed wording family:
+  - `execution-state reconciliation`
+  - `execution-log consistency`
+  - `still records \`Outcome: needs replan\``/`still records \`Outcome: FAIL\``
+  - `validation-log` phrasing variants.
+- Added one-time deterministic retry-cap closeout repair path for reporter failures:
+  - when reporter retry cap is hit, `pc-feature` now applies Option A automatically via `run_runtime_metadata_auto_repair_pass(..., mode=apply)` and schedules exactly one automatic rerun.
+  - removed decision-option escalation text from this retry-cap path.
+  - if the rerun still fails, `pc-feature` now exits with a deterministic non-decision message.
+- Added regression coverage in `tests/test_pc_feature.py` for:
+  - metadata-drift classification of the execution-state/validation-log wording variant,
+  - reason classification of that variant,
+  - retry-cap auto-repair rerun path without `Decision options` messaging.
+
+**Why:**
+
+- The observed cross-repo failure was a tooling false negative in metadata-drift classification plus an escalation path that still required manual decision text after cap.
+- Auto-applying deterministic Option A at retry cap removes unnecessary manual branching and keeps behavior aligned with fail-closed deterministic reconciliation.

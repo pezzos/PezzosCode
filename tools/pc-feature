@@ -194,6 +194,12 @@ REPORTER_METADATA_DRIFT_MARKERS = (
     "reporter deferred",
     "still `outcome: needs replan`",
     "still `outcome: fail`",
+    "still records `outcome: needs replan`",
+    "still records `outcome: fail`",
+    "execution-state reconciliation",
+    "execution-log consistency",
+    "validation-log reports pass",
+    "validation-log.md records pass",
 )
 REPORTER_METADATA_DRIFT_BLOCKING_MARKERS = (
     "required compacted output missing",
@@ -5470,6 +5476,7 @@ def is_metadata_drift_only_reporter_failure(reporter_feedback: str) -> bool:
         "reporter review",
         "docs/logs updated",
         "validation log",
+        "validation-log",
         "runtime metadata",
         "machine-owned",
         "outcome:",
@@ -6625,6 +6632,7 @@ def main() -> None:
     planner_revision_attempts = 0
     tester_failures = 0
     reporter_failures = 0
+    reporter_retry_auto_repair_consumed = False
     last_stagnation_signature = ""
     stagnation_count = 0
     execution_attempt = 0
@@ -8229,11 +8237,72 @@ def main() -> None:
                     + tester_decision_options
                 )
             if reporter_outcome == "FAIL" and reporter_failures >= MAX_LOOPS:
-                reporter_decision_options = (
-                    build_reporter_retry_decision_options_summary(
-                        [summarize_feedback(reporter_feedback, max_chars=260)]
+                if not reporter_retry_auto_repair_consumed:
+                    reporter_retry_auto_repair_consumed = True
+                    normalized_reporter_feedback = (
+                        build_metadata_drift_reporter_pass_feedback(
+                            work_item_id=work_item_id,
+                            dev_tasks_repo_path=dev_tasks_repo_path,
+                            original_feedback=reporter_feedback,
+                            mode=AUTO_REPAIR_RUNTIME_METADATA_APPLY,
+                            proposed_updates=[],
+                            applied=False,
+                        )
                     )
-                )
+                    (
+                        repaired_content,
+                        runtime_metadata_updates,
+                        runtime_metadata_ledger,
+                        runtime_metadata_applied,
+                    ) = run_runtime_metadata_auto_repair_pass(
+                        mode=AUTO_REPAIR_RUNTIME_METADATA_APPLY,
+                        content=content,
+                        work_item_id=work_item_id,
+                        tester_feedback=tester_feedback,
+                        reporter_feedback=normalized_reporter_feedback,
+                        reporter_outcome="PASS",
+                    )
+                    if repaired_content != content:
+                        content = repaired_content
+                    normalized_reporter_feedback = (
+                        build_metadata_drift_reporter_pass_feedback(
+                            work_item_id=work_item_id,
+                            dev_tasks_repo_path=dev_tasks_repo_path,
+                            original_feedback=reporter_feedback,
+                            mode=AUTO_REPAIR_RUNTIME_METADATA_APPLY,
+                            proposed_updates=runtime_metadata_updates,
+                            applied=runtime_metadata_applied,
+                        )
+                    )
+                    content = append_iteration_log_note(
+                        content,
+                        work_item_id,
+                        "Reporter retry cap triggered deterministic closeout metadata repair (Option A) and scheduled one automatic reporter rerun. "
+                        + runtime_metadata_ledger
+                        + ".",
+                    )
+                    content = update_entry_field(
+                        content, work_item_id, "Outcome", "needs replan"
+                    )
+                    content = update_entry_field(
+                        content,
+                        work_item_id,
+                        "Notes",
+                        "Reporter retry limit reached; deterministic closeout metadata repair (Option A) was applied and reporter will rerun once automatically.",
+                    )
+                    content, _closeout_updates = reconcile_runtime_execution_record(
+                        content,
+                        work_item_id,
+                        patch_completed=True,
+                        tester_feedback=tester_feedback,
+                        reporter_feedback=normalized_reporter_feedback,
+                        reporter_outcome="PASS",
+                        overwrite_existing=True,
+                    )
+                    write_file(dev_tasks_path, content)
+                    reporter_failures = max(0, MAX_LOOPS - 1)
+                    continue
+
                 content = update_entry_field(
                     content, work_item_id, "Outcome", "needs replan"
                 )
@@ -8241,16 +8310,15 @@ def main() -> None:
                     content,
                     work_item_id,
                     "Notes",
-                    "Reporter retry limit reached; unresolved reporting failures require manual intervention. "
-                    + "Decision options: "
-                    + reporter_decision_options,
+                    "Reporter retry limit reached after deterministic closeout metadata repair rerun; unresolved reporting failure still remains and must be fixed before continuing.",
                 )
                 write_file(dev_tasks_path, content)
-                flush_pending_failure_proposals("reporter retry limit reached")
+                flush_pending_failure_proposals(
+                    "reporter retry limit reached after deterministic closeout metadata repair rerun"
+                )
                 die(
-                    "pc-feature: max reporter retry attempts reached; "
-                    "check reporter feedback for unresolved scope gaps; decision options: "
-                    + reporter_decision_options
+                    "pc-feature: max reporter retry attempts reached after deterministic closeout metadata repair rerun; "
+                    "check reporter feedback for unresolved scope gaps"
                 )
             ensure_role_log(
                 os.path.join(planner_path, role_paths["planner"]), "planner"

@@ -5904,6 +5904,20 @@ class TestPcFeature(unittest.TestCase):
             )
         )
 
+        execution_state_variant_feedback = (
+            "Outcome: FAIL\n"
+            "Docs/logs updated: reporter-log.md\n"
+            "Check: WI-20260216-03 execution-state reconciliation and completeness against required scope views.\n"
+            "Evidence: WI-20260216-03 in dev-tasks still records `Outcome: needs replan`, `Test Results: FAIL`, and `Reporter Feedback: SKIPPED` while validation-log.md records PASS for both allowed test commands.\n"
+            "Expected fix: reconcile machine-owned execution metadata fields against current tester/validation evidence before retry.\n"
+            "Notes: execution-log consistency mismatch only.\n"
+        )
+        self.assertTrue(
+            self.pc_feature.is_metadata_drift_only_reporter_failure(
+                execution_state_variant_feedback
+            )
+        )
+
         blocking_feedback = (
             "Outcome: FAIL\n"
             "Docs/logs updated: reporter-log.md\n"
@@ -5961,6 +5975,17 @@ class TestPcFeature(unittest.TestCase):
                     "Check: Status parity across machine-owned ticket metadata.\n"
                     "Evidence: validation log reports PASS while dev-tasks Test Results and Reporter Review remain stale FAIL/needs replan values.\n"
                     "Expected fix: apply deterministic machine-owned status parity reconciliation before retry escalation.\n"
+                )
+            ),
+            self.pc_feature.REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY,
+        )
+        self.assertEqual(
+            self.pc_feature.classify_reporter_failure_reason(
+                (
+                    "Outcome: FAIL\n"
+                    "Check: WI-20260216-03 execution-state reconciliation and completeness against required scope views.\n"
+                    "Evidence: WI-20260216-03 in dev-tasks still records `Outcome: needs replan`, `Test Results: FAIL`, and `Reporter Feedback: SKIPPED` while validation-log.md records PASS for both allowed test commands.\n"
+                    "Expected fix: reconcile machine-owned execution metadata fields against current tester/validation evidence before retry.\n"
                 )
             ),
             self.pc_feature.REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY,
@@ -9386,6 +9411,125 @@ class TestPcFeature(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn("patcher feedback role-scope violation", dev_tasks)
+
+    def test_reporter_retry_cap_auto_repair_reruns_once_without_decision_options(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260216-99"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reporter_calls = {"count": 0}
+            planner_feedback_calls = {"count": 0}
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    reporter_calls["count"] += 1
+                    return (
+                        "Outcome: FAIL\n"
+                        "Docs/logs updated: reporter-log.md\n"
+                        "Check: Reporter handoff completeness.\n"
+                        "Evidence: Reporter Review is still pending.\n"
+                        "Expected fix: populate Reporter Review section.\n"
+                    )
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    planner_feedback_calls["count"] += 1
+                    return (
+                        "Decision: PLAN_STILL_VALID\n"
+                        "Rationale: unresolved reporter handoff gap remains.\n"
+                    )
+                if (
+                    "Apply the smallest possible patch based on failure feedback"
+                    in prompt
+                ):
+                    return "No patch updates required."
+                return "ok"
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "MAX_LOOPS",
+                        1,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertGreaterEqual(reporter_calls["count"], 2)
+            self.assertGreaterEqual(planner_feedback_calls["count"], 2)
+            stderr_text = stderr_capture.getvalue().lower()
+            self.assertIn(
+                "max reporter retry attempts reached after deterministic closeout metadata repair rerun",
+                stderr_text,
+            )
+            self.assertNotIn("decision options", stderr_text)
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "reporter retry cap triggered deterministic closeout metadata repair (option a)",
+                dev_tasks.lower(),
+            )
+            self.assertNotIn("Decision options:", dev_tasks)
 
 
 class ProposalGenerationTests(unittest.TestCase):

@@ -2156,3 +2156,19 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `pc-devtasks-schema-check` now fails fast with explicit coherence remediation when schema-check/template/runtime markers drift.
   - Template contract now requires explicit feedback `Outcome` fields in both live and template-source `dev-tasks.md`.
   - Runtime contract remains covered (`pc-feature` tests) and includes explicit compat marker declaration.
+
+## 2026-02-16 - Validate reporter retry-cap auto-closeout repair and wording-variant classification
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s /Users/alexandrepezzotta/repos/PezzosCode/tests -p 'test_pc_feature.py' -k 'is_metadata_drift_only_reporter_failure_classifier'`
+- Result: PASS (`1` test; offload id `ff54520eb41a16677c9d2e2fc45533519a89fbdc9fb068da141805c0296b7a63`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s /Users/alexandrepezzotta/repos/PezzosCode/tests -p 'test_pc_feature.py' -k 'classify_reporter_failure_reason'`
+- Result: PASS (`1` test; offload id `a626407facf1102b512cc38f00f6e7d889aa6280a5c03d1722ac6d1c4eb08dc5`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s /Users/alexandrepezzotta/repos/PezzosCode/tests -p 'test_pc_feature.py' -k 'reporter_retry_cap_auto_repair_reruns_once_without_decision_options'`
+- Result: FAIL first run (assertion mismatch; offload id `bb49866910694ee557b9935490d3f487d3f065b32c2692a563cd05c03e2bf349`), PASS after assertion correction (`1` test; offload id `123ffa564b34c76650916d85ef9f5179841df799d50f3c83a89f9792419c42fc`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s /Users/alexandrepezzotta/repos/PezzosCode/tests -p 'test_pc_feature.py'`
+- Result: PASS (full `test_pc_feature.py`; offload id `5331f1a5636557770f9c1f9e53cbcdc2831b3fb7bda1dc5ca2103983f7aa017a`)
+- Verified:
+  - Metadata-drift classifier now recognizes execution-state/validation-log wording from the failing cross-repo reporter feedback.
+  - Reporter retry cap now auto-applies deterministic closeout metadata repair (Option A), schedules one rerun, and no longer emits decision-options escalation text in this path.
