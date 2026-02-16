@@ -4372,6 +4372,35 @@ class TestPcFeature(unittest.TestCase):
                 stderr_capture.getvalue(),
             )
 
+    def test_merge_main_into_worktree_preserves_conflict_state_on_failure(self):
+        merge_result = SimpleNamespace(
+            returncode=1,
+            stdout="Auto-merging docs/03-logs/implementation-log.md\n",
+            stderr=(
+                "CONFLICT (content): Merge conflict in "
+                "docs/03-logs/implementation-log.md\n"
+            ),
+        )
+        with mock.patch.object(
+            self.pc_feature.subprocess,
+            "run",
+            return_value=merge_result,
+        ) as run_mock:
+            merged, detail = self.pc_feature.merge_main_into_worktree(
+                "/tmp/patcher", "refs/heads/main"
+            )
+
+        self.assertFalse(merged)
+        self.assertIn("CONFLICT (content)", detail)
+        run_mock.assert_called_once_with(
+            ["git", "merge", "--no-edit", "refs/heads/main"],
+            check=False,
+            stdout=self.pc_feature.subprocess.PIPE,
+            stderr=self.pc_feature.subprocess.PIPE,
+            text=True,
+            cwd="/tmp/patcher",
+        )
+
     def test_main_stale_existing_worktree_sync_mode_merges_and_continues(self):
         class StopMain(RuntimeError):
             pass

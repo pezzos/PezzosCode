@@ -2294,3 +2294,18 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Bootstrapped JSON configs remain valid (no marker footer injection).
   - `--reapply` force-overwrites changed syncable files without interactive prompt.
   - Protected logs remain protected when already present.
+
+## 2026-02-16 - Validate sync-resume merge conflict state preservation
+
+- Command: `python3 -m py_compile tools/pc-feature tests/test_pc_feature.py`
+- Result: PASS.
+- Command: `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k merge_main_into_worktree_preserves_conflict_state_on_failure`
+- Result: PASS (`1` test).
+- Command: `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k merge_failure`
+- Result: PASS (`2` tests).
+- Command: `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k stale_existing_worktree_sync_mode_merges_and_continues`
+- Result: PASS (`1` test).
+- Verified:
+  - `merge_main_into_worktree(...)` no longer auto-aborts failed merges.
+  - Failure detail still propagates to sync-resume callers and blocks continuation.
+  - Existing successful stale-sync merge flow remains intact.

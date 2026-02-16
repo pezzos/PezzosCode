@@ -7683,3 +7683,23 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - This removes the planner/reporter policy mismatch that allowed discover-only commands through planner validation and then failed deterministically at reporter.
 - Failures now occur earlier with direct remediation instructions, reducing retry churn.
+
+### 2026-02-16 - Preserve sync-resume merge conflicts for manual resolution
+
+**Feature/Bug:** `RESUME_MODE=sync` stale patcher sync failures printed `resolve conflicts manually` guidance while clearing merge state immediately.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Removed automatic `git merge --abort` from the merge-failure branch in `merge_main_into_worktree(...)`.
+- Kept the existing failure contract unchanged (`return False, <merge output>`), so caller diagnostics and fail-closed behavior remain the same.
+- Added regression coverage in `tests/test_pc_feature.py` to assert merge failure does not trigger a second subprocess call (`git merge --abort`).
+
+**Why:**
+
+- This aligns runtime behavior with CLI guidance to resolve conflicts manually in the patcher worktree.
+- Preserving merge state keeps `MERGE_HEAD` and conflict markers available for direct user resolution and debugging.

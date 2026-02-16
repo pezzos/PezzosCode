@@ -1960,20 +1960,6 @@ def merge_main_into_worktree(worktree_path: str, main_ref: str) -> Tuple[bool, s
     detail = ((merge_result.stdout or "") + (merge_result.stderr or "")).strip()
     if merge_result.returncode == 0:
         return True, detail
-    abort_result = subprocess.run(
-        ["git", "merge", "--abort"],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        cwd=worktree_path,
-    )
-    if abort_result.returncode != 0:
-        abort_detail = (
-            (abort_result.stdout or "") + (abort_result.stderr or "")
-        ).strip()
-        if abort_detail:
-            detail = f"{detail}\nmerge --abort failed: {abort_detail}".strip()
     return False, detail or "git merge failed"
 
 

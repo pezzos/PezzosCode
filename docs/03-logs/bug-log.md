@@ -1064,3 +1064,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** `pc-feature` could consume reporter retry budget when touched `tests/test_*.py` scope changes were not explicitly represented in Allowed Tests/WI evidence; on retry-cap terminal exit, workflow status could remain `RUNNING` with open `planner-feedback`.
 - **Fix:** Added deterministic pre-reporter touched-test parity gating (branch-diff touched tests vs Allowed Tests + `Tests run` evidence) and emitted terminal `planner-feedback FAIL` with `state=FAILED` before retry-cap `die(...)`.
 - **Validation:** `tools/offload-proxy/pp python -m pytest -q tests/test_pc_feature.py -k "collect_touched_work_item_test_paths_filters_to_tests_pattern or work_item_test_evidence_parity_issues_detects_missing_coverage or work_item_test_evidence_parity_issues_accepts_explicit_file_or_module or pre_reporter_parity_gate_blocks_missing_touched_test_coverage or reporter_retry_cap_auto_repair_reruns_once_without_decision_options"` (PASS after assertion-tightening rerun); `tools/offload-proxy/pp python -m pytest -q tests/test_pc_feature.py` (PASS, `241 passed, 72 subtests passed`).
+
+## 2026-02-16 - Sync-resume merge conflict state auto-cleared despite manual-resolution guidance
+
+- **ID:** BUG-20260216-04
+- **Status:** Fixed
+- **Source:** User report (`RESUME_MODE=sync make feature F=08` in `/Users/alexandrepezzotta/repos/Agenda-Assistant`)
+- **Summary:** On stale patcher sync merge conflicts, `pc-feature` reported `resolve conflicts manually` but immediately ran `git merge --abort`, clearing `MERGE_HEAD` and conflict markers before the user could resolve them.
+- **Fix:** Removed automatic `git merge --abort` in `merge_main_into_worktree(...)`; failed merges now return conflict output and leave the merge in-progress for manual resolution in the patcher worktree.
+- **Validation:** `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k merge_main_into_worktree_preserves_conflict_state_on_failure` (PASS); `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k merge_failure` (PASS); `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k stale_existing_worktree_sync_mode_merges_and_continues` (PASS).
