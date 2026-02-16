@@ -126,6 +126,79 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-009] - Planner-feedback contract ambiguity caused terminal REVISE_PLAN parse failure without completion event
+
+**Date Discovered:** 2026-02-16
+
+**Discovered By:** Cross-repo workflow investigation (`make feature F=08`, WI-20260216-02)
+
+**Severity:** High
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Internal maintainers running `make feature` / `tools/pc-feature`
+
+**Symptoms:**
+`pc-feature` aborted during planner-feedback with `planner marked REVISE_PLAN but returned no Revised Plan section` after reporter retry failures. Workflow artifacts showed `planner-feedback START` without a matching terminal planner-feedback event.
+
+**Steps to Reproduce:**
+
+1. Trigger a tester/reporter failure loop that enters planner-feedback.
+2. Have planner feedback output `Decision: REVISE_PLAN` without a parseable `Revised Plan:` section (or return malformed feedback due prompt ambiguity).
+3. Observe terminal exit before planner-feedback completion and no terminal planner-feedback workflow event.
+
+**Expected Behavior:**
+Planner-feedback prompt contract is unambiguous; parser handles missing/malformed Decision/Revised Plan combinations deterministically; terminal planner-feedback failures emit explicit workflow fail events.
+
+**Actual Behavior:**
+Prompt instructions conflicted, parser fallback for malformed responses was brittle, and the terminal missing-revised-plan branch exited without a planner-feedback fail event.
+
+**Root Cause:**
+
+- `prompts/planner-update_from_feedback.md` simultaneously required a structured response and also instructed returning only revised-plan body.
+- `parse_feedback_plan_decision(...)` defaulted unknown outputs to `REVISE_PLAN`, while `parse_feedback_revised_plan(...)` only accepted explicit `Revised Plan:` blocks.
+- Planner-feedback terminal failure branches did not emit `planner-feedback FAIL` before exiting.
+
+**Fix:**
+
+- Aligned planner-feedback prompt contract in live/template prompt files to require revised-plan body under `Revised Plan:` (removed contradictory body-only return instruction).
+- Hardened planner-feedback parsing in `tools/pc-feature`:
+  - parseable revised-plan body now supports body-only fallback (including contract-formatted output without wrapper fields),
+  - missing decision now defaults to `PLAN_STILL_VALID` unless a parseable revised plan body is present,
+  - `(none)`/equivalent revised-plan placeholders are treated as missing.
+- Added explicit `planner-feedback FAIL` workflow event emission before terminal exits for missing revised-plan and revised-plan quality-check failures.
+
+**Files Changed:**
+
+- `prompts/planner-update_from_feedback.md`
+- `tools/templates/prompts/planner-update_from_feedback.md`
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**Prevention:**
+
+- Added parser regression tests for missing/malformed Decision/Revised Plan combinations.
+- Added planner-feedback prompt-contract consistency test to guard against future template drift and contradictory instructions.
+- Added workflow regression test asserting planner-feedback terminal failure emits `FAIL` event.
+
+- Tests added: `tests/test_pc_feature.py` (parser fallback, prompt contract consistency, planner-feedback fail-event)
+- Process changes: none
+- Monitoring added: none
+
+**Related Issues:**
+
+- Consumer run: `Agenda-Assistant` WI-20260216-02 (`planner-feedback` terminated after reporter attempt fail loop)
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-16
+
+**Deployed:** N/A (tooling repo local fix)
+
+**Verified By:** Codex (targeted + full `test_pc_feature.py`)
+
 ### [BUG-008] - Plan-reviewer conflict remediation was generic and env-prefixed test commands bypassed normalization
 
 **Date Discovered:** 2026-02-16

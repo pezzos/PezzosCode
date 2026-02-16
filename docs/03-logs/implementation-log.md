@@ -7533,3 +7533,35 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - The observed cross-repo failure was a tooling false negative in metadata-drift classification plus an escalation path that still required manual decision text after cap.
 - Auto-applying deterministic Option A at retry cap removes unnecessary manual branching and keeps behavior aligned with fail-closed deterministic reconciliation.
+
+### 2026-02-16 - Fix planner-feedback REVISE_PLAN contract/parsing mismatch and emit terminal fail events
+
+**Feature/Bug:** Cross-repo planner-feedback abort in `make feature F=08` (`WI-20260216-02`) with `planner marked REVISE_PLAN but returned no Revised Plan section`.
+
+**Changed Files:**
+
+- `prompts/planner-update_from_feedback.md`
+- `tools/templates/prompts/planner-update_from_feedback.md`
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Aligned planner-feedback prompt contract in live/template prompt files by removing the contradictory instruction to "return only the revised plan body"; revised-plan output now stays explicitly under `Revised Plan:`.
+- Hardened planner-feedback parsing in `tools/pc-feature`:
+  - added fallback revised-plan parsing for body-only planner outputs,
+  - strips wrapper lines (`Decision:` / `Rationale:`) when extracting body-only revised plans,
+  - treats `(none)` and equivalent placeholder markers as missing revised-plan content,
+  - changed missing-decision fallback so unparseable non-plan output defaults to `PLAN_STILL_VALID` (only parseable plan-like output defaults to `REVISE_PLAN`).
+- Added explicit workflow terminal events for planner-feedback fatal branches:
+  - missing parseable revised plan now emits `planner-feedback FAIL` with `state=FAILED`,
+  - revised-plan quality-check failures now emit `planner-feedback FAIL` with `state=FAILED`.
+- Added regression coverage in `tests/test_pc_feature.py`:
+  - parser behavior for missing/malformed Decision/Revised Plan combinations,
+  - planner-feedback prompt contract consistency + live/template parity,
+  - planner-feedback missing-revised-plan failure emits `planner-feedback FAIL` event.
+
+**Why:**
+
+- The feedback prompt contract ambiguity plus brittle fallback parsing produced a deterministic terminal abort in real workflow retries.
+- Emitting explicit planner-feedback fail events closes the workflow observability gap (START without terminal planner-feedback status).

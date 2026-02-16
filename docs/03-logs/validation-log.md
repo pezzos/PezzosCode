@@ -2224,3 +2224,26 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verified:
   - Metadata-drift classifier now recognizes execution-state/validation-log wording from the failing cross-repo reporter feedback.
   - Reporter retry cap now auto-applies deterministic closeout metadata repair (Option A), schedules one rerun, and no longer emits decision-options escalation text in this path.
+
+## 2026-02-16 - Validate planner-feedback prompt/parser hardening and terminal fail-event emission
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k 'parse_feedback_plan_decision'`
+- Result: PASS (`1` test; offload id `50123f26e6d30940556cc448291d77c1880d497121f6c91559a6a7bdb8620941`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k 'parse_feedback_revised_plan'`
+- Result: FAIL first run due trailing-newline assertion mismatch (offload id `16b423fe966d8ed58a800c21dabb04be764f72b5e90c7d9c8889c987f83a61c1`), PASS after assertion correction (`3` tests; offload id `5279d1fc9a1ced44f9c96da1414ef59e4676f963fbad52e7a1a2903538819b0d`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k 'planner_feedback_prompt_contract_is_consistent'`
+- Result: PASS (`1` test; offload id `50123f26e6d30940556cc448291d77c1880d497121f6c91559a6a7bdb8620941`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py' -k 'failure_loop_missing_revised_plan_emits_planner_feedback_fail_event'`
+- Result: PASS (`1` test; offload id `f1b439e92484ac79c678d2f60affd38b213f5cebfa81502816e42ab72f7fa562`)
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature prompts/planner-update_from_feedback.md tools/templates/prompts/planner-update_from_feedback.md tests/test_pc_feature.py docs/03-logs/bug-log.md docs/03-logs/implementation-log.md`
+- Result: FAIL first run (`black` reformatted files; offload id `4a9b196a2082c19d99b71a179c219568b0311a3200a93ac83516b1b91a9b50bc`), PASS second run (offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p 'test_pc_feature.py'`
+- Result: PASS (full suite; offload id `aec7cbf82be56cb794a4dca62096a0500d2d7840f2443e7fe5cc5c5ddb402be2`)
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `a69a92d41ea68912452567202d5908356309a0c22f908796fea068094d9b5884`; no persistent workspace diffs beyond scoped implementation files)
+- Command: `tools/offload-proxy/pp bash -lc 'pre-commit run --files $(git diff --name-only)'`
+- Result: PASS (inline output; no offload id emitted because output stayed below offload threshold)
+- Verified:
+  - Planner-feedback prompt contract is consistent and non-contradictory across live/template sources.
+  - Missing/malformed Decision/Revised Plan combinations now resolve deterministically without the previous hard-fail mode for body-only revised plans.
+  - Terminal planner-feedback failures now emit explicit `planner-feedback FAIL` workflow events before exit.

@@ -3531,6 +3531,56 @@ def parse_plan_reviewer_decision(text: str) -> str:
     return match.group(1).upper()
 
 
+def feedback_revised_plan_none_marker(text: str) -> bool:
+    normalized = " ".join(text.strip().lower().split())
+    return normalized in {"(none)", "none", "(n/a)", "n/a", "na", "not applicable"}
+
+
+def looks_like_revised_plan_body(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    lowered = stripped.lower()
+    if "plan contract v1" in lowered:
+        return True
+    if plan_uses_contract_sections(stripped):
+        return True
+    for line in stripped.splitlines():
+        candidate = line.strip()
+        if not candidate:
+            continue
+        if re.match(r"(?:[-*]|\d+\.)\s+\S", candidate):
+            return True
+    return False
+
+
+def parse_feedback_revised_plan(text: str) -> str:
+    match = re.search(r"Revised Plan:\s*\n(.+)$", text, re.IGNORECASE | re.DOTALL)
+    if match:
+        candidate = match.group(1).strip()
+        if feedback_revised_plan_none_marker(candidate):
+            return ""
+        return candidate
+
+    stripped = text.strip()
+    if not stripped:
+        return ""
+
+    fallback_lines: List[str] = []
+    for line in stripped.splitlines():
+        if re.match(r"^\s*(Decision|Rationale)\s*:", line, re.IGNORECASE):
+            continue
+        if re.match(r"^\s*Revised Plan\s*:\s*$", line, re.IGNORECASE):
+            continue
+        fallback_lines.append(line)
+    fallback_candidate = "\n".join(fallback_lines).strip()
+    if feedback_revised_plan_none_marker(fallback_candidate):
+        return ""
+    if not looks_like_revised_plan_body(fallback_candidate):
+        return ""
+    return fallback_candidate
+
+
 def parse_feedback_plan_decision(text: str) -> str:
     match = re.search(
         r"Decision:\s*(PLAN_STILL_VALID|REVISE_PLAN|REVISED PLAN REQUIRED|PLAN STILL VALID)\b",
@@ -3538,18 +3588,13 @@ def parse_feedback_plan_decision(text: str) -> str:
         re.IGNORECASE,
     )
     if not match:
-        return "REVISE_PLAN"
+        return (
+            "REVISE_PLAN" if parse_feedback_revised_plan(text) else "PLAN_STILL_VALID"
+        )
     decision = match.group(1).upper().replace(" ", "_")
     if decision in {"REVISED_PLAN_REQUIRED", "REVISE_PLAN"}:
         return "REVISE_PLAN"
     return "PLAN_STILL_VALID"
-
-
-def parse_feedback_revised_plan(text: str) -> str:
-    match = re.search(r"Revised Plan:\s*\n(.+)$", text, re.IGNORECASE | re.DOTALL)
-    if not match:
-        return ""
-    return match.group(1).strip()
 
 
 def parse_feedback_rationale(text: str) -> str:
@@ -8202,6 +8247,16 @@ def main() -> None:
             if planner_decision == "REVISE_PLAN":
                 revised_plan_raw = parse_feedback_revised_plan(planner_feedback)
                 if not revised_plan_raw:
+                    emit_workflow_event(
+                        "planner-feedback",
+                        "FAIL",
+                        attempt=attempt,
+                        outcome="FAIL",
+                        reason=(
+                            "planner decision REVISE_PLAN had no parseable revised plan"
+                        ),
+                        state="FAILED",
+                    )
                     flush_pending_failure_proposals(
                         "planner missing Revised Plan in feedback loop"
                     )
@@ -8221,6 +8276,17 @@ def main() -> None:
                         )
                     )
                 if quality_issues:
+                    emit_workflow_event(
+                        "planner-feedback",
+                        "FAIL",
+                        attempt=attempt,
+                        outcome="FAIL",
+                        reason=(
+                            "planner revised plan failed quality checks: "
+                            + "; ".join(sorted(set(quality_issues)))
+                        ),
+                        state="FAILED",
+                    )
                     flush_pending_failure_proposals(
                         "planner revised plan quality check failed in feedback loop"
                     )

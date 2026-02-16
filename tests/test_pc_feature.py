@@ -3262,7 +3262,51 @@ class TestPcFeature(unittest.TestCase):
         )
         self.assertEqual(
             self.pc_feature.parse_feedback_plan_decision("unexpected output"),
+            "PLAN_STILL_VALID",
+        )
+        self.assertEqual(
+            self.pc_feature.parse_feedback_plan_decision(
+                "Plan Contract v1\nApproach:\n- tighten checks"
+            ),
             "REVISE_PLAN",
+        )
+
+    def test_parse_feedback_revised_plan_accepts_body_only_contract(self):
+        body_only = (
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "1. Tighten checks.\n"
+            "Files to change:\n"
+            "- tools/pc-feature\n"
+            "Risks:\n"
+            "- parser regressions\n"
+            "Tests (anti-hardcode coverage required):\n"
+            "- Fixture coverage: at least 2 fixtures\n"
+        )
+        self.assertEqual(
+            self.pc_feature.parse_feedback_revised_plan(body_only),
+            body_only.strip(),
+        )
+
+    def test_parse_feedback_revised_plan_strips_metadata_on_body_only_fallback(self):
+        raw = (
+            "Decision: REVISE_PLAN\n"
+            "Rationale: tighten checks\n"
+            "Plan Contract v1\n"
+            "Approach:\n"
+            "- Focus on fallback behavior\n"
+        )
+        parsed = self.pc_feature.parse_feedback_revised_plan(raw)
+        self.assertTrue(parsed.startswith("Plan Contract v1"))
+        self.assertNotIn("Decision:", parsed)
+        self.assertNotIn("Rationale:", parsed)
+
+    def test_parse_feedback_revised_plan_treats_none_marker_as_missing(self):
+        self.assertEqual(
+            self.pc_feature.parse_feedback_revised_plan(
+                "Decision: REVISE_PLAN\nRevised Plan:\n(none)\n"
+            ),
+            "",
         )
 
     def test_locked_main_head_note_helpers(self):
@@ -3469,6 +3513,24 @@ class TestPcFeature(unittest.TestCase):
         prompt_files = sorted(path.name for path in prompts_dir.glob("*.md"))
         template_files = sorted(path.name for path in templates_dir.glob("*.md"))
         self.assertEqual(prompt_files, template_files)
+
+    def test_planner_feedback_prompt_contract_is_consistent(self):
+        prompt_path = ROOT / "prompts" / "planner-update_from_feedback.md"
+        template_path = (
+            ROOT / "tools" / "templates" / "prompts" / "planner-update_from_feedback.md"
+        )
+        prompt_body = prompt_path.read_text(encoding="utf-8")
+        template_body = template_path.read_text(encoding="utf-8")
+
+        self.assertEqual(prompt_body, template_body)
+        self.assertIn("Return exactly this structure:", prompt_body)
+        self.assertIn("Decision: PLAN_STILL_VALID|REVISE_PLAN", prompt_body)
+        self.assertIn("Revised Plan:", prompt_body)
+        self.assertIn(
+            "include the revised plan body under `Revised Plan:`",
+            prompt_body,
+        )
+        self.assertNotIn("return only the revised plan body", prompt_body.lower())
 
     def test_load_prompt_template_falls_back_to_hyphen_variant_when_missing(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -9311,6 +9373,172 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("revised plan from failure feedback", dev_tasks)
             self.assertIn("patcher feedback pending", dev_tasks)
+
+    def test_failure_loop_missing_revised_plan_emits_planner_feedback_fail_event(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260216-02"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            recorded_events = []
+            workflow_history_path = (
+                patcher_path / "logs" / work_item_id / "workflow-history.ndjson"
+            )
+            workflow_status_path = (
+                patcher_path / "logs" / work_item_id / "workflow-status.json"
+            )
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "You are the Reporter agent." in prompt:
+                    return (
+                        "Outcome: FAIL\n"
+                        "Docs/logs updated: reporter-log.md\n"
+                        "Check: scope completeness\n"
+                        "Evidence: missing implementation changes\n"
+                        "Expected fix: update implementation and rerun validation.\n"
+                    )
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    return "Decision: REVISE_PLAN\nRationale: needs a rewritten plan\n"
+                return "ok"
+
+            def fake_record_workflow_event(
+                metadata,
+                *,
+                step,
+                event,
+                attempt=None,
+                outcome="",
+                reason="",
+                state=None,
+                root=None,
+            ):
+                payload = {
+                    "timestamp": "2026-02-16T14:00:28Z",
+                    "step": step,
+                    "event": event,
+                    "attempt": attempt,
+                    "outcome": outcome,
+                    "reason": reason,
+                    "state": state,
+                }
+                recorded_events.append(payload)
+                return payload
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "build_metadata",
+                        return_value=SimpleNamespace(
+                            work_item_id=work_item_id,
+                            agent_name="pc-feature",
+                            run_id="run-456",
+                        ),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "init_workflow_tracking",
+                        return_value=(
+                            str(workflow_status_path),
+                            str(workflow_history_path),
+                        ),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "record_workflow_event",
+                        side_effect=fake_record_workflow_event,
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertIn(
+                "planner marked REVISE_PLAN but returned no Revised Plan section",
+                stderr_capture.getvalue(),
+            )
+            self.assertTrue(
+                any(
+                    event["step"] == "planner-feedback" and event["event"] == "START"
+                    for event in recorded_events
+                )
+            )
+            self.assertTrue(
+                any(
+                    event["step"] == "planner-feedback"
+                    and event["event"] == "FAIL"
+                    and event["state"] == "FAILED"
+                    for event in recorded_events
+                )
+            )
+            self.assertFalse(
+                any(
+                    event["step"] == "planner-feedback" and event["event"] == "DONE"
+                    for event in recorded_events
+                )
+            )
 
     def test_feedback_loop_scope_violation_routes_back_to_planner(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
