@@ -12,6 +12,36 @@
 
 **Last Updated:** 2026-02-09
 
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-12-001` Input validation controls are not explicit
+  - Severity: High
+  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
+- [ ] `SEC-12-003` Secrets handling is not documented
+  - Severity: Medium
+  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
+- [ ] `SEC-12-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+- [ ] `SEC-12-005` Infrastructure misconfiguration guardrails are missing
+  - Severity: Medium
+  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+
+### Product Manager Tasks
+
+- [ ] `PROD-12-002` User journey details are missing in feature docs
+  - Severity: Medium
+  - Action: Add explicit user journey steps, entry points, and completion states.
+- [ ] `PROD-12-005` PO validation checkpoint is missing
+  - Severity: Low
+  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+
+<!-- review-backlog:end -->
+
 ## Task Breakdown
 
 - [ ] **Task 1 - Implement deterministic feature discovery**

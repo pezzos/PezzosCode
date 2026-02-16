@@ -790,6 +790,30 @@ Work Item ID: WI-20260211-01
 
 - Work item patched and validated for the reporter-identified traceability gap; awaiting reporter rerun/approval.
 
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-17-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+
+### Product Manager Tasks
+
+- [ ] `PROD-17-001` Functional scope is under-specified
+  - Severity: High
+  - Action: Expand functional requirements to cover primary and edge behaviors with acceptance criteria.
+- [ ] `PROD-17-002` User journey details are missing in feature docs
+  - Severity: Medium
+  - Action: Add explicit user journey steps, entry points, and completion states.
+- [ ] `PROD-17-005` PO validation checkpoint is missing
+  - Severity: Low
+  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+
+<!-- review-backlog:end -->
+
 ## Task Breakdown
 
 - [ ] **Task 1 - Define resume state model (data model)**

@@ -121,6 +121,26 @@ Resume behavior must be deterministic, preserve in-progress work by default, and
 - Process Protocol: `docs/04-process/ticket-execution-protocol.md`
 - Workflow: `docs/04-process/dev-workflow.md`
 
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                    |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| SEC-17-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios. |
+
+### Product Manager
+
+| ID          | Severity | Risk                                                                    | Action                                                                                       |
+| ----------- | -------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| PROD-17-001 | High     | Key product capabilities may be missed during implementation.           | Expand functional requirements to cover primary and edge behaviors with acceptance criteria. |
+| PROD-17-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                        |
+| PROD-17-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution. |
+
+<!-- review-findings:end -->
+
 ## Change Log
 
 | Date       | Version | Changes      | Author |

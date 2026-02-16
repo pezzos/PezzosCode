@@ -168,3 +168,39 @@ Docs/logs updated checklist: (see Docs Updated)
 make ci results: PASS
 Commands run (use pp for noisy output): prepatch smoke python -m unittest discover -s tests -p 'test\_\*.py': ok; tools/offload-proxy/pp make ci: ok
 Commit message: logs: record WI-20260206-01 execution and validation
+
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-10-001` Input validation controls are not explicit
+  - Severity: High
+  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
+- [ ] `SEC-10-002` Authentication/authorization expectations are missing
+  - Severity: High
+  - Action: Specify authN/authZ requirements, denied-path behavior, and least-privilege checks.
+- [ ] `SEC-10-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+- [ ] `SEC-10-005` Infrastructure misconfiguration guardrails are missing
+  - Severity: Medium
+  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+
+### Product Manager Tasks
+
+- [ ] `PROD-10-002` User journey details are missing in feature docs
+  - Severity: Medium
+  - Action: Add explicit user journey steps, entry points, and completion states.
+- [ ] `PROD-10-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'Unified autofix for CI + precommit' journey and workflow.
+- [ ] `PROD-10-004` Workflow definition is incomplete
+  - Severity: Medium
+  - Action: Define end-to-end workflow states, system responses, and handoff boundaries.
+- [ ] `PROD-10-005` PO validation checkpoint is missing
+  - Severity: Low
+  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+
+<!-- review-backlog:end -->

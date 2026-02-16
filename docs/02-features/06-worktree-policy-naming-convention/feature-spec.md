@@ -163,3 +163,20 @@ CLI → Run command → Review output → Confirm next step
 
 - Risk of inconsistent adoption without clear documentation
 - Risk of skipping gates under time pressure
+
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                          |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| SEC-06-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios.       |
+| SEC-06-005 | Medium   | Unsafe defaults can bypass intended runtime protections.                       | Capture required config defaults, permission boundaries, and misconfiguration failure behavior. |
+
+### Product Manager
+
+- No findings.
+
+<!-- review-findings:end -->

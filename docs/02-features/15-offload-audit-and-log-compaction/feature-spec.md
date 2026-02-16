@@ -111,3 +111,25 @@ Implement observability and lifecycle management for offloaded command output, t
 
 - Aggressive retention can break reproducibility/debugging.
 - Poor compaction heuristics can hide high-impact details or strip evidence needed for learning loops.
+
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                           |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| SEC-15-001 | High     | Unvalidated input can trigger data corruption or unsafe behavior.              | Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks. |
+| SEC-15-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios.        |
+| SEC-15-005 | Medium   | Unsafe defaults can bypass intended runtime protections.                       | Capture required config defaults, permission boundaries, and misconfiguration failure behavior.  |
+
+### Product Manager
+
+| ID          | Severity | Risk                                                                    | Action                                                                                                     |
+| ----------- | -------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| PROD-15-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                                      |
+| PROD-15-003 | Medium   | Cross-feature workflow alignment may be inconsistent.                   | Update `docs/01-product/ux-ui.md` to include 'Offload audit + useful log compaction' journey and workflow. |
+| PROD-15-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.               |
+
+<!-- review-findings:end -->

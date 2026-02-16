@@ -209,3 +209,33 @@ Docs/logs updated checklist: (see Docs Updated)
 make ci results: PASS
 Commands run (use pp for noisy output): prepatch smoke python3 -m unittest discover -s tests -p test_pc_autofix.py: ok; tools/offload-proxy/pp make ci: ok; collect patcher branch into main: ok
 Commit message: chore(wi-20260213-01): apply work item updates
+
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-19-003` Secrets handling is not documented
+  - Severity: Medium
+  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
+- [ ] `SEC-19-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+
+### Product Manager Tasks
+
+- [ ] `PROD-19-001` Functional scope is under-specified
+  - Severity: High
+  - Action: Expand functional requirements to cover primary and edge behaviors with acceptance criteria.
+- [ ] `PROD-19-002` User journey details are missing in feature docs
+  - Severity: Medium
+  - Action: Add explicit user journey steps, entry points, and completion states.
+- [ ] `PROD-19-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'Template drift hardening + autofix recovery' journey and workflow.
+- [ ] `PROD-19-005` PO validation checkpoint is missing
+  - Severity: Low
+  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+
+<!-- review-backlog:end -->

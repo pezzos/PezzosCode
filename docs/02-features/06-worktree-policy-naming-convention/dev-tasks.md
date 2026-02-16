@@ -351,6 +351,25 @@ Commit message: Document WI-20260204-01 execution entry in worktree policy log
 
 -
 
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-06-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+- [ ] `SEC-06-005` Infrastructure misconfiguration guardrails are missing
+  - Severity: Medium
+  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+
+### Product Manager Tasks
+
+- [ ] No product findings.
+
+<!-- review-backlog:end -->
+
 ## Task Breakdown
 
 ### CLI Development

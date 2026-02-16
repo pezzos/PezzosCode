@@ -97,3 +97,25 @@ Standardize tool execution with a shared runner and provide structured, tail-fri
 
 - Inconsistent adoption without updates to tools
 - Log verbosity creep
+
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                          |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| SEC-09-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios.       |
+| SEC-09-005 | Medium   | Unsafe defaults can bypass intended runtime protections.                       | Capture required config defaults, permission boundaries, and misconfiguration failure behavior. |
+
+### Product Manager
+
+| ID          | Severity | Risk                                                                    | Action                                                                                                |
+| ----------- | -------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| PROD-09-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                                 |
+| PROD-09-003 | Medium   | Cross-feature workflow alignment may be inconsistent.                   | Update `docs/01-product/ux-ui.md` to include 'Runner library + structured logs' journey and workflow. |
+| PROD-09-004 | Medium   | Execution order and handoff expectations may be unclear for delivery.   | Define end-to-end workflow states, system responses, and handoff boundaries.                          |
+| PROD-09-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.          |
+
+<!-- review-findings:end -->

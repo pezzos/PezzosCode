@@ -119,6 +119,27 @@ The commit step must verify required execution-log, test, and final-report field
 - Git Workflow: `docs/04-process/git-workflow.md`
 - Protocol: `docs/04-process/ticket-execution-protocol.md`
 
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                    |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| SEC-18-003 | Medium   | Credentials or tokens may leak into code, logs, or config.                     | Document secret sources, redaction strategy, and prohibited storage locations.            |
+| SEC-18-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios. |
+
+### Product Manager
+
+| ID          | Severity | Risk                                                                    | Action                                                                                       |
+| ----------- | -------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| PROD-18-001 | High     | Key product capabilities may be missed during implementation.           | Expand functional requirements to cover primary and edge behaviors with acceptance criteria. |
+| PROD-18-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                        |
+| PROD-18-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution. |
+
+<!-- review-findings:end -->
+
 ## Change Log
 
 | Date       | Version | Changes      | Author |

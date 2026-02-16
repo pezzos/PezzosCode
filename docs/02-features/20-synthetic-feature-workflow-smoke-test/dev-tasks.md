@@ -156,3 +156,39 @@ Docs/logs updated checklist: (see Docs Updated)
 make ci results: PASS
 Commands run (use pp for noisy output): prepatch smoke python3 -m unittest tests.test_pc_feature: ok; tools/offload-proxy/pp make ci: ok; collect patcher branch into main: ok
 Commit message: chore(wi-20260213-01): complete work item updates
+
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-20-001` Input validation controls are not explicit
+  - Severity: High
+  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
+- [ ] `SEC-20-003` Secrets handling is not documented
+  - Severity: Medium
+  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
+- [ ] `SEC-20-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+- [ ] `SEC-20-005` Infrastructure misconfiguration guardrails are missing
+  - Severity: Medium
+  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+
+### Product Manager Tasks
+
+- [ ] `PROD-20-001` Functional scope is under-specified
+  - Severity: High
+  - Action: Expand functional requirements to cover primary and edge behaviors with acceptance criteria.
+- [ ] `PROD-20-002` User journey details are missing in feature docs
+  - Severity: Medium
+  - Action: Add explicit user journey steps, entry points, and completion states.
+- [ ] `PROD-20-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'Synthetic feature workflow smoke test' journey and workflow.
+- [ ] `PROD-20-005` PO validation checkpoint is missing
+  - Severity: Low
+  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+
+<!-- review-backlog:end -->

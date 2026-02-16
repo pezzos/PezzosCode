@@ -376,6 +376,25 @@ Record each execution round here. Link any related logs in `docs/03-logs/`.
 
 -
 
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-08-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+- [ ] `SEC-08-005` Infrastructure misconfiguration guardrails are missing
+  - Severity: Medium
+  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+
+### Product Manager Tasks
+
+- [ ] No product findings.
+
+<!-- review-backlog:end -->
+
 ## Task Breakdown
 
 ### CLI Development

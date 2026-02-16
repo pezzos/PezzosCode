@@ -95,3 +95,27 @@ Use a single autofix script for CI and precommit, re-stage fixes, and run Codex 
 ## Risks & Considerations
 
 - Unexpected staging of unrelated files
+
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                           |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| SEC-10-001 | High     | Unvalidated input can trigger data corruption or unsafe behavior.              | Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks. |
+| SEC-10-002 | High     | Access controls may be implemented inconsistently or omitted.                  | Specify authN/authZ requirements, denied-path behavior, and least-privilege checks.              |
+| SEC-10-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios.        |
+| SEC-10-005 | Medium   | Unsafe defaults can bypass intended runtime protections.                       | Capture required config defaults, permission boundaries, and misconfiguration failure behavior.  |
+
+### Product Manager
+
+| ID          | Severity | Risk                                                                    | Action                                                                                                  |
+| ----------- | -------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| PROD-10-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                                   |
+| PROD-10-003 | Medium   | Cross-feature workflow alignment may be inconsistent.                   | Update `docs/01-product/ux-ui.md` to include 'Unified autofix for CI + precommit' journey and workflow. |
+| PROD-10-004 | Medium   | Execution order and handoff expectations may be unclear for delivery.   | Define end-to-end workflow states, system responses, and handoff boundaries.                            |
+| PROD-10-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.            |
+
+<!-- review-findings:end -->

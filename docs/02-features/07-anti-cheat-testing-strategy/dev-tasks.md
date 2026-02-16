@@ -1177,6 +1177,28 @@ Work Item ID: WI-20260204-03
 
 -
 
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-07-001` Input validation controls are not explicit
+  - Severity: High
+  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
+- [ ] `SEC-07-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+- [ ] `SEC-07-005` Infrastructure misconfiguration guardrails are missing
+  - Severity: Medium
+  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+
+### Product Manager Tasks
+
+- [ ] No product findings.
+
+<!-- review-backlog:end -->
+
 ## Task Breakdown
 
 ### CLI Development

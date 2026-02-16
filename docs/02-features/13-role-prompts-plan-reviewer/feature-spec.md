@@ -104,3 +104,26 @@ Rebaseline the feature to the current prompt architecture. The repository alread
 
 - Prompt drift can silently reintroduce inconsistent role behavior.
 - Overly strict reviewer wording can deadlock runs unless conflict handling remains explicit.
+
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                           |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| SEC-13-001 | High     | Unvalidated input can trigger data corruption or unsafe behavior.              | Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks. |
+| SEC-13-003 | Medium   | Credentials or tokens may leak into code, logs, or config.                     | Document secret sources, redaction strategy, and prohibited storage locations.                   |
+| SEC-13-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios.        |
+| SEC-13-005 | Medium   | Unsafe defaults can bypass intended runtime protections.                       | Capture required config defaults, permission boundaries, and misconfiguration failure behavior.  |
+
+### Product Manager
+
+| ID          | Severity | Risk                                                                    | Action                                                                                            |
+| ----------- | -------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| PROD-13-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                             |
+| PROD-13-003 | Medium   | Cross-feature workflow alignment may be inconsistent.                   | Update `docs/01-product/ux-ui.md` to include 'Role prompts + Plan Reviewer' journey and workflow. |
+| PROD-13-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.      |
+
+<!-- review-findings:end -->

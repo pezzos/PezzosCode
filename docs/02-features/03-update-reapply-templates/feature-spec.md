@@ -167,3 +167,24 @@ The documented workflow behavior steps, gates, and outputs ensure every CLI run 
 
 - Risk of inconsistent adoption without clear documentation
 - Risk of skipping gates under time pressure
+
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                           |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| SEC-03-001 | High     | Unvalidated input can trigger data corruption or unsafe behavior.              | Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks. |
+| SEC-03-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios.        |
+| SEC-03-005 | Medium   | Unsafe defaults can bypass intended runtime protections.                       | Capture required config defaults, permission boundaries, and misconfiguration failure behavior.  |
+
+### Product Manager
+
+| ID          | Severity | Risk                                                            | Action                                                                                        |
+| ----------- | -------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| PROD-03-003 | Medium   | Cross-feature workflow alignment may be inconsistent.           | Update `docs/01-product/ux-ui.md` to include 'Update/reapply templates' journey and workflow. |
+| PROD-03-005 | Low      | Human acceptance timing may be unclear before execution starts. | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.  |
+
+<!-- review-findings:end -->

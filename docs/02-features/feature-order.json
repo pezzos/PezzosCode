@@ -26,7 +26,7 @@
     "workflow-hardening-for-template-drift-autofix-recovery": [],
     "worktree-policy-naming-convention": []
   },
-  "generated_at": "2026-02-16T11:19:51Z",
+  "generated_at": "2026-02-16T13:57:22Z",
   "notes": [
     "This file is machine-managed by tools/pc-prepare-features.",
     "tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order."

@@ -854,6 +854,33 @@ Commit status:
 
 - No runs yet.
 
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-18-003` Secrets handling is not documented
+  - Severity: Medium
+  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
+- [ ] `SEC-18-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+
+### Product Manager Tasks
+
+- [ ] `PROD-18-001` Functional scope is under-specified
+  - Severity: High
+  - Action: Expand functional requirements to cover primary and edge behaviors with acceptance criteria.
+- [ ] `PROD-18-002` User journey details are missing in feature docs
+  - Severity: Medium
+  - Action: Add explicit user journey steps, entry points, and completion states.
+- [ ] `PROD-18-005` PO validation checkpoint is missing
+  - Severity: Low
+  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+
+<!-- review-backlog:end -->
+
 ## Task Breakdown
 
 - [ ] **Task 1 - Define mandatory commit-doc checklist (data model)**

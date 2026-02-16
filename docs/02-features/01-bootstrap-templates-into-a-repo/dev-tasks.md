@@ -18,6 +18,33 @@
 
 - No runs yet.
 
+## Review Findings Backlog
+
+<!-- review-backlog:start -->
+
+### Security Reviewer Tasks
+
+- [ ] `SEC-01-001` Input validation controls are not explicit
+  - Severity: High
+  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
+- [ ] `SEC-01-004` Injection defenses are not explicit
+  - Severity: High
+  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
+- [ ] `SEC-01-005` Infrastructure misconfiguration guardrails are missing
+  - Severity: Medium
+  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+
+### Product Manager Tasks
+
+- [ ] `PROD-01-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'Bootstrap templates into a repo' journey and workflow.
+- [ ] `PROD-01-005` PO validation checkpoint is missing
+  - Severity: Low
+  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+
+<!-- review-backlog:end -->
+
 ## Task Breakdown
 
 ### CLI Development

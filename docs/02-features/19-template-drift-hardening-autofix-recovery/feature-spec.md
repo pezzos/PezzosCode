@@ -120,6 +120,28 @@ Precommit/CI autofix should detect drift, repair only scoped paths, restage allo
 - Output Offload: `docs/04-process/output-offload.md`
 - Protocol: `docs/04-process/ticket-execution-protocol.md`
 
+## Automated Review Findings
+
+<!-- review-findings:start -->
+
+### Security Reviewer
+
+| ID         | Severity | Risk                                                                           | Action                                                                                    |
+| ---------- | -------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| SEC-19-003 | Medium   | Credentials or tokens may leak into code, logs, or config.                     | Document secret sources, redaction strategy, and prohibited storage locations.            |
+| SEC-19-004 | High     | Missing injection controls can expose command, SQL, or script injection paths. | Define escaping/parameterization requirements and add dedicated injection test scenarios. |
+
+### Product Manager
+
+| ID          | Severity | Risk                                                                    | Action                                                                                                           |
+| ----------- | -------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| PROD-19-001 | High     | Key product capabilities may be missed during implementation.           | Expand functional requirements to cover primary and edge behaviors with acceptance criteria.                     |
+| PROD-19-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                                            |
+| PROD-19-003 | Medium   | Cross-feature workflow alignment may be inconsistent.                   | Update `docs/01-product/ux-ui.md` to include 'Template drift hardening + autofix recovery' journey and workflow. |
+| PROD-19-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.                     |
+
+<!-- review-findings:end -->
+
 ## Change Log
 
 | Date       | Version | Changes      | Author |
