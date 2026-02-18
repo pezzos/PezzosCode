@@ -1,3 +1,4 @@
+import io
 import importlib.util
 from importlib.machinery import SourceFileLoader
 import json
@@ -5,8 +6,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from unittest import mock
 from pathlib import Path
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,6 +28,57 @@ def load_tool_module():
 class TestPcPrepareFeatures(unittest.TestCase):
     def setUp(self):
         self.tool = load_tool_module()
+
+    def _write_minimal_prepare_fixture(self, root: Path) -> None:
+        (root / "docs/01-product").mkdir(parents=True, exist_ok=True)
+        (root / "docs/00-context").mkdir(parents=True, exist_ok=True)
+        (root / "docs/02-features").mkdir(parents=True, exist_ok=True)
+        (root / "tools").mkdir(parents=True, exist_ok=True)
+
+        (root / "docs/01-product/prd.md").write_text(
+            """## Prioritized Feature List
+
+| Priority | Feature | Outcome | Notes | Dependencies |
+| -------- | ------- | ------- | ----- | ------------ |
+| P0       | Alpha Feature | Deliver alpha flow | Core path | - |
+| P1       | Beta Feature | Deliver beta flow | Depends on alpha | Alpha Feature |
+""",
+            encoding="utf-8",
+        )
+        (root / "docs/00-context/context-boundaries-operating-model.md").write_text(
+            """## Scope Boundaries
+- Local CLI only
+## Non-Goals
+- No cloud runtime
+## Operating Model
+- Human executes explicit commands
+""",
+            encoding="utf-8",
+        )
+        (root / "tools/prd-to-features").write_text(
+            """#!/usr/bin/env python3
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class FeatureRecord:
+    index: int
+    title: str
+    priority: str
+    slug: str
+    dependencies: tuple[str, ...]
+    source: str
+    outcome: str
+    notes: str
+
+
+def parse_prd_features(_text: str):
+    return [
+        FeatureRecord(1, \"Alpha Feature\", \"P0\", \"alpha-feature\", tuple(), \"table\", \"x\", \"\"),
+        FeatureRecord(2, \"Beta Feature\", \"P1\", \"beta-feature\", (\"alpha-feature\",), \"table\", \"x\", \"\"),
+    ]
+""",
+            encoding="utf-8",
+        )
 
     def test_resolve_dependency_graph_uses_override_for_unknown_dependency(self):
         features = [
@@ -80,55 +134,7 @@ class TestPcPrepareFeatures(unittest.TestCase):
     def test_skip_generation_writes_design_ux_and_order_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            (root / "docs/01-product").mkdir(parents=True, exist_ok=True)
-            (root / "docs/00-context").mkdir(parents=True, exist_ok=True)
-            (root / "docs/02-features").mkdir(parents=True, exist_ok=True)
-            (root / "tools").mkdir(parents=True, exist_ok=True)
-
-            (root / "docs/01-product/prd.md").write_text(
-                """## Prioritized Feature List
-
-| Priority | Feature | Outcome | Notes | Dependencies |
-| -------- | ------- | ------- | ----- | ------------ |
-| P0       | Alpha Feature | Deliver alpha flow | Core path | - |
-| P1       | Beta Feature | Deliver beta flow | Depends on alpha | Alpha Feature |
-""",
-                encoding="utf-8",
-            )
-            (root / "docs/00-context/context-boundaries-operating-model.md").write_text(
-                """## Scope Boundaries
-- Local CLI only
-## Non-Goals
-- No cloud runtime
-## Operating Model
-- Human executes explicit commands
-""",
-                encoding="utf-8",
-            )
-            (root / "tools/prd-to-features").write_text(
-                """#!/usr/bin/env python3
-from dataclasses import dataclass
-
-@dataclass(frozen=True)
-class FeatureRecord:
-    index: int
-    title: str
-    priority: str
-    slug: str
-    dependencies: tuple[str, ...]
-    source: str
-    outcome: str
-    notes: str
-
-
-def parse_prd_features(_text: str):
-    return [
-        FeatureRecord(1, \"Alpha Feature\", \"P0\", \"alpha-feature\", tuple(), \"table\", \"x\", \"\"),
-        FeatureRecord(2, \"Beta Feature\", \"P1\", \"beta-feature\", (\"alpha-feature\",), \"table\", \"x\", \"\"),
-    ]
-""",
-                encoding="utf-8",
-            )
+            self._write_minimal_prepare_fixture(root)
 
             result = subprocess.run(
                 [
@@ -172,6 +178,105 @@ def parse_prd_features(_text: str):
             )
             self.assertIn("pm_todos", state_payload)
             self.assertIn("items", state_payload["pm_todos"])
+
+    def test_retry_path_persists_prepare_state_before_next_iteration(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._write_minimal_prepare_fixture(root)
+
+            args = SimpleNamespace(
+                root=str(root),
+                skip_generation=True,
+                skip_schema_check=True,
+                role_mode=self.tool.ROLE_MODE_DETERMINISTIC,
+                include_process_features=False,
+                snapshot_runs=False,
+            )
+            pm_payloads = [
+                {
+                    "decision": "BLOCK",
+                    "issues": [
+                        {
+                            "step": "architect",
+                            "summary": "Architect iteration needs one more pass.",
+                            "risk": "PM gate cannot approve yet.",
+                            "remediation": "Revise architecture details.",
+                        }
+                    ],
+                    "criteria": {},
+                },
+                {"decision": "APPROVE", "issues": [], "criteria": {}},
+            ]
+
+            def fake_run_pm_role(**_kwargs):
+                if not pm_payloads:
+                    return {"decision": "APPROVE", "issues": [], "criteria": {}}
+                return pm_payloads.pop(0)
+
+            with mock.patch.object(
+                self.tool,
+                "run_pm_role",
+                side_effect=fake_run_pm_role,
+            ):
+                with mock.patch.dict(
+                    self.tool.os.environ,
+                    {"PREPARE_DECISIONS": "PM-BLOCK:1"},
+                    clear=False,
+                ):
+                    stdout_buffer = io.StringIO()
+                    with redirect_stdout(stdout_buffer):
+                        result = self.tool.run_prepare(args)
+
+            self.assertEqual(result, 0)
+            output = stdout_buffer.getvalue()
+            self.assertGreaterEqual(
+                output.count(
+                    "wrote state artifact -> docs/03-logs/prepare-features-state.json"
+                ),
+                2,
+            )
+            state_payload = json.loads(
+                (root / "docs/03-logs/prepare-features-state.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                state_payload["pm_gate"]["history"][0]["decision"], "retry"
+            )
+            self.assertEqual(state_payload["pm_gate"]["history"][0]["issue_count"], 1)
+
+    def test_snapshot_runs_write_per_run_prepare_snapshots(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._write_minimal_prepare_fixture(root)
+
+            args = SimpleNamespace(
+                root=str(root),
+                skip_generation=True,
+                skip_schema_check=True,
+                role_mode=self.tool.ROLE_MODE_DETERMINISTIC,
+                include_process_features=False,
+                snapshot_runs=True,
+            )
+            stdout_buffer = io.StringIO()
+            with redirect_stdout(stdout_buffer):
+                result = self.tool.run_prepare(args)
+
+            self.assertEqual(result, 0)
+            runs_root = root / "docs/03-logs/prepare-features-runs"
+            run_dirs = [item for item in runs_root.iterdir() if item.is_dir()]
+            self.assertEqual(len(run_dirs), 1)
+            run_dir = run_dirs[0]
+            index_path = run_dir / "index.json"
+            self.assertTrue(index_path.exists())
+
+            index_payload = json.loads(index_path.read_text(encoding="utf-8"))
+            self.assertEqual(index_payload["run_id"], run_dir.name)
+            self.assertGreaterEqual(len(index_payload["snapshots"]), 1)
+            snapshot_entry = index_payload["snapshots"][0]
+            self.assertEqual(snapshot_entry["label"], "post-gate")
+            self.assertTrue((run_dir / snapshot_entry["state_file"]).exists())
+            self.assertTrue((run_dir / snapshot_entry["pm_todo_file"]).exists())
 
     def test_choose_option_supports_prefix_override_alias(self):
         options = [
@@ -245,6 +350,19 @@ def parse_prd_features(_text: str):
             [item.slug for item in with_process],
             ["alpha-feature", "process-checklist"],
         )
+
+    def test_normalize_prepare_step_aliases_dependency_planner_terms(self):
+        samples = [
+            "feature-order.json ordering",
+            "dependency decision records",
+            "orderer",
+            "dependency-planner",
+        ]
+        normalized = {
+            self.tool.normalize_prepare_step(sample, default="product-manager")
+            for sample in samples
+        }
+        self.assertEqual(normalized, {"dependency-planner"})
 
     def test_product_manager_review_blocks_generic_markers(self):
         features = [
@@ -396,9 +514,11 @@ def parse_prd_features(_text: str):
         template_paths = [
             Path("prompts/architect-prepare.md"),
             Path("prompts/ux-prepare.md"),
+            Path("prompts/orderer-prepare.md"),
             Path("prompts/product-manager-prepare-gate.md"),
             Path("tools/templates/prompts/architect-prepare.md"),
             Path("tools/templates/prompts/ux-prepare.md"),
+            Path("tools/templates/prompts/orderer-prepare.md"),
             Path("tools/templates/prompts/product-manager-prepare-gate.md"),
         ]
 
@@ -419,10 +539,25 @@ def parse_prd_features(_text: str):
                             ),
                         }
                     )
+                if template_path.name == "orderer-prepare.md":
+                    values.update(
+                        {
+                            "baseline_order_payload_json": json.dumps(
+                                {"ordered_feature_slugs": ordered_slugs},
+                                ensure_ascii=True,
+                                indent=2,
+                                sort_keys=True,
+                            ),
+                        }
+                    )
                 rendered = self.tool.render_prompt_template(template, values)
                 self.assertIn("{step, summary, risk, remediation}", rendered)
                 template_name = template_path.name
-                if template_name in {"architect-prepare.md", "ux-prepare.md"}:
+                if template_name in {
+                    "architect-prepare.md",
+                    "ux-prepare.md",
+                    "orderer-prepare.md",
+                }:
                     self.assertIn("PREV DESIGN MARKER", rendered)
                     self.assertIn("PREV UX MARKER", rendered)
                     self.assertIn("Address PM issue marker.", rendered)
@@ -458,6 +593,8 @@ def parse_prd_features(_text: str):
         self.assertIn("pm_todos_json", values)
         self.assertIn("architect_open_todos_json", values)
         self.assertIn("ux_open_todos_json", values)
+        self.assertIn("orderer_open_todos_json", values)
+        self.assertIn("previous_order_payload_json", values)
         self.assertIn("previous_loop_change_summary", values)
 
     def test_apply_pm_todo_updates_auto_creates_owner_tasks_from_issues(self):
@@ -476,6 +613,13 @@ def parse_prd_features(_text: str):
                 risk="Generic flows.",
                 remediation="Add feature-specific journey details.",
             ),
+            self.tool.ReviewIssue(
+                issue_id="PM-003",
+                step="feature-order.json ordering",
+                summary="Dependency order must place pipeline first.",
+                risk="Sequencing regression.",
+                remediation="Reorder feature-order payload to satisfy dependencies.",
+            ),
         ]
         todos, updates = self.tool.apply_pm_todo_updates(
             pm_todos=[],
@@ -485,10 +629,132 @@ def parse_prd_features(_text: str):
             loop_iteration=1,
         )
 
-        self.assertEqual(len(todos), 2)
-        self.assertEqual({item["owner"] for item in todos}, {"architect", "ux"})
+        self.assertEqual(len(todos), 3)
+        self.assertEqual(
+            {item["owner"] for item in todos},
+            {"architect", "ux", "dependency-planner"},
+        )
         self.assertTrue(all(item["status"] == "open" for item in todos))
         self.assertEqual({item["action"] for item in updates}, {"auto_create"})
+
+    def test_product_manager_review_rejects_unknown_pm_issue_step(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        order_payload = {"ordered_feature_slugs": ["alpha-feature"]}
+        design_text = "\n".join(
+            [
+                "## System architecture",
+                "Alpha Feature architecture.",
+                "## Module boundaries",
+                "Alpha boundaries.",
+                "## Infra considerations",
+                "Infra text.",
+                "## Design constraints",
+                "- Constraint.",
+                "## Build strategy",
+                "- Strategy.",
+            ]
+        )
+        ux_text = "\n".join(
+            [
+                "## User journeys",
+                "Alpha journey.",
+                "## Workflows",
+                "Alpha workflow.",
+            ]
+        )
+        pm_payload = {
+            "decision": "BLOCK",
+            "issues": [
+                {
+                    "step": "non-existent-step",
+                    "summary": "Bad step field.",
+                    "risk": "Routing mismatch.",
+                    "remediation": "Use an allowed step.",
+                }
+            ],
+            "criteria": {},
+        }
+
+        issues = self.tool.product_manager_review(
+            features=features,
+            ordered_slugs=["alpha-feature"],
+            graph={"alpha-feature": set()},
+            design_text=design_text,
+            ux_text=ux_text,
+            order_payload=order_payload,
+            pm_role_payload=pm_payload,
+            seed_issues=[],
+            enforce_semantic_gate=False,
+        )
+
+        self.assertTrue(
+            any("is not allowed; use one of" in issue.summary for issue in issues)
+        )
+
+    def test_retry_owner_scope_includes_dependency_planner_for_pm_dependency_feedback(
+        self,
+    ):
+        issues = [
+            self.tool.ReviewIssue(
+                issue_id="PM-001",
+                step="product-manager",
+                summary="PM semantic criterion 'dependency_alignment' failed.",
+                risk="Semantic gate failed.",
+                remediation="Update feature-order sequencing and dependency decisions.",
+            )
+        ]
+        scope = self.tool.retry_owner_scope_from_issues(issues)
+        self.assertIn("dependency-planner", scope)
+
+    def test_run_orderer_role_uses_orderer_profile_by_default(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        captured = {"profile": None}
+
+        def fake_codex_exec_json(**kwargs):
+            captured["profile"] = kwargs.get("profile")
+            return {
+                "decision": "APPROVE",
+                "ordered_feature_slugs": ["alpha-feature"],
+                "decisions": [],
+                "issues": [],
+            }
+
+        with mock.patch.dict(self.tool.os.environ, {}, clear=False):
+            self.tool.os.environ.pop("PREPARE_ORDERER_PROFILE", None)
+            with mock.patch.object(
+                self.tool,
+                "codex_exec_json",
+                side_effect=fake_codex_exec_json,
+            ):
+                payload, issues = self.tool.run_orderer_role(
+                    root=ROOT,
+                    role_mode=self.tool.ROLE_MODE_CODEX,
+                    prd_text="PRD",
+                    context_boundaries="Context boundaries",
+                    features=features,
+                    ordered_slugs=["alpha-feature"],
+                    graph={"alpha-feature": set()},
+                    dependency_decisions=[],
+                    baseline_order_payload={"ordered_feature_slugs": ["alpha-feature"]},
+                )
+
+        self.assertEqual(captured["profile"], "Orderer")
+        self.assertEqual(payload["ordered_feature_slugs"], ["alpha-feature"])
+        self.assertEqual(issues, [])
 
     def test_apply_pm_todo_updates_auto_marks_open_tasks_done_on_approve(self):
         initial_todos = [

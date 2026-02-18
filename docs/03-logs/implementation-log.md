@@ -27,6 +27,44 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - Prepare retry-persistence, PM guardrails, and optional per-run snapshots
+
+**Feature/Bug:** Make PM feedback evolution inspectable during retries and add deterministic snapshot history for prepare runs.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `docs/README.md`
+- `tools/README.md`
+- `tools/templates/docs/README.md`
+- `tests/test_pc_prepare_features.py`
+- `tests/test_docs_logs.py`
+
+**What Changed:**
+
+- Added retry-time persistence in `pc-prepare-features` so blocked PM iterations write both:
+  - `docs/03-logs/prepare-features-state.json`
+  - `docs/03-logs/prepare-features-pm-todo.md`
+    before entering the next loop iteration.
+- Added legacy-state warning at run start when existing prepare state is `version < 2` or missing `pm_todos`.
+- Added optional per-run snapshots:
+  - new CLI flag `--snapshot-runs`
+  - snapshots written to `docs/03-logs/prepare-features-runs/<run-id>/`
+  - includes `index.json` plus paired state/PM-TODO snapshot files per persistence point.
+- Wired `SNAPSHOT_RUNS=1` in live/template `Makefile` prepare target.
+- Updated live/template docs to include PM TODO artifact and snapshot toggle guidance.
+- Extended tests to cover:
+  - retry path persisting artifacts before next iteration,
+  - per-run snapshot artifact generation,
+  - docs contract mentions for PM TODO artifact and snapshot option.
+
+**Why:**
+
+- PM issue counts can change across loops, but prior behavior only persisted artifacts after the loop exited, making mid-loop evolution difficult to inspect.
+- Snapshotable run history provides deterministic diagnostics across concurrent/multi-repo prepare runs.
+
 ### 2026-02-18 - PM feedback TODO persistence + retry-context wiring in prepare-features
 
 **Feature/Bug:** Make Product Manager feedback inspectable and owner-routable across prepare loops.
@@ -7863,3 +7901,35 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - This aligns runtime behavior with CLI guidance to resolve conflicts manually in the patcher worktree.
 - Preserving merge state keeps `MERGE_HEAD` and conflict markers available for direct user resolution and debugging.
+
+### 2026-02-18 - Add Orderer role and canonical PM step ownership in `pc-prepare-features`
+
+**Feature/Bug:** PM feedback step drift and missing dependency-order producer ownership in prepare retry loops.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `prompts/orderer-prepare.md`
+- `tools/templates/prompts/orderer-prepare.md`
+- `prompts/product-manager-prepare-gate.md`
+- `tools/templates/prompts/product-manager-prepare-gate.md`
+- `.codex.toml`
+- `tools/templates/root/.codex.toml`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `tests/test_pc_prepare_features.py`
+
+**What Changed:**
+
+- Added canonical prepare step taxonomy (`architect`, `ux`, `dependency-planner`, `product-manager`) with alias normalization for PM output step variants.
+- Added Orderer role execution (`run_orderer_role`) with dedicated prompt/profile and deterministic fallback.
+- Updated PM review normalization to validate unknown PM issue step names and canonicalize all issue steps.
+- Expanded PM TODO ownership to include `dependency-planner` and improved owner inference for auto-created/carry tasks.
+- Added owner-scoped selective retry routing in prepare loop: retries rerun only unresolved producer roles, then rerun PM gate.
+- Expanded retry context payloads with orderer-owner TODO input and previous order payload JSON.
+- Updated workflow docs (live/template) to reflect `Architect -> UX -> dependency planner baseline -> Orderer -> PM gate` sequence.
+- Added regression tests for orderer prompt rendering/profile defaults, dependency-planner owner assignment, and PM step validation behavior.
+
+**Why:**
+
+- The prior flow had no dedicated owner for feature-order feedback and allowed free-form PM steps, which reduced determinism and caused unnecessary full-loop reruns.

@@ -27,6 +27,19 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-18 - Prepare retry-persistence + snapshot-run guardrails validation
+
+- `python3 -m py_compile tools/pc-prepare-features` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 20 tests; offload id `956bdec92a0012bf0c7068c2a940e4baf687155b8de875db229829d2baf742dc`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 24 tests; offload id `5ff0e141575529018c47d4110194351a8373646850427f96c761e6ef3f435544`)
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-prepare-features tests/test_pc_prepare_features.py tests/test_docs_logs.py Makefile tools/templates/root/Makefile docs/README.md tools/README.md tools/templates/docs/README.md docs/03-logs/implementation-log.md` (RUN1 FAIL: `black`/`prettier` auto-formatted files; offload id `8632815394a988065cdb305639d60e855bf40756388572bf7152bff97dc49ec8`; RUN2 PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+
+Verified:
+
+- Retry paths now persist PM state and PM TODO artifacts before the next iteration starts.
+- Optional per-run snapshots are written with indexed state/TODO files when `--snapshot-runs` is enabled.
+- Live/template README and docs contract checks now enforce PM TODO and snapshot-run artifact visibility.
+
 ### 2026-02-18 - PM TODO feedback artifact + retry loop visibility validation
 
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 14 tests; offload id `78e01f694eb508c41b94fe50aeb54e8d862ba07488a05d01266c9325e66ee2d0`)
@@ -2376,3 +2389,18 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `merge_main_into_worktree(...)` no longer auto-aborts failed merges.
   - Failure detail still propagates to sync-resume callers and blocks continuation.
   - Existing successful stale-sync merge flow remains intact.
+
+## 2026-02-18 - Validate canonical PM steps + Orderer role + selective prepare retries
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"`
+- Result: PASS (`18` tests; offload id `41a42090366caf3815e3f20889de51a7db8e7817632ecd452dc30adc62ec439b`), PASS rerun after formatting (`18` tests; offload id `a9d51ac5375792f16ef28c92068076381bf922a8f3f9a58652028dd07ab885de`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`22` tests; offload id `4dced8ea8878af0a8b24aeaef1f95be8d365dadb60c2e79b95c4e30ee0b163d7`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"`
+- Result: PASS (`14` tests; offload id `ac6e9da8bd627c0143d4f0935a2191f667799eff6766b01790f29565bc679b61`).
+- Command: `tools/offload-proxy/pp pre-commit run --files .codex.toml docs/04-process/human-orchestration-workflow.md prompts/product-manager-prepare-gate.md prompts/orderer-prepare.md tests/test_pc_prepare_features.py tools/pc-prepare-features tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/prompts/product-manager-prepare-gate.md tools/templates/prompts/orderer-prepare.md tools/templates/root/.codex.toml`
+- Result: FAIL first run (`black` auto-formatted files; offload id `7707880b2d43428ae868806de0fa4a5b348bfdf57f0ee14d7357a207305560c6`), PASS second run (offload id `74098591df15bb6c06957984480d81ab3daec62d2c60b825d8aacffe30764d99`).
+- Verified:
+  - Prepare role outputs now include a dedicated Orderer stage with profile-based Codex execution.
+  - PM issue step ownership is canonicalized and unknown PM step names are flagged.
+  - PM TODO ownership and retry scoping now support `dependency-planner` ownership.

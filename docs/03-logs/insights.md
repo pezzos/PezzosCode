@@ -648,3 +648,9 @@ Based on everything we've learned, these are the principles that guide our work:
 
 - Final validation gates should run in an isolated candidate context before mutating integration targets (`main`) so failures remain non-destructive.
 - Tests that read mutable repository artifacts (like live proposal registries) are brittle; fixture-driven templates are required for deterministic behavior.
+
+## 2026-02-18 - Canonical feedback ownership prevents retry waste in prepare loops
+
+- PM review loops need a strict step taxonomy and owner mapping; free-form step labels make retries noisy and non-deterministic.
+- Dependency ordering should have an explicit producer role (`Orderer`) distinct from PM review; collapsing producer/reviewer ownership reduces traceability.
+- Owner-scoped retries preserve prior loop progress and reduce churn versus restarting architect/ux/ordering on every PM block.

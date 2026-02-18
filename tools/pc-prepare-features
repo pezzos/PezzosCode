@@ -27,16 +27,34 @@ ORDER_JSON_PATH = Path("docs/02-features/feature-order.json")
 ORDER_MD_PATH = Path("docs/02-features/feature-order.md")
 PREPARE_STATE_PATH = Path("docs/03-logs/prepare-features-state.json")
 PREPARE_PM_TODO_PATH = Path("docs/03-logs/prepare-features-pm-todo.md")
+PREPARE_RUNS_DIR = Path("docs/03-logs/prepare-features-runs")
 PRD_TOOL_PATH = Path("tools/prd-to-features")
 PROMPTS_DIR = Path("prompts")
 ARCHITECT_PROMPT_PATH = PROMPTS_DIR / "architect-prepare.md"
 UX_PROMPT_PATH = PROMPTS_DIR / "ux-prepare.md"
+ORDERER_PROMPT_PATH = PROMPTS_DIR / "orderer-prepare.md"
 PM_PROMPT_PATH = PROMPTS_DIR / "product-manager-prepare-gate.md"
 ROLE_MODE_CODEX = "codex"
 ROLE_MODE_DETERMINISTIC = "deterministic"
 MAX_PM_BLOCKS = 6
+STEP_ARCHITECT = "architect"
+STEP_UX = "ux"
+STEP_DEPENDENCY_PLANNER = "dependency-planner"
+STEP_PRODUCT_MANAGER = "product-manager"
 TODO_OWNER_ARCHITECT = "architect"
 TODO_OWNER_UX = "ux"
+TODO_OWNER_DEPENDENCY_PLANNER = "dependency-planner"
+TODO_OWNERS = (
+    TODO_OWNER_ARCHITECT,
+    TODO_OWNER_UX,
+    TODO_OWNER_DEPENDENCY_PLANNER,
+)
+CANONICAL_PREPARE_STEPS = (
+    STEP_ARCHITECT,
+    STEP_UX,
+    STEP_DEPENDENCY_PLANNER,
+    STEP_PRODUCT_MANAGER,
+)
 TODO_STATUS_OPEN = "open"
 TODO_STATUS_CARRY = "carry"
 TODO_STATUS_DONE = "done"
@@ -86,8 +104,8 @@ def die(message: str) -> None:
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run global prepare workflow: Architect -> UX -> dependency ordering "
-            "-> Product Manager gate -> feature generation."
+            "Run global prepare workflow: Architect -> UX -> dependency planner "
+            "-> Orderer -> Product Manager gate -> feature generation."
         )
     )
     parser.add_argument(
@@ -110,7 +128,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         choices=(ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC),
         default=default_role_mode(),
         help=(
-            "Role execution mode for Architect/UX/PM steps. "
+            "Role execution mode for Architect/UX/Orderer/PM steps. "
             "'codex' runs prompt-driven role execution; "
             "'deterministic' uses local fallback generators."
         ),
@@ -121,6 +139,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help=(
             "Include PRD '## Process Features' entries in dependency planning and "
             "feature generation. Disabled by default."
+        ),
+    )
+    parser.add_argument(
+        "--snapshot-runs",
+        action="store_true",
+        help=(
+            "Write per-run prepare snapshots under docs/03-logs/prepare-features-runs/"
+            "<run-id>/."
         ),
     )
     return parser.parse_args(argv)
@@ -747,15 +773,115 @@ def feature_context_payload(
     return payload
 
 
-def normalize_todo_owner(raw_owner: Any, *, default: str = TODO_OWNER_ARCHITECT) -> str:
-    token = str(raw_owner).strip().lower()
-    if token in {"architect", "architecture"}:
-        return TODO_OWNER_ARCHITECT
-    if token in {"ux", "ui", "ux/ui", "ux-ui", "uxui", "designer"}:
+def normalize_step_token(raw_step: Any) -> str:
+    token = re.sub(r"[^a-z0-9]+", "-", str(raw_step).strip().lower())
+    return token.strip("-")
+
+
+def normalize_prepare_step_with_known(
+    raw_step: Any, *, default: str = STEP_PRODUCT_MANAGER
+) -> Tuple[str, bool]:
+    token = normalize_step_token(raw_step)
+    default_token = normalize_step_token(default)
+    if default_token not in CANONICAL_PREPARE_STEPS:
+        default_token = STEP_PRODUCT_MANAGER
+    if not token:
+        return default_token, False
+
+    direct_aliases = {
+        "architect": STEP_ARCHITECT,
+        "architecture": STEP_ARCHITECT,
+        "ux": STEP_UX,
+        "ui": STEP_UX,
+        "ux-ui": STEP_UX,
+        "ux-ui-role": STEP_UX,
+        "uxui": STEP_UX,
+        "designer": STEP_UX,
+        "dependency-planner": STEP_DEPENDENCY_PLANNER,
+        "dependency-planning": STEP_DEPENDENCY_PLANNER,
+        "dependency-planner-step": STEP_DEPENDENCY_PLANNER,
+        "dependency-decision-records": STEP_DEPENDENCY_PLANNER,
+        "dependency-decision-record": STEP_DEPENDENCY_PLANNER,
+        "dependency-decision": STEP_DEPENDENCY_PLANNER,
+        "feature-order-json-ordering": STEP_DEPENDENCY_PLANNER,
+        "feature-order-ordering": STEP_DEPENDENCY_PLANNER,
+        "feature-order-json": STEP_DEPENDENCY_PLANNER,
+        "feature-order-md": STEP_DEPENDENCY_PLANNER,
+        "feature-order": STEP_DEPENDENCY_PLANNER,
+        "orderer": STEP_DEPENDENCY_PLANNER,
+        "ordering": STEP_DEPENDENCY_PLANNER,
+        "order": STEP_DEPENDENCY_PLANNER,
+        "product-manager": STEP_PRODUCT_MANAGER,
+        "product-manager-gate": STEP_PRODUCT_MANAGER,
+        "product_manager": STEP_PRODUCT_MANAGER,
+        "pm": STEP_PRODUCT_MANAGER,
+    }
+    if token in direct_aliases:
+        return direct_aliases[token], True
+    if "feature-order" in token:
+        return STEP_DEPENDENCY_PLANNER, True
+    if token.startswith("dependency-decision"):
+        return STEP_DEPENDENCY_PLANNER, True
+    if "dependency" in token and "order" in token:
+        return STEP_DEPENDENCY_PLANNER, True
+    if "architect" in token or "architecture" in token:
+        return STEP_ARCHITECT, True
+    if token in {"uxui", "ux-ui"} or token.startswith("ux-"):
+        return STEP_UX, True
+    if token.startswith("pm-") or "product-manager" in token:
+        return STEP_PRODUCT_MANAGER, True
+    return default_token, False
+
+
+def normalize_prepare_step(
+    raw_step: Any, *, default: str = STEP_PRODUCT_MANAGER
+) -> str:
+    normalized, _ = normalize_prepare_step_with_known(raw_step, default=default)
+    return normalized
+
+
+def infer_issue_owner(
+    *,
+    step: Any,
+    summary: str = "",
+    remediation: str = "",
+    default: str = TODO_OWNER_ARCHITECT,
+) -> str:
+    normalized_step = normalize_prepare_step(step, default=STEP_PRODUCT_MANAGER)
+    if normalized_step in TODO_OWNERS:
+        return normalized_step
+
+    text = f"{summary} {remediation}".lower()
+    if any(
+        marker in text
+        for marker in {
+            "feature-order",
+            "dependency",
+            "ordering",
+            "pipeline-first",
+            "order payload",
+            "ordered_feature_slugs",
+        }
+    ):
+        return TODO_OWNER_DEPENDENCY_PLANNER
+    if any(
+        marker in text for marker in {"ux", "ui", "journey", "workflows", "workflow"}
+    ):
         return TODO_OWNER_UX
-    if token in {"product-manager", "product_manager", "pm"}:
+    if any(
+        marker in text
+        for marker in {"architect", "architecture", "design.md", "module", "infra"}
+    ):
         return TODO_OWNER_ARCHITECT
-    return default
+
+    fallback = normalize_prepare_step(default, default=TODO_OWNER_ARCHITECT)
+    if fallback in TODO_OWNERS:
+        return fallback
+    return TODO_OWNER_ARCHITECT
+
+
+def normalize_todo_owner(raw_owner: Any, *, default: str = TODO_OWNER_ARCHITECT) -> str:
+    return infer_issue_owner(step=raw_owner, default=default)
 
 
 def normalize_todo_status(raw_status: Any, *, default: str = TODO_STATUS_OPEN) -> str:
@@ -819,7 +945,19 @@ def build_loop_change_summary(
     current_design_markdown: str,
     previous_ux_markdown: str,
     current_ux_markdown: str,
+    previous_order_payload: Optional[Dict[str, Any]] = None,
+    current_order_payload: Optional[Dict[str, Any]] = None,
 ) -> str:
+    previous_order_json = (
+        json.dumps(
+            previous_order_payload or {}, ensure_ascii=True, indent=2, sort_keys=True
+        )
+        if previous_order_payload
+        else ""
+    )
+    current_order_json = json.dumps(
+        current_order_payload or {}, ensure_ascii=True, indent=2, sort_keys=True
+    )
     sections = [
         "## design.md diff",
         summarize_markdown_diff(
@@ -833,6 +971,13 @@ def build_loop_change_summary(
             previous_text=previous_ux_markdown,
             current_text=current_ux_markdown,
             label="ux-ui.md",
+        ),
+        "",
+        "## feature-order.json diff",
+        summarize_markdown_diff(
+            previous_text=previous_order_json,
+            current_text=current_order_json,
+            label="feature-order.json",
         ),
     ]
     return "\n".join(sections).strip()
@@ -849,6 +994,7 @@ def prompt_values(
     prepare_iteration: int = 1,
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
+    previous_order_payload: Optional[Dict[str, Any]] = None,
     pm_feedback: Sequence[Dict[str, str]] = (),
     pm_todos: Sequence[Dict[str, Any]] = (),
     previous_loop_change_summary: str = "",
@@ -861,6 +1007,9 @@ def prompt_values(
         pm_todo_payload, owner=TODO_OWNER_ARCHITECT
     )
     ux_todos = owner_actionable_todos(pm_todo_payload, owner=TODO_OWNER_UX)
+    orderer_todos = owner_actionable_todos(
+        pm_todo_payload, owner=TODO_OWNER_DEPENDENCY_PLANNER
+    )
     return {
         "prd_markdown": prd_text,
         "context_boundaries_markdown": context_boundaries,
@@ -873,6 +1022,9 @@ def prompt_values(
         "prepare_iteration": str(prepare_iteration),
         "previous_design_markdown": previous_design_markdown,
         "previous_ux_markdown": previous_ux_markdown,
+        "previous_order_payload_json": json.dumps(
+            previous_order_payload or {}, ensure_ascii=True, indent=2, sort_keys=True
+        ),
         "pm_feedback_json": json.dumps(
             list(pm_feedback), ensure_ascii=True, indent=2, sort_keys=True
         ),
@@ -885,6 +1037,9 @@ def prompt_values(
         "ux_open_todos_json": json.dumps(
             ux_todos, ensure_ascii=True, indent=2, sort_keys=True
         ),
+        "orderer_open_todos_json": json.dumps(
+            orderer_todos, ensure_ascii=True, indent=2, sort_keys=True
+        ),
         "previous_loop_change_summary": previous_loop_change_summary,
     }
 
@@ -895,12 +1050,15 @@ def normalize_role_issues(
     default_step: str,
     source: str,
 ) -> List[Dict[str, str]]:
+    default_canonical = normalize_prepare_step(
+        default_step, default=STEP_PRODUCT_MANAGER
+    )
     if raw_issues is None:
         return []
     if not isinstance(raw_issues, list):
         return [
             {
-                "step": default_step,
+                "step": default_canonical,
                 "summary": f"{source} returned non-list issues payload.",
                 "risk": "Malformed role output can bypass semantic gates.",
                 "remediation": f"Fix {source} prompt output to return issues as a JSON list.",
@@ -916,7 +1074,9 @@ def normalize_role_issues(
             continue
         issues.append(
             {
-                "step": str(item.get("step", default_step)).strip() or default_step,
+                "step": normalize_prepare_step(
+                    item.get("step", default_canonical), default=default_canonical
+                ),
                 "summary": summary,
                 "risk": str(item.get("risk", "")).strip()
                 or "Role output lacks semantic confidence.",
@@ -925,6 +1085,76 @@ def normalize_role_issues(
             }
         )
     return issues
+
+
+def validate_pm_issue_step_names(raw_issues: Any) -> List[Dict[str, str]]:
+    if not isinstance(raw_issues, list):
+        return []
+    issues: List[Dict[str, str]] = []
+    allowed_text = "|".join(CANONICAL_PREPARE_STEPS)
+    for item in raw_issues:
+        if not isinstance(item, dict):
+            continue
+        summary = str(item.get("summary", "")).strip()
+        if not summary:
+            continue
+        raw_step = str(item.get("step", "")).strip()
+        if not raw_step:
+            continue
+        _, known = normalize_prepare_step_with_known(
+            raw_step, default=STEP_PRODUCT_MANAGER
+        )
+        if known:
+            continue
+        issues.append(
+            {
+                "step": STEP_PRODUCT_MANAGER,
+                "summary": (
+                    f"PM issue step '{raw_step}' is not allowed; use one of {allowed_text}."
+                ),
+                "risk": "Unknown PM step ownership can route feedback to the wrong role.",
+                "remediation": (
+                    "Normalize PM issue steps to architect, ux, dependency-planner, "
+                    "or product-manager."
+                ),
+            }
+        )
+    return issues
+
+
+def retry_owner_scope_from_issues(issues: Sequence[ReviewIssue]) -> Set[str]:
+    owners: Set[str] = set()
+    for issue in issues:
+        canonical_step = normalize_prepare_step(
+            issue.step, default=STEP_PRODUCT_MANAGER
+        )
+        if canonical_step in TODO_OWNERS:
+            owners.add(canonical_step)
+            continue
+        if canonical_step != STEP_PRODUCT_MANAGER:
+            continue
+        text = f"{issue.summary} {issue.remediation}".lower()
+        matched = False
+        if any(
+            token in text
+            for token in {"feature-order", "dependency", "ordering", "order"}
+        ):
+            owners.add(TODO_OWNER_DEPENDENCY_PLANNER)
+            matched = True
+        if any(token in text for token in {"ux", "ui", "journey", "workflow"}):
+            owners.add(TODO_OWNER_UX)
+            matched = True
+        if any(
+            token in text
+            for token in {"architect", "architecture", "design.md", "module", "infra"}
+        ):
+            owners.add(TODO_OWNER_ARCHITECT)
+            matched = True
+        if not matched:
+            owners.update(TODO_OWNERS)
+    if owners:
+        return owners
+    return set(TODO_OWNERS)
 
 
 def run_architect_role(
@@ -991,7 +1221,7 @@ def run_architect_role(
             fallback,
             [
                 {
-                    "step": "architect",
+                    "step": STEP_ARCHITECT,
                     "summary": f"Architect role execution failed: {exc}",
                     "risk": "Fallback content may be generic and semantically weak.",
                     "remediation": "Fix architect prompt execution and rerun prepare before generation.",
@@ -1001,13 +1231,15 @@ def run_architect_role(
 
     markdown = str(payload.get("design_markdown", "")).strip()
     issues = normalize_role_issues(
-        raw_issues=payload.get("issues"), default_step="architect", source="architect"
+        raw_issues=payload.get("issues"),
+        default_step=STEP_ARCHITECT,
+        source="architect",
     )
     decision = str(payload.get("decision", "APPROVE")).strip().upper()
     if decision not in {"APPROVE", "BLOCK"}:
         issues.append(
             {
-                "step": "architect",
+                "step": STEP_ARCHITECT,
                 "summary": "Architect decision is invalid (expected APPROVE/BLOCK).",
                 "risk": "Malformed role output can bypass review gates.",
                 "remediation": "Return architect decision as APPROVE or BLOCK in JSON output.",
@@ -1016,7 +1248,7 @@ def run_architect_role(
     if decision == "BLOCK" and not issues:
         issues.append(
             {
-                "step": "architect",
+                "step": STEP_ARCHITECT,
                 "summary": "Architect returned BLOCK without actionable issues.",
                 "risk": "Prepare loop cannot resolve blocker deterministically.",
                 "remediation": "Return architect issues with summary, risk, and remediation.",
@@ -1031,7 +1263,7 @@ def run_architect_role(
         )
         issues.append(
             {
-                "step": "architect",
+                "step": STEP_ARCHITECT,
                 "summary": "Architect output missing design_markdown body.",
                 "risk": "PM gate cannot evaluate architecture quality without complete artifact.",
                 "remediation": "Return full design markdown in design_markdown JSON field.",
@@ -1097,7 +1329,7 @@ def run_ux_role(
             fallback,
             [
                 {
-                    "step": "ux",
+                    "step": STEP_UX,
                     "summary": f"UX role execution failed: {exc}",
                     "risk": "Fallback UX output may be generic and not user-journey specific.",
                     "remediation": "Fix UX prompt execution and rerun prepare before generation.",
@@ -1107,13 +1339,13 @@ def run_ux_role(
 
     markdown = str(payload.get("ux_markdown", "")).strip()
     issues = normalize_role_issues(
-        raw_issues=payload.get("issues"), default_step="ux", source="ux"
+        raw_issues=payload.get("issues"), default_step=STEP_UX, source="ux"
     )
     decision = str(payload.get("decision", "APPROVE")).strip().upper()
     if decision not in {"APPROVE", "BLOCK"}:
         issues.append(
             {
-                "step": "ux",
+                "step": STEP_UX,
                 "summary": "UX decision is invalid (expected APPROVE/BLOCK).",
                 "risk": "Malformed UX output can bypass semantic validation.",
                 "remediation": "Return UX decision as APPROVE or BLOCK in JSON output.",
@@ -1122,7 +1354,7 @@ def run_ux_role(
     if decision == "BLOCK" and not issues:
         issues.append(
             {
-                "step": "ux",
+                "step": STEP_UX,
                 "summary": "UX returned BLOCK without actionable issues.",
                 "risk": "Prepare loop cannot resolve UX blocker deterministically.",
                 "remediation": "Return UX issues with summary, risk, and remediation.",
@@ -1134,7 +1366,7 @@ def run_ux_role(
         )
         issues.append(
             {
-                "step": "ux",
+                "step": STEP_UX,
                 "summary": "UX output missing ux_markdown body.",
                 "risk": "PM gate cannot validate user journeys without complete UX artifact.",
                 "remediation": "Return full UX markdown in ux_markdown JSON field.",
@@ -1142,6 +1374,163 @@ def run_ux_role(
         )
         return fallback, issues
     return markdown, issues
+
+
+def run_orderer_role(
+    *,
+    root: Path,
+    role_mode: str,
+    prd_text: str,
+    context_boundaries: str,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    dependency_decisions: Sequence[Dict[str, str]],
+    baseline_order_payload: Dict[str, object],
+    prepare_iteration: int = 1,
+    previous_order_payload: Optional[Dict[str, object]] = None,
+    previous_design_markdown: str = "",
+    previous_ux_markdown: str = "",
+    pm_feedback: Sequence[Dict[str, str]] = (),
+    pm_todos: Sequence[Dict[str, Any]] = (),
+    previous_loop_change_summary: str = "",
+) -> Tuple[Dict[str, object], List[Dict[str, str]]]:
+    if role_mode == ROLE_MODE_DETERMINISTIC:
+        return dict(baseline_order_payload), []
+
+    template = load_prompt_template(root, ORDERER_PROMPT_PATH)
+    values = prompt_values(
+        features=features,
+        ordered_slugs=ordered_slugs,
+        graph=graph,
+        prd_text=prd_text,
+        context_boundaries=context_boundaries,
+        dependency_decisions=dependency_decisions,
+        prepare_iteration=prepare_iteration,
+        previous_design_markdown=previous_design_markdown,
+        previous_ux_markdown=previous_ux_markdown,
+        previous_order_payload=dict(previous_order_payload or {}),
+        pm_feedback=pm_feedback,
+        pm_todos=pm_todos,
+        previous_loop_change_summary=previous_loop_change_summary,
+    )
+    values.update(
+        {
+            "baseline_order_payload_json": json.dumps(
+                baseline_order_payload, ensure_ascii=True, indent=2, sort_keys=True
+            )
+        }
+    )
+    prompt = render_prompt_template(template, values)
+    try:
+        payload = codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get("PREPARE_ORDERER_PROFILE", "Orderer"),
+            label="orderer",
+        )
+    except RuntimeError as exc:
+        return (
+            dict(baseline_order_payload),
+            [
+                {
+                    "step": STEP_DEPENDENCY_PLANNER,
+                    "summary": f"Orderer role execution failed: {exc}",
+                    "risk": "Dependency ordering may regress without explicit owner review.",
+                    "remediation": "Fix orderer prompt execution and rerun prepare.",
+                }
+            ],
+        )
+
+    issues = normalize_role_issues(
+        raw_issues=payload.get("issues"),
+        default_step=STEP_DEPENDENCY_PLANNER,
+        source="orderer",
+    )
+    decision = str(payload.get("decision", "APPROVE")).strip().upper()
+    if decision not in {"APPROVE", "BLOCK"}:
+        issues.append(
+            {
+                "step": STEP_DEPENDENCY_PLANNER,
+                "summary": "Orderer decision is invalid (expected APPROVE/BLOCK).",
+                "risk": "Malformed orderer output can bypass ordering validation.",
+                "remediation": "Return orderer decision as APPROVE or BLOCK in JSON output.",
+            }
+        )
+    if decision == "BLOCK" and not issues:
+        issues.append(
+            {
+                "step": STEP_DEPENDENCY_PLANNER,
+                "summary": "Orderer returned BLOCK without actionable issues.",
+                "risk": "Prepare loop cannot resolve dependency planner block deterministically.",
+                "remediation": "Return orderer issues with summary, risk, and remediation.",
+            }
+        )
+    if decision == "APPROVE" and issues:
+        issues.append(
+            {
+                "step": STEP_DEPENDENCY_PLANNER,
+                "summary": "Orderer returned APPROVE while listing issues.",
+                "risk": "Contradictory orderer output weakens ordering gate integrity.",
+                "remediation": "Return BLOCK when orderer issues are present.",
+            }
+        )
+
+    fallback_slugs = list(ordered_slugs)
+    raw_slugs = payload.get("ordered_feature_slugs")
+    candidate_slugs = fallback_slugs
+    if isinstance(raw_slugs, list):
+        candidate_slugs = [str(item).strip() for item in raw_slugs if str(item).strip()]
+        expected = {feature.slug for feature in features}
+        actual = set(candidate_slugs)
+        if (
+            len(candidate_slugs) != len(features)
+            or len(actual) != len(candidate_slugs)
+            or actual != expected
+        ):
+            issues.append(
+                {
+                    "step": STEP_DEPENDENCY_PLANNER,
+                    "summary": "Orderer returned invalid ordered_feature_slugs coverage.",
+                    "risk": "Missing/duplicate slugs can produce non-deterministic generation order.",
+                    "remediation": "Return every feature slug exactly once in ordered_feature_slugs.",
+                }
+            )
+            candidate_slugs = fallback_slugs
+    else:
+        issues.append(
+            {
+                "step": STEP_DEPENDENCY_PLANNER,
+                "summary": "Orderer output missing ordered_feature_slugs list.",
+                "risk": "PM cannot validate ordering intent without explicit ordered slugs.",
+                "remediation": "Return ordered_feature_slugs as a JSON list.",
+            }
+        )
+
+    decisions_payload = list(dependency_decisions)
+    raw_decisions = payload.get("decisions")
+    if isinstance(raw_decisions, list):
+        decisions_payload = []
+        for item in raw_decisions:
+            if isinstance(item, dict):
+                decisions_payload.append({str(k): str(v) for k, v in item.items()})
+    elif raw_decisions is not None:
+        issues.append(
+            {
+                "step": STEP_DEPENDENCY_PLANNER,
+                "summary": "Orderer returned non-list decisions payload.",
+                "risk": "Ordering rationale can become unreadable and non-deterministic.",
+                "remediation": "Return decisions as a JSON list of decision objects.",
+            }
+        )
+
+    order_payload = build_order_payload(
+        ordered_slugs=candidate_slugs,
+        features=features,
+        graph=graph,
+        decisions=decisions_payload,
+    )
+    return order_payload, issues
 
 
 def run_pm_role(
@@ -1204,7 +1593,7 @@ def run_pm_role(
             "decision": "BLOCK",
             "issues": [
                 {
-                    "step": "product-manager",
+                    "step": STEP_PRODUCT_MANAGER,
                     "summary": f"Product Manager role execution failed: {exc}",
                     "risk": "PM semantic review did not run; approval would be unsafe.",
                     "remediation": "Fix PM prompt execution and rerun prepare.",
@@ -1604,7 +1993,7 @@ def product_manager_review(
         issues.append(
             ReviewIssue(
                 issue_id=f"PM-{issue_count:03d}",
-                step=step,
+                step=normalize_prepare_step(step, default=STEP_PRODUCT_MANAGER),
                 summary=summary,
                 risk=risk,
                 remediation=remediation,
@@ -1614,8 +2003,8 @@ def product_manager_review(
 
     for seeded in seed_issues:
         add_issue(
-            step=str(seeded.get("step", "product-manager")).strip()
-            or "product-manager",
+            step=str(seeded.get("step", STEP_PRODUCT_MANAGER)).strip()
+            or STEP_PRODUCT_MANAGER,
             summary=str(seeded.get("summary", "")).strip()
             or "Missing seeded issue summary.",
             risk=str(seeded.get("risk", "")).strip()
@@ -1634,7 +2023,7 @@ def product_manager_review(
     missing_design = check_required_headings(design_text, required_design_headings)
     if missing_design:
         add_issue(
-            step="architect",
+            step=STEP_ARCHITECT,
             summary=f"design.md missing required sections: {', '.join(missing_design)}",
             risk="Feature generation may drift from incomplete architecture constraints.",
             remediation="Regenerate design.md and keep mandatory architecture sections.",
@@ -1647,7 +2036,7 @@ def product_manager_review(
     missing_ux = check_required_headings(ux_text, required_ux_headings)
     if missing_ux:
         add_issue(
-            step="ux",
+            step=STEP_UX,
             summary=f"ux-ui.md missing required sections: {', '.join(missing_ux)}",
             risk="User journeys/workflows may be under-specified for feature generation.",
             remediation="Regenerate ux-ui.md and keep journeys + workflows sections complete.",
@@ -1666,14 +2055,14 @@ def product_manager_review(
         title_lower = feature.title.lower()
         if title_lower not in design_text.lower():
             add_issue(
-                step="architect",
+                step=STEP_ARCHITECT,
                 summary=f"design.md does not mention feature '{feature.title}'",
                 risk="Feature may be generated without architecture alignment.",
                 remediation=f"Ensure design.md feature alignment map includes '{feature.title}'.",
             )
         if title_lower not in ux_text.lower():
             add_issue(
-                step="ux",
+                step=STEP_UX,
                 summary=f"ux-ui.md does not mention feature '{feature.title}'",
                 risk="Feature may be generated without UX journey/workflow alignment.",
                 remediation=f"Ensure ux-ui.md journeys/workflows include '{feature.title}'.",
@@ -1685,7 +2074,7 @@ def product_manager_review(
             ux_lower = ux_text.lower()
             if not any(token in design_lower for token in semantic_tokens):
                 add_issue(
-                    step="architect",
+                    step=STEP_ARCHITECT,
                     summary=(
                         f"design.md lacks feature-specific semantics for '{feature.title}' "
                         f"(expected one of: {', '.join(semantic_tokens)})."
@@ -1698,7 +2087,7 @@ def product_manager_review(
                 )
             if not any(token in ux_lower for token in semantic_tokens):
                 add_issue(
-                    step="ux",
+                    step=STEP_UX,
                     summary=(
                         f"ux-ui.md lacks feature-specific semantics for '{feature.title}' "
                         f"(expected one of: {', '.join(semantic_tokens)})."
@@ -1717,7 +2106,7 @@ def product_manager_review(
     for feature in features:
         if feature.slug not in payload_slug_set:
             add_issue(
-                step="dependency-planner",
+                step=STEP_DEPENDENCY_PLANNER,
                 summary=f"feature-order.json missing '{feature.slug}'",
                 risk="Feature generation order may be incomplete or non-deterministic.",
                 remediation="Regenerate feature-order artifacts and include every P0/P1 feature.",
@@ -1725,16 +2114,26 @@ def product_manager_review(
 
     for violation in dependency_order_violations(ordered_slugs, graph):
         add_issue(
-            step="dependency-planner",
+            step=STEP_DEPENDENCY_PLANNER,
             summary=violation,
             risk="Dependent features may be generated before their prerequisites.",
             remediation="Fix dependency graph or choose a safer cycle/ambiguity resolution.",
         )
 
+    for invalid_step_issue in validate_pm_issue_step_names(
+        pm_role_payload.get("issues")
+    ):
+        add_issue(
+            step=invalid_step_issue["step"],
+            summary=invalid_step_issue["summary"],
+            risk=invalid_step_issue["risk"],
+            remediation=invalid_step_issue["remediation"],
+        )
+
     pm_decision = str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
     pm_role_issues = normalize_role_issues(
         raw_issues=pm_role_payload.get("issues"),
-        default_step="product-manager",
+        default_step=STEP_PRODUCT_MANAGER,
         source="product-manager",
     )
     for pm_issue in pm_role_issues:
@@ -1747,21 +2146,21 @@ def product_manager_review(
 
     if pm_decision not in {"APPROVE", "BLOCK"}:
         add_issue(
-            step="product-manager",
+            step=STEP_PRODUCT_MANAGER,
             summary="Product Manager decision is invalid (expected APPROVE/BLOCK).",
             risk="Invalid PM output can cause false approvals.",
             remediation="Return PM decision as APPROVE or BLOCK in JSON output.",
         )
     elif pm_decision == "BLOCK" and not pm_role_issues:
         add_issue(
-            step="product-manager",
+            step=STEP_PRODUCT_MANAGER,
             summary="Product Manager returned BLOCK without actionable issues.",
             risk="Prepare loop cannot resolve PM block deterministically.",
             remediation="Return at least one PM issue with summary, risk, and remediation.",
         )
     elif pm_decision == "APPROVE" and pm_role_issues:
         add_issue(
-            step="product-manager",
+            step=STEP_PRODUCT_MANAGER,
             summary="Product Manager returned APPROVE while listing issues.",
             risk="Contradictory PM output weakens semantic gate integrity.",
             remediation="Return BLOCK when PM issues are present.",
@@ -1773,7 +2172,7 @@ def product_manager_review(
             if str(value).strip().lower() not in {"fail", "failed", "block", "blocked"}:
                 continue
             add_issue(
-                step="product-manager",
+                step=STEP_PRODUCT_MANAGER,
                 summary=f"PM semantic criterion '{key}' failed.",
                 risk="Semantic quality gate failed while artifacts may still look structurally complete.",
                 remediation=(
@@ -1845,12 +2244,17 @@ def apply_pm_todo_updates(
         source_issue_id = str(raw_update.get("source_issue_id", "")).strip()
         description = str(raw_update.get("description", "")).strip()
         existing = by_id.get(task_id) if task_id else None
-        owner_default = (
-            str(existing.get("owner", TODO_OWNER_ARCHITECT))
-            if existing
-            else TODO_OWNER_ARCHITECT
+        owner_default = infer_issue_owner(
+            step=(str(existing.get("owner", TODO_OWNER_ARCHITECT)) if existing else ""),
+            summary=description,
+            default=TODO_OWNER_ARCHITECT,
         )
-        owner = normalize_todo_owner(raw_update.get("owner"), default=owner_default)
+        owner = infer_issue_owner(
+            step=raw_update.get("owner"),
+            summary=description,
+            remediation=source_issue_id,
+            default=owner_default,
+        )
         status_default = (
             str(existing.get("status", TODO_STATUS_OPEN))
             if existing
@@ -1931,7 +2335,12 @@ def apply_pm_todo_updates(
                 todo["updated_loop"] = loop_iteration
 
         for issue in review_issues:
-            owner = normalize_todo_owner(issue.step)
+            owner = infer_issue_owner(
+                step=issue.step,
+                summary=issue.summary,
+                remediation=issue.remediation,
+                default=TODO_OWNER_ARCHITECT,
+            )
             summary = issue.summary.strip()
             matched: Optional[Dict[str, Any]] = None
             for todo in todos:
@@ -1996,7 +2405,7 @@ def build_pm_feedback_snapshot(
         "criteria": normalize_pm_criteria(pm_role_payload.get("criteria")),
         "raw_issues": normalize_role_issues(
             raw_issues=pm_role_payload.get("issues"),
-            default_step="product-manager",
+            default_step=STEP_PRODUCT_MANAGER,
             source="product-manager",
         ),
         "review_issues": [review_issue_payload(issue) for issue in review_issues],
@@ -2152,7 +2561,7 @@ def build_prepare_state_payload(
     ]
 
     return {
-        "version": 2,
+        "version": 3,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "ordered_feature_slugs": list(ordered_slugs),
         "ordered_features": ordered_features,
@@ -2196,6 +2605,11 @@ def render_pm_issues(issues: Sequence[ReviewIssue]) -> str:
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def snapshot_label_token(raw_label: str) -> str:
+    token = re.sub(r"[^a-z0-9._-]+", "-", raw_label.strip().lower()).strip("-")
+    return token or "snapshot"
 
 
 def run_command(root: Path, cmd: Sequence[str], *, label: str) -> None:
@@ -2244,6 +2658,25 @@ def run_prepare(args: argparse.Namespace) -> int:
         else ""
     )
 
+    existing_state_file = root / PREPARE_STATE_PATH
+    if existing_state_file.exists():
+        try:
+            existing_state_payload = json.loads(
+                existing_state_file.read_text(encoding="utf-8")
+            )
+            state_version = int(existing_state_payload.get("version", 1))
+            has_pm_todos = isinstance(existing_state_payload.get("pm_todos"), dict)
+            if state_version < 2 or not has_pm_todos:
+                print(
+                    "pc-prepare-features: warning: detected legacy prepare state "
+                    "(version<2 or missing pm_todos); this run will refresh artifacts."
+                )
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            print(
+                "pc-prepare-features: warning: existing prepare state is unreadable; "
+                "this run will rewrite artifacts."
+            )
+
     pm_blocks = 0
     pm_history: List[Dict[str, object]] = []
     pm_todos: List[Dict[str, Any]] = []
@@ -2253,15 +2686,35 @@ def run_prepare(args: argparse.Namespace) -> int:
     pm_final_decision = "pending"
     previous_design_doc = ""
     previous_ux_doc = ""
+    previous_order_payload: Dict[str, object] = {}
     previous_pm_feedback: List[Dict[str, str]] = []
+    retry_owner_scope: Optional[Set[str]] = None
     previous_loop_change_summary = (
         "No previous loop change summary available (first iteration)."
     )
+    in_loop_feature_generation_status = "skipped" if args.skip_generation else "pending"
+    in_loop_schema_check_status = (
+        "skipped" if args.skip_generation or args.skip_schema_check else "pending"
+    )
+    snapshot_run_id = (
+        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-pid{os.getpid()}"
+        if args.snapshot_runs
+        else ""
+    )
+    snapshot_root = (
+        root / PREPARE_RUNS_DIR / snapshot_run_id if args.snapshot_runs else None
+    )
+    snapshot_entries: List[Dict[str, Any]] = []
+    snapshot_call_count = 0
+    if snapshot_root is not None:
+        snapshot_root.mkdir(parents=True, exist_ok=True)
+        print(f"pc-prepare-features: snapshots enabled -> {snapshot_root}")
 
     def persist_prepare_state(
         *,
         feature_generation_status: str,
         schema_check_status: str,
+        snapshot_label: str = "state",
     ) -> None:
         payload = build_prepare_state_payload(
             features=features,
@@ -2282,17 +2735,68 @@ def run_prepare(args: argparse.Namespace) -> int:
             json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True),
         )
         print(f"pc-prepare-features: wrote state artifact -> {PREPARE_STATE_PATH}")
+        pm_todo_markdown = render_pm_todo_markdown(
+            pm_todos=pm_todos, pm_history=pm_history
+        )
         write_text(
             root / PREPARE_PM_TODO_PATH,
-            render_pm_todo_markdown(pm_todos=pm_todos, pm_history=pm_history),
+            pm_todo_markdown,
         )
         print(f"pc-prepare-features: wrote PM TODO artifact -> {PREPARE_PM_TODO_PATH}")
+        if snapshot_root is None:
+            return
+
+        nonlocal snapshot_call_count
+        snapshot_call_count += 1
+        label_token = snapshot_label_token(snapshot_label)
+        snapshot_prefix = f"{snapshot_call_count:03d}-{label_token}"
+        state_file_name = f"{snapshot_prefix}-prepare-features-state.json"
+        pm_todo_file_name = f"{snapshot_prefix}-prepare-features-pm-todo.md"
+        write_text(
+            snapshot_root / state_file_name,
+            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True),
+        )
+        write_text(snapshot_root / pm_todo_file_name, pm_todo_markdown)
+
+        snapshot_entries.append(
+            {
+                "index": snapshot_call_count,
+                "label": label_token,
+                "generated_at": payload.get("generated_at", ""),
+                "pm_final_decision": pm_final_decision,
+                "feature_generation_status": feature_generation_status,
+                "schema_check_status": schema_check_status,
+                "state_file": state_file_name,
+                "pm_todo_file": pm_todo_file_name,
+            }
+        )
+        snapshot_index_payload = {
+            "run_id": snapshot_run_id,
+            "snapshot_root": str(PREPARE_RUNS_DIR / snapshot_run_id),
+            "snapshots": snapshot_entries,
+        }
+        write_text(
+            snapshot_root / "index.json",
+            json.dumps(
+                snapshot_index_payload, ensure_ascii=True, indent=2, sort_keys=True
+            ),
+        )
 
     while True:
         loop_iteration = pm_blocks + 1
-        print(
-            "pc-prepare-features: architect step -> generating docs/01-product/design.md"
+        run_architect = retry_owner_scope is None or STEP_ARCHITECT in retry_owner_scope
+        run_ux = retry_owner_scope is None or STEP_UX in retry_owner_scope
+        run_orderer = (
+            retry_owner_scope is None or STEP_DEPENDENCY_PLANNER in retry_owner_scope
         )
+        if retry_owner_scope is None:
+            print("pc-prepare-features: retry scope -> full (first iteration)")
+        else:
+            print(
+                "pc-prepare-features: retry scope -> "
+                + ", ".join(sorted(retry_owner_scope))
+            )
+
         graph, dependency_decisions = resolve_dependency_graph(
             features, overrides=overrides
         )
@@ -2302,49 +2806,102 @@ def run_prepare(args: argparse.Namespace) -> int:
                 "pc-prepare-features: failed to compute deterministic ordered feature list"
             )
 
-        order_payload = build_order_payload(
+        baseline_order_payload = build_order_payload(
             ordered_slugs=ordered_slugs,
             features=features,
             graph=graph,
             decisions=dependency_decisions,
         )
 
-        design_doc, architect_seed_issues = run_architect_role(
-            root=root,
-            role_mode=args.role_mode,
-            prd_text=prd_text,
-            context_boundaries=context_boundaries,
-            features=features,
-            ordered_slugs=ordered_slugs,
-            graph=graph,
-            dependency_decisions=dependency_decisions,
-            prepare_iteration=loop_iteration,
-            previous_design_markdown=previous_design_doc,
-            previous_ux_markdown=previous_ux_doc,
-            pm_feedback=previous_pm_feedback,
-            pm_todos=pm_todos,
-            previous_loop_change_summary=previous_loop_change_summary,
-        )
+        design_doc = previous_design_doc
+        architect_seed_issues: List[Dict[str, str]] = []
+        if run_architect:
+            print(
+                "pc-prepare-features: architect step -> generating docs/01-product/design.md"
+            )
+            design_doc, architect_seed_issues = run_architect_role(
+                root=root,
+                role_mode=args.role_mode,
+                prd_text=prd_text,
+                context_boundaries=context_boundaries,
+                features=features,
+                ordered_slugs=ordered_slugs,
+                graph=graph,
+                dependency_decisions=dependency_decisions,
+                prepare_iteration=loop_iteration,
+                previous_design_markdown=previous_design_doc,
+                previous_ux_markdown=previous_ux_doc,
+                pm_feedback=previous_pm_feedback,
+                pm_todos=pm_todos,
+                previous_loop_change_summary=previous_loop_change_summary,
+            )
+        elif not design_doc:
+            design_doc = design_markdown(
+                features=features,
+                ordered_slugs=ordered_slugs,
+                graph=graph,
+                context_boundaries=context_boundaries,
+            )
         write_text(root / DESIGN_PATH, design_doc)
 
-        print("pc-prepare-features: ux step -> generating docs/01-product/ux-ui.md")
-        ux_doc, ux_seed_issues = run_ux_role(
-            root=root,
-            role_mode=args.role_mode,
-            prd_text=prd_text,
-            context_boundaries=context_boundaries,
-            features=features,
-            ordered_slugs=ordered_slugs,
-            graph=graph,
-            dependency_decisions=dependency_decisions,
-            prepare_iteration=loop_iteration,
-            previous_design_markdown=previous_design_doc,
-            previous_ux_markdown=previous_ux_doc,
-            pm_feedback=previous_pm_feedback,
-            pm_todos=pm_todos,
-            previous_loop_change_summary=previous_loop_change_summary,
-        )
+        ux_doc = previous_ux_doc
+        ux_seed_issues: List[Dict[str, str]] = []
+        if run_ux:
+            print("pc-prepare-features: ux step -> generating docs/01-product/ux-ui.md")
+            ux_doc, ux_seed_issues = run_ux_role(
+                root=root,
+                role_mode=args.role_mode,
+                prd_text=prd_text,
+                context_boundaries=context_boundaries,
+                features=features,
+                ordered_slugs=ordered_slugs,
+                graph=graph,
+                dependency_decisions=dependency_decisions,
+                prepare_iteration=loop_iteration,
+                previous_design_markdown=previous_design_doc,
+                previous_ux_markdown=previous_ux_doc,
+                pm_feedback=previous_pm_feedback,
+                pm_todos=pm_todos,
+                previous_loop_change_summary=previous_loop_change_summary,
+            )
+        elif not ux_doc:
+            ux_doc = ux_markdown(
+                features=features, ordered_slugs=ordered_slugs, graph=graph
+            )
         write_text(root / UX_PATH, ux_doc)
+
+        order_payload = (
+            dict(previous_order_payload)
+            if previous_order_payload
+            else dict(baseline_order_payload)
+        )
+        orderer_seed_issues: List[Dict[str, str]] = []
+        if run_orderer or not previous_order_payload:
+            print(
+                "pc-prepare-features: orderer step -> generating docs/02-features/feature-order.{json,md}"
+            )
+            order_payload, orderer_seed_issues = run_orderer_role(
+                root=root,
+                role_mode=args.role_mode,
+                prd_text=prd_text,
+                context_boundaries=context_boundaries,
+                features=features,
+                ordered_slugs=ordered_slugs,
+                graph=graph,
+                dependency_decisions=dependency_decisions,
+                baseline_order_payload=baseline_order_payload,
+                prepare_iteration=loop_iteration,
+                previous_order_payload=previous_order_payload,
+                previous_design_markdown=previous_design_doc,
+                previous_ux_markdown=previous_ux_doc,
+                pm_feedback=previous_pm_feedback,
+                pm_todos=pm_todos,
+                previous_loop_change_summary=previous_loop_change_summary,
+            )
+        else:
+            print(
+                "pc-prepare-features: orderer step -> reusing previous feature-order payload"
+            )
 
         print(
             "pc-prepare-features: dependency planner step -> generating docs/02-features/feature-order.{json,md}"
@@ -2355,11 +2912,31 @@ def run_prepare(args: argparse.Namespace) -> int:
         )
         write_text(root / ORDER_MD_PATH, order_markdown(order_payload))
 
+        active_ordered_slugs = [
+            str(item).strip()
+            for item in order_payload.get("ordered_feature_slugs", [])
+            if str(item).strip()
+        ]
+        if not active_ordered_slugs:
+            active_ordered_slugs = list(ordered_slugs)
+        ordered_slugs = list(active_ordered_slugs)
+
+        pm_dependency_decisions = order_payload.get("decisions")
+        if not isinstance(pm_dependency_decisions, list):
+            pm_dependency_decisions = dependency_decisions
+        dependency_decisions = [
+            {str(key): str(value) for key, value in item.items()}
+            for item in pm_dependency_decisions
+            if isinstance(item, dict)
+        ]
+
         current_loop_change_summary = build_loop_change_summary(
             previous_design_markdown=previous_design_doc,
             current_design_markdown=design_doc,
             previous_ux_markdown=previous_ux_doc,
             current_ux_markdown=ux_doc,
+            previous_order_payload=previous_order_payload,
+            current_order_payload=order_payload,
         )
 
         print("pc-prepare-features: product manager gate -> reviewing artifacts")
@@ -2372,9 +2949,9 @@ def run_prepare(args: argparse.Namespace) -> int:
             ux_text=ux_doc,
             order_payload=order_payload,
             features=features,
-            ordered_slugs=ordered_slugs,
+            ordered_slugs=active_ordered_slugs,
             graph=graph,
-            dependency_decisions=dependency_decisions,
+            dependency_decisions=pm_dependency_decisions,
             prepare_iteration=loop_iteration,
             previous_design_markdown=previous_design_doc,
             previous_ux_markdown=previous_ux_doc,
@@ -2385,13 +2962,13 @@ def run_prepare(args: argparse.Namespace) -> int:
         pm_role_decision = str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
         issues = product_manager_review(
             features=features,
-            ordered_slugs=ordered_slugs,
+            ordered_slugs=active_ordered_slugs,
             graph=graph,
             design_text=design_doc,
             ux_text=ux_doc,
             order_payload=order_payload,
             pm_role_payload=pm_role_payload,
-            seed_issues=[*architect_seed_issues, *ux_seed_issues],
+            seed_issues=[*architect_seed_issues, *ux_seed_issues, *orderer_seed_issues],
             enforce_semantic_gate=args.role_mode != ROLE_MODE_DETERMINISTIC,
         )
         pm_todos, todo_updates = apply_pm_todo_updates(
@@ -2443,6 +3020,7 @@ def run_prepare(args: argparse.Namespace) -> int:
             persist_prepare_state(
                 feature_generation_status="not-run",
                 schema_check_status="not-run",
+                snapshot_label=f"iter-{loop_iteration:03d}-max-block",
             )
             die(
                 "pc-prepare-features: PM gate reached max block limit; manual intervention required"
@@ -2453,7 +3031,7 @@ def run_prepare(args: argparse.Namespace) -> int:
                 key="retry",
                 label="Retry failing steps automatically (Recommended)",
                 explanation=(
-                    "Re-run architect/ux/dependency planner in the same command and retry PM review."
+                    "Re-run only unresolved owner steps (architect/ux/orderer) and retry PM review."
                 ),
                 risk="If source PRD/context is inconsistent, repeated retries may still block.",
             ),
@@ -2490,8 +3068,15 @@ def run_prepare(args: argparse.Namespace) -> int:
         if choice.key == "retry":
             previous_design_doc = design_doc
             previous_ux_doc = ux_doc
+            previous_order_payload = dict(order_payload)
             previous_pm_feedback = [review_issue_payload(issue) for issue in issues]
             previous_loop_change_summary = current_loop_change_summary
+            retry_owner_scope = retry_owner_scope_from_issues(issues)
+            persist_prepare_state(
+                feature_generation_status=in_loop_feature_generation_status,
+                schema_check_status=in_loop_schema_check_status,
+                snapshot_label=f"iter-{loop_iteration:03d}-retry",
+            )
             continue
         if choice.key == "waive":
             pm_final_decision = "waive"
@@ -2501,16 +3086,16 @@ def run_prepare(args: argparse.Namespace) -> int:
         persist_prepare_state(
             feature_generation_status="not-run",
             schema_check_status="not-run",
+            snapshot_label=f"iter-{loop_iteration:03d}-abort",
         )
         die("pc-prepare-features: aborted by user at PM gate")
 
-    feature_generation_status = "skipped" if args.skip_generation else "pending"
-    schema_check_status = (
-        "skipped" if args.skip_generation or args.skip_schema_check else "pending"
-    )
+    feature_generation_status = in_loop_feature_generation_status
+    schema_check_status = in_loop_schema_check_status
     persist_prepare_state(
         feature_generation_status=feature_generation_status,
         schema_check_status=schema_check_status,
+        snapshot_label="post-gate",
     )
 
     if args.skip_generation:
@@ -2532,6 +3117,7 @@ def run_prepare(args: argparse.Namespace) -> int:
     persist_prepare_state(
         feature_generation_status=feature_generation_status,
         schema_check_status=schema_check_status,
+        snapshot_label="post-generation",
     )
 
     if not args.skip_schema_check:
@@ -2544,6 +3130,7 @@ def run_prepare(args: argparse.Namespace) -> int:
         persist_prepare_state(
             feature_generation_status=feature_generation_status,
             schema_check_status=schema_check_status,
+            snapshot_label="post-schema",
         )
 
     print("pc-prepare-features: complete")

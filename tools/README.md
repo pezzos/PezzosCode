@@ -25,6 +25,8 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 ## Generated Artifacts
 
 - `pc-prepare-features` writes `docs/03-logs/prepare-features-state.json` (PM gate decisions + runtime state).
+- `pc-prepare-features` writes `docs/03-logs/prepare-features-pm-todo.md` (owner-scoped PM feedback lifecycle).
+- `pc-prepare-features --snapshot-runs` writes per-run snapshots to `docs/03-logs/prepare-features-runs/<run-id>/`.
 - `pc-review-features` writes `docs/03-logs/review-features-report.json` (per-feature findings + totals).
 
 ## Related Docs

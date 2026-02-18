@@ -2766,3 +2766,19 @@ When a decision is reversed or replaced, document it here:
   - Reporter wording variants that describe machine-owned status contradictions are normalized to PASS consistently.
   - Actionable handoff/scope issues remain `scope_gap` and continue through Planner rework.
   - Reporter retry loops no longer exhaust on metadata-only contradiction phrasing.
+
+### DEC-076 - Canonical PM step taxonomy and Orderer ownership in prepare loop
+
+- **Date:** 2026-02-18
+- **Status:** Accepted
+- **Context:** PM feedback frequently used non-canonical `step` labels (for example `feature-order.json ordering`, `dependency decision records`) that did not map cleanly to a dedicated producer role, causing retry loops to rerun architect/ux broadly and misroute TODO ownership.
+- **Decision:**
+  - Canonicalize prepare feedback steps to exactly: `architect`, `ux`, `dependency-planner`, `product-manager`.
+  - Add alias normalization for common PM variants (`orderer`, `feature-order.json ordering`, `dependency decision records`, `uxui`) into canonical steps.
+  - Introduce a dedicated Orderer role/profile and prompt (`orderer-prepare.md`) as the producer owner for feature-order sequencing.
+  - Keep a single PM gate as reviewer-only; do not split PM into ordering+review passes.
+  - Route retry scope by unresolved owner steps so retries rerun only impacted producer roles (`architect`, `ux`, `dependency-planner`) before PM re-review.
+- **Consequences:**
+  - PM feedback ownership is explicit and auditable in state/TODO artifacts.
+  - Ordering feedback no longer defaults to architect ownership.
+  - Prepare retries reduce unnecessary role reruns and preserve prior loop context.

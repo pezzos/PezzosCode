@@ -17,7 +17,7 @@
 ## Workflow
 
 1. Start from `docs/00-context/` before changing product or feature docs.
-2. Run `make prepare-features` before feature generation to refresh design/UX/order artifacts and write `docs/03-logs/prepare-features-state.json` (use `INCLUDE_PROCESS_FEATURES=1` only when process features should be generated).
+2. Run `make prepare-features` before feature generation to refresh design/UX/order artifacts and write `docs/03-logs/prepare-features-state.json` plus `docs/03-logs/prepare-features-pm-todo.md` (use `INCLUDE_PROCESS_FEATURES=1` only when process features should be generated; use `SNAPSHOT_RUNS=1` for per-run snapshots).
 3. Run `make review-features` after generation to inject security/product findings and write `docs/03-logs/review-features-report.json`.
 4. Follow `Plan -> Patch -> Test -> Report` for each work item via `make feature`.
 5. Record meaningful changes, decisions, bugs, validations, and insights in `docs/03-logs/`.

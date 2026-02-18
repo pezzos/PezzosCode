@@ -1,309 +1,92 @@
-# Global UX / UI Blueprint
-
-> Machine-managed by `tools/pc-prepare-features`. Edit PRD/context and rerun instead of hand-editing this file.
-
-**Last Updated:** 2026-02-16
+# UX/UI
 
 ## User journeys
 
-Primary persona: Developer/PO running local CLI workflows with explicit gates.
+### 1) Bootstrap or refresh a repository without churn (`bootstrap-safe-template-reapply`, Feature 1)
 
-### Journey 01: Bootstrap + safe template reapply
+Outcome reference: New/existing repos become execution-ready with idempotent reruns.
 
-- Goal: deliver `bootstrap-safe-template-reapply` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
+- Trigger: User runs bootstrap/update in a local repository.
+- Interaction: Apply templates/tools/docs with explicit overwrite/merge/skip choices on conflicts.
+- Success signal: Immediate rerun produces no unintended file churn.
+- User-visible result: Repo is execution-ready without manual template repair.
 
-### Journey 02: Deterministic work-item execution with explicit gates
+### 2) Execute an approved work item through deterministic gates (`deterministic-work-item-execution-with-explicit-gates`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`, `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`; Features 2, 6, 7)
 
-- Goal: deliver `deterministic-work-item-execution-with-explicit-gates` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
+Outcome references:
 
-### Journey 03: Output offload + structured logs + shared runner
+- Feature 2: Plan -> Patch -> Test -> Report runs predictably and is auditable.
+- Feature 6: Cleaner separation of responsibilities and better plan quality.
+- Feature 7: Better regression resistance and early workflow break detection.
+- Trigger: Ticket has preflight scope/risk/files-to-change, TDD plan, and work-item DoD.
+- Interaction: Preflight runs first; HIGH-risk pauses for explicit approval; Plan Reviewer must approve before patching; tester enforces allowed tests and anti-hardcode policy.
+- User-visible result: Minimal manual intervention with explicit gates and auditable stage decisions.
 
-- Goal: deliver `output-offload-structured-logs-shared-runner` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
+### 3) Keep execution observable and recover safely after interruption (`output-offload-structured-logs-shared-runner`, `resume-safety-fail-closed-commit-gate-scoped-autofix`, `single-worktree-orchestration-template-drift-hardening`; Features 3, 4, 5)
 
-### Journey 04: Resume safety + fail-closed commit gate + scoped autofix
+Outcome references:
 
-- Goal: deliver `resume-safety-fail-closed-commit-gate-scoped-autofix` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
+- Feature 3: Noisy output stays token-efficient and every step is traceable.
+- Feature 4: Interrupted runs resume safely; commits require complete evidence.
+- Feature 5: Reliable role collaboration without worktree tracking-file drift.
+- Interaction: Noisy commands offload to pointers, structured logs persist per step, resume skips completed deterministic stages, scoped drift repair runs on allowed paths, and commit stays blocked until evidence is complete.
+- User-visible result: No silent state loss, clear recovery path, and no commit on incomplete work.
 
-### Journey 05: Single-worktree orchestration + template-drift hardening
+### 4) Improve safely after each run (`incremental-prd-to-features-post-run-learning-loop`, Feature 8)
 
-- Goal: deliver `single-worktree-orchestration-template-drift-hardening` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
+Outcome reference: Feature docs evolve safely and repeated failures are reduced.
 
-### Journey 06: Orchestrator roles + Plan Reviewer gate + role-specific prompts
-
-- Goal: deliver `orchestrator-roles-plan-reviewer-gate-role-specific-prompts` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 07: Anti-hardcode test policy + synthetic end-to-end smoke feature
-
-- Goal: deliver `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 08: Incremental PRD-to-features + post-run learning loop
-
-- Goal: deliver `incremental-prd-to-features-post-run-learning-loop` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 09: Output offload enforcement
-
-- Goal: deliver `output-offload-enforcement` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 10: Resume in-progress tickets
-
-- Goal: deliver `resume-in-progress-tickets` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 11: Commit gated by completed ticket docs
-
-- Goal: deliver `commit-gated-by-completed-ticket-docs` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 12: Shared runner library
-
-- Goal: deliver `shared-runner-library` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 13: Structured logs for CI/tests/precommit/feature runs
-
-- Goal: deliver `structured-logs-for-ci-tests-precommit-feature-runs` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 14: Unified autofix script
-
-- Goal: deliver `unified-autofix-script` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 15: Precommit restage + vanilla Codex config
-
-- Goal: deliver `precommit-restage-vanilla-codex-config` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 16: Single worktree per feature
-
-- Goal: deliver `single-worktree-per-feature` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 17: Workflow hardening for template drift + autofix recovery
-
-- Goal: deliver `workflow-hardening-for-template-drift-autofix-recovery` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 18: Orchestrator + sub-agent roles
-
-- Goal: deliver `orchestrator-sub-agent-roles` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 19: Role-specific prompts + Plan Reviewer
-
-- Goal: deliver `role-specific-prompts-plan-reviewer` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 20: Incremental prd-to-features
-
-- Goal: deliver `incremental-prd-to-features` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 21: Learning loop proposals
-
-- Goal: deliver `learning-loop-proposals` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 22: Worktree policy + naming convention
-
-- Goal: deliver `worktree-policy-naming-convention` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 23: Anti-cheat testing strategy
-
-- Goal: deliver `anti-cheat-testing-strategy` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
-
-### Journey 24: End-to-end workflow smoke test with a synthetic feature
-
-- Goal: deliver `end-to-end-workflow-smoke-test-with-a-synthetic-feature` with deterministic scope and traceability.
-- Entry: updated PRD + approved prepare workflow artifacts.
-- Steps:
-  1. Human runs `make prepare-features` and verifies PM gate approval.
-  2. Feature docs are generated/updated in dependency order with prerequisites: (none).
-  3. Human runs `make review-features` and confirms findings are reflected in feature docs.
-  4. Human executes the feature with `make feature F=<feature-id>`.
-- Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.
+- Interaction: PRD-to-features sync adds missing only and skips completed artifacts; repeated-failure proposals are recorded with WI/agent/step evidence.
+- Governance: Improvements are proposal-only until explicit human approval.
+- User-visible result: Continuous hardening without resetting completed work.
 
 ## Workflows
 
-| Feature                                                         | Workflow                     | Dependencies | Human validation checkpoint |
-| --------------------------------------------------------------- | ---------------------------- | ------------ | --------------------------- |
-| Bootstrap + safe template reapply                               | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Deterministic work-item execution with explicit gates           | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Output offload + structured logs + shared runner                | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Resume safety + fail-closed commit gate + scoped autofix        | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Single-worktree orchestration + template-drift hardening        | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Orchestrator roles + Plan Reviewer gate + role-specific prompts | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Anti-hardcode test policy + synthetic end-to-end smoke feature  | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Incremental PRD-to-features + post-run learning loop            | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Output offload enforcement                                      | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Resume in-progress tickets                                      | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Commit gated by completed ticket docs                           | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Shared runner library                                           | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Structured logs for CI/tests/precommit/feature runs             | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Unified autofix script                                          | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Precommit restage + vanilla Codex config                        | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Single worktree per feature                                     | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Workflow hardening for template drift + autofix recovery        | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Orchestrator + sub-agent roles                                  | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Role-specific prompts + Plan Reviewer                           | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Incremental prd-to-features                                     | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Learning loop proposals                                         | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Worktree policy + naming convention                             | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| Anti-cheat testing strategy                                     | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
-| End-to-end workflow smoke test with a synthetic feature         | Prepare -> Review -> Execute | (none)       | Before first `make feature` |
+### Workflow A: Bootstrap and safe reapply (Feature 1)
+
+1. Validate local repo context and prerequisites.
+2. Apply templates/tools/docs.
+3. Resolve conflicts via overwrite/merge/skip.
+4. Print concise created/updated/skipped summary.
+5. Allow deterministic rerun with no unintended churn.
+
+### Workflow B: Evidence-first deterministic execution (Features 3, 2, 4, 5, 6, 7)
+
+1. Route noisy command output through `tools/offload-proxy/pp` and capture `.offload/<id>.txt`.
+2. Write step logs to `logs/<WI>/<step>.log` with `[WI-...][agent][step]` and timestamps.
+3. Run preflight and enforce HIGH-risk approval gate.
+4. Enforce stage order: Plan -> Patch -> Test -> Report.
+5. Require Plan Reviewer approval before patching; enforce role ownership in one feature worktree.
+6. On interruption, resume from saved stage, preserve active WIP by default, rerun tests/CI, and attempt scoped drift recovery.
+7. Keep commit fail-closed until required execution/report evidence is complete.
+8. Enforce anti-hardcode policy (>=2 fixtures on critical paths, deterministic seeds, invariants, boundary contracts) and synthetic smoke coverage when validating workflow changes.
+
+### Workflow C: Dependency-aligned delivery order (prepare-features guardrail)
+
+- F1 -> F3: bootstrap-safe-template-reapply before output-offload-structured-logs-shared-runner.
+- F3 -> F2: evidence substrate before deterministic-work-item-execution-with-explicit-gates.
+- F2 -> F4 and F2 -> F5: deterministic orchestration before resume/commit and single-worktree/drift hardening.
+- F5 -> F6: worktree ownership hardening before role specialization.
+- F4 -> F7: resume/fail-closed controls before synthetic smoke and anti-hardcode hardening.
+- F2 + F3 + F6 -> F8: stable orchestration, evidence, and role outputs before incremental PRD sync and learning loop.
+
+### Workflow D: Incremental evolution and learning loop (Feature 8)
+
+1. Sync PRD to features in add-missing mode only.
+2. Skip artifacts already marked done.
+3. Record repeated-failure proposals with WI/agent/step evidence.
+4. Write proposals to `docs/possible-improvements.md`.
+5. Apply only after explicit human approval.
 
 ## UX constraints
 
-- Keep command UX explicit and deterministic; avoid hidden background behavior.
-- Any ambiguity must present numbered options (2-4) with explanation and risk.
-- Decisions must be persisted so reruns remain deterministic.
-- Manual checkpoints happen only at explicit gates; no implicit pauses.
+- CLI-only UX; no web/desktop UI flows.
+- macOS-first local usage; no Windows support.
+- Single-user UX only; no collaboration patterns.
+- Command authority is explicit: only human PO/user runs `make feature` and `pc-feature` unless explicit in-run approval is granted.
+- Prompting stays minimal and gate-based: conflict resolution, HIGH-risk approval, explicit reset choices.
+- Idempotency and recoverability are non-negotiable: avoid duplicate prompts, duplicate log sections, or ambiguous run state.
+- Large/noisy outputs must be offloaded; inline output stays concise and pointer-based.
+- Observability is mandatory: each critical stage surfaces log paths and offload ids.
+- Deterministic steps are script-first via shared runner metadata (`work_item_id`, `agent_name`, `run_id`).
+- Scope boundaries stay explicit in UX copy: no daemon/scheduler, no cloud/remote state, and no UI expansion in this project.

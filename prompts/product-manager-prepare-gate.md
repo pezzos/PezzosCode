@@ -9,13 +9,14 @@ Return ONLY a JSON object with keys:
 
 - `decision`: `APPROVE` or `BLOCK`
 - `issues`: list of objects `{{step, summary, risk, remediation}}`
+  - Allowed `step` values: `architect`, `ux`, `dependency-planner`, `product-manager`.
 - `criteria`: object with `pass`/`fail` values for:
   - `feature_specificity`
   - `journey_specificity`
   - `dependency_alignment`
 - `todo_updates`: list of objects `{{task_id, owner, status, description, source_issue_id}}`
   - `task_id`: optional for new tasks; required to update existing tasks.
-  - `owner`: `architect` or `ux`.
+  - `owner`: `architect`, `ux`, or `dependency-planner`.
   - `status`: `open`, `carry`, or `done`.
   - `description`: actionable task text.
   - `source_issue_id`: optional PM issue id.

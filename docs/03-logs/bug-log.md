@@ -1276,3 +1276,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** On stale patcher sync merge conflicts, `pc-feature` reported `resolve conflicts manually` but immediately ran `git merge --abort`, clearing `MERGE_HEAD` and conflict markers before the user could resolve them.
 - **Fix:** Removed automatic `git merge --abort` in `merge_main_into_worktree(...)`; failed merges now return conflict output and leave the merge in-progress for manual resolution in the patcher worktree.
 - **Validation:** `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k merge_main_into_worktree_preserves_conflict_state_on_failure` (PASS); `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k merge_failure` (PASS); `tools/offload-proxy/pp python3 tests/test_pc_feature.py -k stale_existing_worktree_sync_mode_merges_and_continues` (PASS).
+
+## 2026-02-18 - Prepare PM feedback step drift misrouted ordering ownership
+
+- **ID:** BUG-20260218-01
+- **Status:** Fixed
+- **Source:** User reports from multiple repos running `make prepare-feature(s)`
+- **Summary:** PM feedback could emit non-canonical `step` values (for example `feature-order.json ordering`, `dependency decision records`) while prepare had no dedicated orderer producer role; TODO ownership defaulted to architect and retries reran broader steps than necessary.
+- **Fix:** Added canonical step normalization/validation, introduced dedicated Orderer role with prompt/profile, expanded TODO ownership to `dependency-planner`, and implemented owner-scoped retry routing.
+- **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS; offload id `a9d51ac5375792f16ef28c92068076381bf922a8f3f9a58652028dd07ab885de`); `tools/offload-proxy/pp pre-commit run --files .codex.toml docs/04-process/human-orchestration-workflow.md prompts/product-manager-prepare-gate.md prompts/orderer-prepare.md tests/test_pc_prepare_features.py tools/pc-prepare-features tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/prompts/product-manager-prepare-gate.md tools/templates/prompts/orderer-prepare.md tools/templates/root/.codex.toml` (PASS; offload id `74098591df15bb6c06957984480d81ab3daec62d2c60b825d8aacffe30764d99`).
