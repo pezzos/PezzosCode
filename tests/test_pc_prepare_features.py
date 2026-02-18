@@ -153,10 +153,12 @@ def parse_prd_features(_text: str):
             ux_path = root / "docs/01-product/ux-ui.md"
             order_path = root / "docs/02-features/feature-order.json"
             state_path = root / "docs/03-logs/prepare-features-state.json"
+            pm_todo_path = root / "docs/03-logs/prepare-features-pm-todo.md"
             self.assertTrue(design_path.exists())
             self.assertTrue(ux_path.exists())
             self.assertTrue(order_path.exists())
             self.assertTrue(state_path.exists())
+            self.assertTrue(pm_todo_path.exists())
 
             order_payload = json.loads(order_path.read_text(encoding="utf-8"))
             self.assertEqual(
@@ -168,6 +170,8 @@ def parse_prd_features(_text: str):
             self.assertEqual(
                 state_payload["execution"]["feature_generation_status"], "skipped"
             )
+            self.assertIn("pm_todos", state_payload)
+            self.assertIn("items", state_payload["pm_todos"])
 
     def test_choose_option_supports_prefix_override_alias(self):
         options = [
@@ -451,6 +455,72 @@ def parse_prd_features(_text: str):
         feedback_payload = json.loads(values["pm_feedback_json"])
         self.assertEqual(feedback_payload[0]["issue_id"], "PM-009")
         self.assertEqual(feedback_payload[0]["step"], "ux")
+        self.assertIn("pm_todos_json", values)
+        self.assertIn("architect_open_todos_json", values)
+        self.assertIn("ux_open_todos_json", values)
+        self.assertIn("previous_loop_change_summary", values)
+
+    def test_apply_pm_todo_updates_auto_creates_owner_tasks_from_issues(self):
+        review_issues = [
+            self.tool.ReviewIssue(
+                issue_id="PM-001",
+                step="architect",
+                summary="Architect must add module boundary details.",
+                risk="Boundary drift.",
+                remediation="Update module boundaries section.",
+            ),
+            self.tool.ReviewIssue(
+                issue_id="PM-002",
+                step="ux",
+                summary="UX must map journeys to feature outcomes.",
+                risk="Generic flows.",
+                remediation="Add feature-specific journey details.",
+            ),
+        ]
+        todos, updates = self.tool.apply_pm_todo_updates(
+            pm_todos=[],
+            raw_todo_updates=[],
+            review_issues=review_issues,
+            pm_role_decision="BLOCK",
+            loop_iteration=1,
+        )
+
+        self.assertEqual(len(todos), 2)
+        self.assertEqual({item["owner"] for item in todos}, {"architect", "ux"})
+        self.assertTrue(all(item["status"] == "open" for item in todos))
+        self.assertEqual({item["action"] for item in updates}, {"auto_create"})
+
+    def test_apply_pm_todo_updates_auto_marks_open_tasks_done_on_approve(self):
+        initial_todos = [
+            {
+                "task_id": "PM-TODO-001",
+                "created_loop": 1,
+                "updated_loop": 1,
+                "owner": "architect",
+                "status": "open",
+                "description": "Architect task.",
+                "source_issue_id": "PM-001",
+            },
+            {
+                "task_id": "PM-TODO-002",
+                "created_loop": 1,
+                "updated_loop": 1,
+                "owner": "ux",
+                "status": "carry",
+                "description": "UX task.",
+                "source_issue_id": "PM-002",
+            },
+        ]
+        todos, updates = self.tool.apply_pm_todo_updates(
+            pm_todos=initial_todos,
+            raw_todo_updates=[],
+            review_issues=[],
+            pm_role_decision="APPROVE",
+            loop_iteration=2,
+        )
+
+        self.assertTrue(all(item["status"] == "done" for item in todos))
+        self.assertEqual({item["action"] for item in updates}, {"auto_done"})
 
     def test_run_architect_role_uses_architect_profile_by_default(self):
         features = [

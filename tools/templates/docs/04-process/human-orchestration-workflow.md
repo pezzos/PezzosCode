@@ -19,6 +19,7 @@
    - Product Manager gate (`prompts/product-manager-prepare-gate.md`) approves only when semantic quality criteria pass: feature-specific architecture and project-specific user journeys.
    - Generates `docs/02-features/feature-order.json` + `docs/02-features/feature-order.md`.
    - Persists loop/runtime state to `docs/03-logs/prepare-features-state.json`.
+   - Persists PM feedback TODO tracker to `docs/03-logs/prepare-features-pm-todo.md` (owner-scoped open/carry/done tasks).
    - Resolves dependency ambiguity/cycles with numbered CLI choices (2-4 options + risk notes).
    - Process feature entries in `## Process Features` are excluded by default; pass `INCLUDE_PROCESS_FEATURES=1` to include them in generation.
    - `tools/prd-to-features` consumes the ordered plan and updates `docs/02-features/` in dependency order.
@@ -62,6 +63,7 @@
    - Refreshes `design.md`, `ux-ui.md`, dependency order plan, and incremental feature generation from the updated PRD.
    - PM approval is semantic, not only structural: block when artifacts are generic/tooling-centric instead of project-specific.
    - Refreshes `docs/03-logs/prepare-features-state.json` with PM gate/runtime status.
+   - Refreshes `docs/03-logs/prepare-features-pm-todo.md` with PM loop feedback tasks and ownership.
    - Use `INCLUDE_PROCESS_FEATURES=1` only when process features should become executable feature folders.
    - Do not delete existing features.
    - Skip any feature whose `dev-tasks.md` shows `Status: Done`.
@@ -99,6 +101,7 @@ Context docs → PRD → design/ux blueprints → dependency order plan + prepar
 - **context-to-product:** update `docs/01-product/prd.md` only; do not create a new PRD file.
 - **make prepare-features:** update `docs/01-product/design.md`, `docs/01-product/ux-ui.md`, and `docs/02-features/feature-order.{json,md}` before running generation.
 - **make prepare-features:** persist PM loop/runtime state to `docs/03-logs/prepare-features-state.json`.
+- **make prepare-features:** persist PM feedback TODO tracking to `docs/03-logs/prepare-features-pm-todo.md`.
 - **make prepare-features:** `tools/prd-to-features` consumes `feature-order.json`, updates existing `docs/02-features/` in place, and adds only missing folders.
 - **make prepare-features:** never delete feature folders; skip features marked `Status: Done` in `dev-tasks.md`.
 - **make review-features:** update machine-managed findings sections in `feature-spec.md` and `dev-tasks.md` only.
@@ -114,7 +117,7 @@ Context docs → PRD → design/ux blueprints → dependency order plan + prepar
 - **make prepare-features / tools/pc-prepare-features**
   - Reads: `docs/01-product/prd.md`, `docs/00-context/context-boundaries-operating-model.md`, `docs/02-features/AGENTS.md`
   - Reads prompts: `prompts/architect-prepare.md`, `prompts/ux-prepare.md`, `prompts/product-manager-prepare-gate.md`
-  - Writes: `docs/01-product/design.md`, `docs/01-product/ux-ui.md`, `docs/02-features/feature-order.{json,md}`, `docs/03-logs/prepare-features-state.json`, and incremental feature folder updates via `tools/prd-to-features`
+  - Writes: `docs/01-product/design.md`, `docs/01-product/ux-ui.md`, `docs/02-features/feature-order.{json,md}`, `docs/03-logs/prepare-features-state.json`, `docs/03-logs/prepare-features-pm-todo.md`, and incremental feature folder updates via `tools/prd-to-features`
   - Logs: update `docs/03-logs/implementation-log.md` when preparation updates artifacts/features
 - **make review-features / tools/pc-review-features**
   - Reads: generated `docs/02-features/<feature>/feature-spec.md` + `dev-tasks.md`, plus `docs/01-product/ux-ui.md`

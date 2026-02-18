@@ -27,6 +27,22 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-18 - PM TODO feedback artifact + retry loop visibility validation
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 14 tests; offload id `78e01f694eb508c41b94fe50aeb54e8d862ba07488a05d01266c9325e66ee2d0`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 22 tests; offload id `4dced8ea8878af0a8b24aeaef1f95be8d365dadb60c2e79b95c4e30ee0b163d7`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"` (PASS: 14 tests; offload id `ac6e9da8bd627c0143d4f0935a2191f667799eff6766b01790f29565bc679b61`)
+- `tools/offload-proxy/pp pre-commit run --files docs/04-process/human-orchestration-workflow.md prompts/architect-prepare.md prompts/product-manager-prepare-gate.md prompts/ux-prepare.md tests/test_pc_prepare_features.py tools/pc-prepare-features tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/prompts/architect-prepare.md tools/templates/prompts/product-manager-prepare-gate.md tools/templates/prompts/ux-prepare.md` (RUN1 FAIL: `black` auto-formatted files; offload id `4a9b196a2082c19d99b71a179c219568b0311a3200a93ac83516b1b91a9b50bc`; RUN2 PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+- `tools/offload-proxy/pp pre-commit run --files docs/03-logs/bug-log.md docs/03-logs/decision-log.md docs/03-logs/implementation-log.md docs/03-logs/insights.md docs/03-logs/validation-log.md docs/04-process/human-orchestration-workflow.md prompts/architect-prepare.md prompts/product-manager-prepare-gate.md prompts/ux-prepare.md tests/test_pc_prepare_features.py tools/pc-prepare-features tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/prompts/architect-prepare.md tools/templates/prompts/product-manager-prepare-gate.md tools/templates/prompts/ux-prepare.md` (PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 14 tests; post-format rerun; offload id `790168fe152cae540041b64e2812f859060d8aa9127f0be7e416422558f1cd98`)
+
+Verified:
+
+- PM feedback now persists as both machine-readable state and a dedicated PM TODO artifact.
+- PM loop history now includes structured `pm_feedback` snapshots per iteration.
+- Architect/UX prompts now consume owner-scoped PM TODOs and prior loop change summaries for iterative revision.
+- Product Manager prompt now supports structured TODO lifecycle updates (`open`/`carry`/`done`).
+
 ### 2026-02-18 - Dedicated prepare-role Codex profile defaults validation
 
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 12 tests; offload id `39a6ba3fe8f5a60e28d59863f44454498b440b2bb9901ad157bc4135696844c3`)

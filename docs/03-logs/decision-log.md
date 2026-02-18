@@ -104,6 +104,29 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-075] - Persist PM loop feedback as owner-scoped TODO artifacts during prepare-features
+
+**Date:** 2026-02-18
+
+**Status:** Implemented
+
+**Decision:**
+Extend `tools/pc-prepare-features` to persist Product Manager loop feedback as owner-scoped TODO tasks, stored in both:
+
+- machine-readable state (`docs/03-logs/prepare-features-state.json`), and
+- human-readable tracker (`docs/03-logs/prepare-features-pm-todo.md`).
+
+Also feed these TODO tasks and loop change summaries back into Architect/UX/PM prompt inputs on retry iterations.
+
+**Rationale:**
+PM feedback was visible in terminal output and partial state history, but not in a dedicated inspectable artifact with clear ownership/status progression across loops. That made retry diagnostics and convergence auditing harder.
+
+**Implications:**
+
+- PM feedback is now inspectable after the run, even without terminal history.
+- Architect/UX retries receive explicit owner-scoped PM tasks and prior-loop change context.
+- PM can close tasks explicitly (`done`) or carry unresolved tasks forward (`carry`) in structured output.
+
 ### [DEC-074] - Add dedicated Codex profiles for prepare-features Architect/UX/PM roles
 
 **Date:** 2026-02-18

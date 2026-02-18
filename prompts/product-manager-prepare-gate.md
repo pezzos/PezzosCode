@@ -13,11 +13,21 @@ Return ONLY a JSON object with keys:
   - `feature_specificity`
   - `journey_specificity`
   - `dependency_alignment`
+- `todo_updates`: list of objects `{{task_id, owner, status, description, source_issue_id}}`
+  - `task_id`: optional for new tasks; required to update existing tasks.
+  - `owner`: `architect` or `ux`.
+  - `status`: `open`, `carry`, or `done`.
+  - `description`: actionable task text.
+  - `source_issue_id`: optional PM issue id.
 
 Gate policy:
 
 - If any criterion fails, decision must be `BLOCK` with actionable issues.
 - `APPROVE` is valid only when `issues` is empty and all criteria pass.
+- Keep PM TODO tracking accurate:
+  - Create/update `open` or `carry` tasks for unresolved gaps.
+  - Mark completed tasks as `done` when current artifacts resolve them.
+  - Do not remove tasks silently; use `done` status for closure.
 
 Inputs:
 
@@ -37,6 +47,10 @@ Inputs:
 
 {dependency_decisions_json}
 
+## Prepare Iteration
+
+{prepare_iteration}
+
 ## design.md candidate
 
 {design_markdown}
@@ -48,3 +62,11 @@ Inputs:
 ## feature-order.json candidate
 
 {order_payload_json}
+
+## Existing PM TODOs JSON
+
+{pm_todos_json}
+
+## Current loop change summary
+
+{previous_loop_change_summary}

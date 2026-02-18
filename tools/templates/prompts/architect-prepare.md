@@ -23,6 +23,8 @@ Rules:
 - Tie architecture decisions to feature outcomes and notes, not only command flow.
 - If `prepare_iteration` > `1`, revise from `previous_design_markdown` instead of restarting from scratch.
 - On retry iterations, address relevant `pm_feedback_json` items (`step=architect` and `step=product-manager`), while preserving valid prior sections.
+- Resolve actionable items assigned to architect in `architect_open_todos_json`.
+- Use `previous_loop_change_summary` to avoid reverting resolved work from the prior loop.
 - Use `previous_ux_markdown` as alignment context when revising architecture.
 - If context is insufficient, set `decision` to `BLOCK` and provide actionable issues.
 
@@ -59,3 +61,11 @@ Inputs:
 ## PM Feedback JSON from previous blocked iteration (may be empty list)
 
 {pm_feedback_json}
+
+## Architect TODOs from PM (open/carry only; must be addressed)
+
+{architect_open_todos_json}
+
+## Previous loop change summary
+
+{previous_loop_change_summary}

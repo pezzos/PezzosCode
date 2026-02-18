@@ -27,6 +27,44 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - PM feedback TODO persistence + retry-context wiring in prepare-features
+
+**Feature/Bug:** Make Product Manager feedback inspectable and owner-routable across prepare loops.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `prompts/architect-prepare.md`
+- `prompts/ux-prepare.md`
+- `prompts/product-manager-prepare-gate.md`
+- `tools/templates/prompts/architect-prepare.md`
+- `tools/templates/prompts/ux-prepare.md`
+- `tools/templates/prompts/product-manager-prepare-gate.md`
+- `tests/test_pc_prepare_features.py`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+
+**What Changed:**
+
+- Added PM TODO persistence in prepare runtime:
+  - new artifact `docs/03-logs/prepare-features-pm-todo.md`,
+  - extended `prepare-features-state.json` with `pm_todos` payload (`version: 2`).
+- Implemented PM TODO lifecycle helpers (owner/status normalization, update application, fallback auto-create/carry/done behavior).
+- Added PM feedback snapshots to each PM gate history entry (`pm_feedback` with criteria/raw issues/review issues/todo updates + loop change summary).
+- Added loop diff summary generation for design/UX artifacts and fed summaries into role prompts.
+- Extended Architect/UX prompts to consume owner-scoped PM TODO inputs.
+- Extended PM prompt contract to return structured `todo_updates`.
+- Updated workflow docs to include PM TODO artifact in prepare outputs/contracts.
+- Added/updated tests to cover:
+  - PM TODO artifact creation in skip-generation flow,
+  - prompt payload fields for TODO context,
+  - PM TODO auto-create and auto-done fallback behavior.
+
+**Why:**
+
+- PM feedback existed mostly in transient terminal output and partial loop state, making investigation and accountability difficult.
+- Explicit owner-scoped TODO tracking enables deterministic retries and clear closure across Architect/UX/PM loops.
+
 ### 2026-02-18 - Dedicated Codex profiles for prepare-features roles
 
 **Feature/Bug:** Add role-specific Codex profile defaults for Architect, UX/UI, and Product Manager prepare steps.

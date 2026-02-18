@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import importlib.util
 import json
 import os
@@ -25,6 +26,7 @@ CONTEXT_BOUNDARIES_PATH = Path("docs/00-context/context-boundaries-operating-mod
 ORDER_JSON_PATH = Path("docs/02-features/feature-order.json")
 ORDER_MD_PATH = Path("docs/02-features/feature-order.md")
 PREPARE_STATE_PATH = Path("docs/03-logs/prepare-features-state.json")
+PREPARE_PM_TODO_PATH = Path("docs/03-logs/prepare-features-pm-todo.md")
 PRD_TOOL_PATH = Path("tools/prd-to-features")
 PROMPTS_DIR = Path("prompts")
 ARCHITECT_PROMPT_PATH = PROMPTS_DIR / "architect-prepare.md"
@@ -33,6 +35,11 @@ PM_PROMPT_PATH = PROMPTS_DIR / "product-manager-prepare-gate.md"
 ROLE_MODE_CODEX = "codex"
 ROLE_MODE_DETERMINISTIC = "deterministic"
 MAX_PM_BLOCKS = 6
+TODO_OWNER_ARCHITECT = "architect"
+TODO_OWNER_UX = "ux"
+TODO_STATUS_OPEN = "open"
+TODO_STATUS_CARRY = "carry"
+TODO_STATUS_DONE = "done"
 GENERIC_SIGNAL_MARKERS = (
     "Primary persona: Developer/PO running local CLI workflows with explicit gates.",
     "Goal: deliver `",
@@ -740,6 +747,97 @@ def feature_context_payload(
     return payload
 
 
+def normalize_todo_owner(raw_owner: Any, *, default: str = TODO_OWNER_ARCHITECT) -> str:
+    token = str(raw_owner).strip().lower()
+    if token in {"architect", "architecture"}:
+        return TODO_OWNER_ARCHITECT
+    if token in {"ux", "ui", "ux/ui", "ux-ui", "uxui", "designer"}:
+        return TODO_OWNER_UX
+    if token in {"product-manager", "product_manager", "pm"}:
+        return TODO_OWNER_ARCHITECT
+    return default
+
+
+def normalize_todo_status(raw_status: Any, *, default: str = TODO_STATUS_OPEN) -> str:
+    token = str(raw_status).strip().lower()
+    if token in {"done", "closed", "resolved", "complete", "completed"}:
+        return TODO_STATUS_DONE
+    if token in {"carry", "carried", "carry-forward", "carry_forward", "blocked"}:
+        return TODO_STATUS_CARRY
+    if token in {"open", "todo", "pending", "new", "in-progress", "in_progress"}:
+        return TODO_STATUS_OPEN
+    return default
+
+
+def owner_actionable_todos(
+    pm_todos: Sequence[Dict[str, Any]], *, owner: str
+) -> List[Dict[str, Any]]:
+    normalized_owner = normalize_todo_owner(owner, default=owner)
+    actionable: List[Dict[str, Any]] = []
+    for todo in pm_todos:
+        status = normalize_todo_status(todo.get("status"), default=TODO_STATUS_OPEN)
+        todo_owner = normalize_todo_owner(todo.get("owner"))
+        if todo_owner != normalized_owner:
+            continue
+        if status not in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}:
+            continue
+        actionable.append(dict(todo))
+    return actionable
+
+
+def summarize_markdown_diff(
+    *,
+    previous_text: str,
+    current_text: str,
+    label: str,
+    max_lines: int = 40,
+) -> str:
+    previous = previous_text.strip()
+    current = current_text.strip()
+    if not previous:
+        return f"{label}: first iteration baseline (no previous artifact)."
+    if previous == current:
+        return f"{label}: no changes."
+
+    diff_lines = list(
+        difflib.unified_diff(
+            previous.splitlines(),
+            current.splitlines(),
+            fromfile=f"previous/{label}",
+            tofile=f"current/{label}",
+            lineterm="",
+        )
+    )
+    if len(diff_lines) > max_lines:
+        diff_lines = [*diff_lines[:max_lines], "... (truncated)"]
+    return "\n".join(diff_lines)
+
+
+def build_loop_change_summary(
+    *,
+    previous_design_markdown: str,
+    current_design_markdown: str,
+    previous_ux_markdown: str,
+    current_ux_markdown: str,
+) -> str:
+    sections = [
+        "## design.md diff",
+        summarize_markdown_diff(
+            previous_text=previous_design_markdown,
+            current_text=current_design_markdown,
+            label="design.md",
+        ),
+        "",
+        "## ux-ui.md diff",
+        summarize_markdown_diff(
+            previous_text=previous_ux_markdown,
+            current_text=current_ux_markdown,
+            label="ux-ui.md",
+        ),
+    ]
+    return "\n".join(sections).strip()
+
+
 def prompt_values(
     *,
     features: Sequence[Feature],
@@ -752,10 +850,17 @@ def prompt_values(
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
     pm_feedback: Sequence[Dict[str, str]] = (),
+    pm_todos: Sequence[Dict[str, Any]] = (),
+    previous_loop_change_summary: str = "",
 ) -> Dict[str, str]:
     feature_payload = feature_context_payload(
         features=features, ordered_slugs=ordered_slugs, graph=graph
     )
+    pm_todo_payload = [dict(item) for item in pm_todos]
+    architect_todos = owner_actionable_todos(
+        pm_todo_payload, owner=TODO_OWNER_ARCHITECT
+    )
+    ux_todos = owner_actionable_todos(pm_todo_payload, owner=TODO_OWNER_UX)
     return {
         "prd_markdown": prd_text,
         "context_boundaries_markdown": context_boundaries,
@@ -771,6 +876,16 @@ def prompt_values(
         "pm_feedback_json": json.dumps(
             list(pm_feedback), ensure_ascii=True, indent=2, sort_keys=True
         ),
+        "pm_todos_json": json.dumps(
+            pm_todo_payload, ensure_ascii=True, indent=2, sort_keys=True
+        ),
+        "architect_open_todos_json": json.dumps(
+            architect_todos, ensure_ascii=True, indent=2, sort_keys=True
+        ),
+        "ux_open_todos_json": json.dumps(
+            ux_todos, ensure_ascii=True, indent=2, sort_keys=True
+        ),
+        "previous_loop_change_summary": previous_loop_change_summary,
     }
 
 
@@ -826,6 +941,8 @@ def run_architect_role(
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
     pm_feedback: Sequence[Dict[str, str]] = (),
+    pm_todos: Sequence[Dict[str, Any]] = (),
+    previous_loop_change_summary: str = "",
 ) -> Tuple[str, List[Dict[str, str]]]:
     if role_mode == ROLE_MODE_DETERMINISTIC:
         return (
@@ -852,6 +969,8 @@ def run_architect_role(
             previous_design_markdown=previous_design_markdown,
             previous_ux_markdown=previous_ux_markdown,
             pm_feedback=pm_feedback,
+            pm_todos=pm_todos,
+            previous_loop_change_summary=previous_loop_change_summary,
         ),
     )
     try:
@@ -936,6 +1055,8 @@ def run_ux_role(
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
     pm_feedback: Sequence[Dict[str, str]] = (),
+    pm_todos: Sequence[Dict[str, Any]] = (),
+    previous_loop_change_summary: str = "",
 ) -> Tuple[str, List[Dict[str, str]]]:
     if role_mode == ROLE_MODE_DETERMINISTIC:
         return (
@@ -957,6 +1078,8 @@ def run_ux_role(
             previous_design_markdown=previous_design_markdown,
             previous_ux_markdown=previous_ux_markdown,
             pm_feedback=pm_feedback,
+            pm_todos=pm_todos,
+            previous_loop_change_summary=previous_loop_change_summary,
         ),
     )
     try:
@@ -1038,9 +1161,11 @@ def run_pm_role(
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
     pm_feedback: Sequence[Dict[str, str]] = (),
+    pm_todos: Sequence[Dict[str, Any]] = (),
+    previous_loop_change_summary: str = "",
 ) -> Dict[str, Any]:
     if role_mode == ROLE_MODE_DETERMINISTIC:
-        return {"decision": "APPROVE", "issues": [], "criteria": {}}
+        return {"decision": "APPROVE", "issues": [], "criteria": {}, "todo_updates": []}
 
     template = load_prompt_template(root, PM_PROMPT_PATH)
     values = prompt_values(
@@ -1054,6 +1179,8 @@ def run_pm_role(
         previous_design_markdown=previous_design_markdown,
         previous_ux_markdown=previous_ux_markdown,
         pm_feedback=pm_feedback,
+        pm_todos=pm_todos,
+        previous_loop_change_summary=previous_loop_change_summary,
     )
     values.update(
         {
@@ -1084,6 +1211,7 @@ def run_pm_role(
                 }
             ],
             "criteria": {},
+            "todo_updates": [],
         }
 
 
@@ -1666,6 +1794,320 @@ def review_issue_payload(issue: ReviewIssue) -> Dict[str, str]:
     }
 
 
+def normalize_pm_criteria(raw_criteria: Any) -> Dict[str, str]:
+    if not isinstance(raw_criteria, dict):
+        return {}
+    normalized: Dict[str, str] = {}
+    for raw_key, raw_value in raw_criteria.items():
+        key = str(raw_key).strip()
+        if not key:
+            continue
+        normalized[key] = str(raw_value).strip()
+    return normalized
+
+
+def next_pm_todo_id(pm_todos: Sequence[Dict[str, Any]]) -> str:
+    highest = 0
+    for todo in pm_todos:
+        task_id = str(todo.get("task_id", "")).strip()
+        match = re.search(r"(\d+)$", task_id)
+        if not match:
+            continue
+        highest = max(highest, int(match.group(1)))
+    return f"PM-TODO-{highest + 1:03d}"
+
+
+def apply_pm_todo_updates(
+    *,
+    pm_todos: Sequence[Dict[str, Any]],
+    raw_todo_updates: Any,
+    review_issues: Sequence[ReviewIssue],
+    pm_role_decision: str,
+    loop_iteration: int,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    todos: List[Dict[str, Any]] = [dict(item) for item in pm_todos]
+    for todo in todos:
+        todo["owner"] = normalize_todo_owner(todo.get("owner"))
+        todo["status"] = normalize_todo_status(todo.get("status"))
+
+    by_id = {
+        str(todo.get("task_id", "")).strip(): todo
+        for todo in todos
+        if str(todo.get("task_id", "")).strip()
+    }
+    updates_applied: List[Dict[str, Any]] = []
+    updates = raw_todo_updates if isinstance(raw_todo_updates, list) else []
+
+    for raw_update in updates:
+        if not isinstance(raw_update, dict):
+            continue
+        task_id = str(raw_update.get("task_id", "")).strip()
+        source_issue_id = str(raw_update.get("source_issue_id", "")).strip()
+        description = str(raw_update.get("description", "")).strip()
+        existing = by_id.get(task_id) if task_id else None
+        owner_default = (
+            str(existing.get("owner", TODO_OWNER_ARCHITECT))
+            if existing
+            else TODO_OWNER_ARCHITECT
+        )
+        owner = normalize_todo_owner(raw_update.get("owner"), default=owner_default)
+        status_default = (
+            str(existing.get("status", TODO_STATUS_OPEN))
+            if existing
+            else TODO_STATUS_OPEN
+        )
+        status = normalize_todo_status(raw_update.get("status"), default=status_default)
+
+        if existing:
+            if description:
+                existing["description"] = description
+            existing["owner"] = owner
+            existing["status"] = status
+            if source_issue_id:
+                existing["source_issue_id"] = source_issue_id
+            existing["updated_loop"] = loop_iteration
+            updates_applied.append(
+                {
+                    "action": "update",
+                    "task_id": task_id,
+                    "owner": owner,
+                    "status": status,
+                    "source_issue_id": source_issue_id,
+                }
+            )
+            continue
+
+        if not description:
+            continue
+
+        new_task_id = next_pm_todo_id(todos)
+        new_todo = {
+            "task_id": new_task_id,
+            "created_loop": loop_iteration,
+            "updated_loop": loop_iteration,
+            "owner": owner,
+            "status": status,
+            "description": description,
+            "source_issue_id": source_issue_id,
+        }
+        todos.append(new_todo)
+        by_id[new_task_id] = new_todo
+        updates_applied.append(
+            {
+                "action": "create",
+                "task_id": new_task_id,
+                "owner": owner,
+                "status": status,
+                "source_issue_id": source_issue_id,
+            }
+        )
+
+    if updates_applied:
+        return todos, updates_applied
+
+    if pm_role_decision == "APPROVE" and not review_issues:
+        for todo in todos:
+            status = normalize_todo_status(todo.get("status"))
+            if status not in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}:
+                continue
+            todo["status"] = TODO_STATUS_DONE
+            todo["updated_loop"] = loop_iteration
+            updates_applied.append(
+                {
+                    "action": "auto_done",
+                    "task_id": str(todo.get("task_id", "")),
+                    "owner": normalize_todo_owner(todo.get("owner")),
+                    "status": TODO_STATUS_DONE,
+                    "source_issue_id": str(todo.get("source_issue_id", "")),
+                }
+            )
+        return todos, updates_applied
+
+    if review_issues:
+        for todo in todos:
+            status = normalize_todo_status(todo.get("status"))
+            if status == TODO_STATUS_OPEN:
+                todo["status"] = TODO_STATUS_CARRY
+                todo["updated_loop"] = loop_iteration
+
+        for issue in review_issues:
+            owner = normalize_todo_owner(issue.step)
+            summary = issue.summary.strip()
+            matched: Optional[Dict[str, Any]] = None
+            for todo in todos:
+                todo_status = normalize_todo_status(todo.get("status"))
+                if todo_status not in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}:
+                    continue
+                if normalize_todo_owner(todo.get("owner")) != owner:
+                    continue
+                if str(todo.get("description", "")).strip() == summary:
+                    matched = todo
+                    break
+
+            if matched:
+                matched["status"] = TODO_STATUS_CARRY
+                matched["updated_loop"] = loop_iteration
+                matched["source_issue_id"] = issue.issue_id
+                updates_applied.append(
+                    {
+                        "action": "auto_carry",
+                        "task_id": str(matched.get("task_id", "")),
+                        "owner": owner,
+                        "status": TODO_STATUS_CARRY,
+                        "source_issue_id": issue.issue_id,
+                    }
+                )
+                continue
+
+            new_task_id = next_pm_todo_id(todos)
+            todos.append(
+                {
+                    "task_id": new_task_id,
+                    "created_loop": loop_iteration,
+                    "updated_loop": loop_iteration,
+                    "owner": owner,
+                    "status": TODO_STATUS_OPEN,
+                    "description": summary,
+                    "source_issue_id": issue.issue_id,
+                }
+            )
+            updates_applied.append(
+                {
+                    "action": "auto_create",
+                    "task_id": new_task_id,
+                    "owner": owner,
+                    "status": TODO_STATUS_OPEN,
+                    "source_issue_id": issue.issue_id,
+                }
+            )
+
+    return todos, updates_applied
+
+
+def build_pm_feedback_snapshot(
+    *,
+    pm_role_payload: Dict[str, Any],
+    review_issues: Sequence[ReviewIssue],
+    todo_updates: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    role_decision = str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
+    return {
+        "role_decision": role_decision or "BLOCK",
+        "criteria": normalize_pm_criteria(pm_role_payload.get("criteria")),
+        "raw_issues": normalize_role_issues(
+            raw_issues=pm_role_payload.get("issues"),
+            default_step="product-manager",
+            source="product-manager",
+        ),
+        "review_issues": [review_issue_payload(issue) for issue in review_issues],
+        "todo_updates": [dict(item) for item in todo_updates],
+    }
+
+
+def render_pm_todo_markdown(
+    *,
+    pm_todos: Sequence[Dict[str, Any]],
+    pm_history: Sequence[Dict[str, Any]],
+) -> str:
+    todos = [dict(item) for item in pm_todos]
+    for todo in todos:
+        todo["owner"] = normalize_todo_owner(todo.get("owner"))
+        todo["status"] = normalize_todo_status(todo.get("status"))
+
+    def sort_key(item: Dict[str, Any]) -> Tuple[int, str]:
+        task_id = str(item.get("task_id", "")).strip()
+        match = re.search(r"(\d+)$", task_id)
+        number = int(match.group(1)) if match else 0
+        return number, task_id
+
+    open_or_carry = sorted(
+        [
+            todo
+            for todo in todos
+            if normalize_todo_status(todo.get("status"))
+            in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}
+        ],
+        key=sort_key,
+    )
+    done = sorted(
+        [
+            todo
+            for todo in todos
+            if normalize_todo_status(todo.get("status")) == TODO_STATUS_DONE
+        ],
+        key=sort_key,
+    )
+
+    lines = [
+        "# Prepare Features PM TODO",
+        "",
+        "> Machine-managed by `tools/pc-prepare-features`.",
+        "",
+        "## Open + Carry",
+        "",
+    ]
+    if not open_or_carry:
+        lines.append("- (none)")
+    else:
+        lines.extend(
+            [
+                "| Task ID | Owner | Status | Loop Created | Loop Updated | Source Issue | Description |",
+                "| ------- | ----- | ------ | ------------ | ------------ | ------------ | ----------- |",
+            ]
+        )
+        for todo in open_or_carry:
+            lines.append(
+                "| {task_id} | {owner} | {status} | {created_loop} | {updated_loop} | {source_issue_id} | {description} |".format(
+                    task_id=str(todo.get("task_id", "")).strip() or "(missing)",
+                    owner=normalize_todo_owner(todo.get("owner")),
+                    status=normalize_todo_status(todo.get("status")),
+                    created_loop=str(todo.get("created_loop", "")).strip() or "-",
+                    updated_loop=str(todo.get("updated_loop", "")).strip() or "-",
+                    source_issue_id=str(todo.get("source_issue_id", "")).strip() or "-",
+                    description=str(todo.get("description", "")).strip() or "-",
+                )
+            )
+
+    lines.extend(["", "## Done", ""])
+    if not done:
+        lines.append("- (none)")
+    else:
+        lines.extend(
+            [
+                "| Task ID | Owner | Loop Updated | Source Issue | Description |",
+                "| ------- | ----- | ------------ | ------------ | ----------- |",
+            ]
+        )
+        for todo in done:
+            lines.append(
+                "| {task_id} | {owner} | {updated_loop} | {source_issue_id} | {description} |".format(
+                    task_id=str(todo.get("task_id", "")).strip() or "(missing)",
+                    owner=normalize_todo_owner(todo.get("owner")),
+                    updated_loop=str(todo.get("updated_loop", "")).strip() or "-",
+                    source_issue_id=str(todo.get("source_issue_id", "")).strip() or "-",
+                    description=str(todo.get("description", "")).strip() or "-",
+                )
+            )
+
+    lines.extend(["", "## PM Loop History (summary)", ""])
+    if not pm_history:
+        lines.append("- (none)")
+    else:
+        for entry in pm_history:
+            lines.append(
+                "- loop={iteration} gate={gate_id} decision={decision} pm_role_decision={pm_role_decision} issues={issue_count}".format(
+                    iteration=str(entry.get("iteration", "")).strip() or "-",
+                    gate_id=str(entry.get("gate_id", "")).strip() or "-",
+                    decision=str(entry.get("decision", "")).strip() or "-",
+                    pm_role_decision=str(entry.get("pm_role_decision", "")).strip()
+                    or "-",
+                    issue_count=str(entry.get("issue_count", "")).strip() or "0",
+                )
+            )
+
+    return "\n".join(lines)
+
+
 def build_prepare_state_payload(
     *,
     features: Sequence[Feature],
@@ -1673,6 +2115,7 @@ def build_prepare_state_payload(
     graph: Dict[str, Set[str]],
     dependency_decisions: Sequence[Dict[str, str]],
     pm_history: Sequence[Dict[str, object]],
+    pm_todos: Sequence[Dict[str, Any]],
     pm_final_decision: str,
     skip_generation: bool,
     role_mode: str,
@@ -1696,8 +2139,20 @@ def build_prepare_state_payload(
             }
         )
 
+    open_todos = [
+        todo
+        for todo in pm_todos
+        if normalize_todo_status(todo.get("status"))
+        in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}
+    ]
+    done_todos = [
+        todo
+        for todo in pm_todos
+        if normalize_todo_status(todo.get("status")) == TODO_STATUS_DONE
+    ]
+
     return {
-        "version": 1,
+        "version": 2,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "ordered_feature_slugs": list(ordered_slugs),
         "ordered_features": ordered_features,
@@ -1708,6 +2163,11 @@ def build_prepare_state_payload(
             ),
             "final_decision": pm_final_decision,
             "history": list(pm_history),
+        },
+        "pm_todos": {
+            "open_count": len(open_todos),
+            "done_count": len(done_todos),
+            "items": [dict(item) for item in pm_todos],
         },
         "execution": {
             "skip_generation": skip_generation,
@@ -1786,6 +2246,7 @@ def run_prepare(args: argparse.Namespace) -> int:
 
     pm_blocks = 0
     pm_history: List[Dict[str, object]] = []
+    pm_todos: List[Dict[str, Any]] = []
     graph: Dict[str, Set[str]] = {}
     ordered_slugs: List[str] = []
     dependency_decisions: List[Dict[str, str]] = []
@@ -1793,6 +2254,9 @@ def run_prepare(args: argparse.Namespace) -> int:
     previous_design_doc = ""
     previous_ux_doc = ""
     previous_pm_feedback: List[Dict[str, str]] = []
+    previous_loop_change_summary = (
+        "No previous loop change summary available (first iteration)."
+    )
 
     def persist_prepare_state(
         *,
@@ -1805,6 +2269,7 @@ def run_prepare(args: argparse.Namespace) -> int:
             graph=graph,
             dependency_decisions=dependency_decisions,
             pm_history=pm_history,
+            pm_todos=pm_todos,
             pm_final_decision=pm_final_decision,
             skip_generation=bool(args.skip_generation),
             role_mode=str(args.role_mode),
@@ -1817,8 +2282,14 @@ def run_prepare(args: argparse.Namespace) -> int:
             json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True),
         )
         print(f"pc-prepare-features: wrote state artifact -> {PREPARE_STATE_PATH}")
+        write_text(
+            root / PREPARE_PM_TODO_PATH,
+            render_pm_todo_markdown(pm_todos=pm_todos, pm_history=pm_history),
+        )
+        print(f"pc-prepare-features: wrote PM TODO artifact -> {PREPARE_PM_TODO_PATH}")
 
     while True:
+        loop_iteration = pm_blocks + 1
         print(
             "pc-prepare-features: architect step -> generating docs/01-product/design.md"
         )
@@ -1847,10 +2318,12 @@ def run_prepare(args: argparse.Namespace) -> int:
             ordered_slugs=ordered_slugs,
             graph=graph,
             dependency_decisions=dependency_decisions,
-            prepare_iteration=pm_blocks + 1,
+            prepare_iteration=loop_iteration,
             previous_design_markdown=previous_design_doc,
             previous_ux_markdown=previous_ux_doc,
             pm_feedback=previous_pm_feedback,
+            pm_todos=pm_todos,
+            previous_loop_change_summary=previous_loop_change_summary,
         )
         write_text(root / DESIGN_PATH, design_doc)
 
@@ -1864,10 +2337,12 @@ def run_prepare(args: argparse.Namespace) -> int:
             ordered_slugs=ordered_slugs,
             graph=graph,
             dependency_decisions=dependency_decisions,
-            prepare_iteration=pm_blocks + 1,
+            prepare_iteration=loop_iteration,
             previous_design_markdown=previous_design_doc,
             previous_ux_markdown=previous_ux_doc,
             pm_feedback=previous_pm_feedback,
+            pm_todos=pm_todos,
+            previous_loop_change_summary=previous_loop_change_summary,
         )
         write_text(root / UX_PATH, ux_doc)
 
@@ -1879,6 +2354,13 @@ def run_prepare(args: argparse.Namespace) -> int:
             json.dumps(order_payload, ensure_ascii=True, indent=2, sort_keys=True),
         )
         write_text(root / ORDER_MD_PATH, order_markdown(order_payload))
+
+        current_loop_change_summary = build_loop_change_summary(
+            previous_design_markdown=previous_design_doc,
+            current_design_markdown=design_doc,
+            previous_ux_markdown=previous_ux_doc,
+            current_ux_markdown=ux_doc,
+        )
 
         print("pc-prepare-features: product manager gate -> reviewing artifacts")
         pm_role_payload = run_pm_role(
@@ -1893,10 +2375,12 @@ def run_prepare(args: argparse.Namespace) -> int:
             ordered_slugs=ordered_slugs,
             graph=graph,
             dependency_decisions=dependency_decisions,
-            prepare_iteration=pm_blocks + 1,
+            prepare_iteration=loop_iteration,
             previous_design_markdown=previous_design_doc,
             previous_ux_markdown=previous_ux_doc,
             pm_feedback=previous_pm_feedback,
+            pm_todos=pm_todos,
+            previous_loop_change_summary=current_loop_change_summary,
         )
         pm_role_decision = str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
         issues = product_manager_review(
@@ -1910,15 +2394,30 @@ def run_prepare(args: argparse.Namespace) -> int:
             seed_issues=[*architect_seed_issues, *ux_seed_issues],
             enforce_semantic_gate=args.role_mode != ROLE_MODE_DETERMINISTIC,
         )
+        pm_todos, todo_updates = apply_pm_todo_updates(
+            pm_todos=pm_todos,
+            raw_todo_updates=pm_role_payload.get("todo_updates"),
+            review_issues=issues,
+            pm_role_decision=pm_role_decision,
+            loop_iteration=loop_iteration,
+        )
+        pm_feedback_snapshot = build_pm_feedback_snapshot(
+            pm_role_payload=pm_role_payload,
+            review_issues=issues,
+            todo_updates=todo_updates,
+        )
+        pm_feedback_snapshot["loop_change_summary"] = current_loop_change_summary
+
         if not issues and pm_role_decision == "APPROVE":
             pm_history.append(
                 {
-                    "iteration": pm_blocks + 1,
-                    "gate_id": f"PM-REVIEW-{pm_blocks + 1:03d}",
+                    "iteration": loop_iteration,
+                    "gate_id": f"PM-REVIEW-{loop_iteration:03d}",
                     "decision": "approve",
                     "pm_role_decision": pm_role_decision,
                     "issue_count": 0,
                     "issues": [],
+                    "pm_feedback": pm_feedback_snapshot,
                 }
             )
             pm_final_decision = "approve"
@@ -1931,12 +2430,13 @@ def run_prepare(args: argparse.Namespace) -> int:
         if pm_blocks >= MAX_PM_BLOCKS:
             pm_history.append(
                 {
-                    "iteration": pm_blocks,
+                    "iteration": loop_iteration,
                     "gate_id": f"PM-BLOCK-{pm_blocks:03d}",
                     "decision": "max-block-limit",
                     "pm_role_decision": pm_role_decision,
                     "issue_count": len(issues),
                     "issues": [review_issue_payload(issue) for issue in issues],
+                    "pm_feedback": pm_feedback_snapshot,
                 }
             )
             pm_final_decision = "blocked-max-limit"
@@ -1978,18 +2478,20 @@ def run_prepare(args: argparse.Namespace) -> int:
         )
         pm_history.append(
             {
-                "iteration": pm_blocks,
+                "iteration": loop_iteration,
                 "gate_id": f"PM-BLOCK-{pm_blocks:03d}",
                 "decision": choice.key,
                 "pm_role_decision": pm_role_decision,
                 "issue_count": len(issues),
                 "issues": [review_issue_payload(issue) for issue in issues],
+                "pm_feedback": pm_feedback_snapshot,
             }
         )
         if choice.key == "retry":
             previous_design_doc = design_doc
             previous_ux_doc = ux_doc
             previous_pm_feedback = [review_issue_payload(issue) for issue in issues]
+            previous_loop_change_summary = current_loop_change_summary
             continue
         if choice.key == "waive":
             pm_final_decision = "waive"

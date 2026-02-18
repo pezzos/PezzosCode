@@ -154,6 +154,33 @@ As skills accumulate scripts, references, and policy metadata, stability depends
 
 ---
 
+#### 6. Owner-Scoped PM TODO Artifacts Make Prepare Loops Auditable
+
+**Context:** `make prepare-features` retry loops across Architect/UX/Product Manager roles
+
+**What we learned:**
+Prepare loops converge faster and are easier to debug when PM feedback is persisted as explicit owner-scoped TODO tasks (`architect`/`ux`) with stable status transitions (`open` -> `carry` -> `done`), instead of relying on transient terminal output.
+
+**Evidence:**
+
+- PM feedback is now persisted in both `docs/03-logs/prepare-features-state.json` and `docs/03-logs/prepare-features-pm-todo.md`.
+- Architect/UX prompts now receive actionable owner-scoped PM TODO lists and previous loop change summaries.
+- Retry-loop tests now validate PM TODO creation/closure behavior and artifact persistence.
+
+**Action:**
+
+- Keep PM feedback machine-readable and owner-scoped at every retry iteration.
+- Prefer explicit task lifecycle updates over implicit “re-run and inspect terminal output” loops.
+- Continue enforcing prompt contracts so PM returns structured TODO updates.
+
+**Related:**
+
+- [DEC-075] - Persist PM loop feedback as owner-scoped TODO artifacts during prepare-features
+- [BUG-012] - PM loop feedback was not persisted as an owner-scoped, inspectable artifact
+- [Validation Log] - 2026-02-18 PM TODO feedback artifact + retry loop visibility validation
+
+---
+
 ### What Doesn't Work
 
 #### 1. [Anti-Pattern Title]

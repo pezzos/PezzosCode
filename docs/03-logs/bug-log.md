@@ -126,6 +126,77 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-012] - PM loop feedback was not persisted as an owner-scoped, inspectable artifact
+
+**Date Discovered:** 2026-02-18
+
+**Discovered By:** User workflow feedback during prepare-loop diagnostics
+
+**Severity:** Medium
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Internal maintainers debugging repeated PM `BLOCK` retries in `make prepare-features`
+
+**Symptoms:**
+PM gate feedback could not be inspected as a dedicated TODO tracker artifact after runs. Owners and task closure state across loops were unclear without re-reading terminal output.
+
+**Steps to Reproduce:**
+
+1. Run `make prepare-features` in codex mode and trigger PM `BLOCK`.
+2. Retry loop multiple times.
+3. Inspect artifacts: PM history exists in state JSON, but no dedicated owner-scoped TODO tracker records task progression/closure per loop.
+
+**Expected Behavior:**
+PM feedback should persist as explicit owner-scoped tasks with loop progression and status (`open`/`carry`/`done`) so retries are auditable.
+
+**Actual Behavior:**
+Feedback existed only as PM issues/history snapshots; no first-class PM TODO artifact for owner routing and closure tracking.
+
+**Root Cause:**
+`tools/pc-prepare-features` persisted PM history but had no TODO data model or artifact dedicated to PM-assigned work and closure state across iterations.
+
+**Fix:**
+
+- Added PM TODO model + persistence in runtime:
+  - `docs/03-logs/prepare-features-pm-todo.md` (human-readable),
+  - `pm_todos` in `prepare-features-state.json` (machine-readable).
+- Added PM prompt contract `todo_updates` and runtime handlers for update/create plus deterministic fallback behavior.
+- Routed TODO context and loop change summaries back into Architect/UX/PM prompts for next iterations.
+
+**Files Changed:**
+
+- `tools/pc-prepare-features`
+- `prompts/architect-prepare.md`
+- `prompts/ux-prepare.md`
+- `prompts/product-manager-prepare-gate.md`
+- `tools/templates/prompts/architect-prepare.md`
+- `tools/templates/prompts/ux-prepare.md`
+- `tools/templates/prompts/product-manager-prepare-gate.md`
+- `tests/test_pc_prepare_features.py`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+
+**Prevention:**
+
+- Tests added: PM TODO artifact/state + helper fallback behavior + prompt payload coverage in `tests/test_pc_prepare_features.py`
+- Process changes: workflow docs now explicitly document PM TODO artifact output/refresh behavior.
+- Monitoring added: none
+
+**Related Issues:**
+
+- PM retries felt like low-visibility loops because ownership and completion state were not explicit in artifacts.
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-18
+
+**Deployed:** N/A (tooling repo local fix)
+
+**Verified By:** Codex (targeted tests + pre-commit)
+
 ### [BUG-011] - PM retry loop reran Architect/UX without prior artifact or PM-feedback context
 
 **Date Discovered:** 2026-02-18
