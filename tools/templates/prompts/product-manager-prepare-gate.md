@@ -24,8 +24,8 @@ Return ONLY a JSON object with keys:
   - `task_id`: optional for new tasks; required to update existing tasks.
   - `owner`: `architect`, `ux`, or `dependency-planner`.
   - `status`: `open`, `carry`, or `done`.
-  - `description`: actionable task text.
-  - `source_issue_id`: optional PM issue id.
+  - `description`: actionable task text; prefer one task per unresolved PM issue.
+  - `source_issue_id`: PM issue id when available.
 
 Gate policy:
 
@@ -40,7 +40,7 @@ Gate policy:
   - Create/update `open` or `carry` tasks for unresolved gaps.
   - Mark completed tasks as `done` when current artifacts resolve them.
   - Do not remove tasks silently; use `done` status for closure.
-  - On `BLOCK`, ensure unresolved owner gaps are represented in `todo_updates` with `open`/`carry`.
+  - On `BLOCK`, ensure every unresolved issue is represented in `todo_updates` with `open`/`carry` (not only owner-level aggregation).
 
 Inputs:
 

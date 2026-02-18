@@ -1,40 +1,92 @@
 {
-  "dependency_decisions": [],
+  "dependency_decisions": [
+    {
+      "depends_on": "[]",
+      "feature_slug": "bootstrap-safe-template-reapply",
+      "id": "order-001",
+      "order_index": "1",
+      "pm_feedback_resolution": "{'target_artifact': 'feature-order.json', 'target_sections': ['decisions[*].depends_on', 'dependencies', 'ordered_features[*].dependencies', 'ordered_feature_slugs'], 'acceptance_conditions': ['depends_on values are real JSON arrays of slug strings (not stringified arrays)', 'bootstrap-safe-template-reapply is the only empty-array root', 'every non-root feature has at least one prerequisite', 'all prerequisites reference only earlier ordered_feature_slugs entries', 'dependency arrays are identical across decisions/dependencies/ordered_features representations'], 'addresses_pm_issue_ids': ['PM-011', 'PM-012', 'PM-013', 'PM-014', 'PM-015'], 'addresses_todo_ids': ['PM-TODO-049', 'PM-TODO-050', 'PM-TODO-051', 'PM-TODO-052']}",
+      "rationale": "Establishes the idempotent template/tooling baseline all downstream workflow hardening depends on.",
+      "reason_codes": "['FOUNDATION', 'ROOT_ONLY', 'IDEMPOTENT_ENTRYPOINT']"
+    },
+    {
+      "depends_on": "['bootstrap-safe-template-reapply']",
+      "feature_slug": "output-offload-structured-logs-shared-runner",
+      "id": "order-002",
+      "order_index": "2",
+      "rationale": "Introduces shared runner metadata, structured logs, and output-offload primitives required by orchestration and validation stages.",
+      "reason_codes": "['SHARED_INFRA', 'OBSERVABILITY', 'TOKEN_EFFICIENCY']"
+    },
+    {
+      "depends_on": "['bootstrap-safe-template-reapply', 'output-offload-structured-logs-shared-runner']",
+      "feature_slug": "deterministic-work-item-execution-with-explicit-gates",
+      "id": "order-003",
+      "order_index": "3",
+      "rationale": "Builds deterministic Plan -> Patch -> Test -> Report and authority/risk gates on top of baseline templates and evidence infrastructure.",
+      "reason_codes": "['EXECUTION_CORE', 'GATE_ENFORCEMENT']"
+    },
+    {
+      "depends_on": "['bootstrap-safe-template-reapply', 'deterministic-work-item-execution-with-explicit-gates']",
+      "feature_slug": "single-worktree-orchestration-template-drift-hardening",
+      "id": "order-004",
+      "order_index": "4",
+      "rationale": "Applies single-worktree policy and deterministic template-drift recovery after core orchestration semantics are enforced.",
+      "reason_codes": "['WORKTREE_POLICY', 'RECOVERY_HARDENING']"
+    },
+    {
+      "depends_on": "['output-offload-structured-logs-shared-runner', 'deterministic-work-item-execution-with-explicit-gates', 'single-worktree-orchestration-template-drift-hardening']",
+      "feature_slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
+      "id": "order-005",
+      "order_index": "5",
+      "rationale": "Resume checkpoints, scoped autofix, and fail-closed commit gating require stable orchestration, telemetry, and drift-safe worktree behavior.",
+      "reason_codes": "['RESUME_SEMANTICS', 'FAIL_CLOSED_GATES']"
+    },
+    {
+      "depends_on": "['deterministic-work-item-execution-with-explicit-gates', 'single-worktree-orchestration-template-drift-hardening', 'resume-safety-fail-closed-commit-gate-scoped-autofix']",
+      "feature_slug": "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+      "id": "order-006",
+      "order_index": "6",
+      "rationale": "Role separation and Plan Reviewer enforcement are layered after execution semantics, recovery guarantees, and commit-integrity controls are stable.",
+      "reason_codes": "['ROLE_COORDINATION', 'PLAN_QUALITY_GATE']"
+    },
+    {
+      "depends_on": "['output-offload-structured-logs-shared-runner', 'resume-safety-fail-closed-commit-gate-scoped-autofix', 'orchestrator-roles-plan-reviewer-gate-role-specific-prompts']",
+      "feature_slug": "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
+      "id": "order-007",
+      "order_index": "7",
+      "rationale": "Synthetic smoke and anti-hardcode policy validate finalized role gates and recovery behavior with complete telemetry.",
+      "reason_codes": "['VALIDATION_LAYER', 'REGRESSION_GUARD']"
+    },
+    {
+      "depends_on": "['output-offload-structured-logs-shared-runner', 'deterministic-work-item-execution-with-explicit-gates', 'orchestrator-roles-plan-reviewer-gate-role-specific-prompts', 'anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature']",
+      "feature_slug": "incremental-prd-to-features-post-run-learning-loop",
+      "id": "order-008",
+      "order_index": "8",
+      "rationale": "Incremental PRD reconciliation and human-gated learning proposals should run only after telemetry, gates, and end-to-end validation behavior are proven.",
+      "reason_codes": "['DOC_EVOLUTION', 'FEEDBACK_LOOP']"
+    }
+  ],
   "execution": {
-    "feature_generation_status": "completed",
-    "schema_check_status": "completed",
+    "feature_generation_status": "not-run",
+    "include_process_features": false,
+    "role_mode": "codex",
+    "schema_check_status": "not-run",
     "skip_generation": false
   },
-  "generated_at": "2026-02-16T13:57:23Z",
+  "generated_at": "2026-02-18T18:03:55Z",
   "notes": [
     "Machine-managed by tools/pc-prepare-features.",
     "Captures PM-gate outcomes and execution status for deterministic reruns."
   ],
   "ordered_feature_slugs": [
     "bootstrap-safe-template-reapply",
-    "deterministic-work-item-execution-with-explicit-gates",
     "output-offload-structured-logs-shared-runner",
-    "resume-safety-fail-closed-commit-gate-scoped-autofix",
+    "deterministic-work-item-execution-with-explicit-gates",
     "single-worktree-orchestration-template-drift-hardening",
+    "resume-safety-fail-closed-commit-gate-scoped-autofix",
     "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
     "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
-    "incremental-prd-to-features-post-run-learning-loop",
-    "output-offload-enforcement",
-    "resume-in-progress-tickets",
-    "commit-gated-by-completed-ticket-docs",
-    "shared-runner-library",
-    "structured-logs-for-ci-tests-precommit-feature-runs",
-    "unified-autofix-script",
-    "precommit-restage-vanilla-codex-config",
-    "single-worktree-per-feature",
-    "workflow-hardening-for-template-drift-autofix-recovery",
-    "orchestrator-sub-agent-roles",
-    "role-specific-prompts-plan-reviewer",
-    "incremental-prd-to-features",
-    "learning-loop-proposals",
-    "worktree-policy-naming-convention",
-    "anti-cheat-testing-strategy",
-    "end-to-end-workflow-smoke-test-with-a-synthetic-feature"
+    "incremental-prd-to-features-post-run-learning-loop"
   ],
   "ordered_features": [
     {
@@ -48,29 +100,29 @@
       "dependencies": [],
       "index": 2,
       "priority": "P0",
-      "slug": "deterministic-work-item-execution-with-explicit-gates",
-      "title": "Deterministic work-item execution with explicit gates"
-    },
-    {
-      "dependencies": [],
-      "index": 3,
-      "priority": "P0",
       "slug": "output-offload-structured-logs-shared-runner",
       "title": "Output offload + structured logs + shared runner"
     },
     {
       "dependencies": [],
+      "index": 3,
+      "priority": "P0",
+      "slug": "deterministic-work-item-execution-with-explicit-gates",
+      "title": "Deterministic work-item execution with explicit gates"
+    },
+    {
+      "dependencies": [],
       "index": 4,
       "priority": "P0",
-      "slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
-      "title": "Resume safety + fail-closed commit gate + scoped autofix"
+      "slug": "single-worktree-orchestration-template-drift-hardening",
+      "title": "Single-worktree orchestration + template-drift hardening"
     },
     {
       "dependencies": [],
       "index": 5,
       "priority": "P0",
-      "slug": "single-worktree-orchestration-template-drift-hardening",
-      "title": "Single-worktree orchestration + template-drift hardening"
+      "slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
+      "title": "Resume safety + fail-closed commit gate + scoped autofix"
     },
     {
       "dependencies": [],
@@ -92,132 +144,2432 @@
       "priority": "P1",
       "slug": "incremental-prd-to-features-post-run-learning-loop",
       "title": "Incremental PRD-to-features + post-run learning loop"
-    },
-    {
-      "dependencies": [],
-      "index": 9,
-      "priority": "P0",
-      "slug": "output-offload-enforcement",
-      "title": "Output offload enforcement"
-    },
-    {
-      "dependencies": [],
-      "index": 10,
-      "priority": "P0",
-      "slug": "resume-in-progress-tickets",
-      "title": "Resume in-progress tickets"
-    },
-    {
-      "dependencies": [],
-      "index": 11,
-      "priority": "P0",
-      "slug": "commit-gated-by-completed-ticket-docs",
-      "title": "Commit gated by completed ticket docs"
-    },
-    {
-      "dependencies": [],
-      "index": 12,
-      "priority": "P0",
-      "slug": "shared-runner-library",
-      "title": "Shared runner library"
-    },
-    {
-      "dependencies": [],
-      "index": 13,
-      "priority": "P0",
-      "slug": "structured-logs-for-ci-tests-precommit-feature-runs",
-      "title": "Structured logs for CI/tests/precommit/feature runs"
-    },
-    {
-      "dependencies": [],
-      "index": 14,
-      "priority": "P0",
-      "slug": "unified-autofix-script",
-      "title": "Unified autofix script"
-    },
-    {
-      "dependencies": [],
-      "index": 15,
-      "priority": "P0",
-      "slug": "precommit-restage-vanilla-codex-config",
-      "title": "Precommit restage + vanilla Codex config"
-    },
-    {
-      "dependencies": [],
-      "index": 16,
-      "priority": "P0",
-      "slug": "single-worktree-per-feature",
-      "title": "Single worktree per feature"
-    },
-    {
-      "dependencies": [],
-      "index": 17,
-      "priority": "P0",
-      "slug": "workflow-hardening-for-template-drift-autofix-recovery",
-      "title": "Workflow hardening for template drift + autofix recovery"
-    },
-    {
-      "dependencies": [],
-      "index": 18,
-      "priority": "P1",
-      "slug": "orchestrator-sub-agent-roles",
-      "title": "Orchestrator + sub-agent roles"
-    },
-    {
-      "dependencies": [],
-      "index": 19,
-      "priority": "P1",
-      "slug": "role-specific-prompts-plan-reviewer",
-      "title": "Role-specific prompts + Plan Reviewer"
-    },
-    {
-      "dependencies": [],
-      "index": 20,
-      "priority": "P1",
-      "slug": "incremental-prd-to-features",
-      "title": "Incremental prd-to-features"
-    },
-    {
-      "dependencies": [],
-      "index": 21,
-      "priority": "P1",
-      "slug": "learning-loop-proposals",
-      "title": "Learning loop proposals"
-    },
-    {
-      "dependencies": [],
-      "index": 22,
-      "priority": "P1",
-      "slug": "worktree-policy-naming-convention",
-      "title": "Worktree policy + naming convention"
-    },
-    {
-      "dependencies": [],
-      "index": 23,
-      "priority": "P1",
-      "slug": "anti-cheat-testing-strategy",
-      "title": "Anti-cheat testing strategy"
-    },
-    {
-      "dependencies": [],
-      "index": 24,
-      "priority": "P1",
-      "slug": "end-to-end-workflow-smoke-test-with-a-synthetic-feature",
-      "title": "End-to-end workflow smoke test with a synthetic feature"
     }
   ],
   "pm_gate": {
-    "blocked_count": 0,
-    "final_decision": "approve",
+    "blocked_count": 6,
+    "final_decision": "blocked-max-limit",
     "history": [
       {
-        "decision": "approve",
-        "gate_id": "PM-REVIEW-001",
-        "issue_count": 0,
-        "issues": [],
-        "iteration": 1
+        "decision": "retry",
+        "gate_id": "PM-BLOCK-001",
+        "issue_count": 19,
+        "issues": [
+          {
+            "issue_id": "PM-001",
+            "remediation": "Ensure design.md feature alignment map includes 'Bootstrap + safe template reapply'.",
+            "risk": "Feature may be generated without architecture alignment.",
+            "step": "architect",
+            "summary": "design.md does not mention feature 'Bootstrap + safe template reapply'"
+          },
+          {
+            "issue_id": "PM-002",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Bootstrap + safe template reapply'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Bootstrap + safe template reapply'"
+          },
+          {
+            "issue_id": "PM-003",
+            "remediation": "Ensure design.md feature alignment map includes 'Deterministic work-item execution with explicit gates'.",
+            "risk": "Feature may be generated without architecture alignment.",
+            "step": "architect",
+            "summary": "design.md does not mention feature 'Deterministic work-item execution with explicit gates'"
+          },
+          {
+            "issue_id": "PM-004",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Deterministic work-item execution with explicit gates'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Deterministic work-item execution with explicit gates'"
+          },
+          {
+            "issue_id": "PM-005",
+            "remediation": "Ensure design.md feature alignment map includes 'Output offload + structured logs + shared runner'.",
+            "risk": "Feature may be generated without architecture alignment.",
+            "step": "architect",
+            "summary": "design.md does not mention feature 'Output offload + structured logs + shared runner'"
+          },
+          {
+            "issue_id": "PM-006",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Output offload + structured logs + shared runner'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Output offload + structured logs + shared runner'"
+          },
+          {
+            "issue_id": "PM-007",
+            "remediation": "Ensure design.md feature alignment map includes 'Resume safety + fail-closed commit gate + scoped autofix'.",
+            "risk": "Feature may be generated without architecture alignment.",
+            "step": "architect",
+            "summary": "design.md does not mention feature 'Resume safety + fail-closed commit gate + scoped autofix'"
+          },
+          {
+            "issue_id": "PM-008",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Resume safety + fail-closed commit gate + scoped autofix'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Resume safety + fail-closed commit gate + scoped autofix'"
+          },
+          {
+            "issue_id": "PM-009",
+            "remediation": "Ensure design.md feature alignment map includes 'Single-worktree orchestration + template-drift hardening'.",
+            "risk": "Feature may be generated without architecture alignment.",
+            "step": "architect",
+            "summary": "design.md does not mention feature 'Single-worktree orchestration + template-drift hardening'"
+          },
+          {
+            "issue_id": "PM-010",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Single-worktree orchestration + template-drift hardening'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Single-worktree orchestration + template-drift hardening'"
+          },
+          {
+            "issue_id": "PM-011",
+            "remediation": "Ensure design.md feature alignment map includes 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'.",
+            "risk": "Feature may be generated without architecture alignment.",
+            "step": "architect",
+            "summary": "design.md does not mention feature 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'"
+          },
+          {
+            "issue_id": "PM-012",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'"
+          },
+          {
+            "issue_id": "PM-013",
+            "remediation": "Ensure design.md feature alignment map includes 'Anti-hardcode test policy + synthetic end-to-end smoke feature'.",
+            "risk": "Feature may be generated without architecture alignment.",
+            "step": "architect",
+            "summary": "design.md does not mention feature 'Anti-hardcode test policy + synthetic end-to-end smoke feature'"
+          },
+          {
+            "issue_id": "PM-014",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Anti-hardcode test policy + synthetic end-to-end smoke feature'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Anti-hardcode test policy + synthetic end-to-end smoke feature'"
+          },
+          {
+            "issue_id": "PM-015",
+            "remediation": "Add journey/workflow details grounded in 'Anti-hardcode test policy + synthetic end-to-end smoke feature' outcome/notes from PRD.",
+            "risk": "User journeys may stay generic and miss intended product behavior.",
+            "step": "ux",
+            "summary": "ux-ui.md lacks feature-specific semantics for 'Anti-hardcode test policy + synthetic end-to-end smoke feature' (expected one of: better, regression, resistance, early, break)."
+          },
+          {
+            "issue_id": "PM-016",
+            "remediation": "Ensure design.md feature alignment map includes 'Incremental PRD-to-features + post-run learning loop'.",
+            "risk": "Feature may be generated without architecture alignment.",
+            "step": "architect",
+            "summary": "design.md does not mention feature 'Incremental PRD-to-features + post-run learning loop'"
+          },
+          {
+            "issue_id": "PM-017",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Incremental PRD-to-features + post-run learning loop'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Incremental PRD-to-features + post-run learning loop'"
+          },
+          {
+            "issue_id": "PM-018",
+            "remediation": "Edit `feature-order.json` in the `decisions`, `dependencies`, and `ordered_features` sections so every dependency field is a real JSON array (not a quoted list) and each feature slug has the same dependency set in all three sections; acceptance condition: no cross-section dependency mismatches remain and topological order can be derived directly from dependency data.",
+            "risk": "Execution/planning may treat all features as independent, causing invalid implementation order and gate regressions.",
+            "step": "dependency-planner",
+            "summary": "`feature-order.json` is internally inconsistent: `decisions[*].depends_on` carries dependency intent (and is string-encoded), while both `dependencies` and `ordered_features[*].dependencies` are empty for all slugs, so dependency order is not machine-actionable across the artifact."
+          },
+          {
+            "issue_id": "PM-019",
+            "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+            "risk": "Feature generation order may violate prerequisites.",
+            "step": "dependency-planner",
+            "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+          }
+        ],
+        "iteration": 1,
+        "pm_feedback": {
+          "criteria": {
+            "dependency_alignment": "fail",
+            "feature_specificity": "pass",
+            "journey_specificity": "pass"
+          },
+          "loop_change_summary": "## design.md diff\ndesign.md: first iteration baseline (no previous artifact).\n\n## ux-ui.md diff\nux-ui.md: first iteration baseline (no previous artifact).\n\n## feature-order.json diff\nfeature-order.json: first iteration baseline (no previous artifact).",
+          "raw_issues": [
+            {
+              "remediation": "Edit `feature-order.json` in the `decisions`, `dependencies`, and `ordered_features` sections so every dependency field is a real JSON array (not a quoted list) and each feature slug has the same dependency set in all three sections; acceptance condition: no cross-section dependency mismatches remain and topological order can be derived directly from dependency data.",
+              "risk": "Execution/planning may treat all features as independent, causing invalid implementation order and gate regressions.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` is internally inconsistent: `decisions[*].depends_on` carries dependency intent (and is string-encoded), while both `dependencies` and `ordered_features[*].dependencies` are empty for all slugs, so dependency order is not machine-actionable across the artifact."
+            }
+          ],
+          "review_issues": [
+            {
+              "issue_id": "PM-001",
+              "remediation": "Ensure design.md feature alignment map includes 'Bootstrap + safe template reapply'.",
+              "risk": "Feature may be generated without architecture alignment.",
+              "step": "architect",
+              "summary": "design.md does not mention feature 'Bootstrap + safe template reapply'"
+            },
+            {
+              "issue_id": "PM-002",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Bootstrap + safe template reapply'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Bootstrap + safe template reapply'"
+            },
+            {
+              "issue_id": "PM-003",
+              "remediation": "Ensure design.md feature alignment map includes 'Deterministic work-item execution with explicit gates'.",
+              "risk": "Feature may be generated without architecture alignment.",
+              "step": "architect",
+              "summary": "design.md does not mention feature 'Deterministic work-item execution with explicit gates'"
+            },
+            {
+              "issue_id": "PM-004",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Deterministic work-item execution with explicit gates'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Deterministic work-item execution with explicit gates'"
+            },
+            {
+              "issue_id": "PM-005",
+              "remediation": "Ensure design.md feature alignment map includes 'Output offload + structured logs + shared runner'.",
+              "risk": "Feature may be generated without architecture alignment.",
+              "step": "architect",
+              "summary": "design.md does not mention feature 'Output offload + structured logs + shared runner'"
+            },
+            {
+              "issue_id": "PM-006",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Output offload + structured logs + shared runner'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Output offload + structured logs + shared runner'"
+            },
+            {
+              "issue_id": "PM-007",
+              "remediation": "Ensure design.md feature alignment map includes 'Resume safety + fail-closed commit gate + scoped autofix'.",
+              "risk": "Feature may be generated without architecture alignment.",
+              "step": "architect",
+              "summary": "design.md does not mention feature 'Resume safety + fail-closed commit gate + scoped autofix'"
+            },
+            {
+              "issue_id": "PM-008",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Resume safety + fail-closed commit gate + scoped autofix'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Resume safety + fail-closed commit gate + scoped autofix'"
+            },
+            {
+              "issue_id": "PM-009",
+              "remediation": "Ensure design.md feature alignment map includes 'Single-worktree orchestration + template-drift hardening'.",
+              "risk": "Feature may be generated without architecture alignment.",
+              "step": "architect",
+              "summary": "design.md does not mention feature 'Single-worktree orchestration + template-drift hardening'"
+            },
+            {
+              "issue_id": "PM-010",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Single-worktree orchestration + template-drift hardening'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Single-worktree orchestration + template-drift hardening'"
+            },
+            {
+              "issue_id": "PM-011",
+              "remediation": "Ensure design.md feature alignment map includes 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'.",
+              "risk": "Feature may be generated without architecture alignment.",
+              "step": "architect",
+              "summary": "design.md does not mention feature 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'"
+            },
+            {
+              "issue_id": "PM-012",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'"
+            },
+            {
+              "issue_id": "PM-013",
+              "remediation": "Ensure design.md feature alignment map includes 'Anti-hardcode test policy + synthetic end-to-end smoke feature'.",
+              "risk": "Feature may be generated without architecture alignment.",
+              "step": "architect",
+              "summary": "design.md does not mention feature 'Anti-hardcode test policy + synthetic end-to-end smoke feature'"
+            },
+            {
+              "issue_id": "PM-014",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Anti-hardcode test policy + synthetic end-to-end smoke feature'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Anti-hardcode test policy + synthetic end-to-end smoke feature'"
+            },
+            {
+              "issue_id": "PM-015",
+              "remediation": "Add journey/workflow details grounded in 'Anti-hardcode test policy + synthetic end-to-end smoke feature' outcome/notes from PRD.",
+              "risk": "User journeys may stay generic and miss intended product behavior.",
+              "step": "ux",
+              "summary": "ux-ui.md lacks feature-specific semantics for 'Anti-hardcode test policy + synthetic end-to-end smoke feature' (expected one of: better, regression, resistance, early, break)."
+            },
+            {
+              "issue_id": "PM-016",
+              "remediation": "Ensure design.md feature alignment map includes 'Incremental PRD-to-features + post-run learning loop'.",
+              "risk": "Feature may be generated without architecture alignment.",
+              "step": "architect",
+              "summary": "design.md does not mention feature 'Incremental PRD-to-features + post-run learning loop'"
+            },
+            {
+              "issue_id": "PM-017",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Incremental PRD-to-features + post-run learning loop'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Incremental PRD-to-features + post-run learning loop'"
+            },
+            {
+              "issue_id": "PM-018",
+              "remediation": "Edit `feature-order.json` in the `decisions`, `dependencies`, and `ordered_features` sections so every dependency field is a real JSON array (not a quoted list) and each feature slug has the same dependency set in all three sections; acceptance condition: no cross-section dependency mismatches remain and topological order can be derived directly from dependency data.",
+              "risk": "Execution/planning may treat all features as independent, causing invalid implementation order and gate regressions.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` is internally inconsistent: `decisions[*].depends_on` carries dependency intent (and is string-encoded), while both `dependencies` and `ordered_features[*].dependencies` are empty for all slugs, so dependency order is not machine-actionable across the artifact."
+            },
+            {
+              "issue_id": "PM-019",
+              "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+              "risk": "Feature generation order may violate prerequisites.",
+              "step": "dependency-planner",
+              "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+            }
+          ],
+          "role_decision": "BLOCK",
+          "todo_updates": [
+            {
+              "action": "create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-DEP-001",
+              "status": "open",
+              "task_id": "PM-TODO-001"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "open",
+              "task_id": "PM-TODO-002"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "open",
+              "task_id": "PM-TODO-003"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-003",
+              "status": "open",
+              "task_id": "PM-TODO-004"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-004",
+              "status": "open",
+              "task_id": "PM-TODO-005"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-005",
+              "status": "open",
+              "task_id": "PM-TODO-006"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-006",
+              "status": "open",
+              "task_id": "PM-TODO-007"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-007",
+              "status": "open",
+              "task_id": "PM-TODO-008"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-008",
+              "status": "open",
+              "task_id": "PM-TODO-009"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-009",
+              "status": "open",
+              "task_id": "PM-TODO-010"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-010",
+              "status": "open",
+              "task_id": "PM-TODO-011"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-011",
+              "status": "open",
+              "task_id": "PM-TODO-012"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-012",
+              "status": "open",
+              "task_id": "PM-TODO-013"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-013",
+              "status": "open",
+              "task_id": "PM-TODO-014"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-014",
+              "status": "open",
+              "task_id": "PM-TODO-015"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-015",
+              "status": "open",
+              "task_id": "PM-TODO-016"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-016",
+              "status": "open",
+              "task_id": "PM-TODO-017"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-017",
+              "status": "open",
+              "task_id": "PM-TODO-018"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-018",
+              "status": "open",
+              "task_id": "PM-TODO-019"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-019",
+              "status": "open",
+              "task_id": "PM-TODO-020"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-DEP-001",
+              "status": "done",
+              "task_id": "PM-TODO-001"
+            }
+          ]
+        },
+        "pm_role_decision": "BLOCK"
+      },
+      {
+        "decision": "retry",
+        "gate_id": "PM-BLOCK-002",
+        "issue_count": 9,
+        "issues": [
+          {
+            "issue_id": "PM-001",
+            "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+            "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+            "step": "architect",
+            "summary": "Architect edited sections outside declared changed_sections: feature alignment map"
+          },
+          {
+            "issue_id": "PM-002",
+            "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+            "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+            "step": "ux",
+            "summary": "UX edited sections outside declared changed_sections: user journeys, workflows"
+          },
+          {
+            "issue_id": "PM-003",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Bootstrap + safe template reapply'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Bootstrap + safe template reapply'"
+          },
+          {
+            "issue_id": "PM-004",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Deterministic work-item execution with explicit gates'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Deterministic work-item execution with explicit gates'"
+          },
+          {
+            "issue_id": "PM-005",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Output offload + structured logs + shared runner'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Output offload + structured logs + shared runner'"
+          },
+          {
+            "issue_id": "PM-006",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Resume safety + fail-closed commit gate + scoped autofix'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Resume safety + fail-closed commit gate + scoped autofix'"
+          },
+          {
+            "issue_id": "PM-007",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Single-worktree orchestration + template-drift hardening'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Single-worktree orchestration + template-drift hardening'"
+          },
+          {
+            "issue_id": "PM-008",
+            "remediation": "Edit `feature-order.json` in `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: every feature slug has the same dependency set represented as real JSON arrays (not string literals) across all three sections, with empty arrays only where no prerequisites exist.",
+            "risk": "Prepare-features consumers can ignore prerequisites or execute features in an invalid order, causing non-deterministic workflow behavior.",
+            "step": "dependency-planner",
+            "summary": "`feature-order.json` remains internally inconsistent: dependency intent is string-encoded in `decisions[*].depends_on`, while `dependencies` and `ordered_features[*].dependencies` are empty for all slugs, so dependency order is not machine-actionable."
+          },
+          {
+            "issue_id": "PM-009",
+            "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+            "risk": "Feature generation order may violate prerequisites.",
+            "step": "dependency-planner",
+            "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+          }
+        ],
+        "iteration": 2,
+        "pm_feedback": {
+          "criteria": {
+            "dependency_alignment": "fail",
+            "feature_specificity": "pass",
+            "journey_specificity": "pass"
+          },
+          "loop_change_summary": "## design.md diff\n--- previous/design.md\n+++ current/design.md\n@@ -65,11 +65,11 @@\n ## Feature alignment map\n | Feature | Outcome and notes | Architectural alignment |\n | --- | --- | --- |\n-| `1. bootstrap-safe-template-reapply` | Execution-ready repos with idempotent reruns; conflict handling overwrite/merge/skip | Template manager with deterministic merge policy and non-destructive reapply semantics |\n-| `2. deterministic-work-item-execution-with-explicit-gates` | Predictable, auditable Plan -> Patch -> Test -> Report; command authority remains with human PO/user | Workflow orchestrator state machine, risk gate, and authority enforcement for protected commands |\n-| `3. output-offload-structured-logs-shared-runner` | Token-efficient noisy output handling and full traceability via `pp` pointers and `logs/<WI>/<step>.log` | Shared runner adapter + offload service + structured observability store |\n-| `4. resume-safety-fail-closed-commit-gate-scoped-autofix` | Safe interruption recovery and strict evidence-based commit decisions; active WIP preserved by default | Resume manager, scoped autofix, and commit gate validator tied to required work-item artifacts |\n-| `5. single-worktree-orchestration-template-drift-hardening` | Reliable role collaboration without worktree tracking drift; deterministic recovery | Single-worktree controller and drift hardening module with scoped repair + fail-closed remediation |\n-| `6. orchestrator-roles-plan-reviewer-gate-role-specific-prompts` | Better plan quality and cleaner responsibility split across planner/reviewer/patcher/tester/reporter | Role boundary enforcer + role prompt registry + mandatory plan-review gate |\n-| `7. anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature` | Higher regression resistance using fixtures, seeds, invariants, and boundary contracts | Test policy validator and synthetic feature harness integrated into validation stage |\n-| `8. incremental-prd-to-features-post-run-learning-loop` | Safe docs evolution and reduced repeated failures through add-missing updates and human-gated proposals | Incremental feature reconciler and improvement proposal pipeline writing to `docs/possible-improvements.md` |\n+| Bootstrap + safe template reapply (`bootstrap-safe-template-reapply`) | Execution-ready repos with idempotent reruns; conflict handling overwrite/merge/skip | Template manager with deterministic merge policy and non-destructive reapply semantics |\n+| Deterministic work-item execution with explicit gates (`deterministic-work-item-execution-with-explicit-gates`) | Predictable, auditable Plan -> Patch -> Test -> Report; command authority remains with human PO/user | Workflow orchestrator state machine, risk gate, and authority enforcement for protected commands |\n+| Output offload + structured logs + shared runner (`output-offload-structured-logs-shared-runner`) | Token-efficient noisy output handling and full traceability via `pp` pointers and `logs/<WI>/<step>.log` | Shared runner adapter + offload service + structured observability store |\n+| Resume safety + fail-closed commit gate + scoped autofix (`resume-safety-fail-closed-commit-gate-scoped-autofix`) | Safe interruption recovery and strict evidence-based commit decisions; active WIP preserved by default | Resume manager, scoped autofix, and commit gate validator tied to required work-item artifacts |\n+| Single-worktree orchestration + template-drift hardening (`single-worktree-orchestration-template-drift-hardening`) | Reliable role collaboration without worktree tracking drift; deterministic recovery | Single-worktree controller and drift hardening module with scoped repair + fail-closed remediation |\n+| Orchestrator roles + Plan Reviewer gate + role-specific prompts (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) | Better plan quality and cleaner responsibility split across planner/reviewer/patcher/tester/reporter | Role boundary enforcer + role prompt registry + mandatory plan-review gate |\n+| Anti-hardcode test policy + synthetic end-to-end smoke feature (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) | Higher regression resistance using fixtures, seeds, invariants, and boundary contracts | Test policy validator and synthetic feature harness integrated into validation stage |\n+| Incremental PRD-to-features + post-run learning loop (`incremental-prd-to-features-post-run-learning-loop`) | Safe docs evolution and reduced repeated failures through add-missing updates and human-gated proposals | Incremental feature reconciler and improvement proposal pipeline writing to `docs/possible-improvements.md` |\n\n## ux-ui.md diff\n--- previous/ux-ui.md\n+++ current/ux-ui.md\n@@ -32,6 +32,24 @@\n - **Critical interaction:** role ownership boundaries are enforced by file scope; workflow reports drift remediation steps when needed.\n - **Exit signal:** Roles complete their scoped outputs with deterministic recovery and no `feature-worktrees.json` dependency.\n \n+### Journey 6: Move work through role-specific gates without ambiguity\n+- **User outcome:** Cleaner separation of responsibilities and better plan quality (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`).\n+- **Entry:** Preflight passes and orchestration assigns the first role.\n+- **Critical interactions:** role-specific prompt at each stage, mandatory Plan Reviewer approval before patching, explicit loop-back instructions when review/test/report fails.\n+- **Exit signal:** Approved plan and role-scoped artifacts exist for planner/reviewer/patcher/tester/reporter.\n+\n+### Journey 7: Validate quality with anti-hardcode policy before real feature risk\n+- **User outcome:** Better regression resistance and early workflow break detection (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`).\n+- **Entry:** Ticket plan reaches TDD/validation definition.\n+- **Critical interactions:** policy requires >=2 critical-path fixtures, deterministic seeds, invariant checks, and boundary contracts; a synthetic end-to-end smoke feature can run first to catch early breaks.\n+- **Exit signal:** Validation policy passes and smoke run outcome is visible before continuing with real feature execution.\n+\n+### Journey 8: Evolve feature docs incrementally and learn from failures\n+- **User outcome:** Feature docs evolve safely and repeated failures are reduced (`incremental-prd-to-features-post-run-learning-loop`).\n+- **Entry:** User runs PRD-to-features refresh or completes a failed run.\n+- **Critical interactions:** add-missing-only feature updates (never delete existing, skip `Status: Done`) plus improvement proposals queued for human approval.\n+- **Exit signal:** Docs remain stable, net-new gaps are filled, and approved learning-loop actions are tracked.\n+\n ## Workflows\n \n ### Workflow A: Bootstrap + safe reapply\n@@ -60,7 +78,19 @@\n 3. If template/living-file drift is detected, system attempts deterministic scoped repair and restages allowed files only.\n 4. Commit is blocked unless execution docs and required report/test evidence are complete.\n \n-### Workflow E: Ongoing hardening without scope expansion\n+### Workflow E: Orchestrator roles + Plan Reviewer gate + role-specific prompts\n+1. Orchestrator assigns the active role and renders that role's prompt contract.\n+2. Planner output is reviewed before patching; rejection returns control to Planner with explicit deltas.\n+3. On approval, patcher/tester/reporter proceed in order with role-boundary checks.\n+4. Stage status always includes current owner and next gate so handoff failures are diagnosable.\n+\n+### Workflow F: Anti-hardcode test policy + synthetic end-to-end smoke feature\n+1. Planner declares fixture count, deterministic seed strategy, invariants, and boundary contract tests in Allowed Tests.\n... (truncated)\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -2,58 +2,58 @@\n   \"decisions\": [\n     {\n       \"depends_on\": \"[]\",\n-      \"feature\": \"bootstrap-safe-template-reapply\",\n+      \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n-      \"rationale\": \"Establishes the template/tool baseline required for all subsequent workflow hardening.\",\n+      \"rationale\": \"Establishes the template and tooling baseline required for all subsequent workflow hardening.\",\n       \"reason_codes\": \"['FOUNDATION', 'IDEMPOTENT_ENTRYPOINT']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply']\",\n-      \"feature\": \"output-offload-structured-logs-shared-runner\",\n+      \"feature_slug\": \"output-offload-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n-      \"rationale\": \"Shared runner, offload, and structured logs are cross-cutting infrastructure used by later execution features.\",\n+      \"rationale\": \"Shared runner, offload, and structured logs are cross-cutting infrastructure used by later execution and validation features.\",\n       \"reason_codes\": \"['SHARED_INFRA', 'OBSERVABILITY', 'TOKEN_EFFICIENCY']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply', 'output-offload-structured-logs-shared-runner']\",\n-      \"feature\": \"deterministic-work-item-execution-with-explicit-gates\",\n+      \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates\",\n       \"id\": \"order-003\",\n-      \"rationale\": \"Execution loop and gates should be built on top of logging/offload/runner primitives to remain auditable.\",\n+      \"rationale\": \"Deterministic Plan -> Patch -> Test -> Report and authority gates should be built on top of shared runner/logging primitives.\",\n       \"reason_codes\": \"['EXECUTION_CORE', 'GATE_ENFORCEMENT']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply', 'deterministic-work-item-execution-with-explicit-gates']\",\n-      \"feature\": \"single-worktree-orchestration-template-drift-hardening\",\n+      \"feature_slug\": \"single-worktree-orchestration-template-drift-hardening\",\n       \"id\": \"order-004\",\n-      \"rationale\": \"Worktree and drift guarantees refine orchestration behavior after core deterministic execution exists.\",\n+      \"rationale\": \"Single-worktree and drift hardening refine orchestration behavior after deterministic execution is in place.\",\n       \"reason_codes\": \"['WORKTREE_POLICY', 'RECOVERY_HARDENING']\"\n     },\n... (truncated)",
+          "raw_issues": [
+            {
+              "remediation": "Edit `feature-order.json` in `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: every feature slug has the same dependency set represented as real JSON arrays (not string literals) across all three sections, with empty arrays only where no prerequisites exist.",
+              "risk": "Prepare-features consumers can ignore prerequisites or execute features in an invalid order, causing non-deterministic workflow behavior.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` remains internally inconsistent: dependency intent is string-encoded in `decisions[*].depends_on`, while `dependencies` and `ordered_features[*].dependencies` are empty for all slugs, so dependency order is not machine-actionable."
+            }
+          ],
+          "review_issues": [
+            {
+              "issue_id": "PM-001",
+              "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+              "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+              "step": "architect",
+              "summary": "Architect edited sections outside declared changed_sections: feature alignment map"
+            },
+            {
+              "issue_id": "PM-002",
+              "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+              "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+              "step": "ux",
+              "summary": "UX edited sections outside declared changed_sections: user journeys, workflows"
+            },
+            {
+              "issue_id": "PM-003",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Bootstrap + safe template reapply'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Bootstrap + safe template reapply'"
+            },
+            {
+              "issue_id": "PM-004",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Deterministic work-item execution with explicit gates'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Deterministic work-item execution with explicit gates'"
+            },
+            {
+              "issue_id": "PM-005",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Output offload + structured logs + shared runner'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Output offload + structured logs + shared runner'"
+            },
+            {
+              "issue_id": "PM-006",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Resume safety + fail-closed commit gate + scoped autofix'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Resume safety + fail-closed commit gate + scoped autofix'"
+            },
+            {
+              "issue_id": "PM-007",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Single-worktree orchestration + template-drift hardening'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Single-worktree orchestration + template-drift hardening'"
+            },
+            {
+              "issue_id": "PM-008",
+              "remediation": "Edit `feature-order.json` in `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: every feature slug has the same dependency set represented as real JSON arrays (not string literals) across all three sections, with empty arrays only where no prerequisites exist.",
+              "risk": "Prepare-features consumers can ignore prerequisites or execute features in an invalid order, causing non-deterministic workflow behavior.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` remains internally inconsistent: dependency intent is string-encoded in `decisions[*].depends_on`, while `dependencies` and `ordered_features[*].dependencies` are empty for all slugs, so dependency order is not machine-actionable."
+            },
+            {
+              "issue_id": "PM-009",
+              "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+              "risk": "Feature generation order may violate prerequisites.",
+              "step": "dependency-planner",
+              "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+            }
+          ],
+          "role_decision": "BLOCK",
+          "todo_updates": [
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "done",
+              "task_id": "PM-TODO-002"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "done",
+              "task_id": "PM-TODO-003"
+            },
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-003",
+              "status": "done",
+              "task_id": "PM-TODO-004"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-004",
+              "status": "done",
+              "task_id": "PM-TODO-005"
+            },
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-005",
+              "status": "done",
+              "task_id": "PM-TODO-006"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-006",
+              "status": "done",
+              "task_id": "PM-TODO-007"
+            },
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-007",
+              "status": "done",
+              "task_id": "PM-TODO-008"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-008",
+              "status": "done",
+              "task_id": "PM-TODO-009"
+            },
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-009",
+              "status": "done",
+              "task_id": "PM-TODO-010"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-010",
+              "status": "done",
+              "task_id": "PM-TODO-011"
+            },
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-011",
+              "status": "done",
+              "task_id": "PM-TODO-012"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-012",
+              "status": "done",
+              "task_id": "PM-TODO-013"
+            },
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-013",
+              "status": "done",
+              "task_id": "PM-TODO-014"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-014",
+              "status": "done",
+              "task_id": "PM-TODO-015"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-015",
+              "status": "done",
+              "task_id": "PM-TODO-016"
+            },
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-016",
+              "status": "done",
+              "task_id": "PM-TODO-017"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-017",
+              "status": "done",
+              "task_id": "PM-TODO-018"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-018",
+              "status": "carry",
+              "task_id": "PM-TODO-019"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-019",
+              "status": "carry",
+              "task_id": "PM-TODO-020"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "open",
+              "task_id": "PM-TODO-021"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "open",
+              "task_id": "PM-TODO-022"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-003",
+              "status": "open",
+              "task_id": "PM-TODO-023"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-004",
+              "status": "open",
+              "task_id": "PM-TODO-024"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-005",
+              "status": "open",
+              "task_id": "PM-TODO-025"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-006",
+              "status": "open",
+              "task_id": "PM-TODO-026"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-007",
+              "status": "open",
+              "task_id": "PM-TODO-027"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-008",
+              "status": "open",
+              "task_id": "PM-TODO-028"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-009",
+              "status": "open",
+              "task_id": "PM-TODO-029"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-018",
+              "status": "done",
+              "task_id": "PM-TODO-019"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-019",
+              "status": "done",
+              "task_id": "PM-TODO-020"
+            }
+          ]
+        },
+        "pm_role_decision": "BLOCK"
+      },
+      {
+        "decision": "retry",
+        "gate_id": "PM-BLOCK-003",
+        "issue_count": 5,
+        "issues": [
+          {
+            "issue_id": "PM-001",
+            "remediation": "Apply targeted updates for architect owner TODOs and PM feedback, then return updated artifact content.",
+            "risk": "PM blockers may persist across retries without concrete progress.",
+            "step": "architect",
+            "summary": "Architect returned unchanged artifact despite actionable PM TODO/feedback."
+          },
+          {
+            "issue_id": "PM-002",
+            "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+            "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+            "step": "ux",
+            "summary": "UX edited sections outside declared changed_sections: user journeys, workflows"
+          },
+          {
+            "issue_id": "PM-003",
+            "remediation": "For each PM issue, specify target artifact, target section/heading, and explicit acceptance condition.",
+            "risk": "Ambiguous PM feedback can trigger noisy rewrites or failed retries.",
+            "step": "product-manager",
+            "summary": "PM issue for step 'dependency-planner' is ambiguous; missing acceptance condition."
+          },
+          {
+            "issue_id": "PM-004",
+            "remediation": "Edit `feature-order.json` in top-level `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies` so each feature\u2019s prerequisites are real JSON arrays and identical across all three sections; accept when every non-root feature has matching non-empty prerequisites everywhere and root features are the only ones with empty arrays.",
+            "risk": "Prepare-features consumers can interpret all features as independent, allowing invalid execution order and breaking prerequisite-gated workflow hardening.",
+            "step": "dependency-planner",
+            "summary": "`feature-order.json` keeps true prerequisite data only in string-encoded `decisions[*].depends_on`, while `dependencies` and `ordered_features[*].dependencies` remain empty arrays for all slugs, so dependency order is not machine-actionable."
+          },
+          {
+            "issue_id": "PM-005",
+            "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+            "risk": "Feature generation order may violate prerequisites.",
+            "step": "dependency-planner",
+            "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+          }
+        ],
+        "iteration": 3,
+        "pm_feedback": {
+          "criteria": {
+            "dependency_alignment": "fail",
+            "feature_specificity": "pass",
+            "journey_specificity": "pass"
+          },
+          "loop_change_summary": "## design.md diff\ndesign.md: no changes.\n\n## ux-ui.md diff\n--- previous/ux-ui.md\n+++ current/ux-ui.md\n@@ -2,31 +2,31 @@\n \n ## User journeys\n \n-### Journey 1: Bootstrap a repo into an execution-ready state\n+### Journey 1: Bootstrap + safe template reapply\n - **User outcome:** New/existing repos become execution-ready with idempotent reruns (`bootstrap-safe-template-reapply`).\n - **Entry:** User runs the bootstrap command in a local repo.\n - **Critical interaction:** When file conflicts exist, CLI offers only `overwrite`, `merge`, or `skip`; choice is explicit per file group.\n - **Exit signal:** CLI reports applied/skipped files and confirms safe rerun behavior.\n \n-### Journey 2: Execute an approved ticket with predictable gates\n+### Journey 2: Deterministic work-item execution with explicit gates\n - **User outcome:** Plan -> Patch -> Test -> Report is predictable and auditable (`deterministic-work-item-execution-with-explicit-gates`).\n - **Entry:** Human PO/user starts execution command.\n - **Critical interactions:** preflight summary, deterministic risk classification, HIGH-risk approval gate, role handoffs (planner -> reviewer -> patcher -> tester -> reporter).\n - **Exit signal:** Ticket has complete execution evidence and gate outcomes.\n \n-### Journey 3: Keep runs debuggable and token-efficient\n+### Journey 3: Output offload + structured logs + shared runner\n - **User outcome:** Noisy output is offloaded and every step is traceable (`output-offload-structured-logs-shared-runner`).\n - **Entry:** Any noisy command (tests, scans, logs).\n - **Critical interaction:** CLI prints compact status plus offload pointer IDs instead of large inline output.\n - **Exit signal:** Artifacts exist in `.offload/` and `logs/<WI>/<step>.log` with timestamps and role/step prefixes.\n \n-### Journey 4: Recover safely after interruption and fail closed on incomplete evidence\n+### Journey 4: Resume safety + fail-closed commit gate + scoped autofix\n - **User outcome:** Interrupted runs resume safely and commits require complete evidence (`resume-safety-fail-closed-commit-gate-scoped-autofix`).\n - **Entry:** User reruns after crash, partial failure, or drift detection.\n - **Critical interactions:** preserve active WIP by default, resume from existing worklog, deterministic scoped autofix attempt, explicit commit block when docs/evidence are incomplete.\n - **Exit signal:** No lost work, no duplicate sections, and no commit without required evidence.\n \n-### Journey 5: Coordinate roles in one feature worktree without drift\n+### Journey 5: Single-worktree orchestration + template-drift hardening\n - **User outcome:** Reliable role collaboration without worktree tracking-file drift (`single-worktree-orchestration-template-drift-hardening`).\n - **Entry:** Multi-role execution on one feature.\n - **Critical interaction:** role ownership boundaries are enforced by file scope; workflow reports drift remediation steps when needed.\n@@ -52,13 +52,13 @@\n... (truncated)\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -4,56 +4,56 @@\n       \"depends_on\": \"[]\",\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n-      \"rationale\": \"Establishes the template and tooling baseline required for all subsequent workflow hardening.\",\n+      \"rationale\": \"Establishes the template and tooling baseline required for subsequent workflow hardening.\",\n       \"reason_codes\": \"['FOUNDATION', 'IDEMPOTENT_ENTRYPOINT']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply']\",\n       \"feature_slug\": \"output-offload-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n-      \"rationale\": \"Shared runner, offload, and structured logs are cross-cutting infrastructure used by later execution and validation features.\",\n+      \"rationale\": \"Provides shared runner metadata, structured logs, and offload primitives used by downstream execution and validation.\",\n       \"reason_codes\": \"['SHARED_INFRA', 'OBSERVABILITY', 'TOKEN_EFFICIENCY']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply', 'output-offload-structured-logs-shared-runner']\",\n       \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates\",\n       \"id\": \"order-003\",\n-      \"rationale\": \"Deterministic Plan -> Patch -> Test -> Report and authority gates should be built on top of shared runner/logging primitives.\",\n+      \"rationale\": \"Builds deterministic Plan -> Patch -> Test -> Report and authority gates on top of shared logging/offload infrastructure.\",\n       \"reason_codes\": \"['EXECUTION_CORE', 'GATE_ENFORCEMENT']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply', 'deterministic-work-item-execution-with-explicit-gates']\",\n       \"feature_slug\": \"single-worktree-orchestration-template-drift-hardening\",\n       \"id\": \"order-004\",\n-      \"rationale\": \"Single-worktree and drift hardening refine orchestration behavior after deterministic execution is in place.\",\n+      \"rationale\": \"Refines orchestration with single-worktree policy and template-drift recovery after deterministic stage control exists.\",\n       \"reason_codes\": \"['WORKTREE_POLICY', 'RECOVERY_HARDENING']\"\n     },\n     {\n       \"depends_on\": \"['output-offload-structured-logs-shared-runner', 'deterministic-work-item-execution-with-explicit-gates', 'single-worktree-orchestration-template-drift-hardening']\",\n       \"feature_slug\": \"resume-safety-fail-closed-commit-gate-scoped-autofix\",\n       \"id\": \"order-005\",\n-      \"rationale\": \"Resume safety, commit gating, and scoped autofix require stable stage semantics, structured evidence, and finalized worktree/drift rules.\",\n+      \"rationale\": \"Resume checkpoints, scoped autofix, and fail-closed commit validation depend on stable stages, evidence logs, and drift/worktree rules.\",\n... (truncated)",
+          "raw_issues": [
+            {
+              "remediation": "Edit `feature-order.json` in top-level `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies` so each feature\u2019s prerequisites are real JSON arrays and identical across all three sections; accept when every non-root feature has matching non-empty prerequisites everywhere and root features are the only ones with empty arrays.",
+              "risk": "Prepare-features consumers can interpret all features as independent, allowing invalid execution order and breaking prerequisite-gated workflow hardening.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` keeps true prerequisite data only in string-encoded `decisions[*].depends_on`, while `dependencies` and `ordered_features[*].dependencies` remain empty arrays for all slugs, so dependency order is not machine-actionable."
+            }
+          ],
+          "review_issues": [
+            {
+              "issue_id": "PM-001",
+              "remediation": "Apply targeted updates for architect owner TODOs and PM feedback, then return updated artifact content.",
+              "risk": "PM blockers may persist across retries without concrete progress.",
+              "step": "architect",
+              "summary": "Architect returned unchanged artifact despite actionable PM TODO/feedback."
+            },
+            {
+              "issue_id": "PM-002",
+              "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+              "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+              "step": "ux",
+              "summary": "UX edited sections outside declared changed_sections: user journeys, workflows"
+            },
+            {
+              "issue_id": "PM-003",
+              "remediation": "For each PM issue, specify target artifact, target section/heading, and explicit acceptance condition.",
+              "risk": "Ambiguous PM feedback can trigger noisy rewrites or failed retries.",
+              "step": "product-manager",
+              "summary": "PM issue for step 'dependency-planner' is ambiguous; missing acceptance condition."
+            },
+            {
+              "issue_id": "PM-004",
+              "remediation": "Edit `feature-order.json` in top-level `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies` so each feature\u2019s prerequisites are real JSON arrays and identical across all three sections; accept when every non-root feature has matching non-empty prerequisites everywhere and root features are the only ones with empty arrays.",
+              "risk": "Prepare-features consumers can interpret all features as independent, allowing invalid execution order and breaking prerequisite-gated workflow hardening.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` keeps true prerequisite data only in string-encoded `decisions[*].depends_on`, while `dependencies` and `ordered_features[*].dependencies` remain empty arrays for all slugs, so dependency order is not machine-actionable."
+            },
+            {
+              "issue_id": "PM-005",
+              "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+              "risk": "Feature generation order may violate prerequisites.",
+              "step": "dependency-planner",
+              "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+            }
+          ],
+          "role_decision": "BLOCK",
+          "todo_updates": [
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-003",
+              "status": "done",
+              "task_id": "PM-TODO-023"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-004",
+              "status": "done",
+              "task_id": "PM-TODO-024"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-005",
+              "status": "done",
+              "task_id": "PM-TODO-025"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-006",
+              "status": "done",
+              "task_id": "PM-TODO-026"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-007",
+              "status": "done",
+              "task_id": "PM-TODO-027"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-008",
+              "status": "carry",
+              "task_id": "PM-TODO-028"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-009",
+              "status": "carry",
+              "task_id": "PM-TODO-029"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "open",
+              "task_id": "PM-TODO-030"
+            },
+            {
+              "action": "auto_carry",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "open",
+              "task_id": "PM-TODO-022"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-003",
+              "status": "open",
+              "task_id": "PM-TODO-031"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-004",
+              "status": "open",
+              "task_id": "PM-TODO-032"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-005",
+              "status": "open",
+              "task_id": "PM-TODO-033"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "done",
+              "task_id": "PM-TODO-021"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-008",
+              "status": "done",
+              "task_id": "PM-TODO-028"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-009",
+              "status": "done",
+              "task_id": "PM-TODO-029"
+            }
+          ]
+        },
+        "pm_role_decision": "BLOCK"
+      },
+      {
+        "decision": "retry",
+        "gate_id": "PM-BLOCK-004",
+        "issue_count": 5,
+        "issues": [
+          {
+            "issue_id": "PM-001",
+            "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+            "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+            "step": "architect",
+            "summary": "Architect edited sections outside declared changed_sections: build strategy, feature alignment map"
+          },
+          {
+            "issue_id": "PM-002",
+            "remediation": "Apply targeted updates for ux owner TODOs and PM feedback, then return updated artifact content.",
+            "risk": "PM blockers may persist across retries without concrete progress.",
+            "step": "ux",
+            "summary": "UX returned unchanged artifact despite actionable PM TODO/feedback."
+          },
+          {
+            "issue_id": "PM-003",
+            "remediation": "Edit `feature-order.json` in `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: every dependency value is a real JSON array of slugs (not a quoted array) and the prerequisite set for each feature slug is identical across all three sections.",
+            "risk": "High - dependent features can be treated as dependency-free and executed out of order.",
+            "step": "dependency-planner",
+            "summary": "`feature-order.json` stores prerequisites as string literals in `decisions[*].depends_on` while `dependencies` and `ordered_features[*].dependencies` are empty arrays for every slug, so the dependency graph is not machine-actionable."
+          },
+          {
+            "issue_id": "PM-004",
+            "remediation": "Edit `feature-order.json` under `ordered_feature_slugs` and `ordered_features`; acceptance condition: `bootstrap-safe-template-reapply` is the only feature with `[]`, every other feature has at least one prerequisite, and each prerequisite slug appears earlier than its dependent in the ordered list.",
+            "risk": "Medium - prerequisite-gated hardening phases can be bypassed, reducing release safety.",
+            "step": "dependency-planner",
+            "summary": "Executable ordering fields do not enforce the root-only contract because non-root features are represented with empty dependency arrays."
+          },
+          {
+            "issue_id": "PM-005",
+            "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+            "risk": "Feature generation order may violate prerequisites.",
+            "step": "dependency-planner",
+            "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+          }
+        ],
+        "iteration": 4,
+        "pm_feedback": {
+          "criteria": {
+            "dependency_alignment": "fail",
+            "feature_specificity": "pass",
+            "journey_specificity": "pass"
+          },
+          "loop_change_summary": "## design.md diff\n--- previous/design.md\n+++ current/design.md\n@@ -60,9 +60,13 @@\n 4. Quality resilience (feature 7): enforce anti-hardcode testing policy and provide synthetic end-to-end smoke execution to catch workflow regressions early.\n 5. Controlled evolution (feature 8): incremental PRD-to-features reconciler plus human-gated learning-loop proposals.\n \n-Release sequencing is reliability-first because dependency decisions are currently empty; ordering follows risk reduction and MVP hardening goals rather than adding new product surface area.\n+Dependency-alignment acceptance condition for downstream ordering artifacts: `bootstrap-safe-template-reapply` is the only root feature; every other feature must declare at least one prerequisite from an earlier phase so prerequisite-gated workflow hardening remains enforceable.\n+\n+Release sequencing is reliability-first because dependency decisions are currently empty; ordering follows risk reduction and MVP hardening goals rather than adding new product surface area. If dependency artifacts diverge from this contract, build readiness is blocked until prerequisite arrays are corrected.\n \n ## Feature alignment map\n+Dependency-intent acceptance condition: bootstrap is the only zero-prerequisite row; every other row depends on modules established by earlier features in this map.\n+\n | Feature | Outcome and notes | Architectural alignment |\n | --- | --- | --- |\n | Bootstrap + safe template reapply (`bootstrap-safe-template-reapply`) | Execution-ready repos with idempotent reruns; conflict handling overwrite/merge/skip | Template manager with deterministic merge policy and non-destructive reapply semantics |\n\n## ux-ui.md diff\nux-ui.md: no changes.\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -4,56 +4,56 @@\n       \"depends_on\": \"[]\",\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n-      \"rationale\": \"Establishes the template and tooling baseline required for subsequent workflow hardening.\",\n+      \"rationale\": \"Establishes the template and tooling baseline required for all downstream workflow hardening.\",\n       \"reason_codes\": \"['FOUNDATION', 'IDEMPOTENT_ENTRYPOINT']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply']\",\n       \"feature_slug\": \"output-offload-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n-      \"rationale\": \"Provides shared runner metadata, structured logs, and offload primitives used by downstream execution and validation.\",\n+      \"rationale\": \"Provides shared runner metadata, structured logs, and offload primitives used by execution and validation features.\",\n       \"reason_codes\": \"['SHARED_INFRA', 'OBSERVABILITY', 'TOKEN_EFFICIENCY']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply', 'output-offload-structured-logs-shared-runner']\",\n       \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates\",\n       \"id\": \"order-003\",\n-      \"rationale\": \"Builds deterministic Plan -> Patch -> Test -> Report and authority gates on top of shared logging/offload infrastructure.\",\n+      \"rationale\": \"Builds deterministic Plan -> Patch -> Test -> Report and authority/risk gates on top of established runner/logging/offload infrastructure.\",\n       \"reason_codes\": \"['EXECUTION_CORE', 'GATE_ENFORCEMENT']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply', 'deterministic-work-item-execution-with-explicit-gates']\",\n       \"feature_slug\": \"single-worktree-orchestration-template-drift-hardening\",\n       \"id\": \"order-004\",\n-      \"rationale\": \"Refines orchestration with single-worktree policy and template-drift recovery after deterministic stage control exists.\",\n+      \"rationale\": \"Applies single-worktree policy and drift recovery after deterministic orchestration semantics are in place.\",\n       \"reason_codes\": \"['WORKTREE_POLICY', 'RECOVERY_HARDENING']\"\n     },\n     {\n       \"depends_on\": \"['output-offload-structured-logs-shared-runner', 'deterministic-work-item-execution-with-explicit-gates', 'single-worktree-orchestration-template-drift-hardening']\",\n       \"feature_slug\": \"resume-safety-fail-closed-commit-gate-scoped-autofix\",\n       \"id\": \"order-005\",\n-      \"rationale\": \"Resume checkpoints, scoped autofix, and fail-closed commit validation depend on stable stages, evidence logs, and drift/worktree rules.\",\n+      \"rationale\": \"Resume checkpoints, scoped autofix, and fail-closed commit validation require stable stage control, evidence logs, and drift/worktree rules.\",\n... (truncated)",
+          "raw_issues": [
+            {
+              "remediation": "Edit `feature-order.json` in `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: every dependency value is a real JSON array of slugs (not a quoted array) and the prerequisite set for each feature slug is identical across all three sections.",
+              "risk": "High - dependent features can be treated as dependency-free and executed out of order.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` stores prerequisites as string literals in `decisions[*].depends_on` while `dependencies` and `ordered_features[*].dependencies` are empty arrays for every slug, so the dependency graph is not machine-actionable."
+            },
+            {
+              "remediation": "Edit `feature-order.json` under `ordered_feature_slugs` and `ordered_features`; acceptance condition: `bootstrap-safe-template-reapply` is the only feature with `[]`, every other feature has at least one prerequisite, and each prerequisite slug appears earlier than its dependent in the ordered list.",
+              "risk": "Medium - prerequisite-gated hardening phases can be bypassed, reducing release safety.",
+              "step": "dependency-planner",
+              "summary": "Executable ordering fields do not enforce the root-only contract because non-root features are represented with empty dependency arrays."
+            }
+          ],
+          "review_issues": [
+            {
+              "issue_id": "PM-001",
+              "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+              "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+              "step": "architect",
+              "summary": "Architect edited sections outside declared changed_sections: build strategy, feature alignment map"
+            },
+            {
+              "issue_id": "PM-002",
+              "remediation": "Apply targeted updates for ux owner TODOs and PM feedback, then return updated artifact content.",
+              "risk": "PM blockers may persist across retries without concrete progress.",
+              "step": "ux",
+              "summary": "UX returned unchanged artifact despite actionable PM TODO/feedback."
+            },
+            {
+              "issue_id": "PM-003",
+              "remediation": "Edit `feature-order.json` in `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: every dependency value is a real JSON array of slugs (not a quoted array) and the prerequisite set for each feature slug is identical across all three sections.",
+              "risk": "High - dependent features can be treated as dependency-free and executed out of order.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` stores prerequisites as string literals in `decisions[*].depends_on` while `dependencies` and `ordered_features[*].dependencies` are empty arrays for every slug, so the dependency graph is not machine-actionable."
+            },
+            {
+              "issue_id": "PM-004",
+              "remediation": "Edit `feature-order.json` under `ordered_feature_slugs` and `ordered_features`; acceptance condition: `bootstrap-safe-template-reapply` is the only feature with `[]`, every other feature has at least one prerequisite, and each prerequisite slug appears earlier than its dependent in the ordered list.",
+              "risk": "Medium - prerequisite-gated hardening phases can be bypassed, reducing release safety.",
+              "step": "dependency-planner",
+              "summary": "Executable ordering fields do not enforce the root-only contract because non-root features are represented with empty dependency arrays."
+            },
+            {
+              "issue_id": "PM-005",
+              "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+              "risk": "Feature generation order may violate prerequisites.",
+              "step": "dependency-planner",
+              "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+            }
+          ],
+          "role_decision": "BLOCK",
+          "todo_updates": [
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "done",
+              "task_id": "PM-TODO-022"
+            },
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "done",
+              "task_id": "PM-TODO-030"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-003",
+              "status": "done",
+              "task_id": "PM-TODO-031"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-004",
+              "status": "carry",
+              "task_id": "PM-TODO-032"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-005",
+              "status": "carry",
+              "task_id": "PM-TODO-033"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "open",
+              "task_id": "PM-TODO-034"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "open",
+              "task_id": "PM-TODO-035"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-003",
+              "status": "open",
+              "task_id": "PM-TODO-036"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-004",
+              "status": "open",
+              "task_id": "PM-TODO-037"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-005",
+              "status": "open",
+              "task_id": "PM-TODO-038"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-004",
+              "status": "done",
+              "task_id": "PM-TODO-032"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-005",
+              "status": "done",
+              "task_id": "PM-TODO-033"
+            }
+          ]
+        },
+        "pm_role_decision": "BLOCK"
+      },
+      {
+        "decision": "retry",
+        "gate_id": "PM-BLOCK-005",
+        "issue_count": 15,
+        "issues": [
+          {
+            "issue_id": "PM-001",
+            "remediation": "Apply targeted updates for architect owner TODOs and PM feedback, then return updated artifact content.",
+            "risk": "PM blockers may persist across retries without concrete progress.",
+            "step": "architect",
+            "summary": "Architect returned unchanged artifact despite actionable PM TODO/feedback."
+          },
+          {
+            "issue_id": "PM-002",
+            "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+            "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+            "step": "ux",
+            "summary": "UX edited sections outside declared changed_sections: user journeys, workflows"
+          },
+          {
+            "issue_id": "PM-003",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Bootstrap + safe template reapply'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Bootstrap + safe template reapply'"
+          },
+          {
+            "issue_id": "PM-004",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Deterministic work-item execution with explicit gates'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Deterministic work-item execution with explicit gates'"
+          },
+          {
+            "issue_id": "PM-005",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Output offload + structured logs + shared runner'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Output offload + structured logs + shared runner'"
+          },
+          {
+            "issue_id": "PM-006",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Resume safety + fail-closed commit gate + scoped autofix'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Resume safety + fail-closed commit gate + scoped autofix'"
+          },
+          {
+            "issue_id": "PM-007",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Single-worktree orchestration + template-drift hardening'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Single-worktree orchestration + template-drift hardening'"
+          },
+          {
+            "issue_id": "PM-008",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'"
+          },
+          {
+            "issue_id": "PM-009",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Anti-hardcode test policy + synthetic end-to-end smoke feature'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Anti-hardcode test policy + synthetic end-to-end smoke feature'"
+          },
+          {
+            "issue_id": "PM-010",
+            "remediation": "Ensure ux-ui.md journeys/workflows include 'Incremental PRD-to-features + post-run learning loop'.",
+            "risk": "Feature may be generated without UX journey/workflow alignment.",
+            "step": "ux",
+            "summary": "ux-ui.md does not mention feature 'Incremental PRD-to-features + post-run learning loop'"
+          },
+          {
+            "issue_id": "PM-011",
+            "remediation": "For each PM issue, specify target artifact, target section/heading, and explicit acceptance condition.",
+            "risk": "Ambiguous PM feedback can trigger noisy rewrites or failed retries.",
+            "step": "product-manager",
+            "summary": "PM issue for step 'dependency-planner' is ambiguous; missing acceptance condition."
+          },
+          {
+            "issue_id": "PM-012",
+            "remediation": "For each PM issue, specify target artifact, target section/heading, and explicit acceptance condition.",
+            "risk": "Ambiguous PM feedback can trigger noisy rewrites or failed retries.",
+            "step": "product-manager",
+            "summary": "PM issue for step 'dependency-planner' is ambiguous; missing acceptance condition."
+          },
+          {
+            "issue_id": "PM-013",
+            "remediation": "Edit `feature-order.json` in top-level `decisions[*].depends_on`; replace each stringified list with a real JSON array of slug strings, and consider this fixed only when every `depends_on` is valid JSON and references only earlier `ordered_feature_slugs` (with `bootstrap-safe-template-reapply` as the only empty array root).",
+            "risk": "High: dependency parsers can misread prerequisites and allow out-of-order execution that bypasses workflow hardening gates.",
+            "step": "dependency-planner",
+            "summary": "`feature-order.json` stores `decisions[*].depends_on` as string literals (e.g., \"['bootstrap-safe-template-reapply']\") instead of real JSON arrays, so prerequisites are not machine-actionable."
+          },
+          {
+            "issue_id": "PM-014",
+            "remediation": "Edit `feature-order.json` in top-level `dependencies` and `ordered_features[*].dependencies`; populate both from the same per-slug arrays used in `decisions[*].depends_on`, and consider this fixed only when all three dependency representations are identical for every slug and every non-root feature has at least one earlier prerequisite.",
+            "risk": "High: execution tooling cannot enforce root-only ordering or prerequisite gates because canonical dependency sources disagree.",
+            "step": "dependency-planner",
+            "summary": "Dependency fields are contradictory: `dependencies[slug]` and `ordered_features[*].dependencies` are empty arrays for all features while `decisions[*].depends_on` declares non-empty prerequisites."
+          },
+          {
+            "issue_id": "PM-015",
+            "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+            "risk": "Feature generation order may violate prerequisites.",
+            "step": "dependency-planner",
+            "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+          }
+        ],
+        "iteration": 5,
+        "pm_feedback": {
+          "criteria": {
+            "dependency_alignment": "fail",
+            "feature_specificity": "pass",
+            "journey_specificity": "pass"
+          },
+          "loop_change_summary": "## design.md diff\ndesign.md: no changes.\n\n## ux-ui.md diff\n--- previous/ux-ui.md\n+++ current/ux-ui.md\n@@ -2,98 +2,67 @@\n \n ## User journeys\n \n-### Journey 1: Bootstrap + safe template reapply\n-- **User outcome:** New/existing repos become execution-ready with idempotent reruns (`bootstrap-safe-template-reapply`).\n-- **Entry:** User runs the bootstrap command in a local repo.\n-- **Critical interaction:** When file conflicts exist, CLI offers only `overwrite`, `merge`, or `skip`; choice is explicit per file group.\n-- **Exit signal:** CLI reports applied/skipped files and confirms safe rerun behavior.\n+### Journey 1: Make a repo execution-ready, then reapply safely\n+- **Outcomes covered:** New/existing repos become execution-ready with idempotent reruns (`bootstrap-safe-template-reapply`).\n+- User runs bootstrap in a local repo.\n+- If template conflicts exist, CLI asks `overwrite`, `merge`, or `skip` and shows scope before applying.\n+- Success is a concise summary with applied/skipped items and explicit rerun safety.\n \n-### Journey 2: Deterministic work-item execution with explicit gates\n-- **User outcome:** Plan -> Patch -> Test -> Report is predictable and auditable (`deterministic-work-item-execution-with-explicit-gates`).\n-- **Entry:** Human PO/user starts execution command.\n-- **Critical interactions:** preflight summary, deterministic risk classification, HIGH-risk approval gate, role handoffs (planner -> reviewer -> patcher -> tester -> reporter).\n-- **Exit signal:** Ticket has complete execution evidence and gate outcomes.\n+### Journey 2: Move one ticket through deterministic gates\n+- **Outcomes covered:** Plan -> Patch -> Test -> Report is predictable and auditable (`deterministic-work-item-execution-with-explicit-gates`); cleaner role separation and plan quality (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`); better regression resistance via policy/smoke checks (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`).\n+- Human PO/user starts execution; system emits preflight (scope, risk, files-to-change, TDD plan, DoD).\n+- HIGH risk halts at `Awaiting PO Approval` until explicit approval.\n+- Planner -> Plan Reviewer -> Patcher -> Tester -> Reporter handoffs are explicit; failed review/test/report loops return to Planner.\n \n-### Journey 3: Output offload + structured logs + shared runner\n-- **User outcome:** Noisy output is offloaded and every step is traceable (`output-offload-structured-logs-shared-runner`).\n-- **Entry:** Any noisy command (tests, scans, logs).\n-- **Critical interaction:** CLI prints compact status plus offload pointer IDs instead of large inline output.\n-- **Exit signal:** Artifacts exist in `.offload/` and `logs/<WI>/<step>.log` with timestamps and role/step prefixes.\n+### Journey 3: Keep traceability high and prompt noise low\n+- **Outcomes covered:** Noisy output stays token-efficient and every step is traceable (`output-offload-structured-logs-shared-runner`).\n+- During noisy steps, CLI shows pointer ids and short status instead of long inline output.\n+- User debugs from `.offload/<id>.txt` and `logs/<WI>/<step>.log` with timestamped prefixes.\n \n-### Journey 4: Resume safety + fail-closed commit gate + scoped autofix\n-- **User outcome:** Interrupted runs resume safely and commits require complete evidence (`resume-safety-fail-closed-commit-gate-scoped-autofix`).\n... (truncated)\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -4,56 +4,64 @@\n       \"depends_on\": \"[]\",\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n-      \"rationale\": \"Establishes the template and tooling baseline required for all downstream workflow hardening.\",\n-      \"reason_codes\": \"['FOUNDATION', 'IDEMPOTENT_ENTRYPOINT']\"\n+      \"order_index\": \"1\",\n+      \"rationale\": \"Sets the idempotent template/tooling baseline that all downstream workflow features build on.\",\n+      \"reason_codes\": \"['FOUNDATION', 'ROOT_ONLY', 'IDEMPOTENT_ENTRYPOINT']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply']\",\n       \"feature_slug\": \"output-offload-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n-      \"rationale\": \"Provides shared runner metadata, structured logs, and offload primitives used by execution and validation features.\",\n+      \"order_index\": \"2\",\n+      \"rationale\": \"Introduces shared runner metadata, structured logs, and offload primitives required by later orchestration and validation steps.\",\n       \"reason_codes\": \"['SHARED_INFRA', 'OBSERVABILITY', 'TOKEN_EFFICIENCY']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply', 'output-offload-structured-logs-shared-runner']\",\n       \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates\",\n       \"id\": \"order-003\",\n-      \"rationale\": \"Builds deterministic Plan -> Patch -> Test -> Report and authority/risk gates on top of established runner/logging/offload infrastructure.\",\n+      \"order_index\": \"3\",\n+      \"rationale\": \"Implements deterministic Plan -> Patch -> Test -> Report and authority/risk gates on top of established infra and evidence capture.\",\n       \"reason_codes\": \"['EXECUTION_CORE', 'GATE_ENFORCEMENT']\"\n     },\n     {\n       \"depends_on\": \"['bootstrap-safe-template-reapply', 'deterministic-work-item-execution-with-explicit-gates']\",\n       \"feature_slug\": \"single-worktree-orchestration-template-drift-hardening\",\n       \"id\": \"order-004\",\n-      \"rationale\": \"Applies single-worktree policy and drift recovery after deterministic orchestration semantics are in place.\",\n+      \"order_index\": \"4\",\n+      \"rationale\": \"Applies single-worktree policy and deterministic drift handling after core orchestration semantics exist.\",\n       \"reason_codes\": \"['WORKTREE_POLICY', 'RECOVERY_HARDENING']\"\n     },\n     {\n... (truncated)",
+          "raw_issues": [
+            {
+              "remediation": "Edit `feature-order.json` in top-level `decisions[*].depends_on`; replace each stringified list with a real JSON array of slug strings, and consider this fixed only when every `depends_on` is valid JSON and references only earlier `ordered_feature_slugs` (with `bootstrap-safe-template-reapply` as the only empty array root).",
+              "risk": "High: dependency parsers can misread prerequisites and allow out-of-order execution that bypasses workflow hardening gates.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` stores `decisions[*].depends_on` as string literals (e.g., \"['bootstrap-safe-template-reapply']\") instead of real JSON arrays, so prerequisites are not machine-actionable."
+            },
+            {
+              "remediation": "Edit `feature-order.json` in top-level `dependencies` and `ordered_features[*].dependencies`; populate both from the same per-slug arrays used in `decisions[*].depends_on`, and consider this fixed only when all three dependency representations are identical for every slug and every non-root feature has at least one earlier prerequisite.",
+              "risk": "High: execution tooling cannot enforce root-only ordering or prerequisite gates because canonical dependency sources disagree.",
+              "step": "dependency-planner",
+              "summary": "Dependency fields are contradictory: `dependencies[slug]` and `ordered_features[*].dependencies` are empty arrays for all features while `decisions[*].depends_on` declares non-empty prerequisites."
+            }
+          ],
+          "review_issues": [
+            {
+              "issue_id": "PM-001",
+              "remediation": "Apply targeted updates for architect owner TODOs and PM feedback, then return updated artifact content.",
+              "risk": "PM blockers may persist across retries without concrete progress.",
+              "step": "architect",
+              "summary": "Architect returned unchanged artifact despite actionable PM TODO/feedback."
+            },
+            {
+              "issue_id": "PM-002",
+              "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+              "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+              "step": "ux",
+              "summary": "UX edited sections outside declared changed_sections: user journeys, workflows"
+            },
+            {
+              "issue_id": "PM-003",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Bootstrap + safe template reapply'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Bootstrap + safe template reapply'"
+            },
+            {
+              "issue_id": "PM-004",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Deterministic work-item execution with explicit gates'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Deterministic work-item execution with explicit gates'"
+            },
+            {
+              "issue_id": "PM-005",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Output offload + structured logs + shared runner'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Output offload + structured logs + shared runner'"
+            },
+            {
+              "issue_id": "PM-006",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Resume safety + fail-closed commit gate + scoped autofix'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Resume safety + fail-closed commit gate + scoped autofix'"
+            },
+            {
+              "issue_id": "PM-007",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Single-worktree orchestration + template-drift hardening'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Single-worktree orchestration + template-drift hardening'"
+            },
+            {
+              "issue_id": "PM-008",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'"
+            },
+            {
+              "issue_id": "PM-009",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Anti-hardcode test policy + synthetic end-to-end smoke feature'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Anti-hardcode test policy + synthetic end-to-end smoke feature'"
+            },
+            {
+              "issue_id": "PM-010",
+              "remediation": "Ensure ux-ui.md journeys/workflows include 'Incremental PRD-to-features + post-run learning loop'.",
+              "risk": "Feature may be generated without UX journey/workflow alignment.",
+              "step": "ux",
+              "summary": "ux-ui.md does not mention feature 'Incremental PRD-to-features + post-run learning loop'"
+            },
+            {
+              "issue_id": "PM-011",
+              "remediation": "For each PM issue, specify target artifact, target section/heading, and explicit acceptance condition.",
+              "risk": "Ambiguous PM feedback can trigger noisy rewrites or failed retries.",
+              "step": "product-manager",
+              "summary": "PM issue for step 'dependency-planner' is ambiguous; missing acceptance condition."
+            },
+            {
+              "issue_id": "PM-012",
+              "remediation": "For each PM issue, specify target artifact, target section/heading, and explicit acceptance condition.",
+              "risk": "Ambiguous PM feedback can trigger noisy rewrites or failed retries.",
+              "step": "product-manager",
+              "summary": "PM issue for step 'dependency-planner' is ambiguous; missing acceptance condition."
+            },
+            {
+              "issue_id": "PM-013",
+              "remediation": "Edit `feature-order.json` in top-level `decisions[*].depends_on`; replace each stringified list with a real JSON array of slug strings, and consider this fixed only when every `depends_on` is valid JSON and references only earlier `ordered_feature_slugs` (with `bootstrap-safe-template-reapply` as the only empty array root).",
+              "risk": "High: dependency parsers can misread prerequisites and allow out-of-order execution that bypasses workflow hardening gates.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` stores `decisions[*].depends_on` as string literals (e.g., \"['bootstrap-safe-template-reapply']\") instead of real JSON arrays, so prerequisites are not machine-actionable."
+            },
+            {
+              "issue_id": "PM-014",
+              "remediation": "Edit `feature-order.json` in top-level `dependencies` and `ordered_features[*].dependencies`; populate both from the same per-slug arrays used in `decisions[*].depends_on`, and consider this fixed only when all three dependency representations are identical for every slug and every non-root feature has at least one earlier prerequisite.",
+              "risk": "High: execution tooling cannot enforce root-only ordering or prerequisite gates because canonical dependency sources disagree.",
+              "step": "dependency-planner",
+              "summary": "Dependency fields are contradictory: `dependencies[slug]` and `ordered_features[*].dependencies` are empty arrays for all features while `decisions[*].depends_on` declares non-empty prerequisites."
+            },
+            {
+              "issue_id": "PM-015",
+              "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+              "risk": "Feature generation order may violate prerequisites.",
+              "step": "dependency-planner",
+              "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+            }
+          ],
+          "role_decision": "BLOCK",
+          "todo_updates": [
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "done",
+              "task_id": "PM-TODO-034"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "done",
+              "task_id": "PM-TODO-035"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-003",
+              "status": "carry",
+              "task_id": "PM-TODO-036"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-004",
+              "status": "carry",
+              "task_id": "PM-TODO-037"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-005",
+              "status": "carry",
+              "task_id": "PM-TODO-038"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "open",
+              "task_id": "PM-TODO-039"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "open",
+              "task_id": "PM-TODO-040"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-003",
+              "status": "open",
+              "task_id": "PM-TODO-041"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-004",
+              "status": "open",
+              "task_id": "PM-TODO-042"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-005",
+              "status": "open",
+              "task_id": "PM-TODO-043"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-006",
+              "status": "open",
+              "task_id": "PM-TODO-044"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-007",
+              "status": "open",
+              "task_id": "PM-TODO-045"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-008",
+              "status": "open",
+              "task_id": "PM-TODO-046"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-009",
+              "status": "open",
+              "task_id": "PM-TODO-047"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-010",
+              "status": "open",
+              "task_id": "PM-TODO-048"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-012",
+              "status": "open",
+              "task_id": "PM-TODO-049"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-013",
+              "status": "open",
+              "task_id": "PM-TODO-050"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-014",
+              "status": "open",
+              "task_id": "PM-TODO-051"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-015",
+              "status": "open",
+              "task_id": "PM-TODO-052"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-003",
+              "status": "done",
+              "task_id": "PM-TODO-036"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-004",
+              "status": "done",
+              "task_id": "PM-TODO-037"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-005",
+              "status": "done",
+              "task_id": "PM-TODO-038"
+            }
+          ]
+        },
+        "pm_role_decision": "BLOCK"
+      },
+      {
+        "decision": "max-block-limit",
+        "gate_id": "PM-BLOCK-006",
+        "issue_count": 6,
+        "issues": [
+          {
+            "issue_id": "PM-001",
+            "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+            "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+            "step": "architect",
+            "summary": "Architect edited sections outside declared changed_sections: build strategy, feature alignment map"
+          },
+          {
+            "issue_id": "PM-002",
+            "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+            "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+            "step": "ux",
+            "summary": "UX edited sections outside declared changed_sections: user journeys, workflows"
+          },
+          {
+            "issue_id": "PM-003",
+            "remediation": "Edit `feature-order.json` in `decisions[*].depends_on` and replace every stringified list with a real JSON array of slug strings; acceptance condition: all `depends_on` values are JSON arrays and only `bootstrap-safe-template-reapply` has an empty array.",
+            "risk": "Dependency parsing can misclassify prerequisites and break deterministic feature sequencing.",
+            "step": "dependency-planner",
+            "summary": "`feature-order.json` stores `decisions[*].depends_on` as stringified lists instead of real JSON arrays, so prerequisite data is not machine-actionable."
+          },
+          {
+            "issue_id": "PM-004",
+            "remediation": "Edit `feature-order.json` in `dependencies` to set canonical prerequisite arrays per slug; acceptance condition: every non-root feature has at least one prerequisite and each prerequisite references an earlier slug in `ordered_feature_slugs`.",
+            "risk": "Non-root features can be treated as dependency-free, allowing invalid execution order.",
+            "step": "dependency-planner",
+            "summary": "`dependencies[slug]` is `[]` for every feature, contradicting declared prerequisites in decisions."
+          },
+          {
+            "issue_id": "PM-005",
+            "remediation": "Edit `feature-order.json` in `ordered_features[*].dependencies` to mirror canonical prerequisites; acceptance condition: per slug, `decisions[*].depends_on`, `dependencies[slug]`, and `ordered_features[*].dependencies` are identical arrays.",
+            "risk": "Topological validation and downstream tooling can pass an invalid graph and undermine gate reliability.",
+            "step": "dependency-planner",
+            "summary": "`ordered_features[*].dependencies` is also `[]` for every feature, so dependency representations are inconsistent across the artifact."
+          },
+          {
+            "issue_id": "PM-006",
+            "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+            "risk": "Feature generation order may violate prerequisites.",
+            "step": "dependency-planner",
+            "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+          }
+        ],
+        "iteration": 6,
+        "pm_feedback": {
+          "criteria": {
+            "dependency_alignment": "fail",
+            "feature_specificity": "pass",
+            "journey_specificity": "pass"
+          },
+          "loop_change_summary": "## design.md diff\n--- previous/design.md\n+++ current/design.md\n@@ -54,18 +54,23 @@\n - Design must preserve idempotency, recoverability, and fail-closed commit behavior as non-negotiables.\n \n ## Build strategy\n-1. Foundation hardening (features 1, 3): stabilize template manager, shared runner metadata injection, structured logs, and offload plumbing.\n-2. Deterministic orchestration (features 2, 6): enforce state machine gates, role prompts, and plan-review checkpoint before any code patching.\n-3. Recovery and integrity (features 4, 5): add resume checkpoints, fail-closed commit gate, single-worktree policy enforcement, and drift repair loops.\n-4. Quality resilience (feature 7): enforce anti-hardcode testing policy and provide synthetic end-to-end smoke execution to catch workflow regressions early.\n-5. Controlled evolution (feature 8): incremental PRD-to-features reconciler plus human-gated learning-loop proposals.\n+1. Foundation baseline (feature 1): keep bootstrap and safe template reapply as the only root capability so every later phase inherits idempotent repo setup.\n+2. Shared infra and observability (feature 3): establish shared runner metadata, structured logs, and offload pointers used by all downstream execution and validation gates.\n+3. Deterministic orchestration core (feature 2): enforce gated Plan -> Patch -> Test -> Report, authority controls, and HIGH-risk stop conditions.\n+4. Worktree and drift hardening (feature 5): apply single-worktree orchestration and deterministic template-drift repair once orchestration semantics are stable.\n+5. Resume and commit integrity (feature 4): add resume checkpoints, scoped autofix recovery, and fail-closed evidence-based commit gating.\n+6. Role governance (feature 6): layer role prompts and Plan Reviewer enforcement after core gates and recovery behavior are in place.\n+7. Quality resilience (feature 7): enforce anti-hardcode test policy and synthetic end-to-end smoke execution to catch regression paths early.\n+8. Controlled evolution (feature 8): run incremental PRD-to-features reconciliation and human-gated learning-loop proposals without rewriting completed work.\n \n-Dependency-alignment acceptance condition for downstream ordering artifacts: `bootstrap-safe-template-reapply` is the only root feature; every other feature must declare at least one prerequisite from an earlier phase so prerequisite-gated workflow hardening remains enforceable.\n+Dependency-alignment acceptance condition for downstream ordering artifacts: `bootstrap-safe-template-reapply` is the only root feature and every other feature must declare at least one prerequisite from an earlier phase.\n \n-Release sequencing is reliability-first because dependency decisions are currently empty; ordering follows risk reduction and MVP hardening goals rather than adding new product surface area. If dependency artifacts diverge from this contract, build readiness is blocked until prerequisite arrays are corrected.\n+Release sequencing is reliability-first because dependency decisions are currently empty; ordering follows risk reduction and MVP hardening goals rather than new product surface area. If dependency artifacts diverge from this contract, build readiness is blocked until prerequisite arrays are corrected.\n \n ## Feature alignment map\n-Dependency-intent acceptance condition: bootstrap is the only zero-prerequisite row; every other row depends on modules established by earlier features in this map.\n+Dependency-intent acceptance condition: bootstrap is the only zero-prerequisite row and every other row depends on modules established by earlier features in this map.\n+\n+UX alignment anchor from `ux-ui.md`: Journey 1 maps to feature 1, Journey 2 maps to features 2/6/7, Journey 3 maps to feature 3, Journey 4 maps to features 4/5, and Journey 5 maps to feature 8.\n \n | Feature | Outcome and notes | Architectural alignment |\n | --- | --- | --- |\n\n## ux-ui.md diff\n--- previous/ux-ui.md\n+++ current/ux-ui.md\n@@ -3,63 +3,64 @@\n ## User journeys\n \n ### Journey 1: Make a repo execution-ready, then reapply safely\n-- **Outcomes covered:** New/existing repos become execution-ready with idempotent reruns (`bootstrap-safe-template-reapply`).\n+- **Outcomes covered:** **Bootstrap + safe template reapply** (`bootstrap-safe-template-reapply`) -> new/existing repos become execution-ready with idempotent reruns.\n - User runs bootstrap in a local repo.\n - If template conflicts exist, CLI asks `overwrite`, `merge`, or `skip` and shows scope before applying.\n - Success is a concise summary with applied/skipped items and explicit rerun safety.\n \n ### Journey 2: Move one ticket through deterministic gates\n-- **Outcomes covered:** Plan -> Patch -> Test -> Report is predictable and auditable (`deterministic-work-item-execution-with-explicit-gates`); cleaner role separation and plan quality (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`); better regression resistance via policy/smoke checks (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`).\n+- **Outcomes covered:** **Deterministic work-item execution with explicit gates** (`deterministic-work-item-execution-with-explicit-gates`) -> Plan -> Patch -> Test -> Report is predictable and auditable; **Orchestrator roles + Plan Reviewer gate + role-specific prompts** (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) -> cleaner role separation and plan quality; **Anti-hardcode test policy + synthetic end-to-end smoke feature** (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) -> better regression resistance via policy/smoke checks.\n - Human PO/user starts execution; system emits preflight (scope, risk, files-to-change, TDD plan, DoD).\n - HIGH risk halts at `Awaiting PO Approval` until explicit approval.\n - Planner -> Plan Reviewer -> Patcher -> Tester -> Reporter handoffs are explicit; failed review/test/report loops return to Planner.\n \n ### Journey 3: Keep traceability high and prompt noise low\n-- **Outcomes covered:** Noisy output stays token-efficient and every step is traceable (`output-offload-structured-logs-shared-runner`).\n+- **Outcomes covered:** **Output offload + structured logs + shared runner** (`output-offload-structured-logs-shared-runner`) -> noisy output stays token-efficient and every step is traceable.\n - During noisy steps, CLI shows pointer ids and short status instead of long inline output.\n - User debugs from `.offload/<id>.txt` and `logs/<WI>/<step>.log` with timestamped prefixes.\n \n ### Journey 4: Resume safely and block incomplete commits\n-- **Outcomes covered:** Interrupted runs resume safely; commits require complete evidence (`resume-safety-fail-closed-commit-gate-scoped-autofix`); reliable collaboration in a single feature worktree with drift hardening (`single-worktree-orchestration-template-drift-hardening`).\n+- **Outcomes covered:** **Resume safety + fail-closed commit gate + scoped autofix** (`resume-safety-fail-closed-commit-gate-scoped-autofix`) -> interrupted runs resume safely and commits require complete evidence; **Single-worktree orchestration + template-drift hardening** (`single-worktree-orchestration-template-drift-hardening`) -> reliable collaboration in a single feature worktree with drift hardening.\n - On rerun, system resumes in place, preserves active WIP by default, and re-runs tests/CI.\n - Drift repair is scoped and deterministic; unresolved drift returns explicit remediation.\n - Commit remains blocked until required planner/tester/reporter evidence is complete.\n \n ### Journey 5: Evolve docs incrementally after each run\n-- **Outcomes covered:** Feature docs evolve safely and repeated failures are reduced (`incremental-prd-to-features-post-run-learning-loop`).\n+- **Outcomes covered:** **Incremental PRD-to-features + post-run learning loop** (`incremental-prd-to-features-post-run-learning-loop`) -> feature docs evolve safely and repeated failures are reduced.\n - PRD-to-features adds only missing items and skips `Status: Done`.\n - Failures can produce improvement proposals for human approval (not auto-applied).\n \n ## Workflows\n \n... (truncated)\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -5,7 +5,8 @@\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n       \"order_index\": \"1\",\n-      \"rationale\": \"Sets the idempotent template/tooling baseline that all downstream workflow features build on.\",\n+      \"pm_feedback_resolution\": \"{'target_artifact': 'feature-order.json', 'target_sections': ['decisions[*].depends_on', 'dependencies', 'ordered_features[*].dependencies', 'ordered_feature_slugs'], 'acceptance_conditions': ['depends_on values are real JSON arrays of slug strings (not stringified arrays)', 'bootstrap-safe-template-reapply is the only empty-array root', 'every non-root feature has at least one prerequisite', 'all prerequisites reference only earlier ordered_feature_slugs entries', 'dependency arrays are identical across decisions/dependencies/ordered_features representations'], 'addresses_pm_issue_ids': ['PM-011', 'PM-012', 'PM-013', 'PM-014', 'PM-015'], 'addresses_todo_ids': ['PM-TODO-049', 'PM-TODO-050', 'PM-TODO-051', 'PM-TODO-052']}\",\n+      \"rationale\": \"Establishes the idempotent template/tooling baseline all downstream workflow hardening depends on.\",\n       \"reason_codes\": \"['FOUNDATION', 'ROOT_ONLY', 'IDEMPOTENT_ENTRYPOINT']\"\n     },\n     {\n@@ -13,7 +14,7 @@\n       \"feature_slug\": \"output-offload-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n       \"order_index\": \"2\",\n-      \"rationale\": \"Introduces shared runner metadata, structured logs, and offload primitives required by later orchestration and validation steps.\",\n+      \"rationale\": \"Introduces shared runner metadata, structured logs, and output-offload primitives required by orchestration and validation stages.\",\n       \"reason_codes\": \"['SHARED_INFRA', 'OBSERVABILITY', 'TOKEN_EFFICIENCY']\"\n     },\n     {\n@@ -21,7 +22,7 @@\n       \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates\",\n       \"id\": \"order-003\",\n       \"order_index\": \"3\",\n-      \"rationale\": \"Implements deterministic Plan -> Patch -> Test -> Report and authority/risk gates on top of established infra and evidence capture.\",\n+      \"rationale\": \"Builds deterministic Plan -> Patch -> Test -> Report and authority/risk gates on top of baseline templates and evidence infrastructure.\",\n       \"reason_codes\": \"['EXECUTION_CORE', 'GATE_ENFORCEMENT']\"\n     },\n     {\n@@ -29,7 +30,7 @@\n       \"feature_slug\": \"single-worktree-orchestration-template-drift-hardening\",\n       \"id\": \"order-004\",\n       \"order_index\": \"4\",\n-      \"rationale\": \"Applies single-worktree policy and deterministic drift handling after core orchestration semantics exist.\",\n+      \"rationale\": \"Applies single-worktree policy and deterministic template-drift recovery after core orchestration semantics are enforced.\",\n       \"reason_codes\": \"['WORKTREE_POLICY', 'RECOVERY_HARDENING']\"\n     },\n     {\n@@ -37,7 +38,7 @@\n... (truncated)",
+          "raw_issues": [
+            {
+              "remediation": "Edit `feature-order.json` in `decisions[*].depends_on` and replace every stringified list with a real JSON array of slug strings; acceptance condition: all `depends_on` values are JSON arrays and only `bootstrap-safe-template-reapply` has an empty array.",
+              "risk": "Dependency parsing can misclassify prerequisites and break deterministic feature sequencing.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` stores `decisions[*].depends_on` as stringified lists instead of real JSON arrays, so prerequisite data is not machine-actionable."
+            },
+            {
+              "remediation": "Edit `feature-order.json` in `dependencies` to set canonical prerequisite arrays per slug; acceptance condition: every non-root feature has at least one prerequisite and each prerequisite references an earlier slug in `ordered_feature_slugs`.",
+              "risk": "Non-root features can be treated as dependency-free, allowing invalid execution order.",
+              "step": "dependency-planner",
+              "summary": "`dependencies[slug]` is `[]` for every feature, contradicting declared prerequisites in decisions."
+            },
+            {
+              "remediation": "Edit `feature-order.json` in `ordered_features[*].dependencies` to mirror canonical prerequisites; acceptance condition: per slug, `decisions[*].depends_on`, `dependencies[slug]`, and `ordered_features[*].dependencies` are identical arrays.",
+              "risk": "Topological validation and downstream tooling can pass an invalid graph and undermine gate reliability.",
+              "step": "dependency-planner",
+              "summary": "`ordered_features[*].dependencies` is also `[]` for every feature, so dependency representations are inconsistent across the artifact."
+            }
+          ],
+          "review_issues": [
+            {
+              "issue_id": "PM-001",
+              "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+              "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+              "step": "architect",
+              "summary": "Architect edited sections outside declared changed_sections: build strategy, feature alignment map"
+            },
+            {
+              "issue_id": "PM-002",
+              "remediation": "Keep edits limited to declared headings or update changed_sections to accurately describe all modified sections.",
+              "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+              "step": "ux",
+              "summary": "UX edited sections outside declared changed_sections: user journeys, workflows"
+            },
+            {
+              "issue_id": "PM-003",
+              "remediation": "Edit `feature-order.json` in `decisions[*].depends_on` and replace every stringified list with a real JSON array of slug strings; acceptance condition: all `depends_on` values are JSON arrays and only `bootstrap-safe-template-reapply` has an empty array.",
+              "risk": "Dependency parsing can misclassify prerequisites and break deterministic feature sequencing.",
+              "step": "dependency-planner",
+              "summary": "`feature-order.json` stores `decisions[*].depends_on` as stringified lists instead of real JSON arrays, so prerequisite data is not machine-actionable."
+            },
+            {
+              "issue_id": "PM-004",
+              "remediation": "Edit `feature-order.json` in `dependencies` to set canonical prerequisite arrays per slug; acceptance condition: every non-root feature has at least one prerequisite and each prerequisite references an earlier slug in `ordered_feature_slugs`.",
+              "risk": "Non-root features can be treated as dependency-free, allowing invalid execution order.",
+              "step": "dependency-planner",
+              "summary": "`dependencies[slug]` is `[]` for every feature, contradicting declared prerequisites in decisions."
+            },
+            {
+              "issue_id": "PM-005",
+              "remediation": "Edit `feature-order.json` in `ordered_features[*].dependencies` to mirror canonical prerequisites; acceptance condition: per slug, `decisions[*].depends_on`, `dependencies[slug]`, and `ordered_features[*].dependencies` are identical arrays.",
+              "risk": "Topological validation and downstream tooling can pass an invalid graph and undermine gate reliability.",
+              "step": "dependency-planner",
+              "summary": "`ordered_features[*].dependencies` is also `[]` for every feature, so dependency representations are inconsistent across the artifact."
+            },
+            {
+              "issue_id": "PM-006",
+              "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
+              "risk": "Feature generation order may violate prerequisites.",
+              "step": "dependency-planner",
+              "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+            }
+          ],
+          "role_decision": "BLOCK",
+          "todo_updates": [
+            {
+              "action": "update",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "done",
+              "task_id": "PM-TODO-039"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "done",
+              "task_id": "PM-TODO-040"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-003",
+              "status": "done",
+              "task_id": "PM-TODO-041"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-004",
+              "status": "done",
+              "task_id": "PM-TODO-042"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-005",
+              "status": "done",
+              "task_id": "PM-TODO-043"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-006",
+              "status": "done",
+              "task_id": "PM-TODO-044"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-007",
+              "status": "done",
+              "task_id": "PM-TODO-045"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-008",
+              "status": "done",
+              "task_id": "PM-TODO-046"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-009",
+              "status": "done",
+              "task_id": "PM-TODO-047"
+            },
+            {
+              "action": "update",
+              "owner": "ux",
+              "source_issue_id": "PM-010",
+              "status": "done",
+              "task_id": "PM-TODO-048"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-012",
+              "status": "done",
+              "task_id": "PM-TODO-049"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-013",
+              "status": "carry",
+              "task_id": "PM-TODO-050"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-014",
+              "status": "carry",
+              "task_id": "PM-TODO-051"
+            },
+            {
+              "action": "update",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-015",
+              "status": "carry",
+              "task_id": "PM-TODO-052"
+            },
+            {
+              "action": "auto_create",
+              "owner": "architect",
+              "source_issue_id": "PM-001",
+              "status": "open",
+              "task_id": "PM-TODO-053"
+            },
+            {
+              "action": "auto_create",
+              "owner": "ux",
+              "source_issue_id": "PM-002",
+              "status": "open",
+              "task_id": "PM-TODO-054"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-003",
+              "status": "open",
+              "task_id": "PM-TODO-055"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-004",
+              "status": "open",
+              "task_id": "PM-TODO-056"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-005",
+              "status": "open",
+              "task_id": "PM-TODO-057"
+            },
+            {
+              "action": "auto_create",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-006",
+              "status": "open",
+              "task_id": "PM-TODO-058"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-013",
+              "status": "done",
+              "task_id": "PM-TODO-050"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-014",
+              "status": "done",
+              "task_id": "PM-TODO-051"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "dependency-planner",
+              "source_issue_id": "PM-015",
+              "status": "done",
+              "task_id": "PM-TODO-052"
+            }
+          ]
+        },
+        "pm_role_decision": "BLOCK"
       }
     ]
   },
-  "version": 1
+  "pm_todos": {
+    "done_count": 52,
+    "items": [
+      {
+        "created_loop": 1,
+        "description": "Normalize and reconcile dependency data in `feature-order.json` so `decisions[*].depends_on`, `dependencies[slug]`, and `ordered_features[*].dependencies` are consistent JSON arrays for every feature slug.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-DEP-001",
+        "status": "done",
+        "task_id": "PM-TODO-001",
+        "updated_loop": 1
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `design.md` under `## Feature alignment map` now explicitly includes 'Bootstrap + safe template reapply' with project-specific outcome and architecture mapping.",
+        "owner": "architect",
+        "source_issue_id": "PM-001",
+        "status": "done",
+        "task_id": "PM-TODO-002",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` under `### Journey 1` now explicitly covers 'Bootstrap + safe template reapply' with concrete entry/interaction/exit signals.",
+        "owner": "ux",
+        "source_issue_id": "PM-002",
+        "status": "done",
+        "task_id": "PM-TODO-003",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `design.md` under `## Feature alignment map` now explicitly includes 'Deterministic work-item execution with explicit gates' with architecture mapping.",
+        "owner": "architect",
+        "source_issue_id": "PM-003",
+        "status": "done",
+        "task_id": "PM-TODO-004",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` under `### Journey 2` now explicitly covers 'Deterministic work-item execution with explicit gates'.",
+        "owner": "ux",
+        "source_issue_id": "PM-004",
+        "status": "done",
+        "task_id": "PM-TODO-005",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `design.md` under `## Feature alignment map` now explicitly includes 'Output offload + structured logs + shared runner'.",
+        "owner": "architect",
+        "source_issue_id": "PM-005",
+        "status": "done",
+        "task_id": "PM-TODO-006",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` under `### Journey 3` now explicitly covers 'Output offload + structured logs + shared runner'.",
+        "owner": "ux",
+        "source_issue_id": "PM-006",
+        "status": "done",
+        "task_id": "PM-TODO-007",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `design.md` under `## Feature alignment map` now explicitly includes 'Resume safety + fail-closed commit gate + scoped autofix'.",
+        "owner": "architect",
+        "source_issue_id": "PM-007",
+        "status": "done",
+        "task_id": "PM-TODO-008",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` under `### Journey 4` now explicitly covers 'Resume safety + fail-closed commit gate + scoped autofix'.",
+        "owner": "ux",
+        "source_issue_id": "PM-008",
+        "status": "done",
+        "task_id": "PM-TODO-009",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `design.md` under `## Feature alignment map` now explicitly includes 'Single-worktree orchestration + template-drift hardening'.",
+        "owner": "architect",
+        "source_issue_id": "PM-009",
+        "status": "done",
+        "task_id": "PM-TODO-010",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` under `### Journey 5` now explicitly covers 'Single-worktree orchestration + template-drift hardening'.",
+        "owner": "ux",
+        "source_issue_id": "PM-010",
+        "status": "done",
+        "task_id": "PM-TODO-011",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `design.md` under `## Feature alignment map` now explicitly includes 'Orchestrator roles + Plan Reviewer gate + role-specific prompts'.",
+        "owner": "architect",
+        "source_issue_id": "PM-011",
+        "status": "done",
+        "task_id": "PM-TODO-012",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` under `### Journey 6` and `### Workflow E` now explicitly cover orchestrator roles and plan-review gating.",
+        "owner": "ux",
+        "source_issue_id": "PM-012",
+        "status": "done",
+        "task_id": "PM-TODO-013",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `design.md` under `## Feature alignment map` now explicitly includes 'Anti-hardcode test policy + synthetic end-to-end smoke feature'.",
+        "owner": "architect",
+        "source_issue_id": "PM-013",
+        "status": "done",
+        "task_id": "PM-TODO-014",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` under `### Journey 7` and `### Workflow F` now explicitly cover anti-hardcode policy and synthetic smoke behavior.",
+        "owner": "ux",
+        "source_issue_id": "PM-014",
+        "status": "done",
+        "task_id": "PM-TODO-015",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` Journey 7 now includes feature-specific semantics ('better regression resistance' and 'early workflow break detection').",
+        "owner": "ux",
+        "source_issue_id": "PM-015",
+        "status": "done",
+        "task_id": "PM-TODO-016",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `design.md` under `## Feature alignment map` now explicitly includes 'Incremental PRD-to-features + post-run learning loop'.",
+        "owner": "architect",
+        "source_issue_id": "PM-016",
+        "status": "done",
+        "task_id": "PM-TODO-017",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Closed: `ux-ui.md` under `### Journey 8` and `### Workflow G` now explicitly cover incremental PRD-to-features and post-run learning loop behavior.",
+        "owner": "ux",
+        "source_issue_id": "PM-017",
+        "status": "done",
+        "task_id": "PM-TODO-018",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Carry forward: reconcile `feature-order.json` so dependency data is consistent and machine-readable across `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies` using real JSON arrays.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-018",
+        "status": "done",
+        "task_id": "PM-TODO-019",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 1,
+        "description": "Carry forward: resolve PM dependency gate by proving aligned prerequisite sets across all dependency fields before next review.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-019",
+        "status": "done",
+        "task_id": "PM-TODO-020",
+        "updated_loop": 2
+      },
+      {
+        "created_loop": 2,
+        "description": "Architect edited sections outside declared changed_sections: feature alignment map",
+        "owner": "architect",
+        "source_issue_id": "PM-001",
+        "status": "done",
+        "task_id": "PM-TODO-021",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Closed: current `ux-ui.md` candidate introduces no new out-of-scope section edits for journeys/workflows.",
+        "owner": "ux",
+        "source_issue_id": "PM-002",
+        "status": "done",
+        "task_id": "PM-TODO-022",
+        "updated_loop": 4
+      },
+      {
+        "created_loop": 2,
+        "description": "Closed: `ux-ui.md` section `### Journey 1` now explicitly covers `Bootstrap + safe template reapply` with entry, critical interaction, and exit signal.",
+        "owner": "ux",
+        "source_issue_id": "PM-003",
+        "status": "done",
+        "task_id": "PM-TODO-023",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Closed: `ux-ui.md` section `### Journey 2` now explicitly covers `Deterministic work-item execution with explicit gates` with concrete gate interactions.",
+        "owner": "ux",
+        "source_issue_id": "PM-004",
+        "status": "done",
+        "task_id": "PM-TODO-024",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Closed: `ux-ui.md` section `### Journey 3` now explicitly covers `Output offload + structured logs + shared runner` with pointer/log outcomes.",
+        "owner": "ux",
+        "source_issue_id": "PM-005",
+        "status": "done",
+        "task_id": "PM-TODO-025",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Closed: `ux-ui.md` section `### Journey 4` now explicitly covers `Resume safety + fail-closed commit gate + scoped autofix` with recovery and commit-block behavior.",
+        "owner": "ux",
+        "source_issue_id": "PM-006",
+        "status": "done",
+        "task_id": "PM-TODO-026",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Closed: `ux-ui.md` section `### Journey 5` now explicitly covers `Single-worktree orchestration + template-drift hardening` with role-boundary and drift-remediation semantics.",
+        "owner": "ux",
+        "source_issue_id": "PM-007",
+        "status": "done",
+        "task_id": "PM-TODO-027",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Carry forward: normalize `feature-order.json` dependency data so `decisions[*].depends_on`, `dependencies[slug]`, and `ordered_features[*].dependencies` are consistent real JSON arrays per slug.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-008",
+        "status": "done",
+        "task_id": "PM-TODO-028",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Carry forward: after normalization, verify dependency alignment end-to-end so ordered output reflects actual prerequisite sets and no dependent feature is represented as dependency-free.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-009",
+        "status": "done",
+        "task_id": "PM-TODO-029",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 3,
+        "description": "Closed: `design.md` now includes explicit dependency-intent acceptance conditions in Build strategy and Feature alignment map.",
+        "owner": "architect",
+        "source_issue_id": "PM-001",
+        "status": "done",
+        "task_id": "PM-TODO-030",
+        "updated_loop": 4
+      },
+      {
+        "created_loop": 3,
+        "description": "Closed: dependency-planner feedback now includes explicit acceptance conditions.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-003",
+        "status": "done",
+        "task_id": "PM-TODO-031",
+        "updated_loop": 4
+      },
+      {
+        "created_loop": 3,
+        "description": "Normalize `feature-order.json` so `decisions[*].depends_on`, `dependencies[slug]`, and `ordered_features[*].dependencies` store identical real JSON arrays per feature slug.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-004",
+        "status": "done",
+        "task_id": "PM-TODO-032",
+        "updated_loop": 4
+      },
+      {
+        "created_loop": 3,
+        "description": "After normalization, enforce dependency alignment by making bootstrap the only root and ensuring every other feature depends on earlier ordered slugs.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-005",
+        "status": "done",
+        "task_id": "PM-TODO-033",
+        "updated_loop": 4
+      },
+      {
+        "created_loop": 4,
+        "description": "Closed: current `design.md` remains project-specific/actionable with no new semantic architect gap requiring rework this loop.",
+        "owner": "architect",
+        "source_issue_id": "PM-001",
+        "status": "done",
+        "task_id": "PM-TODO-034",
+        "updated_loop": 5
+      },
+      {
+        "created_loop": 4,
+        "description": "Closed: current `ux-ui.md` was updated and now provides journey-specific, actionable interactions for the gated workflow.",
+        "owner": "ux",
+        "source_issue_id": "PM-002",
+        "status": "done",
+        "task_id": "PM-TODO-035",
+        "updated_loop": 5
+      },
+      {
+        "created_loop": 4,
+        "description": "Carry: convert `feature-order.json` `decisions[*].depends_on` from string literals to real JSON arrays of prerequisite slugs.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-003",
+        "status": "done",
+        "task_id": "PM-TODO-036",
+        "updated_loop": 5
+      },
+      {
+        "created_loop": 4,
+        "description": "Carry: align `feature-order.json` `dependencies[slug]` and `ordered_features[*].dependencies` with canonical prerequisites so non-root features are not dependency-free.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-004",
+        "status": "done",
+        "task_id": "PM-TODO-037",
+        "updated_loop": 5
+      },
+      {
+        "created_loop": 4,
+        "description": "Carry: keep PM dependency gate blocked until bootstrap is the only root and all dependency fields enforce identical prerequisite sets.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-005",
+        "status": "done",
+        "task_id": "PM-TODO-038",
+        "updated_loop": 5
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `design.md` is now updated with project-specific sequencing and alignment anchors.",
+        "owner": "architect",
+        "source_issue_id": "PM-001",
+        "status": "done",
+        "task_id": "PM-TODO-039",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now provides in-scope, feature-mapped journey/workflow content for this gate.",
+        "owner": "ux",
+        "source_issue_id": "PM-002",
+        "status": "done",
+        "task_id": "PM-TODO-040",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now explicitly names and maps `Bootstrap + safe template reapply` in Journey 1.",
+        "owner": "ux",
+        "source_issue_id": "PM-003",
+        "status": "done",
+        "task_id": "PM-TODO-041",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now explicitly names and maps `Deterministic work-item execution with explicit gates` in Journey 2.",
+        "owner": "ux",
+        "source_issue_id": "PM-004",
+        "status": "done",
+        "task_id": "PM-TODO-042",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now explicitly names and maps `Output offload + structured logs + shared runner` in Journey 3.",
+        "owner": "ux",
+        "source_issue_id": "PM-005",
+        "status": "done",
+        "task_id": "PM-TODO-043",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now explicitly names and maps `Resume safety + fail-closed commit gate + scoped autofix` in Journey 4.",
+        "owner": "ux",
+        "source_issue_id": "PM-006",
+        "status": "done",
+        "task_id": "PM-TODO-044",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now explicitly names and maps `Single-worktree orchestration + template-drift hardening` in Journey 4.",
+        "owner": "ux",
+        "source_issue_id": "PM-007",
+        "status": "done",
+        "task_id": "PM-TODO-045",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now explicitly names and maps `Orchestrator roles + Plan Reviewer gate + role-specific prompts` in Journey 2.",
+        "owner": "ux",
+        "source_issue_id": "PM-008",
+        "status": "done",
+        "task_id": "PM-TODO-046",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now explicitly names and maps `Anti-hardcode test policy + synthetic end-to-end smoke feature` in Journey 2.",
+        "owner": "ux",
+        "source_issue_id": "PM-009",
+        "status": "done",
+        "task_id": "PM-TODO-047",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: `ux-ui.md` now explicitly names and maps `Incremental PRD-to-features + post-run learning loop` in Journey 5.",
+        "owner": "ux",
+        "source_issue_id": "PM-010",
+        "status": "done",
+        "task_id": "PM-TODO-048",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Closed: dependency-planner feedback now includes explicit acceptance conditions.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-012",
+        "status": "done",
+        "task_id": "PM-TODO-049",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Convert `feature-order.json` `decisions[*].depends_on` from stringified lists to real JSON arrays of prerequisite slugs.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-013",
+        "status": "done",
+        "task_id": "PM-TODO-050",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Update `feature-order.json` `dependencies[slug]` to canonical prerequisite arrays so non-root features are not dependency-free.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-014",
+        "status": "done",
+        "task_id": "PM-TODO-051",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 5,
+        "description": "Align `ordered_features[*].dependencies` with canonical prerequisites and ensure all dependency sections are identical per slug.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-015",
+        "status": "done",
+        "task_id": "PM-TODO-052",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 6,
+        "description": "Architect edited sections outside declared changed_sections: build strategy, feature alignment map",
+        "owner": "architect",
+        "source_issue_id": "PM-001",
+        "status": "open",
+        "task_id": "PM-TODO-053",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 6,
+        "description": "UX edited sections outside declared changed_sections: user journeys, workflows",
+        "owner": "ux",
+        "source_issue_id": "PM-002",
+        "status": "open",
+        "task_id": "PM-TODO-054",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 6,
+        "description": "`feature-order.json` stores `decisions[*].depends_on` as stringified lists instead of real JSON arrays, so prerequisite data is not machine-actionable.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-003",
+        "status": "open",
+        "task_id": "PM-TODO-055",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 6,
+        "description": "`dependencies[slug]` is `[]` for every feature, contradicting declared prerequisites in decisions.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-004",
+        "status": "open",
+        "task_id": "PM-TODO-056",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 6,
+        "description": "`ordered_features[*].dependencies` is also `[]` for every feature, so dependency representations are inconsistent across the artifact.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-005",
+        "status": "open",
+        "task_id": "PM-TODO-057",
+        "updated_loop": 6
+      },
+      {
+        "created_loop": 6,
+        "description": "PM semantic criterion 'dependency_alignment' failed for dependency ordering.",
+        "owner": "dependency-planner",
+        "source_issue_id": "PM-006",
+        "status": "open",
+        "task_id": "PM-TODO-058",
+        "updated_loop": 6
+      }
+    ],
+    "open_count": 6
+  },
+  "version": 3
 }

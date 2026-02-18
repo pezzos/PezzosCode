@@ -27,6 +27,36 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - PM TODO reconciliation now tracks all unresolved PM findings
+
+**Feature/Bug:** PM TODO artifact only reflected coarse owner-level todo updates, not the full unresolved PM finding set.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `tests/test_pc_prepare_features.py`
+- `prompts/product-manager-prepare-gate.md`
+- `tools/templates/prompts/product-manager-prepare-gate.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+
+**What Changed:**
+
+- Updated `apply_pm_todo_updates` reconciliation behavior:
+  - always reconcile TODOs against the full `review_issues` set when PM gate is blocked,
+  - keep every unresolved PM issue tracked as an open/carry TODO,
+  - mark stale open/carry TODOs as `done` when their issue is resolved, even if the loop is still blocked on other issues,
+  - reopen previously done TODOs when matching PM issues reappear.
+- Added tests for:
+  - closing resolved TODOs during blocked loops,
+  - tracking full review-issue coverage even when PM role emits sparse owner-level `todo_updates`.
+- Updated PM gate prompt contract and workflow docs to state issue-complete PM TODO tracking expectations (project-scoped with owner assignment).
+
+**Why:**
+
+- Deterministic idempotent prepare runs require PM TODO state to be complete and stable at project/version scope, not just owner-bucket summaries.
+- Full issue tracking prevents silent gap loss between PM findings output and persisted TODO artifacts.
+
 ### 2026-02-18 - Prepare prompt minimal-diff contract + PM actionable routing hardening
 
 **Feature/Bug:** Reduce unnecessary artifact rewrites in prepare retries and make PM BLOCK feedback deterministic and owner-actionable.
@@ -7975,3 +8005,28 @@ with `pc-feature: missing section Patch in entry ...`.
 **Why:**
 
 - The prior flow had no dedicated owner for feature-order feedback and allowed free-form PM steps, which reduced determinism and caused unnecessary full-loop reruns.
+
+### 2026-02-18 - Preserve canonical prepare artifacts until PM promote and add candidate/autofix lanes
+
+**Feature/Bug:** Re-running `make prepare-features` rewrote canonical global artifacts during blocked PM loops and repeatedly stalled on dependency payload shape drift.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `tests/test_pc_prepare_features.py`
+
+**What Changed:**
+
+- Added rerun baseline detection that loads existing canonical `design.md`, `ux-ui.md`, `feature-order.json`, and PM TODO/state when present.
+- Added candidate artifact lane (`*.candidate.*`) for design, UX, feature-order, PM TODO, and prepare state, plus candidate summary.
+- Changed prepare persistence flow to write candidate artifacts on every loop snapshot and promote to canonical only on PM `APPROVE` or explicit `waive`.
+- Added dependency payload normalization so `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies` stay typed and aligned.
+- Added non-fail-fast dependency autofix hook via dedicated Codex session (`run_order_payload_autofix_session`) when raw order payload consistency issues are detected.
+- Added optional architect/UX markdown autofix sessions before PM retry in codex role mode.
+- Relaxed changed-sections metadata drift from hard PM blocker to warning diagnostics.
+- Extended tests for candidate promotion flow, blocked-run canonical preservation, dependency normalization, and dependency autofix invocation.
+
+**Why:**
+
+- This preserves trusted canonical artifacts while still exposing live loop progress through inspectable candidate files.
+- It reduces PM-loop exhaustion caused by repeated dependency representation drift and metadata-only section-diff noise.

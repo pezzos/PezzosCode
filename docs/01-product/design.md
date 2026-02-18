@@ -1,140 +1,91 @@
-# PezzosCode Design
-
-PezzosCode is a local macOS-first CLI architecture for one developer/PO. The design favors deterministic `Plan -> Patch -> Test -> Report` execution, idempotent reruns, explicit authority gates, and low-token observability.
+# PezzosCode Product Design
 
 ## System architecture
 
-1. Bootstrap plane (`bootstrap-safe-template-reapply`)
+PezzosCode uses a local-first, script-first architecture designed for one developer/PO on macOS. The system optimizes for deterministic execution, idempotent reruns, and auditable evidence rather than feature breadth.
 
-- Applies templates/tools/docs into new or existing repos.
-- Conflict policy is explicit: `overwrite`, `merge`, `skip`.
-- Outcome: execution-ready repos with stable reruns.
+Core runtime flow is a gated state machine:
+`Preflight -> Risk gate -> Plan -> Plan review -> Patch -> Test -> Report -> Final CI -> Commit gate`.
+If risk is HIGH without explicit approval, execution stops at status `Awaiting PO Approval`.
 
-2. Evidence plane (`output-offload-structured-logs-shared-runner`)
+Architecture layers:
 
-- Shared runner attaches `work_item_id`, `agent_name`, `run_id`.
-- Noisy output is mandatory through `tools/offload-proxy/pp` to `.offload/<id>.txt`.
-- Step logs are mandatory at `logs/<WI>/<step>.log` with `[WI-...][agent][step]` + timestamps.
-- Outcome: token-efficient runs with auditable traces.
+1. CLI control layer for bootstrap/update and work-item execution commands.
+2. Orchestration layer that enforces stage order, restart rules, and human gates.
+3. Role execution layer for planner, plan-reviewer, patcher, tester, and reporter responsibilities.
+4. Deterministic tooling layer using shared runner metadata (`work_item_id`, `agent_name`, `run_id`) plus output offload.
+5. Evidence layer that persists logs, role artifacts, and commit-readiness checks.
 
-3. Orchestration plane (`deterministic-work-item-execution-with-explicit-gates`)
-
-- Enforces strict `Plan -> Patch -> Test -> Report` stage transitions.
-- Enforces human authority for `make feature` and `pc-feature` unless explicit in-run approval exists.
-- HIGH-risk tickets stop after preflight in `Awaiting PO Approval`.
-- Outcome: predictable, auditable ticket execution.
-
-4. Recovery and integrity plane (`resume-safety-fail-closed-commit-gate-scoped-autofix`, `single-worktree-orchestration-template-drift-hardening`)
-
-- Resume manager restores in-progress WI state, skips completed deterministic stages, reruns tests/CI.
-- Commit gate fails closed on missing planner/tester/reporter evidence.
-- Drift hardening performs deterministic scoped repair and blocks unresolved drift with remediation.
-- Outcome: safe recovery and reliable collaboration integrity.
-
-5. Role governance plane (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`)
-
-- Dedicated planner/reviewer/patcher/tester/reporter prompts and owned artifacts.
-- Plan Reviewer approval is required before patching.
-- Outcome: better plan quality and lower rework.
-
-6. Quality and evolution plane (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`, `incremental-prd-to-features-post-run-learning-loop`)
-
-- Anti-hardcode policy enforces multiple fixtures, deterministic seeds, invariants, boundary contracts.
-- Synthetic smoke validates gates, resume behavior, logs, and fail-closed completion path.
-- Incremental PRD sync is add-missing only; learning loop writes proposal-only improvements requiring human approval.
-- Outcome: stronger regression resistance and controlled process evolution.
-
-Authoritative dependency edges for sequencing and `feature-order.json` decisions:
-
-- `bootstrap-safe-template-reapply -> output-offload-structured-logs-shared-runner`
-- `output-offload-structured-logs-shared-runner -> deterministic-work-item-execution-with-explicit-gates`
-- `deterministic-work-item-execution-with-explicit-gates -> resume-safety-fail-closed-commit-gate-scoped-autofix`
-- `deterministic-work-item-execution-with-explicit-gates -> single-worktree-orchestration-template-drift-hardening`
-- `single-worktree-orchestration-template-drift-hardening -> orchestrator-roles-plan-reviewer-gate-role-specific-prompts`
-- `resume-safety-fail-closed-commit-gate-scoped-autofix -> anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`
-- `deterministic-work-item-execution-with-explicit-gates -> incremental-prd-to-features-post-run-learning-loop`
-- `output-offload-structured-logs-shared-runner -> incremental-prd-to-features-post-run-learning-loop`
-- `orchestrator-roles-plan-reviewer-gate-role-specific-prompts -> incremental-prd-to-features-post-run-learning-loop`
+This structure directly supports P0 outcomes: execution-ready repos (feature 1), predictable and auditable delivery (feature 2), token-efficient traceability (feature 3), and safe resume/commit behavior (feature 4).
 
 ## Module boundaries
 
-| Module                 | Responsibility                   | Inputs -> Outputs                                            | Boundary rule                                        | Feature linkage                                                                                                         |
-| ---------------------- | -------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Template bootstrap     | Apply/reapply templates          | repo + template source -> created/updated/skipped files      | Idempotent apply only                                | `bootstrap-safe-template-reapply`                                                                                       |
-| Conflict resolver      | Resolve file collisions          | conflict set + user choice -> resolved files                 | Explicit choice on ambiguity                         | `bootstrap-safe-template-reapply`                                                                                       |
-| Shared runner          | Deterministic command execution  | command + metadata -> result + run context                   | Policy-neutral executor                              | `output-offload-structured-logs-shared-runner`                                                                          |
-| Offload service        | Persist noisy output             | stdout/stderr -> `.offload/<id>.txt` + index                 | Mandatory for noisy commands                         | `output-offload-structured-logs-shared-runner`                                                                          |
-| Structured logging     | Correlated step logs             | stage events -> `logs/<WI>/<step>.log`                       | Stable prefix and timestamps                         | `output-offload-structured-logs-shared-runner`                                                                          |
-| Orchestrator core      | Stage machine and gates          | ticket state -> stage transitions                            | Never violate stage order                            | `deterministic-work-item-execution-with-explicit-gates`                                                                 |
-| Gate policy engine     | Authority/risk/DoD/commit checks | metadata + evidence -> pass/fail                             | Fail closed on missing approval/evidence             | `deterministic-work-item-execution-with-explicit-gates`, `resume-safety-fail-closed-commit-gate-scoped-autofix`         |
-| Resume manager         | Restart interrupted runs         | prior WI logs + state -> resumed execution                   | Preserve active WIP by default; rerun tests/CI       | `resume-safety-fail-closed-commit-gate-scoped-autofix`                                                                  |
-| Worktree scope manager | Single-worktree role ownership   | role + feature scope -> allowed paths                        | No `feature-worktrees.json`; block cross-role writes | `single-worktree-orchestration-template-drift-hardening`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts` |
-| Drift hardening        | Detect and repair template drift | template baseline + repo state -> scoped repairs/remediation | Allowed-path repair only                             | `single-worktree-orchestration-template-drift-hardening`                                                                |
-| Quality harness        | Anti-hardcode and smoke checks   | test plan + fixtures -> compliance verdict                   | Enforce fixture diversity and invariants             | `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`                                                          |
-| Incremental sync       | Add-missing PRD -> features      | PRD + feature dirs -> additive updates                       | Never delete; skip Done                              | `incremental-prd-to-features-post-run-learning-loop`                                                                    |
-| Learning loop manager  | Failure-driven proposals         | WI evidence -> proposal entries                              | Proposal-only until human approval                   | `incremental-prd-to-features-post-run-learning-loop`                                                                    |
+| Module                             | Owns                                                                          | Boundary rules                                                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Template manager                   | Bootstrap and safe reapply of templates; conflict policy overwrite/merge/skip | Must be idempotent; cannot delete feature history or completed artifacts                           |
+| Workflow orchestrator              | Stage transitions, gate checks, retries, and loopbacks                        | Must enforce Plan -> Patch -> Test -> Report; cannot bypass Plan Reviewer or tester/reporter loops |
+| Role boundary enforcer             | File ownership and role-scoped write constraints                              | Must block writes outside role-owned logs/docs when role restrictions apply                        |
+| Shared runner adapter              | Deterministic command execution with standard metadata and log hooks          | Deterministic tasks run via scripts first; avoid ad-hoc LLM execution for repeatable work          |
+| Output offload service             | `tools/offload-proxy/pp` integration and pointer/index lifecycle              | No large noisy output in prompts; commands return pointer ids for retrieval                        |
+| Observability and evidence store   | Structured logs and run evidence for audit/commit gate                        | Log paths and prefixes are stable and timestamped for tail/readability                             |
+| Resume and recovery manager        | In-progress detection, stage skipping, and safe reruns                        | Preserve active WIP by default; re-run tests/CI on resume                                          |
+| Drift hardening and scoped autofix | Template/living-file drift detection and deterministic scoped repair          | Repairs must be scoped and fail-closed with explicit remediation if unresolved                     |
+| Commit gate                        | Enforces complete work-item evidence before commit                            | Must block commit when required planner/tester/reporter evidence is missing                        |
 
 ## Infra considerations
 
-- Runtime is local foreground CLI on macOS; no daemon or scheduler.
-- Data boundary is repository-local files only; no cloud or remote state.
-- Required tools: `git`, `make`, `codex`, language runtimes, and `tools/offload-proxy/pp`.
-- Observability baseline is mandatory: `.offload/` pointers plus `logs/<WI>/<step>.log`.
-- Deterministic script steps run through shared runner metadata for correlation.
-- Serena is preferred when available for symbol-aware edits.
+- Platform: macOS-first local CLI execution only; no cloud services, daemons, schedulers, or Windows path assumptions.
+- Required local tools: `git`, `make`, `codex`, language runtimes used by target repo, and `tools/offload-proxy/pp`.
+- Persistence layout:
+  - `.offload/<id>.txt` and metadata index for noisy outputs.
+  - `logs/<WI>/<step>.log` for CI/tests/precommit/feature runs with `[WI-...][agent][step]` prefixes and timestamps.
+  - `docs/02-features/<feature>/` role artifacts and execution records.
+  - `docs/03-logs/` for durable implementation/decision/validation traceability.
+- Worktree model: one feature worktree by default; no `feature-worktrees.json`.
+- Reliability posture: deterministic scripts for repeatable steps, explicit gate failures, and replace-in-place updates for idempotent reruns.
+- Security/data posture: local repo boundaries only; no remote state transfer.
 
 ## Design constraints
 
-- Single-user, local CLI scope only; no UI, no multi-user collaboration.
-- No Windows support.
-- Mandatory workflow order: `Plan -> Patch -> Test -> Report`.
-- `make feature` and `pc-feature` are human-authority commands unless explicitly approved in-run.
-- HIGH-risk work must stop in `Awaiting PO Approval` until explicit approval.
-- Idempotency and recoverability are non-negotiable.
-- Noisy output offload is mandatory; large inline output in prompts is disallowed.
-- Precommit autofix must be staged-file-scoped and must not change `docs/03-logs/*` or role-owned execution logs.
-- PRD-to-features sync is additive only and skips `Status: Done` artifacts.
-- Single feature worktree default is required; do not introduce `feature-worktrees.json`.
+- Single-user optimization is intentional; no multi-user abstractions.
+- CLI-only interaction; no UI/TUI/web layer in this project.
+- Human command authority is mandatory for `make feature` and `pc-feature` unless explicit in-run approval is granted.
+- HIGH-risk items require explicit approval before implementation; otherwise stop after preflight.
+- Plan Reviewer approval is required before patching.
+- Allowed Tests policy is enforced; tester cannot run forbidden orchestration commands.
+- Output offload is mandatory for noisy commands to control token usage.
+- Precommit/CI must share one autofix path; staged-file scope cannot mutate protected logs.
+- PRD-to-features updates are incremental add-missing only and must not rewrite completed features.
+- Design must preserve idempotency, recoverability, and fail-closed commit behavior as non-negotiables.
 
 ## Build strategy
 
-Dependency-valid feature order:
+1. Foundation baseline (feature 1): keep bootstrap and safe template reapply as the only root capability so every later phase inherits idempotent repo setup.
+2. Shared infra and observability (feature 3): establish shared runner metadata, structured logs, and offload pointers used by all downstream execution and validation gates.
+3. Deterministic orchestration core (feature 2): enforce gated Plan -> Patch -> Test -> Report, authority controls, and HIGH-risk stop conditions.
+4. Worktree and drift hardening (feature 5): apply single-worktree orchestration and deterministic template-drift repair once orchestration semantics are stable.
+5. Resume and commit integrity (feature 4): add resume checkpoints, scoped autofix recovery, and fail-closed evidence-based commit gating.
+6. Role governance (feature 6): layer role prompts and Plan Reviewer enforcement after core gates and recovery behavior are in place.
+7. Quality resilience (feature 7): enforce anti-hardcode test policy and synthetic end-to-end smoke execution to catch regression paths early.
+8. Controlled evolution (feature 8): run incremental PRD-to-features reconciliation and human-gated learning-loop proposals without rewriting completed work.
 
-1. `bootstrap-safe-template-reapply`
-2. `output-offload-structured-logs-shared-runner`
-3. `deterministic-work-item-execution-with-explicit-gates`
-4. `resume-safety-fail-closed-commit-gate-scoped-autofix`
-5. `single-worktree-orchestration-template-drift-hardening`
-6. `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`
-7. `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`
-8. `incremental-prd-to-features-post-run-learning-loop`
+Dependency-alignment acceptance condition for downstream ordering artifacts: `bootstrap-safe-template-reapply` is the only root feature and every other feature must declare at least one prerequisite from an earlier phase.
 
-Phase rollout:
-
-- Phase 1: `F1`, `F3` foundation so all later steps produce structured evidence.
-- Phase 2: `F2` deterministic orchestration and mandatory gates.
-- Phase 3: `F4`, `F5` resume safety, fail-closed commit integrity, drift hardening.
-- Phase 4: `F6`, `F7` role specialization plus anti-hardcode/smoke hardening.
-- Phase 5: `F8` incremental document evolution and human-gated learning proposals.
-
-Decision rationales for `feature-order.json`:
-
-- `F1 -> F3`: offload/log substrate depends on bootstrapped template/tool paths.
-- `F3 -> F2`: orchestration must emit mandatory evidence by default.
-- `F2 -> F4` and `F2 -> F5`: resume and drift controls rely on stable stage markers.
-- `F5 -> F6`: role boundaries rely on enforced single-worktree ownership.
-- `F4 -> F7`: smoke checks must validate existing recovery/fail-closed behavior.
-- `F2 + F3 + F6 -> F8`: incremental sync and learning proposals require stable gates, evidence, and role outputs.
+Release sequencing is reliability-first because dependency decisions are currently empty; ordering follows risk reduction and MVP hardening goals rather than new product surface area. If dependency artifacts diverge from this contract, build readiness is blocked until prerequisite arrays are corrected.
 
 ## Feature alignment map
 
-| Feature slug                                                   | Outcome                                                             | Notes                                               | Required dependencies                                                                                                                                                  | Architecture decision                                   | Acceptance signal                                                     |
-| -------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------- |
-| `bootstrap-safe-template-reapply`                              | New/existing repos become execution-ready with idempotent reruns    | Conflict handling: overwrite/merge/skip             | None                                                                                                                                                                   | Deterministic bootstrap with explicit conflict resolver | Immediate rerun has no unintended churn                               |
-| `output-offload-structured-logs-shared-runner`                 | Noisy output stays token-efficient and every step is traceable      | `pp` pointers + `logs/<WI>/<step>.log` + metadata   | `bootstrap-safe-template-reapply`                                                                                                                                      | Shared runner + mandatory offload/log contract          | Noisy commands emit pointer IDs and correlated logs                   |
-| `deterministic-work-item-execution-with-explicit-gates`        | `Plan -> Patch -> Test -> Report` runs predictably and is auditable | Command authority remains with the human PO/user    | `output-offload-structured-logs-shared-runner`                                                                                                                         | Strict state machine + authority/risk/DoD gates         | HIGH-risk pauses at preflight; gate decisions logged                  |
-| `resume-safety-fail-closed-commit-gate-scoped-autofix`         | Interrupted runs resume safely; commits require complete evidence   | Active-WIP preserve by default; strict commit gate  | `deterministic-work-item-execution-with-explicit-gates`                                                                                                                | Resume checkpoints and fail-closed evidence gate        | Resume skips completed stages; incomplete evidence blocks commit      |
-| `single-worktree-orchestration-template-drift-hardening`       | Reliable role collaboration without worktree tracking-file drift    | No `feature-worktrees.json`; deterministic recovery | `deterministic-work-item-execution-with-explicit-gates`                                                                                                                | Single-worktree ownership and scoped drift repair       | Cross-role edits blocked; unresolved drift returns remediation        |
-| `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`  | Cleaner separation of responsibilities and better plan quality      | Dedicated planner/reviewer/patcher/tester/reporter  | `single-worktree-orchestration-template-drift-hardening`                                                                                                               | Dedicated Plan Reviewer gate with role-owned artifacts  | Patch cannot start without reviewer approval                          |
-| `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature` | Better regression resistance and early workflow break detection     | Fixtures + seeds + invariants + boundary contracts  | `resume-safety-fail-closed-commit-gate-scoped-autofix`                                                                                                                 | Anti-hardcode policy plus synthetic smoke contract      | Policy violations fail test stage; smoke validates orchestration path |
-| `incremental-prd-to-features-post-run-learning-loop`           | Feature docs evolve safely and repeated failures are reduced        | Add-missing only; human-gated improvements          | `deterministic-work-item-execution-with-explicit-gates`, `output-offload-structured-logs-shared-runner`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts` | Additive PRD sync + proposal-only learning loop         | Done features untouched; proposals carry WI/agent/step evidence       |
+Dependency-intent acceptance condition: bootstrap is the only zero-prerequisite row and every other row depends on modules established by earlier features in this map.
+
+UX alignment anchor from `ux-ui.md`: Journey 1 maps to feature 1, Journey 2 maps to features 2/6/7, Journey 3 maps to feature 3, Journey 4 maps to features 4/5, and Journey 5 maps to feature 8.
+
+| Feature                                                                                                                         | Outcome and notes                                                                                        | Architectural alignment                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Bootstrap + safe template reapply (`bootstrap-safe-template-reapply`)                                                           | Execution-ready repos with idempotent reruns; conflict handling overwrite/merge/skip                     | Template manager with deterministic merge policy and non-destructive reapply semantics                      |
+| Deterministic work-item execution with explicit gates (`deterministic-work-item-execution-with-explicit-gates`)                 | Predictable, auditable Plan -> Patch -> Test -> Report; command authority remains with human PO/user     | Workflow orchestrator state machine, risk gate, and authority enforcement for protected commands            |
+| Output offload + structured logs + shared runner (`output-offload-structured-logs-shared-runner`)                               | Token-efficient noisy output handling and full traceability via `pp` pointers and `logs/<WI>/<step>.log` | Shared runner adapter + offload service + structured observability store                                    |
+| Resume safety + fail-closed commit gate + scoped autofix (`resume-safety-fail-closed-commit-gate-scoped-autofix`)               | Safe interruption recovery and strict evidence-based commit decisions; active WIP preserved by default   | Resume manager, scoped autofix, and commit gate validator tied to required work-item artifacts              |
+| Single-worktree orchestration + template-drift hardening (`single-worktree-orchestration-template-drift-hardening`)             | Reliable role collaboration without worktree tracking drift; deterministic recovery                      | Single-worktree controller and drift hardening module with scoped repair + fail-closed remediation          |
+| Orchestrator roles + Plan Reviewer gate + role-specific prompts (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) | Better plan quality and cleaner responsibility split across planner/reviewer/patcher/tester/reporter     | Role boundary enforcer + role prompt registry + mandatory plan-review gate                                  |
+| Anti-hardcode test policy + synthetic end-to-end smoke feature (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) | Higher regression resistance using fixtures, seeds, invariants, and boundary contracts                   | Test policy validator and synthetic feature harness integrated into validation stage                        |
+| Incremental PRD-to-features + post-run learning loop (`incremental-prd-to-features-post-run-learning-loop`)                     | Safe docs evolution and reduced repeated failures through add-missing updates and human-gated proposals  | Incremental feature reconciler and improvement proposal pipeline writing to `docs/possible-improvements.md` |

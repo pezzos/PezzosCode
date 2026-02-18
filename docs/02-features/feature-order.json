@@ -1,5 +1,71 @@
 {
-  "decisions": [],
+  "decisions": [
+    {
+      "depends_on": "[]",
+      "feature_slug": "bootstrap-safe-template-reapply",
+      "id": "order-001",
+      "order_index": "1",
+      "pm_feedback_resolution": "{'target_artifact': 'feature-order.json', 'target_sections': ['decisions[*].depends_on', 'dependencies', 'ordered_features[*].dependencies', 'ordered_feature_slugs'], 'acceptance_conditions': ['depends_on values are real JSON arrays of slug strings (not stringified arrays)', 'bootstrap-safe-template-reapply is the only empty-array root', 'every non-root feature has at least one prerequisite', 'all prerequisites reference only earlier ordered_feature_slugs entries', 'dependency arrays are identical across decisions/dependencies/ordered_features representations'], 'addresses_pm_issue_ids': ['PM-011', 'PM-012', 'PM-013', 'PM-014', 'PM-015'], 'addresses_todo_ids': ['PM-TODO-049', 'PM-TODO-050', 'PM-TODO-051', 'PM-TODO-052']}",
+      "rationale": "Establishes the idempotent template/tooling baseline all downstream workflow hardening depends on.",
+      "reason_codes": "['FOUNDATION', 'ROOT_ONLY', 'IDEMPOTENT_ENTRYPOINT']"
+    },
+    {
+      "depends_on": "['bootstrap-safe-template-reapply']",
+      "feature_slug": "output-offload-structured-logs-shared-runner",
+      "id": "order-002",
+      "order_index": "2",
+      "rationale": "Introduces shared runner metadata, structured logs, and output-offload primitives required by orchestration and validation stages.",
+      "reason_codes": "['SHARED_INFRA', 'OBSERVABILITY', 'TOKEN_EFFICIENCY']"
+    },
+    {
+      "depends_on": "['bootstrap-safe-template-reapply', 'output-offload-structured-logs-shared-runner']",
+      "feature_slug": "deterministic-work-item-execution-with-explicit-gates",
+      "id": "order-003",
+      "order_index": "3",
+      "rationale": "Builds deterministic Plan -> Patch -> Test -> Report and authority/risk gates on top of baseline templates and evidence infrastructure.",
+      "reason_codes": "['EXECUTION_CORE', 'GATE_ENFORCEMENT']"
+    },
+    {
+      "depends_on": "['bootstrap-safe-template-reapply', 'deterministic-work-item-execution-with-explicit-gates']",
+      "feature_slug": "single-worktree-orchestration-template-drift-hardening",
+      "id": "order-004",
+      "order_index": "4",
+      "rationale": "Applies single-worktree policy and deterministic template-drift recovery after core orchestration semantics are enforced.",
+      "reason_codes": "['WORKTREE_POLICY', 'RECOVERY_HARDENING']"
+    },
+    {
+      "depends_on": "['output-offload-structured-logs-shared-runner', 'deterministic-work-item-execution-with-explicit-gates', 'single-worktree-orchestration-template-drift-hardening']",
+      "feature_slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
+      "id": "order-005",
+      "order_index": "5",
+      "rationale": "Resume checkpoints, scoped autofix, and fail-closed commit gating require stable orchestration, telemetry, and drift-safe worktree behavior.",
+      "reason_codes": "['RESUME_SEMANTICS', 'FAIL_CLOSED_GATES']"
+    },
+    {
+      "depends_on": "['deterministic-work-item-execution-with-explicit-gates', 'single-worktree-orchestration-template-drift-hardening', 'resume-safety-fail-closed-commit-gate-scoped-autofix']",
+      "feature_slug": "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+      "id": "order-006",
+      "order_index": "6",
+      "rationale": "Role separation and Plan Reviewer enforcement are layered after execution semantics, recovery guarantees, and commit-integrity controls are stable.",
+      "reason_codes": "['ROLE_COORDINATION', 'PLAN_QUALITY_GATE']"
+    },
+    {
+      "depends_on": "['output-offload-structured-logs-shared-runner', 'resume-safety-fail-closed-commit-gate-scoped-autofix', 'orchestrator-roles-plan-reviewer-gate-role-specific-prompts']",
+      "feature_slug": "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
+      "id": "order-007",
+      "order_index": "7",
+      "rationale": "Synthetic smoke and anti-hardcode policy validate finalized role gates and recovery behavior with complete telemetry.",
+      "reason_codes": "['VALIDATION_LAYER', 'REGRESSION_GUARD']"
+    },
+    {
+      "depends_on": "['output-offload-structured-logs-shared-runner', 'deterministic-work-item-execution-with-explicit-gates', 'orchestrator-roles-plan-reviewer-gate-role-specific-prompts', 'anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature']",
+      "feature_slug": "incremental-prd-to-features-post-run-learning-loop",
+      "id": "order-008",
+      "order_index": "8",
+      "rationale": "Incremental PRD reconciliation and human-gated learning proposals should run only after telemetry, gates, and end-to-end validation behavior are proven.",
+      "reason_codes": "['DOC_EVOLUTION', 'FEEDBACK_LOOP']"
+    }
+  ],
   "dependencies": {
     "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature": [],
     "bootstrap-safe-template-reapply": [],
@@ -10,17 +76,17 @@
     "resume-safety-fail-closed-commit-gate-scoped-autofix": [],
     "single-worktree-orchestration-template-drift-hardening": []
   },
-  "generated_at": "2026-02-18T15:41:15Z",
+  "generated_at": "2026-02-18T18:02:22Z",
   "notes": [
     "This file is machine-managed by tools/pc-prepare-features.",
     "tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order."
   ],
   "ordered_feature_slugs": [
     "bootstrap-safe-template-reapply",
-    "deterministic-work-item-execution-with-explicit-gates",
     "output-offload-structured-logs-shared-runner",
-    "resume-safety-fail-closed-commit-gate-scoped-autofix",
+    "deterministic-work-item-execution-with-explicit-gates",
     "single-worktree-orchestration-template-drift-hardening",
+    "resume-safety-fail-closed-commit-gate-scoped-autofix",
     "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
     "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
     "incremental-prd-to-features-post-run-learning-loop"
@@ -37,29 +103,29 @@
       "dependencies": [],
       "index": 2,
       "priority": "P0",
-      "slug": "deterministic-work-item-execution-with-explicit-gates",
-      "title": "Deterministic work-item execution with explicit gates"
-    },
-    {
-      "dependencies": [],
-      "index": 3,
-      "priority": "P0",
       "slug": "output-offload-structured-logs-shared-runner",
       "title": "Output offload + structured logs + shared runner"
     },
     {
       "dependencies": [],
+      "index": 3,
+      "priority": "P0",
+      "slug": "deterministic-work-item-execution-with-explicit-gates",
+      "title": "Deterministic work-item execution with explicit gates"
+    },
+    {
+      "dependencies": [],
       "index": 4,
       "priority": "P0",
-      "slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
-      "title": "Resume safety + fail-closed commit gate + scoped autofix"
+      "slug": "single-worktree-orchestration-template-drift-hardening",
+      "title": "Single-worktree orchestration + template-drift hardening"
     },
     {
       "dependencies": [],
       "index": 5,
       "priority": "P0",
-      "slug": "single-worktree-orchestration-template-drift-hardening",
-      "title": "Single-worktree orchestration + template-drift hardening"
+      "slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
+      "title": "Resume safety + fail-closed commit gate + scoped autofix"
     },
     {
       "dependencies": [],

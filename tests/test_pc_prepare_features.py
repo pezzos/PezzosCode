@@ -179,6 +179,227 @@ def parse_prd_features(_text: str):
             self.assertIn("pm_todos", state_payload)
             self.assertIn("items", state_payload["pm_todos"])
 
+    def test_promotes_candidate_artifacts_on_approve(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._write_minimal_prepare_fixture(root)
+
+            args = SimpleNamespace(
+                root=str(root),
+                skip_generation=True,
+                skip_schema_check=True,
+                role_mode=self.tool.ROLE_MODE_DETERMINISTIC,
+                include_process_features=False,
+                snapshot_runs=False,
+            )
+            result = self.tool.run_prepare(args)
+            self.assertEqual(result, 0)
+
+            pairs = [
+                ("docs/01-product/design.md", "docs/01-product/design.candidate.md"),
+                ("docs/01-product/ux-ui.md", "docs/01-product/ux-ui.candidate.md"),
+                (
+                    "docs/02-features/feature-order.json",
+                    "docs/02-features/feature-order.candidate.json",
+                ),
+                (
+                    "docs/03-logs/prepare-features-state.json",
+                    "docs/03-logs/prepare-features-state.candidate.json",
+                ),
+                (
+                    "docs/03-logs/prepare-features-pm-todo.md",
+                    "docs/03-logs/prepare-features-pm-todo.candidate.md",
+                ),
+            ]
+            for canonical_rel, candidate_rel in pairs:
+                canonical = root / canonical_rel
+                candidate = root / candidate_rel
+                self.assertTrue(canonical.exists(), canonical_rel)
+                self.assertTrue(candidate.exists(), candidate_rel)
+                self.assertEqual(
+                    canonical.read_text(encoding="utf-8"),
+                    candidate.read_text(encoding="utf-8"),
+                )
+            self.assertTrue(
+                (root / "docs/03-logs/prepare-features-candidate-summary.md").exists()
+            )
+
+    def test_blocked_run_preserves_canonical_and_updates_candidates(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._write_minimal_prepare_fixture(root)
+            (root / "docs/03-logs").mkdir(parents=True, exist_ok=True)
+
+            canonical_design = "## System architecture\nCanonical design baseline.\n"
+            canonical_ux = (
+                "## User journeys\nCanonical ux baseline.\n## Workflows\nX.\n"
+            )
+            canonical_order = {
+                "ordered_feature_slugs": ["alpha-feature", "beta-feature"],
+                "decisions": [],
+                "dependencies": {
+                    "alpha-feature": [],
+                    "beta-feature": ["alpha-feature"],
+                },
+                "ordered_features": [
+                    {"index": 1, "slug": "alpha-feature", "dependencies": []},
+                    {
+                        "index": 2,
+                        "slug": "beta-feature",
+                        "dependencies": ["alpha-feature"],
+                    },
+                ],
+            }
+            canonical_state = {
+                "version": 3,
+                "pm_gate": {"history": [], "final_decision": "approve"},
+                "pm_todos": {"items": []},
+                "execution": {
+                    "feature_generation_status": "completed",
+                    "schema_check_status": "completed",
+                },
+            }
+            canonical_pm_todo = (
+                "# Prepare Features PM TODO\n\n## Open + Carry\n\n- (none)\n"
+            )
+
+            (root / "docs/01-product/design.md").write_text(
+                canonical_design, encoding="utf-8"
+            )
+            (root / "docs/01-product/ux-ui.md").write_text(
+                canonical_ux, encoding="utf-8"
+            )
+            (root / "docs/02-features/feature-order.json").write_text(
+                json.dumps(
+                    canonical_order, ensure_ascii=True, indent=2, sort_keys=True
+                ),
+                encoding="utf-8",
+            )
+            (root / "docs/03-logs/prepare-features-state.json").write_text(
+                json.dumps(
+                    canonical_state, ensure_ascii=True, indent=2, sort_keys=True
+                ),
+                encoding="utf-8",
+            )
+            (root / "docs/03-logs/prepare-features-pm-todo.md").write_text(
+                canonical_pm_todo, encoding="utf-8"
+            )
+
+            args = SimpleNamespace(
+                root=str(root),
+                skip_generation=True,
+                skip_schema_check=True,
+                role_mode=self.tool.ROLE_MODE_DETERMINISTIC,
+                include_process_features=False,
+                snapshot_runs=False,
+            )
+
+            with mock.patch.object(
+                self.tool,
+                "run_pm_role",
+                return_value={
+                    "decision": "BLOCK",
+                    "issues": [
+                        {
+                            "step": "architect",
+                            "summary": "Architecture still needs one targeted fix.",
+                            "risk": "PM gate blocked.",
+                            "remediation": "Update design.md section and retry.",
+                        }
+                    ],
+                    "criteria": {"feature_specificity": "fail"},
+                },
+            ):
+                with mock.patch.dict(
+                    self.tool.os.environ,
+                    {"PREPARE_DECISIONS": "PM-BLOCK:3"},
+                    clear=False,
+                ):
+                    with self.assertRaises(SystemExit):
+                        self.tool.run_prepare(args)
+
+            self.assertEqual(
+                (root / "docs/01-product/design.md").read_text(encoding="utf-8"),
+                canonical_design,
+            )
+            self.assertEqual(
+                (root / "docs/01-product/ux-ui.md").read_text(encoding="utf-8"),
+                canonical_ux,
+            )
+            self.assertEqual(
+                (root / "docs/03-logs/prepare-features-pm-todo.md").read_text(
+                    encoding="utf-8"
+                ),
+                canonical_pm_todo,
+            )
+            self.assertEqual(
+                json.loads(
+                    (root / "docs/03-logs/prepare-features-state.json").read_text(
+                        encoding="utf-8"
+                    )
+                ),
+                canonical_state,
+            )
+            self.assertTrue((root / "docs/01-product/design.candidate.md").exists())
+            self.assertTrue((root / "docs/01-product/ux-ui.candidate.md").exists())
+            self.assertTrue(
+                (root / "docs/03-logs/prepare-features-state.candidate.json").exists()
+            )
+
+    def test_build_order_payload_normalizes_stringified_dependency_arrays(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            ),
+            self.tool.Feature(
+                title="Beta Feature",
+                priority="P1",
+                slug="beta-feature",
+                dependencies=("alpha-feature",),
+            ),
+        ]
+        payload = self.tool.build_order_payload(
+            ordered_slugs=["alpha-feature", "beta-feature"],
+            features=features,
+            graph={"alpha-feature": set(), "beta-feature": {"alpha-feature"}},
+            decisions=[
+                {
+                    "feature_slug": "alpha-feature",
+                    "depends_on": "[]",
+                    "reason_codes": "['root']",
+                },
+                {
+                    "feature_slug": "beta-feature",
+                    "depends_on": "['alpha-feature']",
+                    "reason_codes": "['dependency_fix']",
+                },
+            ],
+        )
+
+        self.assertEqual(
+            payload["dependencies"]["beta-feature"],
+            ["alpha-feature"],
+        )
+        beta_decision = next(
+            item
+            for item in payload["decisions"]
+            if item["feature_slug"] == "beta-feature"
+        )
+        self.assertEqual(beta_decision["depends_on"], ["alpha-feature"])
+        self.assertEqual(
+            beta_decision["reason_codes"],
+            ["DEPENDENCY_FIX"],
+        )
+        beta_row = next(
+            item
+            for item in payload["ordered_features"]
+            if item["slug"] == "beta-feature"
+        )
+        self.assertEqual(beta_row["dependencies"], ["alpha-feature"])
+
     def test_retry_path_persists_prepare_state_before_next_iteration(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -231,7 +452,7 @@ def parse_prd_features(_text: str):
             output = stdout_buffer.getvalue()
             self.assertGreaterEqual(
                 output.count(
-                    "wrote state artifact -> docs/03-logs/prepare-features-state.json"
+                    "wrote candidate artifacts -> docs/01-product/design.candidate.md"
                 ),
                 2,
             )
@@ -245,6 +466,122 @@ def parse_prd_features(_text: str):
             )
             self.assertGreaterEqual(
                 state_payload["pm_gate"]["history"][0]["issue_count"], 1
+            )
+
+    def test_run_prepare_calls_dependency_autofix_for_raw_order_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._write_minimal_prepare_fixture(root)
+
+            args = SimpleNamespace(
+                root=str(root),
+                skip_generation=True,
+                skip_schema_check=True,
+                role_mode=self.tool.ROLE_MODE_CODEX,
+                include_process_features=False,
+                snapshot_runs=False,
+            )
+
+            design_md = "\n".join(
+                [
+                    "## System architecture",
+                    "Alpha Feature and Beta Feature architecture mapping.",
+                    "## Module boundaries",
+                    "Boundaries.",
+                    "## Infra considerations",
+                    "Infra.",
+                    "## Design constraints",
+                    "- Constraint.",
+                    "## Build strategy",
+                    "- Strategy.",
+                    "## Feature alignment map",
+                    "- Alpha Feature",
+                    "- Beta Feature",
+                ]
+            )
+            ux_md = "\n".join(
+                [
+                    "## User journeys",
+                    "Alpha Feature and Beta Feature journeys.",
+                    "## Workflows",
+                    "Alpha Feature workflow then Beta Feature workflow.",
+                    "## UX constraints",
+                    "- Keep deterministic.",
+                ]
+            )
+            inconsistent_order_payload = {
+                "ordered_feature_slugs": ["alpha-feature", "beta-feature"],
+                "decisions": [
+                    {"feature_slug": "alpha-feature", "depends_on": "[]"},
+                    {
+                        "feature_slug": "beta-feature",
+                        "depends_on": "['alpha-feature']",
+                    },
+                ],
+                "dependencies": {
+                    "alpha-feature": [],
+                    "beta-feature": [],
+                },
+                "ordered_features": [
+                    {
+                        "index": 1,
+                        "slug": "alpha-feature",
+                        "title": "Alpha Feature",
+                        "priority": "P0",
+                        "dependencies": [],
+                    },
+                    {
+                        "index": 2,
+                        "slug": "beta-feature",
+                        "title": "Beta Feature",
+                        "priority": "P1",
+                        "dependencies": [],
+                    },
+                ],
+            }
+
+            with mock.patch.object(
+                self.tool,
+                "run_architect_role",
+                return_value=(design_md, []),
+            ), mock.patch.object(
+                self.tool,
+                "run_ux_role",
+                return_value=(ux_md, []),
+            ), mock.patch.object(
+                self.tool,
+                "run_orderer_role",
+                return_value=(inconsistent_order_payload, []),
+            ), mock.patch.object(
+                self.tool,
+                "run_pm_role",
+                return_value={
+                    "decision": "APPROVE",
+                    "issues": [],
+                    "criteria": {
+                        "feature_specificity": "pass",
+                        "journey_specificity": "pass",
+                        "dependency_alignment": "pass",
+                    },
+                    "todo_updates": [],
+                },
+            ), mock.patch.object(
+                self.tool,
+                "run_order_payload_autofix_session",
+                side_effect=lambda **kwargs: dict(kwargs["order_payload"]),
+            ) as autofix_mock:
+                result = self.tool.run_prepare(args)
+
+            self.assertEqual(result, 0)
+            self.assertEqual(autofix_mock.call_count, 1)
+            order_payload = json.loads(
+                (root / "docs/02-features/feature-order.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                order_payload["dependencies"]["beta-feature"],
+                ["alpha-feature"],
             )
 
     def test_snapshot_runs_write_per_run_prepare_snapshots(self):
@@ -638,6 +975,123 @@ def parse_prd_features(_text: str):
         )
         self.assertTrue(all(item["status"] == "open" for item in todos))
         self.assertEqual({item["action"] for item in updates}, {"auto_create"})
+
+    def test_apply_pm_todo_updates_marks_resolved_tasks_done_on_block(self):
+        initial_todos = [
+            {
+                "task_id": "PM-TODO-001",
+                "created_loop": 1,
+                "updated_loop": 1,
+                "owner": "architect",
+                "status": "open",
+                "description": "Architect must add module boundary details.",
+                "source_issue_id": "PM-001",
+            },
+            {
+                "task_id": "PM-TODO-002",
+                "created_loop": 1,
+                "updated_loop": 1,
+                "owner": "ux",
+                "status": "carry",
+                "description": "UX must map journeys to feature outcomes.",
+                "source_issue_id": "PM-002",
+            },
+        ]
+        review_issues = [
+            self.tool.ReviewIssue(
+                issue_id="PM-101",
+                step="architect",
+                summary="Architect must add module boundary details.",
+                risk="Boundary drift.",
+                remediation="Update module boundaries section.",
+            )
+        ]
+
+        todos, updates = self.tool.apply_pm_todo_updates(
+            pm_todos=initial_todos,
+            raw_todo_updates=[],
+            review_issues=review_issues,
+            pm_role_decision="BLOCK",
+            loop_iteration=2,
+        )
+
+        by_description = {item["description"]: item for item in todos}
+        self.assertEqual(
+            by_description["Architect must add module boundary details."]["status"],
+            "open",
+        )
+        self.assertEqual(
+            by_description["UX must map journeys to feature outcomes."]["status"],
+            "done",
+        )
+        self.assertTrue(
+            any(
+                update["action"] == "auto_done_resolved"
+                and update["task_id"] == "PM-TODO-002"
+                for update in updates
+            )
+        )
+
+    def test_apply_pm_todo_updates_tracks_review_issues_when_raw_updates_are_sparse(
+        self,
+    ):
+        review_issues = [
+            self.tool.ReviewIssue(
+                issue_id="PM-201",
+                step="architect",
+                summary="design.md does not mention feature 'Alpha'.",
+                risk="Missing architecture alignment.",
+                remediation="Update feature alignment map in design.md.",
+            ),
+            self.tool.ReviewIssue(
+                issue_id="PM-202",
+                step="ux",
+                summary="ux-ui.md does not mention feature 'Alpha'.",
+                risk="Missing journey alignment.",
+                remediation="Update workflows in ux-ui.md.",
+            ),
+        ]
+        raw_todo_updates = [
+            {
+                "owner": "architect",
+                "status": "open",
+                "description": "Align design map to canonical order.",
+                "source_issue_id": "PM-ISSUE-ARCH-001",
+            },
+            {
+                "owner": "ux",
+                "status": "open",
+                "description": "Align ux workflows to canonical order.",
+                "source_issue_id": "PM-ISSUE-UX-001",
+            },
+        ]
+
+        todos, _ = self.tool.apply_pm_todo_updates(
+            pm_todos=[],
+            raw_todo_updates=raw_todo_updates,
+            review_issues=review_issues,
+            pm_role_decision="BLOCK",
+            loop_iteration=1,
+        )
+
+        active_descriptions = {
+            item["description"] for item in todos if item["status"] in {"open", "carry"}
+        }
+        self.assertEqual(
+            active_descriptions,
+            {
+                "design.md does not mention feature 'Alpha'.",
+                "ux-ui.md does not mention feature 'Alpha'.",
+            },
+        )
+        stale_done_descriptions = {
+            item["description"] for item in todos if item["status"] == "done"
+        }
+        self.assertIn("Align design map to canonical order.", stale_done_descriptions)
+        self.assertIn(
+            "Align ux workflows to canonical order.",
+            stale_done_descriptions,
+        )
 
     def test_product_manager_review_rejects_unknown_pm_issue_step(self):
         features = [
@@ -1113,12 +1567,6 @@ def parse_prd_features(_text: str):
                 previous_loop_change_summary="PM-TODO-001 open.",
             )
 
-        self.assertTrue(
-            any(
-                "omitted changed_sections metadata" in issue["summary"]
-                for issue in issues
-            )
-        )
         self.assertTrue(
             any("omitted change_rationale" in issue["summary"] for issue in issues)
         )

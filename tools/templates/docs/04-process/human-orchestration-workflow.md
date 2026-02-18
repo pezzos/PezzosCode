@@ -19,7 +19,7 @@
    - Product Manager gate (`prompts/product-manager-prepare-gate.md`) approves only when semantic quality criteria pass: feature-specific architecture and project-specific user journeys.
    - Generates `docs/02-features/feature-order.json` + `docs/02-features/feature-order.md`.
    - Persists loop/runtime state to `docs/03-logs/prepare-features-state.json`.
-   - Persists PM feedback TODO tracker to `docs/03-logs/prepare-features-pm-todo.md` (owner-scoped open/carry/done tasks).
+   - Persists PM feedback TODO tracker to `docs/03-logs/prepare-features-pm-todo.md` (project-scoped, issue-complete open/carry/done tasks with owner assignment).
    - Resolves dependency ambiguity/cycles with numbered CLI choices (2-4 options + risk notes).
    - Process feature entries in `## Process Features` are excluded by default; pass `INCLUDE_PROCESS_FEATURES=1` to include them in generation.
    - `tools/prd-to-features` consumes the ordered plan and updates `docs/02-features/` in dependency order.

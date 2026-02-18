@@ -2417,3 +2417,15 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Prepare role outputs now include a dedicated Orderer stage with profile-based Codex execution.
   - PM issue step ownership is canonicalized and unknown PM step names are flagged.
   - PM TODO ownership and retry scoping now support `dependency-planner` ownership.
+
+## 2026-02-18 - Validate candidate-first prepare persistence and dependency autofix normalization
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_prepare_features`
+- Result: PASS (`31` tests; offload id `317a7bc65b5bfca2a3a5a3801811345a5189958a402024a86a8a4c0399c6990b`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_prepare_features tests.test_docs_logs`
+- Result: PASS (`55` tests; offload id `be5c6634c34fa7c42a24c1ea216ef12ad47c1a6f63b2d9d3d7f1b61575463c37`).
+- Verified:
+  - Prepare writes candidate artifacts each loop and promotes to canonical only on PM approve/waive.
+  - Blocked/aborted loops preserve canonical prepare artifacts.
+  - Dependency payload normalization keeps typed/consistent arrays across decisions/dependencies/ordered_features.
+  - Dependency autofix hook is invoked for raw order payload consistency mismatches.

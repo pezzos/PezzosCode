@@ -104,6 +104,30 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-076] - Reconcile PM TODO artifact against full unresolved PM findings
+
+**Date:** 2026-02-18
+
+**Status:** Implemented
+
+**Decision:**
+Update `tools/pc-prepare-features` PM TODO lifecycle so blocked-loop reconciliation is driven by `pm_feedback.review_issues` (full PM findings), not only coarse `todo_updates` payload coverage.
+
+The PM TODO artifact remains project-scoped with owner assignment, but it must be issue-complete:
+
+- every unresolved PM finding appears as an open/carry TODO,
+- resolved findings are closed as `done` even during partially blocked loops,
+- reappearing findings reopen matching TODOs deterministically.
+
+**Rationale:**
+With idempotent prepare semantics, unchanged context/PRD should keep artifact outputs stable and TODO state should remain a faithful representation of unresolved PM blockers. Owner-level aggregation alone can hide unresolved findings and reduce auditability.
+
+**Implications:**
+
+- `docs/03-logs/prepare-features-pm-todo.md` and state payload now align with full PM issue coverage.
+- Retry loops preserve deterministic closure/reopen transitions per finding.
+- PM prompt guidance still supports `todo_updates`, but runtime no longer depends on owner-bucket-only updates to preserve complete tracking.
+
 ### [DEC-075] - Persist PM loop feedback as owner-scoped TODO artifacts during prepare-features
 
 **Date:** 2026-02-18
@@ -2779,6 +2803,22 @@ When a decision is reversed or replaced, document it here:
   - Keep a single PM gate as reviewer-only; do not split PM into ordering+review passes.
   - Route retry scope by unresolved owner steps so retries rerun only impacted producer roles (`architect`, `ux`, `dependency-planner`) before PM re-review.
 - **Consequences:**
-  - PM feedback ownership is explicit and auditable in state/TODO artifacts.
-  - Ordering feedback no longer defaults to architect ownership.
-  - Prepare retries reduce unnecessary role reruns and preserve prior loop context.
+- PM feedback ownership is explicit and auditable in state/TODO artifacts.
+- Ordering feedback no longer defaults to architect ownership.
+- Prepare retries reduce unnecessary role reruns and preserve prior loop context.
+
+### DEC-077 - Candidate-first prepare persistence with promote-on-approve canonical publication
+
+- **Date:** 2026-02-18
+- **Status:** Accepted
+- **Context:** Canonical prepare artifacts (`design.md`, `ux-ui.md`, `feature-order.json`, PM TODO/state logs) were rewritten during blocked PM loops, causing rerun churn and loss of trusted baseline while PM had not yet approved.
+- **Decision:**
+  - Persist loop outputs to candidate artifacts (`*.candidate.*`) on every prepare persistence point.
+  - Publish candidate artifacts to canonical paths only on PM `APPROVE` or explicit `waive` decision.
+  - Detect rerun mode from existing canonical artifacts/state and seed loop context from that baseline.
+  - Normalize dependency payload representations to keep decisions/dependencies/ordered_features machine-consistent and typed.
+  - Prefer auto-fix sessions over fail-fast for dependency payload mismatches by invoking a dedicated Codex autofix hook when inconsistencies are detected.
+- **Consequences:**
+  - PM-blocked loops no longer overwrite canonical prepare artifacts.
+  - Operators can inspect candidate progress files during blocked loops without losing baseline docs.
+  - Dependency-alignment drift is reduced through typed normalization and non-blocking autofix attempts.

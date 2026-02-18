@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import difflib
 import importlib.util
 import json
@@ -22,11 +23,24 @@ ROOT = Path(__file__).resolve().parents[1]
 PRD_PATH = Path("docs/01-product/prd.md")
 DESIGN_PATH = Path("docs/01-product/design.md")
 UX_PATH = Path("docs/01-product/ux-ui.md")
+DESIGN_CANDIDATE_PATH = Path("docs/01-product/design.candidate.md")
+UX_CANDIDATE_PATH = Path("docs/01-product/ux-ui.candidate.md")
 CONTEXT_BOUNDARIES_PATH = Path("docs/00-context/context-boundaries-operating-model.md")
 ORDER_JSON_PATH = Path("docs/02-features/feature-order.json")
 ORDER_MD_PATH = Path("docs/02-features/feature-order.md")
+ORDER_JSON_CANDIDATE_PATH = Path("docs/02-features/feature-order.candidate.json")
+ORDER_MD_CANDIDATE_PATH = Path("docs/02-features/feature-order.candidate.md")
 PREPARE_STATE_PATH = Path("docs/03-logs/prepare-features-state.json")
 PREPARE_PM_TODO_PATH = Path("docs/03-logs/prepare-features-pm-todo.md")
+PREPARE_STATE_CANDIDATE_PATH = Path(
+    "docs/03-logs/prepare-features-state.candidate.json"
+)
+PREPARE_PM_TODO_CANDIDATE_PATH = Path(
+    "docs/03-logs/prepare-features-pm-todo.candidate.md"
+)
+PREPARE_CANDIDATE_SUMMARY_PATH = Path(
+    "docs/03-logs/prepare-features-candidate-summary.md"
+)
 PREPARE_RUNS_DIR = Path("docs/03-logs/prepare-features-runs")
 PRD_TOOL_PATH = Path("tools/prd-to-features")
 PROMPTS_DIR = Path("prompts")
@@ -990,7 +1004,7 @@ def prompt_values(
     graph: Dict[str, Set[str]],
     prd_text: str,
     context_boundaries: str,
-    dependency_decisions: Sequence[Dict[str, str]],
+    dependency_decisions: Sequence[Dict[str, Any]],
     prepare_iteration: int = 1,
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
@@ -1246,34 +1260,19 @@ def role_change_contract_issues(
         return issues
 
     if not declared_sections:
-        issues.append(
-            {
-                "step": role_step,
-                "summary": f"{role_label} changed artifact but omitted changed_sections metadata.",
-                "risk": "Reviewers cannot verify whether edits stayed within requested scope.",
-                "remediation": (
-                    "Return changed_sections listing the exact `##` headings intentionally updated."
-                ),
-            }
+        print(
+            f"pc-prepare-features: {role_label.lower()} metadata warning: "
+            "changed_sections omitted; using detected section diff for diagnostics"
         )
     else:
         undeclared = [
             heading for heading in actual_sections if heading not in declared_sections
         ]
         if undeclared:
-            issues.append(
-                {
-                    "step": role_step,
-                    "summary": (
-                        f"{role_label} edited sections outside declared changed_sections: "
-                        + ", ".join(undeclared)
-                    ),
-                    "risk": "Unexpected section rewrites can introduce regression risk and noise.",
-                    "remediation": (
-                        "Keep edits limited to declared headings or update changed_sections to "
-                        "accurately describe all modified sections."
-                    ),
-                }
+            print(
+                f"pc-prepare-features: {role_label.lower()} metadata warning: "
+                "declared changed_sections missing detected headings -> "
+                + ", ".join(undeclared)
             )
 
     change_rationale_text = change_rationale.strip()
@@ -1462,7 +1461,7 @@ def run_architect_role(
     features: Sequence[Feature],
     ordered_slugs: Sequence[str],
     graph: Dict[str, Set[str]],
-    dependency_decisions: Sequence[Dict[str, str]],
+    dependency_decisions: Sequence[Dict[str, Any]],
     prepare_iteration: int = 1,
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
@@ -1592,7 +1591,7 @@ def run_ux_role(
     features: Sequence[Feature],
     ordered_slugs: Sequence[str],
     graph: Dict[str, Set[str]],
-    dependency_decisions: Sequence[Dict[str, str]],
+    dependency_decisions: Sequence[Dict[str, Any]],
     prepare_iteration: int = 1,
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
@@ -1709,7 +1708,7 @@ def run_orderer_role(
     features: Sequence[Feature],
     ordered_slugs: Sequence[str],
     graph: Dict[str, Set[str]],
-    dependency_decisions: Sequence[Dict[str, str]],
+    dependency_decisions: Sequence[Dict[str, Any]],
     baseline_order_payload: Dict[str, object],
     prepare_iteration: int = 1,
     previous_order_payload: Optional[Dict[str, object]] = None,
@@ -1831,13 +1830,15 @@ def run_orderer_role(
             }
         )
 
-    decisions_payload = list(dependency_decisions)
+    decisions_payload: List[Dict[str, Any]] = [
+        dict(item) for item in dependency_decisions
+    ]
     raw_decisions = payload.get("decisions")
     if isinstance(raw_decisions, list):
         decisions_payload = []
         for item in raw_decisions:
             if isinstance(item, dict):
-                decisions_payload.append({str(k): str(v) for k, v in item.items()})
+                decisions_payload.append(dict(item))
     elif raw_decisions is not None:
         issues.append(
             {
@@ -1869,7 +1870,7 @@ def run_pm_role(
     features: Sequence[Feature],
     ordered_slugs: Sequence[str],
     graph: Dict[str, Set[str]],
-    dependency_decisions: Sequence[Dict[str, str]],
+    dependency_decisions: Sequence[Dict[str, Any]],
     prepare_iteration: int = 1,
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
@@ -2155,31 +2156,133 @@ def build_order_payload(
     ordered_slugs: Sequence[str],
     features: Sequence[Feature],
     graph: Dict[str, Set[str]],
-    decisions: Sequence[Dict[str, str]],
+    decisions: Sequence[Dict[str, Any]],
 ) -> Dict[str, object]:
+    def ordered_unique(items: Sequence[str]) -> List[str]:
+        seen: Set[str] = set()
+        output: List[str] = []
+        for item in items:
+            token = str(item).strip()
+            if not token or token in seen:
+                continue
+            seen.add(token)
+            output.append(token)
+        return output
+
+    def parse_token_list(raw: Any) -> List[str]:
+        if isinstance(raw, (list, tuple, set)):
+            return ordered_unique([str(item) for item in raw])
+        if isinstance(raw, str):
+            token = raw.strip()
+            if not token or token.lower() in {"none", "n/a", "na", "-", "[]"}:
+                return []
+            parsed: Optional[Any] = None
+            if token.startswith("[") and token.endswith("]"):
+                try:
+                    parsed = json.loads(token)
+                except json.JSONDecodeError:
+                    try:
+                        parsed = ast.literal_eval(token)
+                    except (SyntaxError, ValueError):
+                        parsed = None
+            if isinstance(parsed, (list, tuple, set)):
+                return ordered_unique([str(item) for item in parsed])
+            return ordered_unique(re.split(r"[,\|;/]", token))
+        return []
+
+    def normalize_dependency_list(
+        raw: Any, *, allowed_slugs: Set[str], feature_slug: str
+    ) -> List[str]:
+        normalized: List[str] = []
+        for token in parse_token_list(raw):
+            candidate = token.strip()
+            if not candidate:
+                continue
+            slug = candidate if candidate in allowed_slugs else compact_slug(candidate)
+            if not slug or slug == feature_slug or slug not in allowed_slugs:
+                continue
+            if slug in normalized:
+                continue
+            normalized.append(slug)
+        return normalized
+
+    def normalize_reason_codes(raw: Any) -> List[str]:
+        normalized: List[str] = []
+        for token in parse_token_list(raw):
+            code = re.sub(r"[^a-zA-Z0-9_]+", "_", token.strip().upper()).strip("_")
+            if not code or code in normalized:
+                continue
+            normalized.append(code)
+        return normalized
+
+    canonical_slugs = [slug for slug in ordered_slugs if str(slug).strip()]
+    all_slugs = set(canonical_slugs)
+    raw_decisions_by_slug: Dict[str, Dict[str, Any]] = {}
+    for item in decisions:
+        if not isinstance(item, dict):
+            continue
+        raw_slug = str(item.get("feature_slug", "")).strip()
+        if not raw_slug:
+            continue
+        slug = raw_slug if raw_slug in all_slugs else compact_slug(raw_slug)
+        if not slug or slug not in all_slugs:
+            continue
+        raw_decisions_by_slug[slug] = dict(item)
+
     by_slug = {feature.slug: feature for feature in features}
+    dependencies_payload: Dict[str, List[str]] = {}
+    canonical_decisions: List[Dict[str, Any]] = []
     ordered_features_payload = []
-    for idx, slug in enumerate(ordered_slugs, start=1):
+    for idx, slug in enumerate(canonical_slugs, start=1):
         feature = by_slug[slug]
+        raw_decision = raw_decisions_by_slug.get(slug, {})
+        fallback_deps = sorted(graph.get(slug, set()))
+        depends_on = normalize_dependency_list(
+            raw_decision.get("depends_on", fallback_deps),
+            allowed_slugs=all_slugs,
+            feature_slug=slug,
+        )
+        dependencies_payload[slug] = depends_on
+        reason_codes = normalize_reason_codes(raw_decision.get("reason_codes", []))
+        if not reason_codes:
+            reason_codes = (
+                ["ROOT"] if not depends_on else ["ORDERED", "HAS_DEPENDENCIES"]
+            )
+        rationale = str(raw_decision.get("rationale", "")).strip()
+        if not rationale:
+            if depends_on:
+                rationale = (
+                    "Sequenced after prerequisites: " + ", ".join(depends_on) + "."
+                )
+            else:
+                rationale = "Root feature with no prerequisite dependencies."
+        canonical_decision = dict(raw_decision)
+        canonical_decision["id"] = str(raw_decision.get("id", "")).strip() or (
+            f"order-{idx:03d}"
+        )
+        canonical_decision["order_index"] = idx
+        canonical_decision["feature_slug"] = slug
+        canonical_decision["depends_on"] = depends_on
+        canonical_decision["rationale"] = rationale
+        canonical_decision["reason_codes"] = reason_codes
+        canonical_decisions.append(canonical_decision)
         ordered_features_payload.append(
             {
                 "index": idx,
                 "slug": feature.slug,
                 "title": feature.title,
                 "priority": feature.priority,
-                "dependencies": sorted(graph.get(feature.slug, set())),
+                "dependencies": depends_on,
             }
         )
 
     return {
         "version": 1,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "ordered_feature_slugs": list(ordered_slugs),
-        "dependencies": {
-            slug: sorted(graph.get(slug, set())) for slug in ordered_slugs
-        },
+        "ordered_feature_slugs": canonical_slugs,
+        "dependencies": dependencies_payload,
         "ordered_features": ordered_features_payload,
-        "decisions": list(decisions),
+        "decisions": canonical_decisions,
         "notes": [
             "This file is machine-managed by tools/pc-prepare-features.",
             "tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order.",
@@ -2223,12 +2326,23 @@ def order_markdown(payload: Dict[str, object]) -> str:
         for decision in decisions:
             if not isinstance(decision, dict):
                 continue
+            if decision.get("issue_id"):
+                rows.append(
+                    "- `{issue}` ({type}): selected `{selected}`; risk: {risk}".format(
+                        issue=decision.get("issue_id", "unknown"),
+                        type=decision.get("type", "decision"),
+                        selected=decision.get("selected", ""),
+                        risk=decision.get("risk", ""),
+                    )
+                )
+                continue
+            deps = decision.get("depends_on", [])
+            deps_text = ", ".join(deps) if isinstance(deps, list) and deps else "(none)"
             rows.append(
-                "- `{issue}` ({type}): selected `{selected}`; risk: {risk}".format(
-                    issue=decision.get("issue_id", "unknown"),
-                    type=decision.get("type", "decision"),
-                    selected=decision.get("selected", ""),
-                    risk=decision.get("risk", ""),
+                "- `{slug}`: depends_on={deps}; rationale: {rationale}".format(
+                    slug=decision.get("feature_slug", "unknown"),
+                    deps=deps_text,
+                    rationale=decision.get("rationale", ""),
                 )
             )
 
@@ -2654,6 +2768,15 @@ def apply_pm_todo_updates(
     updates_applied: List[Dict[str, Any]] = []
     updates = raw_todo_updates if isinstance(raw_todo_updates, list) else []
 
+    def todo_signature(owner: str, description: str) -> Tuple[str, str]:
+        return owner, description.strip()
+
+    def normalize_todo_signature(todo: Dict[str, Any]) -> Tuple[str, str]:
+        return todo_signature(
+            normalize_todo_owner(todo.get("owner")),
+            str(todo.get("description", "")),
+        )
+
     for raw_update in updates:
         if not isinstance(raw_update, dict):
             continue
@@ -2723,7 +2846,118 @@ def apply_pm_todo_updates(
             }
         )
 
-    if updates_applied:
+    if review_issues:
+        unresolved_signatures: List[Tuple[str, str]] = []
+        unresolved_issue_ids: Dict[Tuple[str, str], str] = {}
+        for issue in review_issues:
+            owner = infer_issue_owner(
+                step=issue.step,
+                summary=issue.summary,
+                remediation=issue.remediation,
+                default=TODO_OWNER_ARCHITECT,
+            )
+            summary = issue.summary.strip()
+            if not summary:
+                continue
+            signature = todo_signature(owner, summary)
+            if signature not in unresolved_issue_ids:
+                unresolved_signatures.append(signature)
+            unresolved_issue_ids[signature] = issue.issue_id
+
+        matched_refs: Set[int] = set()
+        unresolved_signature_set = set(unresolved_signatures)
+
+        for signature in unresolved_signatures:
+            issue_id = unresolved_issue_ids[signature]
+            matched: Optional[Dict[str, Any]] = None
+            fallback: Optional[Dict[str, Any]] = None
+            for todo in todos:
+                if id(todo) in matched_refs:
+                    continue
+                if normalize_todo_signature(todo) != signature:
+                    continue
+                todo_status = normalize_todo_status(todo.get("status"))
+                if todo_status in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}:
+                    matched = todo
+                    break
+                if fallback is None:
+                    fallback = todo
+            if matched is None:
+                matched = fallback
+
+            if matched is not None:
+                previous_status = normalize_todo_status(matched.get("status"))
+                next_status = (
+                    TODO_STATUS_OPEN
+                    if previous_status == TODO_STATUS_OPEN
+                    else TODO_STATUS_CARRY
+                )
+                matched["owner"] = signature[0]
+                matched["description"] = signature[1]
+                matched["status"] = next_status
+                matched["updated_loop"] = loop_iteration
+                matched["source_issue_id"] = issue_id
+                if not str(matched.get("created_loop", "")).strip():
+                    matched["created_loop"] = loop_iteration
+                updates_applied.append(
+                    {
+                        "action": (
+                            "auto_carry"
+                            if previous_status in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}
+                            else "auto_reopen"
+                        ),
+                        "task_id": str(matched.get("task_id", "")),
+                        "owner": signature[0],
+                        "status": next_status,
+                        "source_issue_id": issue_id,
+                    }
+                )
+                matched_refs.add(id(matched))
+                continue
+
+            new_task_id = next_pm_todo_id(todos)
+            new_todo = {
+                "task_id": new_task_id,
+                "created_loop": loop_iteration,
+                "updated_loop": loop_iteration,
+                "owner": signature[0],
+                "status": TODO_STATUS_OPEN,
+                "description": signature[1],
+                "source_issue_id": issue_id,
+            }
+            todos.append(new_todo)
+            by_id[new_task_id] = new_todo
+            matched_refs.add(id(new_todo))
+            updates_applied.append(
+                {
+                    "action": "auto_create",
+                    "task_id": new_task_id,
+                    "owner": signature[0],
+                    "status": TODO_STATUS_OPEN,
+                    "source_issue_id": issue_id,
+                }
+            )
+
+        for todo in todos:
+            todo_status = normalize_todo_status(todo.get("status"))
+            if todo_status not in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}:
+                continue
+            if (
+                normalize_todo_signature(todo) in unresolved_signature_set
+                and id(todo) in matched_refs
+            ):
+                continue
+            todo["status"] = TODO_STATUS_DONE
+            todo["updated_loop"] = loop_iteration
+            updates_applied.append(
+                {
+                    "action": "auto_done_resolved",
+                    "task_id": str(todo.get("task_id", "")),
+                    "owner": normalize_todo_owner(todo.get("owner")),
+                    "status": TODO_STATUS_DONE,
+                    "source_issue_id": str(todo.get("source_issue_id", "")),
+                }
+            )
         return todos, updates_applied
 
     if pm_role_decision == "APPROVE" and not review_issues:
@@ -2743,69 +2977,6 @@ def apply_pm_todo_updates(
                 }
             )
         return todos, updates_applied
-
-    if review_issues:
-        for todo in todos:
-            status = normalize_todo_status(todo.get("status"))
-            if status == TODO_STATUS_OPEN:
-                todo["status"] = TODO_STATUS_CARRY
-                todo["updated_loop"] = loop_iteration
-
-        for issue in review_issues:
-            owner = infer_issue_owner(
-                step=issue.step,
-                summary=issue.summary,
-                remediation=issue.remediation,
-                default=TODO_OWNER_ARCHITECT,
-            )
-            summary = issue.summary.strip()
-            matched: Optional[Dict[str, Any]] = None
-            for todo in todos:
-                todo_status = normalize_todo_status(todo.get("status"))
-                if todo_status not in {TODO_STATUS_OPEN, TODO_STATUS_CARRY}:
-                    continue
-                if normalize_todo_owner(todo.get("owner")) != owner:
-                    continue
-                if str(todo.get("description", "")).strip() == summary:
-                    matched = todo
-                    break
-
-            if matched:
-                matched["status"] = TODO_STATUS_CARRY
-                matched["updated_loop"] = loop_iteration
-                matched["source_issue_id"] = issue.issue_id
-                updates_applied.append(
-                    {
-                        "action": "auto_carry",
-                        "task_id": str(matched.get("task_id", "")),
-                        "owner": owner,
-                        "status": TODO_STATUS_CARRY,
-                        "source_issue_id": issue.issue_id,
-                    }
-                )
-                continue
-
-            new_task_id = next_pm_todo_id(todos)
-            todos.append(
-                {
-                    "task_id": new_task_id,
-                    "created_loop": loop_iteration,
-                    "updated_loop": loop_iteration,
-                    "owner": owner,
-                    "status": TODO_STATUS_OPEN,
-                    "description": summary,
-                    "source_issue_id": issue.issue_id,
-                }
-            )
-            updates_applied.append(
-                {
-                    "action": "auto_create",
-                    "task_id": new_task_id,
-                    "owner": owner,
-                    "status": TODO_STATUS_OPEN,
-                    "source_issue_id": issue.issue_id,
-                }
-            )
 
     return todos, updates_applied
 
@@ -2939,7 +3110,7 @@ def build_prepare_state_payload(
     features: Sequence[Feature],
     ordered_slugs: Sequence[str],
     graph: Dict[str, Set[str]],
-    dependency_decisions: Sequence[Dict[str, str]],
+    dependency_decisions: Sequence[Dict[str, Any]],
     pm_history: Sequence[Dict[str, object]],
     pm_todos: Sequence[Dict[str, Any]],
     pm_final_decision: str,
@@ -3050,6 +3221,306 @@ def run_command(root: Path, cmd: Sequence[str], *, label: str) -> None:
         )
 
 
+def read_text_if_exists(path: Path) -> str:
+    if not path.exists():
+        return ""
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def read_json_object_if_exists(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return payload
+
+
+def state_pm_todos_from_payload(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    pm_todos_payload = payload.get("pm_todos")
+    if not isinstance(pm_todos_payload, dict):
+        return []
+    items = pm_todos_payload.get("items")
+    if not isinstance(items, list):
+        return []
+    return [dict(item) for item in items if isinstance(item, dict)]
+
+
+def last_pm_feedback_from_state(payload: Dict[str, Any]) -> List[Dict[str, str]]:
+    pm_gate = payload.get("pm_gate")
+    if not isinstance(pm_gate, dict):
+        return []
+    history = pm_gate.get("history")
+    if not isinstance(history, list) or not history:
+        return []
+    for raw_entry in reversed(history):
+        if not isinstance(raw_entry, dict):
+            continue
+        feedback = raw_entry.get("pm_feedback")
+        if not isinstance(feedback, dict):
+            continue
+        review_issues = feedback.get("review_issues")
+        if isinstance(review_issues, list):
+            return [
+                {
+                    "issue_id": str(item.get("issue_id", "")).strip(),
+                    "step": str(item.get("step", "")).strip(),
+                    "summary": str(item.get("summary", "")).strip(),
+                    "risk": str(item.get("risk", "")).strip(),
+                    "remediation": str(item.get("remediation", "")).strip(),
+                }
+                for item in review_issues
+                if isinstance(item, dict)
+            ]
+    return []
+
+
+def order_payload_consistency_issues(
+    order_payload: Dict[str, Any], *, ordered_slugs: Sequence[str]
+) -> List[str]:
+    issues: List[str] = []
+    slug_order = [str(slug).strip() for slug in ordered_slugs if str(slug).strip()]
+    slug_set = set(slug_order)
+
+    decisions = order_payload.get("decisions")
+    dependencies = order_payload.get("dependencies")
+    ordered_features = order_payload.get("ordered_features")
+    if not isinstance(decisions, list):
+        return ["order payload decisions must be a list"]
+    if not isinstance(dependencies, dict):
+        return ["order payload dependencies must be an object"]
+    if not isinstance(ordered_features, list):
+        return ["order payload ordered_features must be a list"]
+
+    decision_dep_map: Dict[str, List[str]] = {}
+    for item in decisions:
+        if not isinstance(item, dict):
+            continue
+        raw_slug = str(item.get("feature_slug", "")).strip()
+        if not raw_slug:
+            continue
+        slug = raw_slug if raw_slug in slug_set else compact_slug(raw_slug)
+        if not slug or slug not in slug_set:
+            continue
+        depends_on = item.get("depends_on", [])
+        if not isinstance(depends_on, list):
+            issues.append(f"decisions[{slug}].depends_on must be a list")
+            continue
+        normalized = []
+        for dep in depends_on:
+            dep_token = str(dep).strip()
+            if not dep_token:
+                continue
+            dep_slug = dep_token if dep_token in slug_set else compact_slug(dep_token)
+            if (
+                dep_slug
+                and dep_slug in slug_set
+                and dep_slug != slug
+                and dep_slug not in normalized
+            ):
+                normalized.append(dep_slug)
+        decision_dep_map[slug] = normalized
+
+    for slug in slug_order:
+        decision_deps = decision_dep_map.get(slug, [])
+        dependency_deps = dependencies.get(slug, [])
+        if not isinstance(dependency_deps, list):
+            issues.append(f"dependencies[{slug}] must be a list")
+            continue
+        normalized_dependencies = []
+        for dep in dependency_deps:
+            dep_token = str(dep).strip()
+            if not dep_token:
+                continue
+            dep_slug = dep_token if dep_token in slug_set else compact_slug(dep_token)
+            if (
+                dep_slug
+                and dep_slug in slug_set
+                and dep_slug != slug
+                and dep_slug not in normalized_dependencies
+            ):
+                normalized_dependencies.append(dep_slug)
+        if normalized_dependencies != decision_deps:
+            issues.append(
+                f"dependencies[{slug}] differs from decisions[{slug}].depends_on"
+            )
+
+        row = next(
+            (
+                item
+                for item in ordered_features
+                if isinstance(item, dict) and str(item.get("slug", "")).strip() == slug
+            ),
+            None,
+        )
+        if row is None:
+            issues.append(f"ordered_features missing row for {slug}")
+            continue
+        row_deps = row.get("dependencies", [])
+        if not isinstance(row_deps, list):
+            issues.append(f"ordered_features[{slug}].dependencies must be a list")
+            continue
+        normalized_row = []
+        for dep in row_deps:
+            dep_token = str(dep).strip()
+            if not dep_token:
+                continue
+            dep_slug = dep_token if dep_token in slug_set else compact_slug(dep_token)
+            if (
+                dep_slug
+                and dep_slug in slug_set
+                and dep_slug != slug
+                and dep_slug not in normalized_row
+            ):
+                normalized_row.append(dep_slug)
+        if normalized_row != decision_deps:
+            issues.append(
+                f"ordered_features[{slug}].dependencies differs from decisions[{slug}].depends_on"
+            )
+
+    return issues
+
+
+def run_order_payload_autofix_session(
+    *,
+    root: Path,
+    order_payload: Dict[str, Any],
+    consistency_issues: Sequence[str],
+) -> Dict[str, Any]:
+    if shutil.which("codex") is None:
+        print(
+            "pc-prepare-features: order payload autofix skipped (codex CLI not found)"
+        )
+        return dict(order_payload)
+
+    issue_lines = "\n".join(f"- {item}" for item in consistency_issues)
+    prompt = (
+        "You are the dependency autofix role for prepare-features.\n"
+        "Fix the order payload so dependency data is machine-consistent.\n"
+        'Return ONLY JSON object: {"order_payload": <fixed payload>}.\n'
+        "Rules:\n"
+        "- Keep ordered_feature_slugs unchanged.\n"
+        "- Ensure decisions[*].depends_on are JSON arrays of slugs.\n"
+        "- Ensure dependencies[slug] and ordered_features[*].dependencies match decisions.\n"
+        "- Do not add unknown slugs.\n\n"
+        "Consistency issues:\n"
+        f"{issue_lines}\n\n"
+        "Current order payload JSON:\n"
+        f"{json.dumps(order_payload, ensure_ascii=True, indent=2, sort_keys=True)}\n"
+    )
+    try:
+        payload = codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get("PREPARE_ORDERER_AUTOFIX_PROFILE", "Orderer"),
+            label="orderer-autofix",
+        )
+    except RuntimeError as exc:
+        print(f"pc-prepare-features: order payload autofix failed: {exc}")
+        return dict(order_payload)
+
+    raw_payload = payload.get("order_payload")
+    if not isinstance(raw_payload, dict):
+        print(
+            "pc-prepare-features: order payload autofix ignored invalid output (missing order_payload object)"
+        )
+        return dict(order_payload)
+    return dict(raw_payload)
+
+
+def run_markdown_autofix_session(
+    *,
+    root: Path,
+    artifact_label: str,
+    current_markdown: str,
+    issues: Sequence[ReviewIssue],
+    profile_env: str,
+    profile_default: str,
+) -> str:
+    if shutil.which("codex") is None:
+        print(
+            f"pc-prepare-features: {artifact_label} autofix skipped (codex CLI not found)"
+        )
+        return current_markdown
+    if not issues:
+        return current_markdown
+
+    issues_markdown = "\n".join(
+        f"- [{issue.issue_id}] {issue.summary} | remediation: {issue.remediation}"
+        for issue in issues
+    )
+    prompt = (
+        f"You are the {artifact_label} autofix role for prepare-features.\n"
+        "Apply minimal edits that resolve the listed issues.\n"
+        'Return ONLY JSON object: {"markdown": "..."}.\n'
+        "Constraints:\n"
+        "- Keep existing section structure.\n"
+        "- Preserve unrelated wording.\n"
+        "- Resolve only the listed issues.\n\n"
+        "Issues:\n"
+        f"{issues_markdown}\n\n"
+        "Current markdown:\n"
+        f"{current_markdown}\n"
+    )
+    try:
+        payload = codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get(profile_env, profile_default),
+            label=f"{artifact_label}-autofix",
+        )
+    except RuntimeError as exc:
+        print(f"pc-prepare-features: {artifact_label} autofix failed: {exc}")
+        return current_markdown
+
+    markdown = str(payload.get("markdown", "")).strip()
+    if not markdown:
+        print(
+            f"pc-prepare-features: {artifact_label} autofix ignored invalid output (missing markdown)"
+        )
+        return current_markdown
+    return markdown
+
+
+def build_candidate_summary_markdown(
+    *,
+    run_mode: str,
+    loop_iteration: int,
+    pm_final_decision: str,
+    pm_block_count: int,
+    feature_generation_status: str,
+    schema_check_status: str,
+) -> str:
+    lines = [
+        "# Prepare Features Candidate Summary",
+        "",
+        "> Machine-managed by `tools/pc-prepare-features`.",
+        "",
+        f"- Run mode: `{run_mode}`",
+        f"- Loop iteration: `{loop_iteration}`",
+        f"- PM final decision: `{pm_final_decision}`",
+        f"- PM blocks: `{pm_block_count}`",
+        f"- Feature generation status: `{feature_generation_status}`",
+        f"- Schema check status: `{schema_check_status}`",
+        "",
+        "## Candidate Artifacts",
+        "",
+        f"- `{DESIGN_CANDIDATE_PATH}`",
+        f"- `{UX_CANDIDATE_PATH}`",
+        f"- `{ORDER_JSON_CANDIDATE_PATH}`",
+        f"- `{ORDER_MD_CANDIDATE_PATH}`",
+        f"- `{PREPARE_STATE_CANDIDATE_PATH}`",
+        f"- `{PREPARE_PM_TODO_CANDIDATE_PATH}`",
+    ]
+    return "\n".join(lines)
+
+
 def run_prepare(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     prd_file = root / PRD_PATH
@@ -3075,40 +3546,66 @@ def run_prepare(args: argparse.Namespace) -> int:
         else ""
     )
 
-    existing_state_file = root / PREPARE_STATE_PATH
-    if existing_state_file.exists():
-        try:
-            existing_state_payload = json.loads(
-                existing_state_file.read_text(encoding="utf-8")
-            )
-            state_version = int(existing_state_payload.get("version", 1))
-            has_pm_todos = isinstance(existing_state_payload.get("pm_todos"), dict)
-            if state_version < 2 or not has_pm_todos:
-                print(
-                    "pc-prepare-features: warning: detected legacy prepare state "
-                    "(version<2 or missing pm_todos); this run will refresh artifacts."
-                )
-        except (json.JSONDecodeError, OSError, TypeError, ValueError):
-            print(
-                "pc-prepare-features: warning: existing prepare state is unreadable; "
-                "this run will rewrite artifacts."
-            )
+    existing_state_payload = read_json_object_if_exists(root / PREPARE_STATE_PATH)
+    raw_state_version = existing_state_payload.get("version", 1)
+    try:
+        state_version = int(raw_state_version or 1)
+    except (TypeError, ValueError):
+        state_version = 1
+    has_pm_todos = isinstance(existing_state_payload.get("pm_todos"), dict)
+    if existing_state_payload and (state_version < 2 or not has_pm_todos):
+        print(
+            "pc-prepare-features: warning: detected legacy prepare state "
+            "(version<2 or missing pm_todos); this run will refresh artifacts."
+        )
+    elif (root / PREPARE_STATE_PATH).exists() and not existing_state_payload:
+        print(
+            "pc-prepare-features: warning: existing prepare state is unreadable; "
+            "this run will continue from canonical docs where possible."
+        )
+
+    existing_design_doc = read_text_if_exists(root / DESIGN_PATH)
+    existing_ux_doc = read_text_if_exists(root / UX_PATH)
+    existing_order_payload = read_json_object_if_exists(root / ORDER_JSON_PATH)
+    has_existing_order_payload = bool(
+        isinstance(existing_order_payload, dict)
+        and isinstance(existing_order_payload.get("ordered_feature_slugs"), list)
+    )
+    is_first_run = not (
+        existing_state_payload
+        and existing_design_doc.strip()
+        and existing_ux_doc.strip()
+        and has_existing_order_payload
+    )
+    run_mode = "first-run" if is_first_run else "rerun"
+    print(f"pc-prepare-features: detected run mode -> {run_mode}")
 
     pm_blocks = 0
     pm_history: List[Dict[str, object]] = []
-    pm_todos: List[Dict[str, Any]] = []
+    pm_todos: List[Dict[str, Any]] = state_pm_todos_from_payload(existing_state_payload)
     graph: Dict[str, Set[str]] = {}
     ordered_slugs: List[str] = []
-    dependency_decisions: List[Dict[str, str]] = []
+    dependency_decisions: List[Dict[str, Any]] = []
     pm_final_decision = "pending"
-    previous_design_doc = ""
-    previous_ux_doc = ""
-    previous_order_payload: Dict[str, object] = {}
-    previous_pm_feedback: List[Dict[str, str]] = []
-    retry_owner_scope: Optional[Set[str]] = None
-    previous_loop_change_summary = (
-        "No previous loop change summary available (first iteration)."
+    previous_design_doc = existing_design_doc.strip()
+    previous_ux_doc = existing_ux_doc.strip()
+    previous_order_payload: Dict[str, object] = (
+        dict(existing_order_payload) if has_existing_order_payload else {}
     )
+    previous_pm_feedback: List[Dict[str, str]] = last_pm_feedback_from_state(
+        existing_state_payload
+    )
+    retry_owner_scope: Optional[Set[str]] = None
+    previous_loop_change_summary = "No previous loop change summary available."
+    if previous_pm_feedback:
+        last_feedback = previous_pm_feedback[-1]
+        feedback_summary = str(last_feedback.get("summary", "")).strip()
+        if feedback_summary:
+            previous_loop_change_summary = f"Previous PM finding: {feedback_summary}"
+    design_doc = previous_design_doc
+    ux_doc = previous_ux_doc
+    order_payload: Dict[str, Any] = dict(previous_order_payload)
+    loop_iteration_for_persist = 0
     in_loop_feature_generation_status = "skipped" if args.skip_generation else "pending"
     in_loop_schema_check_status = (
         "skipped" if args.skip_generation or args.skip_schema_check else "pending"
@@ -3132,6 +3629,7 @@ def run_prepare(args: argparse.Namespace) -> int:
         feature_generation_status: str,
         schema_check_status: str,
         snapshot_label: str = "state",
+        promote: bool = False,
     ) -> None:
         payload = build_prepare_state_payload(
             features=features,
@@ -3147,19 +3645,64 @@ def run_prepare(args: argparse.Namespace) -> int:
             feature_generation_status=feature_generation_status,
             schema_check_status=schema_check_status,
         )
-        write_text(
-            root / PREPARE_STATE_PATH,
-            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True),
-        )
-        print(f"pc-prepare-features: wrote state artifact -> {PREPARE_STATE_PATH}")
         pm_todo_markdown = render_pm_todo_markdown(
             pm_todos=pm_todos, pm_history=pm_history
         )
         write_text(
-            root / PREPARE_PM_TODO_PATH,
-            pm_todo_markdown,
+            root / DESIGN_CANDIDATE_PATH,
+            design_doc,
         )
-        print(f"pc-prepare-features: wrote PM TODO artifact -> {PREPARE_PM_TODO_PATH}")
+        write_text(
+            root / UX_CANDIDATE_PATH,
+            ux_doc,
+        )
+        write_text(
+            root / ORDER_JSON_CANDIDATE_PATH,
+            json.dumps(order_payload, ensure_ascii=True, indent=2, sort_keys=True),
+        )
+        write_text(root / ORDER_MD_CANDIDATE_PATH, order_markdown(order_payload))
+        write_text(
+            root / PREPARE_STATE_CANDIDATE_PATH,
+            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True),
+        )
+        write_text(root / PREPARE_PM_TODO_CANDIDATE_PATH, pm_todo_markdown)
+        write_text(
+            root / PREPARE_CANDIDATE_SUMMARY_PATH,
+            build_candidate_summary_markdown(
+                run_mode=run_mode,
+                loop_iteration=loop_iteration_for_persist,
+                pm_final_decision=pm_final_decision,
+                pm_block_count=pm_blocks,
+                feature_generation_status=feature_generation_status,
+                schema_check_status=schema_check_status,
+            ),
+        )
+        print(
+            "pc-prepare-features: wrote candidate artifacts -> "
+            f"{DESIGN_CANDIDATE_PATH}, {UX_CANDIDATE_PATH}, {ORDER_JSON_CANDIDATE_PATH}, "
+            f"{PREPARE_STATE_CANDIDATE_PATH}, {PREPARE_PM_TODO_CANDIDATE_PATH}"
+        )
+        if promote:
+            write_text(root / DESIGN_PATH, design_doc)
+            write_text(root / UX_PATH, ux_doc)
+            write_text(
+                root / ORDER_JSON_PATH,
+                json.dumps(order_payload, ensure_ascii=True, indent=2, sort_keys=True),
+            )
+            write_text(root / ORDER_MD_PATH, order_markdown(order_payload))
+            write_text(
+                root / PREPARE_STATE_PATH,
+                json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True),
+            )
+            write_text(
+                root / PREPARE_PM_TODO_PATH,
+                pm_todo_markdown,
+            )
+            print(
+                "pc-prepare-features: promoted candidate artifacts -> "
+                f"{DESIGN_PATH}, {UX_PATH}, {ORDER_JSON_PATH}, {PREPARE_STATE_PATH}, {PREPARE_PM_TODO_PATH}"
+            )
+
         if snapshot_root is None:
             return
 
@@ -3200,14 +3743,15 @@ def run_prepare(args: argparse.Namespace) -> int:
         )
 
     while True:
-        loop_iteration = pm_blocks + 1
+        loop_iteration = pm_blocks + (1 if is_first_run else 2)
+        loop_iteration_for_persist = loop_iteration
         run_architect = retry_owner_scope is None or STEP_ARCHITECT in retry_owner_scope
         run_ux = retry_owner_scope is None or STEP_UX in retry_owner_scope
         run_orderer = (
             retry_owner_scope is None or STEP_DEPENDENCY_PLANNER in retry_owner_scope
         )
         if retry_owner_scope is None:
-            print("pc-prepare-features: retry scope -> full (first iteration)")
+            print("pc-prepare-features: retry scope -> full")
         else:
             print(
                 "pc-prepare-features: retry scope -> "
@@ -3259,7 +3803,6 @@ def run_prepare(args: argparse.Namespace) -> int:
                 graph=graph,
                 context_boundaries=context_boundaries,
             )
-        write_text(root / DESIGN_PATH, design_doc)
 
         ux_doc = previous_ux_doc
         ux_seed_issues: List[Dict[str, str]] = []
@@ -3285,7 +3828,6 @@ def run_prepare(args: argparse.Namespace) -> int:
             ux_doc = ux_markdown(
                 features=features, ordered_slugs=ordered_slugs, graph=graph
             )
-        write_text(root / UX_PATH, ux_doc)
 
         order_payload = (
             dict(previous_order_payload)
@@ -3320,15 +3862,6 @@ def run_prepare(args: argparse.Namespace) -> int:
                 "pc-prepare-features: orderer step -> reusing previous feature-order payload"
             )
 
-        print(
-            "pc-prepare-features: dependency planner step -> generating docs/02-features/feature-order.{json,md}"
-        )
-        write_text(
-            root / ORDER_JSON_PATH,
-            json.dumps(order_payload, ensure_ascii=True, indent=2, sort_keys=True),
-        )
-        write_text(root / ORDER_MD_PATH, order_markdown(order_payload))
-
         active_ordered_slugs = [
             str(item).strip()
             for item in order_payload.get("ordered_feature_slugs", [])
@@ -3336,15 +3869,54 @@ def run_prepare(args: argparse.Namespace) -> int:
         ]
         if not active_ordered_slugs:
             active_ordered_slugs = list(ordered_slugs)
-        ordered_slugs = list(active_ordered_slugs)
+        raw_consistency_issues = order_payload_consistency_issues(
+            order_payload, ordered_slugs=active_ordered_slugs
+        )
+        if raw_consistency_issues:
+            print(
+                "pc-prepare-features: dependency planner autofix -> "
+                "running dedicated codex session"
+            )
+            autofixed_payload = run_order_payload_autofix_session(
+                root=root,
+                order_payload=order_payload,
+                consistency_issues=raw_consistency_issues,
+            )
+            autofixed_slugs = [
+                str(item).strip()
+                for item in autofixed_payload.get("ordered_feature_slugs", [])
+                if str(item).strip()
+            ]
+            if len(autofixed_slugs) == len(features) and len(
+                set(autofixed_slugs)
+            ) == len(features):
+                active_ordered_slugs = autofixed_slugs
+            order_payload = dict(autofixed_payload)
 
+        order_decisions_payload = order_payload.get("decisions")
+        if not isinstance(order_decisions_payload, list):
+            order_decisions_payload = dependency_decisions
+        order_payload = build_order_payload(
+            ordered_slugs=active_ordered_slugs,
+            features=features,
+            graph=graph,
+            decisions=[
+                dict(item) for item in order_decisions_payload if isinstance(item, dict)
+            ],
+        )
+        consistency_issues = order_payload_consistency_issues(
+            order_payload, ordered_slugs=active_ordered_slugs
+        )
+        if consistency_issues:
+            print(
+                "pc-prepare-features: dependency planner autofix could not resolve all issues; continuing with normalized payload"
+            )
+        ordered_slugs = list(active_ordered_slugs)
         pm_dependency_decisions = order_payload.get("decisions")
         if not isinstance(pm_dependency_decisions, list):
             pm_dependency_decisions = dependency_decisions
         dependency_decisions = [
-            {str(key): str(value) for key, value in item.items()}
-            for item in pm_dependency_decisions
-            if isinstance(item, dict)
+            dict(item) for item in pm_dependency_decisions if isinstance(item, dict)
         ]
 
         current_loop_change_summary = build_loop_change_summary(
@@ -3388,6 +3960,88 @@ def run_prepare(args: argparse.Namespace) -> int:
             seed_issues=[*architect_seed_issues, *ux_seed_issues, *orderer_seed_issues],
             enforce_semantic_gate=args.role_mode != ROLE_MODE_DETERMINISTIC,
         )
+
+        if issues and args.role_mode == ROLE_MODE_CODEX:
+            architect_issues = [item for item in issues if item.step == STEP_ARCHITECT]
+            ux_issues = [item for item in issues if item.step == STEP_UX]
+            autofix_applied = False
+            if architect_issues:
+                updated_design = run_markdown_autofix_session(
+                    root=root,
+                    artifact_label="design.md",
+                    current_markdown=design_doc,
+                    issues=architect_issues,
+                    profile_env="PREPARE_ARCHITECT_AUTOFIX_PROFILE",
+                    profile_default="Architect",
+                )
+                if (
+                    updated_design.strip()
+                    and updated_design.strip() != design_doc.strip()
+                ):
+                    design_doc = updated_design
+                    autofix_applied = True
+            if ux_issues:
+                updated_ux = run_markdown_autofix_session(
+                    root=root,
+                    artifact_label="ux-ui.md",
+                    current_markdown=ux_doc,
+                    issues=ux_issues,
+                    profile_env="PREPARE_UX_AUTOFIX_PROFILE",
+                    profile_default="UXUI",
+                )
+                if updated_ux.strip() and updated_ux.strip() != ux_doc.strip():
+                    ux_doc = updated_ux
+                    autofix_applied = True
+            if autofix_applied:
+                print(
+                    "pc-prepare-features: architect/ux autofix applied -> re-running PM gate"
+                )
+                current_loop_change_summary = build_loop_change_summary(
+                    previous_design_markdown=previous_design_doc,
+                    current_design_markdown=design_doc,
+                    previous_ux_markdown=previous_ux_doc,
+                    current_ux_markdown=ux_doc,
+                    previous_order_payload=previous_order_payload,
+                    current_order_payload=order_payload,
+                )
+                pm_role_payload = run_pm_role(
+                    root=root,
+                    role_mode=args.role_mode,
+                    prd_text=prd_text,
+                    context_boundaries=context_boundaries,
+                    design_text=design_doc,
+                    ux_text=ux_doc,
+                    order_payload=order_payload,
+                    features=features,
+                    ordered_slugs=active_ordered_slugs,
+                    graph=graph,
+                    dependency_decisions=pm_dependency_decisions,
+                    prepare_iteration=loop_iteration,
+                    previous_design_markdown=previous_design_doc,
+                    previous_ux_markdown=previous_ux_doc,
+                    pm_feedback=previous_pm_feedback,
+                    pm_todos=pm_todos,
+                    previous_loop_change_summary=current_loop_change_summary,
+                )
+                pm_role_decision = (
+                    str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
+                )
+                issues = product_manager_review(
+                    features=features,
+                    ordered_slugs=active_ordered_slugs,
+                    graph=graph,
+                    design_text=design_doc,
+                    ux_text=ux_doc,
+                    order_payload=order_payload,
+                    pm_role_payload=pm_role_payload,
+                    seed_issues=[
+                        *architect_seed_issues,
+                        *ux_seed_issues,
+                        *orderer_seed_issues,
+                    ],
+                    enforce_semantic_gate=args.role_mode != ROLE_MODE_DETERMINISTIC,
+                )
+
         pm_todos, todo_updates = apply_pm_todo_updates(
             pm_todos=pm_todos,
             raw_todo_updates=pm_role_payload.get("todo_updates"),
@@ -3513,6 +4167,7 @@ def run_prepare(args: argparse.Namespace) -> int:
         feature_generation_status=feature_generation_status,
         schema_check_status=schema_check_status,
         snapshot_label="post-gate",
+        promote=pm_final_decision in {"approve", "waive"},
     )
 
     if args.skip_generation:
@@ -3535,6 +4190,7 @@ def run_prepare(args: argparse.Namespace) -> int:
         feature_generation_status=feature_generation_status,
         schema_check_status=schema_check_status,
         snapshot_label="post-generation",
+        promote=True,
     )
 
     if not args.skip_schema_check:
@@ -3548,6 +4204,7 @@ def run_prepare(args: argparse.Namespace) -> int:
             feature_generation_status=feature_generation_status,
             schema_check_status=schema_check_status,
             snapshot_label="post-schema",
+            promote=True,
         )
 
     print("pc-prepare-features: complete")

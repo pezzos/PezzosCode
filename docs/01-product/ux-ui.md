@@ -1,92 +1,90 @@
-# UX/UI
+# PezzosCode UX/UI
 
 ## User journeys
 
-### 1) Bootstrap or refresh a repository without churn (`bootstrap-safe-template-reapply`, Feature 1)
+### Journey 1: Make a repo execution-ready, then reapply safely
 
-Outcome reference: New/existing repos become execution-ready with idempotent reruns.
+- **Outcomes covered:** **Bootstrap + safe template reapply** (`bootstrap-safe-template-reapply`) -> new/existing repos become execution-ready with idempotent reruns.
+- User runs bootstrap in a local repo.
+- If template conflicts exist, CLI asks `overwrite`, `merge`, or `skip` and shows scope before applying.
+- Success is a concise summary with applied/skipped items and explicit rerun safety.
 
-- Trigger: User runs bootstrap/update in a local repository.
-- Interaction: Apply templates/tools/docs with explicit overwrite/merge/skip choices on conflicts.
-- Success signal: Immediate rerun produces no unintended file churn.
-- User-visible result: Repo is execution-ready without manual template repair.
+### Journey 2: Move one ticket through deterministic gates
 
-### 2) Execute an approved work item through deterministic gates (`deterministic-work-item-execution-with-explicit-gates`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`, `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`; Features 2, 6, 7)
+- **Outcomes covered:** **Deterministic work-item execution with explicit gates** (`deterministic-work-item-execution-with-explicit-gates`) -> Plan -> Patch -> Test -> Report is predictable and auditable; **Orchestrator roles + Plan Reviewer gate + role-specific prompts** (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) -> cleaner role separation and plan quality; **Anti-hardcode test policy + synthetic end-to-end smoke feature** (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) -> better regression resistance via policy/smoke checks.
+- Human PO/user starts execution; system emits preflight (scope, risk, files-to-change, TDD plan, DoD).
+- HIGH risk halts at `Awaiting PO Approval` until explicit approval.
+- Planner -> Plan Reviewer -> Patcher -> Tester -> Reporter handoffs are explicit; failed review/test/report loops return to Planner.
 
-Outcome references:
+### Journey 3: Keep traceability high and prompt noise low
 
-- Feature 2: Plan -> Patch -> Test -> Report runs predictably and is auditable.
-- Feature 6: Cleaner separation of responsibilities and better plan quality.
-- Feature 7: Better regression resistance and early workflow break detection.
-- Trigger: Ticket has preflight scope/risk/files-to-change, TDD plan, and work-item DoD.
-- Interaction: Preflight runs first; HIGH-risk pauses for explicit approval; Plan Reviewer must approve before patching; tester enforces allowed tests and anti-hardcode policy.
-- User-visible result: Minimal manual intervention with explicit gates and auditable stage decisions.
+- **Outcomes covered:** **Output offload + structured logs + shared runner** (`output-offload-structured-logs-shared-runner`) -> noisy output stays token-efficient and every step is traceable.
+- During noisy steps, CLI shows pointer ids and short status instead of long inline output.
+- User debugs from `.offload/<id>.txt` and `logs/<WI>/<step>.log` with timestamped prefixes.
 
-### 3) Keep execution observable and recover safely after interruption (`output-offload-structured-logs-shared-runner`, `resume-safety-fail-closed-commit-gate-scoped-autofix`, `single-worktree-orchestration-template-drift-hardening`; Features 3, 4, 5)
+### Journey 4: Resume safely and block incomplete commits
 
-Outcome references:
+- **Outcomes covered:** **Resume safety + fail-closed commit gate + scoped autofix** (`resume-safety-fail-closed-commit-gate-scoped-autofix`) -> interrupted runs resume safely and commits require complete evidence; **Single-worktree orchestration + template-drift hardening** (`single-worktree-orchestration-template-drift-hardening`) -> reliable collaboration in a single feature worktree with drift hardening.
+- On rerun, system resumes in place, preserves active WIP by default, and re-runs tests/CI.
+- Drift repair is scoped and deterministic; unresolved drift returns explicit remediation.
+- Commit remains blocked until required planner/tester/reporter evidence is complete.
 
-- Feature 3: Noisy output stays token-efficient and every step is traceable.
-- Feature 4: Interrupted runs resume safely; commits require complete evidence.
-- Feature 5: Reliable role collaboration without worktree tracking-file drift.
-- Interaction: Noisy commands offload to pointers, structured logs persist per step, resume skips completed deterministic stages, scoped drift repair runs on allowed paths, and commit stays blocked until evidence is complete.
-- User-visible result: No silent state loss, clear recovery path, and no commit on incomplete work.
+### Journey 5: Evolve docs incrementally after each run
 
-### 4) Improve safely after each run (`incremental-prd-to-features-post-run-learning-loop`, Feature 8)
-
-Outcome reference: Feature docs evolve safely and repeated failures are reduced.
-
-- Interaction: PRD-to-features sync adds missing only and skips completed artifacts; repeated-failure proposals are recorded with WI/agent/step evidence.
-- Governance: Improvements are proposal-only until explicit human approval.
-- User-visible result: Continuous hardening without resetting completed work.
+- **Outcomes covered:** **Incremental PRD-to-features + post-run learning loop** (`incremental-prd-to-features-post-run-learning-loop`) -> feature docs evolve safely and repeated failures are reduced.
+- PRD-to-features adds only missing items and skips `Status: Done`.
+- Failures can produce improvement proposals for human approval (not auto-applied).
 
 ## Workflows
 
-### Workflow A: Bootstrap and safe reapply (Feature 1)
+### Workflow A: Bootstrap + safe template reapply
 
-1. Validate local repo context and prerequisites.
-2. Apply templates/tools/docs.
-3. Resolve conflicts via overwrite/merge/skip.
-4. Print concise created/updated/skipped summary.
-5. Allow deterministic rerun with no unintended churn.
+1. User runs bootstrap command in target repo.
+2. System checks prerequisites and repo context.
+3. System applies templates/tools/docs with explicit `overwrite|merge|skip` handling.
+4. System prints what changed and confirms idempotent rerun behavior.
+5. User continues to `context -> PRD -> features`.
 
-### Workflow B: Evidence-first deterministic execution (Features 3, 2, 4, 5, 6, 7)
+### Workflow B: Deterministic work-item execution with explicit gates
 
-1. Route noisy command output through `tools/offload-proxy/pp` and capture `.offload/<id>.txt`.
-2. Write step logs to `logs/<WI>/<step>.log` with `[WI-...][agent][step]` and timestamps.
-3. Run preflight and enforce HIGH-risk approval gate.
-4. Enforce stage order: Plan -> Patch -> Test -> Report.
-5. Require Plan Reviewer approval before patching; enforce role ownership in one feature worktree.
-6. On interruption, resume from saved stage, preserve active WIP by default, rerun tests/CI, and attempt scoped drift recovery.
-7. Keep commit fail-closed until required execution/report evidence is complete.
-8. Enforce anti-hardcode policy (>=2 fixtures on critical paths, deterministic seeds, invariants, boundary contracts) and synthetic smoke coverage when validating workflow changes.
+1. Human PO/user starts execution command.
+2. System emits preflight report with risk classification and work-item DoD.
+3. HIGH risk stops at `Awaiting PO Approval` until explicit approval is granted.
+4. Planner produces plan; Plan Reviewer must approve before any patch.
+5. Patcher implements; Tester runs only Allowed Tests, including anti-hardcode policy checks from **Anti-hardcode test policy + synthetic end-to-end smoke feature**.
+6. Reporter records outcomes; review/test/report failures loop to Planner.
+7. Final `make ci` gate runs only after role-loop success, aligned with **Orchestrator roles + Plan Reviewer gate + role-specific prompts** handoff rules.
 
-### Workflow C: Dependency-aligned delivery order (prepare-features guardrail)
+### Workflow C: Output offload + structured logs + shared runner
 
-- F1 -> F3: bootstrap-safe-template-reapply before output-offload-structured-logs-shared-runner.
-- F3 -> F2: evidence substrate before deterministic-work-item-execution-with-explicit-gates.
-- F2 -> F4 and F2 -> F5: deterministic orchestration before resume/commit and single-worktree/drift hardening.
-- F5 -> F6: worktree ownership hardening before role specialization.
-- F4 -> F7: resume/fail-closed controls before synthetic smoke and anti-hardcode hardening.
-- F2 + F3 + F6 -> F8: stable orchestration, evidence, and role outputs before incremental PRD sync and learning loop.
+1. Deterministic script commands run through shared runner metadata (`work_item_id`, `agent_name`, `run_id`).
+2. Noisy command output is offloaded to `.offload/<id>.txt`; CLI surfaces pointer ids.
+3. CI/tests/precommit/feature steps append structured logs to `logs/<WI>/<step>.log`.
+4. User inspects pointer + log path without repeating expensive commands.
 
-### Workflow D: Incremental evolution and learning loop (Feature 8)
+### Workflow D: Resume safety + fail-closed commit gate + scoped autofix
 
-1. Sync PRD to features in add-missing mode only.
-2. Skip artifacts already marked done.
-3. Record repeated-failure proposals with WI/agent/step evidence.
-4. Write proposals to `docs/possible-improvements.md`.
-5. Apply only after explicit human approval.
+1. Rerun detects in-progress state and resumes without duplicating prior sections.
+2. Completed stages are skipped safely; tests/CI re-run for confidence.
+3. Drift detection from **Single-worktree orchestration + template-drift hardening** triggers scoped repair and allowed-file restage only.
+4. Commit gate enforces complete execution evidence; missing fields keep commit blocked.
+
+### Workflow E: Incremental PRD-to-features + post-run learning loop
+
+1. Incremental PRD-to-features updates add missing feature docs only; existing/done features are preserved.
+2. Post-run failures are transformed into proposed improvements in the learning loop.
+3. Human approves or rejects proposals before any process change is applied.
 
 ## UX constraints
 
-- CLI-only UX; no web/desktop UI flows.
-- macOS-first local usage; no Windows support.
-- Single-user UX only; no collaboration patterns.
-- Command authority is explicit: only human PO/user runs `make feature` and `pc-feature` unless explicit in-run approval is granted.
-- Prompting stays minimal and gate-based: conflict resolution, HIGH-risk approval, explicit reset choices.
-- Idempotency and recoverability are non-negotiable: avoid duplicate prompts, duplicate log sections, or ambiguous run state.
-- Large/noisy outputs must be offloaded; inline output stays concise and pointer-based.
-- Observability is mandatory: each critical stage surfaces log paths and offload ids.
-- Deterministic steps are script-first via shared runner metadata (`work_item_id`, `agent_name`, `run_id`).
-- Scope boundaries stay explicit in UX copy: no daemon/scheduler, no cloud/remote state, and no UI expansion in this project.
+- CLI-only interaction model on macOS; no web/desktop UI surfaces.
+- Single-user optimization: interaction text assumes one Developer/PO persona and avoids team-role ambiguity.
+- Prompt minimalism: require input only for true gates (conflict choice, HIGH-risk approval, explicit resets).
+- Deterministic wording for gates: HIGH-risk prompt must be explicit, e.g., `Do you approve the HIGH-risk ticket? (y/n)`.
+- Deterministic wording for gates: blocked state label must be `Awaiting PO Approval`.
+- Idempotent feedback: every run summary must indicate whether work was resumed, skipped, repaired, or newly executed.
+- Token-efficiency rule: never paste large command output inline when offload is applicable.
+- Observability rule: each critical step must emit a stable log path and machine-searchable prefix.
+- Recovery-first errors: every blocking error message must include immediate remediation action and whether rerun is safe.
+- Scope guardrails in UX copy: do not introduce UI/cloud/multi-user/Windows language in prompts or docs.
+- Role-boundary clarity: user-facing status must identify current role/stage so handoff failures are diagnosable.
