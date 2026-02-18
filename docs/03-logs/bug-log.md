@@ -126,6 +126,72 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-011] - PM retry loop reran Architect/UX without prior artifact or PM-feedback context
+
+**Date Discovered:** 2026-02-18
+
+**Discovered By:** User workflow feedback during `make prepare-features` PM block retries
+
+**Severity:** Medium
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Internal maintainers relying on PM retry loops to converge prepare artifacts
+
+**Symptoms:**
+When PM blocked and the user chose retry, Architect/UX often produced outputs that felt like new drafts rather than revisions of the previous iteration plus PM feedback.
+
+**Steps to Reproduce:**
+
+1. Run `make prepare-features` in codex role mode.
+2. Reach PM `BLOCK` and choose retry.
+3. Observe next Architect/UX iteration starts from baseline inputs only (PRD/context/order), with no explicit previous drafts or PM issue list in prompt inputs.
+
+**Expected Behavior:**
+Retry iterations should revise prior Architect/UX drafts and explicitly consume PM feedback from the previous blocked iteration.
+
+**Actual Behavior:**
+Role prompts were re-rendered without prior draft content and without prior PM findings, causing restart-like behavior.
+
+**Root Cause:**
+`tools/pc-prepare-features` loop had no carry-forward state for previous design/UX markdown or PM issues, and Architect/UX prompts did not request incremental revision behavior.
+
+**Fix:**
+
+- Added retry-context payload fields (`prepare_iteration`, `previous_design_markdown`, `previous_ux_markdown`, `pm_feedback_json`) to prompt rendering.
+- Persisted prior design/UX drafts and PM findings on retry and fed them into subsequent Architect/UX/PM role runs.
+- Updated Architect/UX prompts (live + template) to revise prior drafts and address relevant PM feedback on iterations greater than 1.
+- Added regression tests for retry-context payload and prompt rendering with carry-forward markers.
+
+**Files Changed:**
+
+- `tools/pc-prepare-features`
+- `prompts/architect-prepare.md`
+- `prompts/ux-prepare.md`
+- `tools/templates/prompts/architect-prepare.md`
+- `tools/templates/prompts/ux-prepare.md`
+- `tests/test_pc_prepare_features.py`
+
+**Prevention:**
+
+- Tests added: `tests/test_pc_prepare_features.py` retry-context payload and render assertions
+- Process changes: none
+- Monitoring added: none
+
+**Related Issues:**
+
+- PM-block retries required repeated manual steering due low context continuity between iterations.
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-18
+
+**Deployed:** N/A (tooling repo local fix)
+
+**Verified By:** Codex (targeted unit + pre-commit)
+
 ### [BUG-010] - `make prepare-features` codex prompt rendering failed on literal issue-schema braces
 
 **Date Discovered:** 2026-02-18

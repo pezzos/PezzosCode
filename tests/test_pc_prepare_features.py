@@ -375,6 +375,18 @@ def parse_prd_features(_text: str):
             prd_text="## Prioritized Feature List\n- Alpha Feature",
             context_boundaries="## Scope Boundaries\n- Local CLI only",
             dependency_decisions=[],
+            prepare_iteration=2,
+            previous_design_markdown="## Previous Design\nPREV DESIGN MARKER",
+            previous_ux_markdown="## Previous UX\nPREV UX MARKER",
+            pm_feedback=[
+                {
+                    "issue_id": "PM-001",
+                    "step": "architect",
+                    "summary": "Address PM issue marker.",
+                    "risk": "Drift.",
+                    "remediation": "Fix marker.",
+                }
+            ],
         )
         template_paths = [
             Path("prompts/architect-prepare.md"),
@@ -404,6 +416,40 @@ def parse_prd_features(_text: str):
                     )
                 rendered = self.tool.render_prompt_template(template, values)
                 self.assertIn("{step, summary, risk, remediation}", rendered)
+                template_name = template_path.name
+                if template_name in {"architect-prepare.md", "ux-prepare.md"}:
+                    self.assertIn("PREV DESIGN MARKER", rendered)
+                    self.assertIn("PREV UX MARKER", rendered)
+                    self.assertIn("Address PM issue marker.", rendered)
+
+    def test_prompt_values_include_retry_context_payload(self):
+        values = self.tool.prompt_values(
+            features=[],
+            ordered_slugs=[],
+            graph={},
+            prd_text="PRD",
+            context_boundaries="Context",
+            dependency_decisions=[],
+            prepare_iteration=3,
+            previous_design_markdown="design retry baseline",
+            previous_ux_markdown="ux retry baseline",
+            pm_feedback=[
+                {
+                    "issue_id": "PM-009",
+                    "step": "ux",
+                    "summary": "Improve specificity.",
+                    "risk": "Generic UX.",
+                    "remediation": "Add feature outcomes.",
+                }
+            ],
+        )
+
+        self.assertEqual(values["prepare_iteration"], "3")
+        self.assertEqual(values["previous_design_markdown"], "design retry baseline")
+        self.assertEqual(values["previous_ux_markdown"], "ux retry baseline")
+        feedback_payload = json.loads(values["pm_feedback_json"])
+        self.assertEqual(feedback_payload[0]["issue_id"], "PM-009")
+        self.assertEqual(feedback_payload[0]["step"], "ux")
 
 
 if __name__ == "__main__":

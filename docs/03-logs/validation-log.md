@@ -27,6 +27,18 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-18 - PM retry-context carry-forward validation (Architect/UX prepare roles)
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 9 tests; offload id `eb273f1b0c1c6e20590cf2d75b2d40a0b207dd0352e0a8c335649590ac327aaa`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 22 tests; offload id `ab96c78076f829e47ea0302c62578f1a69d7908f3c9f0dcf594af7663beb9367`)
+- `tools/offload-proxy/pp pre-commit run --files tools/pc-prepare-features prompts/architect-prepare.md prompts/ux-prepare.md tools/templates/prompts/architect-prepare.md tools/templates/prompts/ux-prepare.md tests/test_pc_prepare_features.py docs/03-logs/decision-log.md docs/03-logs/implementation-log.md docs/03-logs/bug-log.md docs/03-logs/validation-log.md` (PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+
+Verified:
+
+- PM retry loops now pass explicit carry-forward context to role prompts (iteration, prior design/UX drafts, prior PM feedback).
+- Architect/UX prompt contracts now direct iterative revision on retries rather than blank-slate regeneration.
+- Regression tests cover retry-context payload generation and template rendering with prior-context markers.
+
 ### 2026-02-18 - Prepare prompt literal-brace render regression validation
 
 - `tools/offload-proxy/pp python3 -m unittest tests.test_pc_prepare_features` (FAIL: module import path does not resolve in this repo layout; offload id `ae83c3f787cec5c5802c125df0928ef0cbd18a17549efcc9b5db5f09792fad7d`)

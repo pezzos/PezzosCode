@@ -27,6 +27,35 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - Prepare retry-loop context carry-forward for Architect/UX
+
+**Feature/Bug:** Make PM-block retries revise prior Architect/UX artifacts with explicit PM feedback instead of behaving like blank-slate reruns.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `prompts/architect-prepare.md`
+- `prompts/ux-prepare.md`
+- `tools/templates/prompts/architect-prepare.md`
+- `tools/templates/prompts/ux-prepare.md`
+- `tests/test_pc_prepare_features.py`
+
+**What Changed:**
+
+- Extended prompt rendering payload with retry context fields:
+  - `prepare_iteration`
+  - `previous_design_markdown`
+  - `previous_ux_markdown`
+  - `pm_feedback_json`
+- Wired PM retry loop state in `run_prepare(...)` so `retry` persists prior design/UX outputs and last PM findings, then feeds them into the next Architect/UX/PM role run.
+- Updated Architect/UX prompt instructions (live + template) to explicitly revise prior drafts and address relevant PM feedback on iterations `> 1`.
+- Added tests that validate retry-context payload generation and prompt rendering with prior-draft/PM-feedback markers.
+
+**Why:**
+
+- PM feedback loops previously reran roles with only PRD/context/order data, which often felt like “start from scratch” and slowed convergence.
+- Carry-forward context makes retries incremental and improves consistency between loop iterations.
+
 ### 2026-02-18 - Fix codex prepare prompt rendering for literal issue schema
 
 **Feature/Bug:** Prevent `make prepare-features` from failing when prepare prompts include literal issue schema text.

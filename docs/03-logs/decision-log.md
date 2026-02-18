@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-073] - Carry PM retry context into Architect/UX prepare-role prompts
+
+**Date:** 2026-02-18
+
+**Status:** Implemented
+
+**Decision:**
+Update `tools/pc-prepare-features` and prepare-role prompts so PM retry iterations pass explicit carry-forward context to Architect/UX: previous design draft, previous UX draft, prior PM feedback issues, and iteration index.
+
+**Rationale:**
+The retry loop reran Architect/UX, but role prompts did not include prior artifacts or PM findings. That made retries behave like fresh generation and increased repeated generic output/block cycles.
+
+**Implications:**
+
+- Architect/UX retries are now instructed to revise prior drafts instead of restarting from blank.
+- PM findings from the last blocked iteration are fed into both roles as structured JSON.
+- First iteration behavior remains unchanged (empty prior context).
+
 ### [DEC-072] - Make prepare-features semantic and role-driven; keep process-feature generation opt-in
 
 **Date:** 2026-02-18

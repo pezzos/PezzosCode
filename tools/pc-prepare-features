@@ -748,6 +748,10 @@ def prompt_values(
     prd_text: str,
     context_boundaries: str,
     dependency_decisions: Sequence[Dict[str, str]],
+    prepare_iteration: int = 1,
+    previous_design_markdown: str = "",
+    previous_ux_markdown: str = "",
+    pm_feedback: Sequence[Dict[str, str]] = (),
 ) -> Dict[str, str]:
     feature_payload = feature_context_payload(
         features=features, ordered_slugs=ordered_slugs, graph=graph
@@ -760,6 +764,12 @@ def prompt_values(
         ),
         "dependency_decisions_json": json.dumps(
             list(dependency_decisions), ensure_ascii=True, indent=2, sort_keys=True
+        ),
+        "prepare_iteration": str(prepare_iteration),
+        "previous_design_markdown": previous_design_markdown,
+        "previous_ux_markdown": previous_ux_markdown,
+        "pm_feedback_json": json.dumps(
+            list(pm_feedback), ensure_ascii=True, indent=2, sort_keys=True
         ),
     }
 
@@ -812,6 +822,10 @@ def run_architect_role(
     ordered_slugs: Sequence[str],
     graph: Dict[str, Set[str]],
     dependency_decisions: Sequence[Dict[str, str]],
+    prepare_iteration: int = 1,
+    previous_design_markdown: str = "",
+    previous_ux_markdown: str = "",
+    pm_feedback: Sequence[Dict[str, str]] = (),
 ) -> Tuple[str, List[Dict[str, str]]]:
     if role_mode == ROLE_MODE_DETERMINISTIC:
         return (
@@ -834,6 +848,10 @@ def run_architect_role(
             prd_text=prd_text,
             context_boundaries=context_boundaries,
             dependency_decisions=dependency_decisions,
+            prepare_iteration=prepare_iteration,
+            previous_design_markdown=previous_design_markdown,
+            previous_ux_markdown=previous_ux_markdown,
+            pm_feedback=pm_feedback,
         ),
     )
     try:
@@ -914,6 +932,10 @@ def run_ux_role(
     ordered_slugs: Sequence[str],
     graph: Dict[str, Set[str]],
     dependency_decisions: Sequence[Dict[str, str]],
+    prepare_iteration: int = 1,
+    previous_design_markdown: str = "",
+    previous_ux_markdown: str = "",
+    pm_feedback: Sequence[Dict[str, str]] = (),
 ) -> Tuple[str, List[Dict[str, str]]]:
     if role_mode == ROLE_MODE_DETERMINISTIC:
         return (
@@ -931,6 +953,10 @@ def run_ux_role(
             prd_text=prd_text,
             context_boundaries=context_boundaries,
             dependency_decisions=dependency_decisions,
+            prepare_iteration=prepare_iteration,
+            previous_design_markdown=previous_design_markdown,
+            previous_ux_markdown=previous_ux_markdown,
+            pm_feedback=pm_feedback,
         ),
     )
     try:
@@ -1008,6 +1034,10 @@ def run_pm_role(
     ordered_slugs: Sequence[str],
     graph: Dict[str, Set[str]],
     dependency_decisions: Sequence[Dict[str, str]],
+    prepare_iteration: int = 1,
+    previous_design_markdown: str = "",
+    previous_ux_markdown: str = "",
+    pm_feedback: Sequence[Dict[str, str]] = (),
 ) -> Dict[str, Any]:
     if role_mode == ROLE_MODE_DETERMINISTIC:
         return {"decision": "APPROVE", "issues": [], "criteria": {}}
@@ -1020,6 +1050,10 @@ def run_pm_role(
         prd_text=prd_text,
         context_boundaries=context_boundaries,
         dependency_decisions=dependency_decisions,
+        prepare_iteration=prepare_iteration,
+        previous_design_markdown=previous_design_markdown,
+        previous_ux_markdown=previous_ux_markdown,
+        pm_feedback=pm_feedback,
     )
     values.update(
         {
@@ -1756,6 +1790,9 @@ def run_prepare(args: argparse.Namespace) -> int:
     ordered_slugs: List[str] = []
     dependency_decisions: List[Dict[str, str]] = []
     pm_final_decision = "pending"
+    previous_design_doc = ""
+    previous_ux_doc = ""
+    previous_pm_feedback: List[Dict[str, str]] = []
 
     def persist_prepare_state(
         *,
@@ -1810,6 +1847,10 @@ def run_prepare(args: argparse.Namespace) -> int:
             ordered_slugs=ordered_slugs,
             graph=graph,
             dependency_decisions=dependency_decisions,
+            prepare_iteration=pm_blocks + 1,
+            previous_design_markdown=previous_design_doc,
+            previous_ux_markdown=previous_ux_doc,
+            pm_feedback=previous_pm_feedback,
         )
         write_text(root / DESIGN_PATH, design_doc)
 
@@ -1823,6 +1864,10 @@ def run_prepare(args: argparse.Namespace) -> int:
             ordered_slugs=ordered_slugs,
             graph=graph,
             dependency_decisions=dependency_decisions,
+            prepare_iteration=pm_blocks + 1,
+            previous_design_markdown=previous_design_doc,
+            previous_ux_markdown=previous_ux_doc,
+            pm_feedback=previous_pm_feedback,
         )
         write_text(root / UX_PATH, ux_doc)
 
@@ -1848,6 +1893,10 @@ def run_prepare(args: argparse.Namespace) -> int:
             ordered_slugs=ordered_slugs,
             graph=graph,
             dependency_decisions=dependency_decisions,
+            prepare_iteration=pm_blocks + 1,
+            previous_design_markdown=previous_design_doc,
+            previous_ux_markdown=previous_ux_doc,
+            pm_feedback=previous_pm_feedback,
         )
         pm_role_decision = str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
         issues = product_manager_review(
@@ -1938,6 +1987,9 @@ def run_prepare(args: argparse.Namespace) -> int:
             }
         )
         if choice.key == "retry":
+            previous_design_doc = design_doc
+            previous_ux_doc = ux_doc
+            previous_pm_feedback = [review_issue_payload(issue) for issue in issues]
             continue
         if choice.key == "waive":
             pm_final_decision = "waive"

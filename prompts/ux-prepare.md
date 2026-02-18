@@ -18,6 +18,9 @@ Rules:
   - `Workflows`
   - `UX constraints`
 - Journey/workflow details must reference feature-specific outcomes from the PRD.
+- If `prepare_iteration` > `1`, revise from `previous_ux_markdown` instead of restarting from scratch.
+- On retry iterations, address relevant `pm_feedback_json` items (`step=ux` and `step=product-manager`), while preserving valid prior sections.
+- Use `previous_design_markdown` as alignment context when revising UX.
 - If context is insufficient, set `decision` to `BLOCK` and provide actionable issues.
 
 Inputs:
@@ -37,3 +40,19 @@ Inputs:
 ## Dependency Decisions JSON
 
 {dependency_decisions_json}
+
+## Prepare Iteration
+
+{prepare_iteration}
+
+## Previous ux-ui.md candidate (may be empty on first iteration)
+
+{previous_ux_markdown}
+
+## Previous design.md candidate (context for alignment; may be empty)
+
+{previous_design_markdown}
+
+## PM Feedback JSON from previous blocked iteration (may be empty list)
+
+{pm_feedback_json}
