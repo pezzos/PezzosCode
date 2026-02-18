@@ -56,6 +56,24 @@ model_reasoning_effort = "high"
 model_reasoning_summary = "none"
 model_verbosity = "medium"
 
+[profiles.Architect]
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+model_reasoning_summary = "none"
+model_verbosity = "medium"
+
+[profiles.UXUI]
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+model_reasoning_summary = "none"
+model_verbosity = "medium"
+
+[profiles.ProductManager]
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+model_reasoning_summary = "none"
+model_verbosity = "medium"
+
 [profiles.PlanReviewer]
 model = "gpt-5.3-codex"
 model_reasoning_effort = "high"

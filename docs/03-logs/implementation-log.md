@@ -27,6 +27,34 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - Dedicated Codex profiles for prepare-features roles
+
+**Feature/Bug:** Add role-specific Codex profile defaults for Architect, UX/UI, and Product Manager prepare steps.
+
+**Changed Files:**
+
+- `.codex.toml`
+- `tools/templates/root/.codex.toml`
+- `tools/pc-prepare-features`
+- `tests/test_pc_prepare_features.py`
+
+**What Changed:**
+
+- Added profile definitions in live/template Codex configs:
+  - `Architect`
+  - `UXUI`
+  - `ProductManager`
+- Updated `pc-prepare-features` codex role defaults:
+  - `PREPARE_ARCHITECT_PROFILE` default -> `Architect`
+  - `PREPARE_UX_PROFILE` default -> `UXUI`
+  - `PREPARE_PM_PROFILE` default -> `ProductManager`
+- Added regression tests validating that Architect/UX/PM role execution uses the new default profile names when env overrides are not set.
+
+**Why:**
+
+- Prepare roles were previously multiplexed through Planner/PlanReviewer defaults, which obscured role intent and reduced configurability.
+- Dedicated profile names align prepare execution with the repository’s explicit role model and enable future per-role tuning.
+
 ### 2026-02-18 - Prepare retry-loop context carry-forward for Architect/UX
 
 **Feature/Bug:** Make PM-block retries revise prior Architect/UX artifacts with explicit PM feedback instead of behaving like blank-slate reruns.

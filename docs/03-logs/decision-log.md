@@ -104,6 +104,27 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-074] - Add dedicated Codex profiles for prepare-features Architect/UX/PM roles
+
+**Date:** 2026-02-18
+
+**Status:** Implemented
+
+**Decision:**
+Define dedicated `.codex.toml` profiles for prepare roles (`Architect`, `UXUI`, `ProductManager`) in both live and template config files, and route `tools/pc-prepare-features` default role execution to those profile names.
+
+**Rationale:**
+Prepare-features role prompts are semantically distinct from Planner/PlanReviewer duties. Dedicated profile names improve role clarity, allow future tuning without cross-role coupling, and align prepare role identity with existing named-role profile conventions.
+
+**Implications:**
+
+- `pc-prepare-features` defaults are now:
+  - Architect step -> `Architect`
+  - UX step -> `UXUI`
+  - Product Manager gate -> `ProductManager`
+- Existing environment overrides (`PREPARE_ARCHITECT_PROFILE`, `PREPARE_UX_PROFILE`, `PREPARE_PM_PROFILE`) remain supported.
+- Template-generated repos inherit the same prepare-role profile set.
+
 ### [DEC-073] - Carry PM retry context into Architect/UX prepare-role prompts
 
 **Date:** 2026-02-18

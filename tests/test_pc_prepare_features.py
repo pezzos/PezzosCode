@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -450,6 +451,122 @@ def parse_prd_features(_text: str):
         feedback_payload = json.loads(values["pm_feedback_json"])
         self.assertEqual(feedback_payload[0]["issue_id"], "PM-009")
         self.assertEqual(feedback_payload[0]["step"], "ux")
+
+    def test_run_architect_role_uses_architect_profile_by_default(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        captured = {"profile": None}
+
+        def fake_codex_exec_json(**kwargs):
+            captured["profile"] = kwargs.get("profile")
+            return {
+                "decision": "APPROVE",
+                "design_markdown": "## System architecture\nAlpha architecture.",
+                "issues": [],
+            }
+
+        with mock.patch.dict(self.tool.os.environ, {}, clear=False):
+            self.tool.os.environ.pop("PREPARE_ARCHITECT_PROFILE", None)
+            with mock.patch.object(
+                self.tool,
+                "codex_exec_json",
+                side_effect=fake_codex_exec_json,
+            ):
+                self.tool.run_architect_role(
+                    root=ROOT,
+                    role_mode=self.tool.ROLE_MODE_CODEX,
+                    prd_text="PRD",
+                    context_boundaries="Context boundaries",
+                    features=features,
+                    ordered_slugs=["alpha-feature"],
+                    graph={"alpha-feature": set()},
+                    dependency_decisions=[],
+                )
+
+        self.assertEqual(captured["profile"], "Architect")
+
+    def test_run_ux_role_uses_uxui_profile_by_default(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        captured = {"profile": None}
+
+        def fake_codex_exec_json(**kwargs):
+            captured["profile"] = kwargs.get("profile")
+            return {
+                "decision": "APPROVE",
+                "ux_markdown": "## User journeys\nAlpha journey.\n## Workflows\nAlpha flow.",
+                "issues": [],
+            }
+
+        with mock.patch.dict(self.tool.os.environ, {}, clear=False):
+            self.tool.os.environ.pop("PREPARE_UX_PROFILE", None)
+            with mock.patch.object(
+                self.tool,
+                "codex_exec_json",
+                side_effect=fake_codex_exec_json,
+            ):
+                self.tool.run_ux_role(
+                    root=ROOT,
+                    role_mode=self.tool.ROLE_MODE_CODEX,
+                    prd_text="PRD",
+                    context_boundaries="Context boundaries",
+                    features=features,
+                    ordered_slugs=["alpha-feature"],
+                    graph={"alpha-feature": set()},
+                    dependency_decisions=[],
+                )
+
+        self.assertEqual(captured["profile"], "UXUI")
+
+    def test_run_pm_role_uses_product_manager_profile_by_default(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        captured = {"profile": None}
+
+        def fake_codex_exec_json(**kwargs):
+            captured["profile"] = kwargs.get("profile")
+            return {"decision": "APPROVE", "issues": [], "criteria": {}}
+
+        with mock.patch.dict(self.tool.os.environ, {}, clear=False):
+            self.tool.os.environ.pop("PREPARE_PM_PROFILE", None)
+            with mock.patch.object(
+                self.tool,
+                "codex_exec_json",
+                side_effect=fake_codex_exec_json,
+            ):
+                self.tool.run_pm_role(
+                    root=ROOT,
+                    role_mode=self.tool.ROLE_MODE_CODEX,
+                    prd_text="PRD",
+                    context_boundaries="Context boundaries",
+                    design_text="## System architecture\nAlpha design.",
+                    ux_text="## User journeys\nAlpha journey.\n## Workflows\nAlpha flow.",
+                    order_payload={"ordered_feature_slugs": ["alpha-feature"]},
+                    features=features,
+                    ordered_slugs=["alpha-feature"],
+                    graph={"alpha-feature": set()},
+                    dependency_decisions=[],
+                )
+
+        self.assertEqual(captured["profile"], "ProductManager")
 
 
 if __name__ == "__main__":

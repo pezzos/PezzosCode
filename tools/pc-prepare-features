@@ -858,7 +858,7 @@ def run_architect_role(
         payload = codex_exec_json(
             root=root,
             prompt=prompt,
-            profile=os.environ.get("PREPARE_ARCHITECT_PROFILE", "Planner"),
+            profile=os.environ.get("PREPARE_ARCHITECT_PROFILE", "Architect"),
             label="architect",
         )
     except RuntimeError as exc:
@@ -963,7 +963,7 @@ def run_ux_role(
         payload = codex_exec_json(
             root=root,
             prompt=prompt,
-            profile=os.environ.get("PREPARE_UX_PROFILE", "Planner"),
+            profile=os.environ.get("PREPARE_UX_PROFILE", "UXUI"),
             label="ux",
         )
     except RuntimeError as exc:
@@ -1069,7 +1069,7 @@ def run_pm_role(
         return codex_exec_json(
             root=root,
             prompt=prompt,
-            profile=os.environ.get("PREPARE_PM_PROFILE", "PlanReviewer"),
+            profile=os.environ.get("PREPARE_PM_PROFILE", "ProductManager"),
             label="product-manager",
         )
     except RuntimeError as exc:

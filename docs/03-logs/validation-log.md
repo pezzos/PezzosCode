@@ -27,6 +27,18 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-18 - Dedicated prepare-role Codex profile defaults validation
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 12 tests; offload id `39a6ba3fe8f5a60e28d59863f44454498b440b2bb9901ad157bc4135696844c3`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 22 tests; offload id `4dced8ea8878af0a8b24aeaef1f95be8d365dadb60c2e79b95c4e30ee0b163d7`)
+- `tools/offload-proxy/pp pre-commit run --files .codex.toml tools/templates/root/.codex.toml tools/pc-prepare-features tests/test_pc_prepare_features.py docs/03-logs/decision-log.md docs/03-logs/implementation-log.md` (PASS; offload id `74098591df15bb6c06957984480d81ab3daec62d2c60b825d8aacffe30764d99`)
+
+Verified:
+
+- Live/template `.codex.toml` now define dedicated prepare-role profiles (`Architect`, `UXUI`, `ProductManager`).
+- `pc-prepare-features` defaults now route Architect/UX/PM role execution to those profile names.
+- Regression tests assert default profile mapping without env overrides.
+
 ### 2026-02-18 - PM retry-context carry-forward validation (Architect/UX prepare roles)
 
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 9 tests; offload id `eb273f1b0c1c6e20590cf2d75b2d40a0b207dd0352e0a8c335649590ac327aaa`)
