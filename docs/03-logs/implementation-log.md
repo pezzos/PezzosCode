@@ -27,6 +27,30 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - Fix codex prepare prompt rendering for literal issue schema
+
+**Feature/Bug:** Prevent `make prepare-features` from failing when prepare prompts include literal issue schema text.
+
+**Changed Files:**
+
+- `prompts/architect-prepare.md`
+- `prompts/ux-prepare.md`
+- `prompts/product-manager-prepare-gate.md`
+- `tools/templates/prompts/architect-prepare.md`
+- `tools/templates/prompts/ux-prepare.md`
+- `tools/templates/prompts/product-manager-prepare-gate.md`
+- `tests/test_pc_prepare_features.py`
+
+**What Changed:**
+
+- Escaped literal issue-schema braces in all Architect/UX/PM prepare prompts (live + template copies) so strict `format_map` rendering treats them as literal text.
+- Added regression test coverage that renders all six codex-mode prompt templates and asserts the literal `{step, summary, risk, remediation}` schema remains in rendered prompts.
+
+**Why:**
+
+- `pc-prepare-features` uses fail-closed template rendering; unescaped literal braces caused a hard stop before design/ux/order artifacts could be generated.
+- Prompt rendering for both source and template copies must stay aligned to avoid consumer repo drift and repeated prepare failures.
+
 ### 2026-02-18 - Prepare-features role execution hardening and process-feature opt-in
 
 **Feature/Bug:** Fix generic prepare artifacts by enforcing prompt-driven Architect/UX/PM roles with semantic PM gating, and prevent implicit process-feature generation.

@@ -9,7 +9,7 @@ Return ONLY a JSON object with keys:
 
 - `decision`: `APPROVE` or `BLOCK`
 - `design_markdown`: full markdown content for `design.md`
-- `issues`: list of objects `{step, summary, risk, remediation}` (empty list when APPROVE)
+- `issues`: list of objects `{{step, summary, risk, remediation}}` (empty list when APPROVE)
 
 Rules:
 

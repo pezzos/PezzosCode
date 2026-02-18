@@ -355,6 +355,56 @@ def parse_prd_features(_text: str):
             )
         )
 
+    def test_prompt_templates_render_literal_issue_schema_in_codex_mode(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+                outcome="Deliver alpha flow.",
+                notes="Core CLI path.",
+            )
+        ]
+        ordered_slugs = ["alpha-feature"]
+        graph = {"alpha-feature": set()}
+        base_values = self.tool.prompt_values(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            prd_text="## Prioritized Feature List\n- Alpha Feature",
+            context_boundaries="## Scope Boundaries\n- Local CLI only",
+            dependency_decisions=[],
+        )
+        template_paths = [
+            Path("prompts/architect-prepare.md"),
+            Path("prompts/ux-prepare.md"),
+            Path("prompts/product-manager-prepare-gate.md"),
+            Path("tools/templates/prompts/architect-prepare.md"),
+            Path("tools/templates/prompts/ux-prepare.md"),
+            Path("tools/templates/prompts/product-manager-prepare-gate.md"),
+        ]
+
+        for template_path in template_paths:
+            with self.subTest(template=str(template_path)):
+                template = self.tool.load_prompt_template(ROOT, template_path)
+                values = dict(base_values)
+                if template_path.name == "product-manager-prepare-gate.md":
+                    values.update(
+                        {
+                            "design_markdown": "## System architecture\nAlpha design.",
+                            "ux_markdown": "## User journeys\nAlpha journey.",
+                            "order_payload_json": json.dumps(
+                                {"ordered_feature_slugs": ordered_slugs},
+                                ensure_ascii=True,
+                                indent=2,
+                                sort_keys=True,
+                            ),
+                        }
+                    )
+                rendered = self.tool.render_prompt_template(template, values)
+                self.assertIn("{step, summary, risk, remediation}", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

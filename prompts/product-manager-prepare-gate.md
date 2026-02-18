@@ -8,7 +8,7 @@ Required output:
 Return ONLY a JSON object with keys:
 
 - `decision`: `APPROVE` or `BLOCK`
-- `issues`: list of objects `{step, summary, risk, remediation}`
+- `issues`: list of objects `{{step, summary, risk, remediation}}`
 - `criteria`: object with `pass`/`fail` values for:
   - `feature_specificity`
   - `journey_specificity`

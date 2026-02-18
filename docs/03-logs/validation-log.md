@@ -27,6 +27,19 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-18 - Prepare prompt literal-brace render regression validation
+
+- `tools/offload-proxy/pp python3 -m unittest tests.test_pc_prepare_features` (FAIL: module import path does not resolve in this repo layout; offload id `ae83c3f787cec5c5802c125df0928ef0cbd18a17549efcc9b5db5f09792fad7d`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS: 8 tests; offload id `ed0ddcfbb3c30e8ae82fe7c1d589574c483d2f0c8157f0b39c2f3a93c8993d3e`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 22 tests; offload id `dd67151a2a679395d9219a596c8dfa34bcf243f94ff5e46ec273ac7235fcf9e2`)
+- `tools/offload-proxy/pp pre-commit run --files prompts/architect-prepare.md prompts/ux-prepare.md prompts/product-manager-prepare-gate.md tools/templates/prompts/architect-prepare.md tools/templates/prompts/ux-prepare.md tools/templates/prompts/product-manager-prepare-gate.md tests/test_pc_prepare_features.py docs/03-logs/bug-log.md docs/03-logs/implementation-log.md` (PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+
+Verified:
+
+- Codex-mode prepare prompt templates render without missing-key failures from literal issue schema text.
+- Live/template prompt copies remain aligned for Architect, UX, and PM gate.
+- Regression coverage now exercises codex prompt rendering path directly.
+
 ### 2026-02-18 - Prepare role execution and semantic PM gate validation
 
 - `python3 -m py_compile tools/pc-prepare-features tools/prd-to-features` (PASS)

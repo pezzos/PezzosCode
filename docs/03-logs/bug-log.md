@@ -126,6 +126,72 @@ This helps with:
 
 ## Resolved Bugs
 
+### [BUG-010] - `make prepare-features` codex prompt rendering failed on literal issue-schema braces
+
+**Date Discovered:** 2026-02-18
+
+**Discovered By:** Cross-repo tooling investigation in consumer run (`make prepare-features`)
+
+**Severity:** High
+
+**Status:** Fixed
+
+**Environment:** Development
+
+**Affected Users:** Internal maintainers running `make prepare-features` in codex role mode
+
+**Symptoms:**
+`pc-prepare-features` stopped during Architect prompt rendering with:
+`pc-prepare-features: prompt template missing value for 'step, summary, risk, remediation'`.
+
+**Steps to Reproduce:**
+
+1. Run `make prepare-features` with codex role mode enabled.
+2. Reach Architect/UX/PM prompt rendering.
+3. Observe prompt rendering failure before artifact generation.
+
+**Expected Behavior:**
+Prompt templates render successfully and preserve literal issue schema text in instructions.
+
+**Actual Behavior:**
+Literal `{step, summary, risk, remediation}` text was treated as a formatting placeholder key and raised a missing-value error.
+
+**Root Cause:**
+`tools/pc-prepare-features` uses strict `template.format_map(...)`. The live and template prepare prompts contained unescaped literal braces in required-output guidance, so the formatter interpreted the literal issue schema as a template variable.
+
+**Fix:**
+
+- Escaped literal braces in live and template prepare prompts for Architect, UX, and Product Manager gate files.
+- Added codex-mode prompt-render regression coverage in `tests/test_pc_prepare_features.py` to render all six templates and assert literal issue schema text is preserved.
+
+**Files Changed:**
+
+- `prompts/architect-prepare.md`
+- `prompts/ux-prepare.md`
+- `prompts/product-manager-prepare-gate.md`
+- `tools/templates/prompts/architect-prepare.md`
+- `tools/templates/prompts/ux-prepare.md`
+- `tools/templates/prompts/product-manager-prepare-gate.md`
+- `tests/test_pc_prepare_features.py`
+
+**Prevention:**
+
+- Tests added: `tests/test_pc_prepare_features.py::TestPcPrepareFeatures.test_prompt_templates_render_literal_issue_schema_in_codex_mode`
+- Process changes: none
+- Monitoring added: none
+
+**Related Issues:**
+
+- Consumer repo blocked at prepare step before design/ux/order artifact generation.
+
+**Fixed By:** Codex
+
+**Fixed Date:** 2026-02-18
+
+**Deployed:** N/A (tooling repo local fix)
+
+**Verified By:** Codex (targeted prompt-render regression + docs log checks)
+
 ### [BUG-009] - Planner-feedback contract ambiguity caused terminal REVISE_PLAN parse failure without completion event
 
 **Date Discovered:** 2026-02-16
