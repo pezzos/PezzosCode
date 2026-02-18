@@ -8,13 +8,14 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 PRD_PATH = Path("docs/01-product/prd.md")
@@ -25,7 +26,22 @@ ORDER_JSON_PATH = Path("docs/02-features/feature-order.json")
 ORDER_MD_PATH = Path("docs/02-features/feature-order.md")
 PREPARE_STATE_PATH = Path("docs/03-logs/prepare-features-state.json")
 PRD_TOOL_PATH = Path("tools/prd-to-features")
+PROMPTS_DIR = Path("prompts")
+ARCHITECT_PROMPT_PATH = PROMPTS_DIR / "architect-prepare.md"
+UX_PROMPT_PATH = PROMPTS_DIR / "ux-prepare.md"
+PM_PROMPT_PATH = PROMPTS_DIR / "product-manager-prepare-gate.md"
+ROLE_MODE_CODEX = "codex"
+ROLE_MODE_DETERMINISTIC = "deterministic"
 MAX_PM_BLOCKS = 6
+GENERIC_SIGNAL_MARKERS = (
+    "Primary persona: Developer/PO running local CLI workflows with explicit gates.",
+    "Goal: deliver `",
+    "Prepare -> Review -> Execute",
+    "Human runs `make prepare-features` and verifies PM gate approval.",
+    "Feature docs are generated/updated in dependency order with prerequisites:",
+    "Exit: feature docs contain requirements, fixes backlog, and execution-ready tasks.",
+    "Local-only CLI execution on macOS with git-backed repository state.",
+)
 
 
 @dataclass(frozen=True)
@@ -34,6 +50,8 @@ class Feature:
     priority: str
     slug: str
     dependencies: Tuple[str, ...]
+    outcome: str = ""
+    notes: str = ""
 
 
 @dataclass(frozen=True)
@@ -80,7 +98,32 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Skip tools/pc-devtasks-schema-check at the end of generation.",
     )
+    parser.add_argument(
+        "--role-mode",
+        choices=(ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC),
+        default=default_role_mode(),
+        help=(
+            "Role execution mode for Architect/UX/PM steps. "
+            "'codex' runs prompt-driven role execution; "
+            "'deterministic' uses local fallback generators."
+        ),
+    )
+    parser.add_argument(
+        "--include-process-features",
+        action="store_true",
+        help=(
+            "Include PRD '## Process Features' entries in dependency planning and "
+            "feature generation. Disabled by default."
+        ),
+    )
     return parser.parse_args(argv)
+
+
+def default_role_mode() -> str:
+    raw = os.environ.get("PREPARE_ROLE_MODE", ROLE_MODE_CODEX).strip().lower()
+    if raw in {ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC}:
+        return raw
+    return ROLE_MODE_CODEX
 
 
 def load_prd_tool(root: Path):
@@ -199,8 +242,25 @@ def compact_slug(raw: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", raw.strip().lower()).strip("-")
 
 
-def parse_features(prd_module, prd_text: str) -> List[Feature]:
-    parsed = prd_module.parse_prd_features(prd_text)
+def parse_features(
+    prd_module, prd_text: str, *, include_process_features: bool
+) -> List[Feature]:
+    parse_fn = getattr(prd_module, "parse_prd_features", None)
+    if not callable(parse_fn):
+        die("pc-prepare-features: loaded PRD tool has no parse_prd_features function")
+    try:
+        parsed = parse_fn(
+            prd_text, include_process_features=bool(include_process_features)
+        )
+    except TypeError:
+        parsed = parse_fn(prd_text)
+        if not include_process_features:
+            parsed = [
+                item
+                for item in parsed
+                if str(getattr(item, "source", "")).strip().lower() != "process"
+            ]
+
     features: List[Feature] = []
     for item in parsed:
         dependencies = tuple(getattr(item, "dependencies", ()) or ())
@@ -212,6 +272,8 @@ def parse_features(prd_module, prd_text: str) -> List[Feature]:
                 dependencies=tuple(
                     str(dep).strip() for dep in dependencies if str(dep).strip()
                 ),
+                outcome=str(getattr(item, "outcome", "")).strip(),
+                notes=str(getattr(item, "notes", "")).strip(),
             )
         )
     return features
@@ -581,6 +643,448 @@ def extract_section_bullets(content: str, heading: str) -> List[str]:
     return bullets
 
 
+def extract_json_payload(raw: str) -> str:
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return raw
+    return raw[start : end + 1]
+
+
+def load_prompt_template(root: Path, prompt_rel_path: Path) -> str:
+    prompt_path = root / prompt_rel_path
+    if not prompt_path.exists():
+        die(
+            "pc-prepare-features: missing prompt template "
+            f"{prompt_path}; restore prompts under {root / PROMPTS_DIR}"
+        )
+    return prompt_path.read_text(encoding="utf-8")
+
+
+def render_prompt_template(template: str, values: Dict[str, str]) -> str:
+    class StrictMap(dict):
+        def __missing__(self, key):
+            die(f"pc-prepare-features: prompt template missing value for '{key}'")
+            return ""
+
+    return template.format_map(StrictMap(values))
+
+
+def truncate_for_error(raw: str, max_chars: int = 800) -> str:
+    compact = re.sub(r"\s+", " ", raw.strip())
+    if len(compact) <= max_chars:
+        return compact
+    return compact[:max_chars].rstrip() + "..."
+
+
+def codex_exec_json(
+    *,
+    root: Path,
+    prompt: str,
+    profile: str,
+    label: str,
+) -> Dict[str, Any]:
+    if shutil.which("codex") is None:
+        raise RuntimeError("codex CLI not found in PATH")
+
+    cmd = ["codex", "-C", str(root), "--profile", profile, "exec", prompt]
+    result = subprocess.run(
+        cmd,
+        cwd=str(root),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        combined = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        raise RuntimeError(
+            f"{label} role execution failed with exit {result.returncode}: "
+            f"{truncate_for_error(combined)}"
+        )
+    payload = extract_json_payload(result.stdout or "")
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"{label} role returned non-JSON output: {truncate_for_error(result.stdout or '')}"
+        ) from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{label} role JSON payload must be an object")
+    return data
+
+
+def feature_context_payload(
+    *,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+) -> List[Dict[str, Any]]:
+    by_slug = {feature.slug: feature for feature in features}
+    payload: List[Dict[str, Any]] = []
+    for idx, slug in enumerate(ordered_slugs, start=1):
+        feature = by_slug.get(slug)
+        if not feature:
+            continue
+        payload.append(
+            {
+                "index": idx,
+                "slug": feature.slug,
+                "title": feature.title,
+                "priority": feature.priority,
+                "dependencies": sorted(graph.get(feature.slug, set())),
+                "outcome": feature.outcome,
+                "notes": feature.notes,
+            }
+        )
+    return payload
+
+
+def prompt_values(
+    *,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    prd_text: str,
+    context_boundaries: str,
+    dependency_decisions: Sequence[Dict[str, str]],
+) -> Dict[str, str]:
+    feature_payload = feature_context_payload(
+        features=features, ordered_slugs=ordered_slugs, graph=graph
+    )
+    return {
+        "prd_markdown": prd_text,
+        "context_boundaries_markdown": context_boundaries,
+        "ordered_features_json": json.dumps(
+            feature_payload, ensure_ascii=True, indent=2, sort_keys=True
+        ),
+        "dependency_decisions_json": json.dumps(
+            list(dependency_decisions), ensure_ascii=True, indent=2, sort_keys=True
+        ),
+    }
+
+
+def normalize_role_issues(
+    *,
+    raw_issues: Any,
+    default_step: str,
+    source: str,
+) -> List[Dict[str, str]]:
+    if raw_issues is None:
+        return []
+    if not isinstance(raw_issues, list):
+        return [
+            {
+                "step": default_step,
+                "summary": f"{source} returned non-list issues payload.",
+                "risk": "Malformed role output can bypass semantic gates.",
+                "remediation": f"Fix {source} prompt output to return issues as a JSON list.",
+            }
+        ]
+
+    issues: List[Dict[str, str]] = []
+    for item in raw_issues:
+        if not isinstance(item, dict):
+            continue
+        summary = str(item.get("summary", "")).strip()
+        if not summary:
+            continue
+        issues.append(
+            {
+                "step": str(item.get("step", default_step)).strip() or default_step,
+                "summary": summary,
+                "risk": str(item.get("risk", "")).strip()
+                or "Role output lacks semantic confidence.",
+                "remediation": str(item.get("remediation", "")).strip()
+                or "Update role output to include project-specific rationale and concrete fixes.",
+            }
+        )
+    return issues
+
+
+def run_architect_role(
+    *,
+    root: Path,
+    role_mode: str,
+    prd_text: str,
+    context_boundaries: str,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    dependency_decisions: Sequence[Dict[str, str]],
+) -> Tuple[str, List[Dict[str, str]]]:
+    if role_mode == ROLE_MODE_DETERMINISTIC:
+        return (
+            design_markdown(
+                features=features,
+                ordered_slugs=ordered_slugs,
+                graph=graph,
+                context_boundaries=context_boundaries,
+            ),
+            [],
+        )
+
+    template = load_prompt_template(root, ARCHITECT_PROMPT_PATH)
+    prompt = render_prompt_template(
+        template,
+        prompt_values(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            prd_text=prd_text,
+            context_boundaries=context_boundaries,
+            dependency_decisions=dependency_decisions,
+        ),
+    )
+    try:
+        payload = codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get("PREPARE_ARCHITECT_PROFILE", "Planner"),
+            label="architect",
+        )
+    except RuntimeError as exc:
+        fallback = design_markdown(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            context_boundaries=context_boundaries,
+        )
+        return (
+            fallback,
+            [
+                {
+                    "step": "architect",
+                    "summary": f"Architect role execution failed: {exc}",
+                    "risk": "Fallback content may be generic and semantically weak.",
+                    "remediation": "Fix architect prompt execution and rerun prepare before generation.",
+                }
+            ],
+        )
+
+    markdown = str(payload.get("design_markdown", "")).strip()
+    issues = normalize_role_issues(
+        raw_issues=payload.get("issues"), default_step="architect", source="architect"
+    )
+    decision = str(payload.get("decision", "APPROVE")).strip().upper()
+    if decision not in {"APPROVE", "BLOCK"}:
+        issues.append(
+            {
+                "step": "architect",
+                "summary": "Architect decision is invalid (expected APPROVE/BLOCK).",
+                "risk": "Malformed role output can bypass review gates.",
+                "remediation": "Return architect decision as APPROVE or BLOCK in JSON output.",
+            }
+        )
+    if decision == "BLOCK" and not issues:
+        issues.append(
+            {
+                "step": "architect",
+                "summary": "Architect returned BLOCK without actionable issues.",
+                "risk": "Prepare loop cannot resolve blocker deterministically.",
+                "remediation": "Return architect issues with summary, risk, and remediation.",
+            }
+        )
+    if not markdown:
+        fallback = design_markdown(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            context_boundaries=context_boundaries,
+        )
+        issues.append(
+            {
+                "step": "architect",
+                "summary": "Architect output missing design_markdown body.",
+                "risk": "PM gate cannot evaluate architecture quality without complete artifact.",
+                "remediation": "Return full design markdown in design_markdown JSON field.",
+            }
+        )
+        return fallback, issues
+    return markdown, issues
+
+
+def run_ux_role(
+    *,
+    root: Path,
+    role_mode: str,
+    prd_text: str,
+    context_boundaries: str,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    dependency_decisions: Sequence[Dict[str, str]],
+) -> Tuple[str, List[Dict[str, str]]]:
+    if role_mode == ROLE_MODE_DETERMINISTIC:
+        return (
+            ux_markdown(features=features, ordered_slugs=ordered_slugs, graph=graph),
+            [],
+        )
+
+    template = load_prompt_template(root, UX_PROMPT_PATH)
+    prompt = render_prompt_template(
+        template,
+        prompt_values(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            prd_text=prd_text,
+            context_boundaries=context_boundaries,
+            dependency_decisions=dependency_decisions,
+        ),
+    )
+    try:
+        payload = codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get("PREPARE_UX_PROFILE", "Planner"),
+            label="ux",
+        )
+    except RuntimeError as exc:
+        fallback = ux_markdown(
+            features=features, ordered_slugs=ordered_slugs, graph=graph
+        )
+        return (
+            fallback,
+            [
+                {
+                    "step": "ux",
+                    "summary": f"UX role execution failed: {exc}",
+                    "risk": "Fallback UX output may be generic and not user-journey specific.",
+                    "remediation": "Fix UX prompt execution and rerun prepare before generation.",
+                }
+            ],
+        )
+
+    markdown = str(payload.get("ux_markdown", "")).strip()
+    issues = normalize_role_issues(
+        raw_issues=payload.get("issues"), default_step="ux", source="ux"
+    )
+    decision = str(payload.get("decision", "APPROVE")).strip().upper()
+    if decision not in {"APPROVE", "BLOCK"}:
+        issues.append(
+            {
+                "step": "ux",
+                "summary": "UX decision is invalid (expected APPROVE/BLOCK).",
+                "risk": "Malformed UX output can bypass semantic validation.",
+                "remediation": "Return UX decision as APPROVE or BLOCK in JSON output.",
+            }
+        )
+    if decision == "BLOCK" and not issues:
+        issues.append(
+            {
+                "step": "ux",
+                "summary": "UX returned BLOCK without actionable issues.",
+                "risk": "Prepare loop cannot resolve UX blocker deterministically.",
+                "remediation": "Return UX issues with summary, risk, and remediation.",
+            }
+        )
+    if not markdown:
+        fallback = ux_markdown(
+            features=features, ordered_slugs=ordered_slugs, graph=graph
+        )
+        issues.append(
+            {
+                "step": "ux",
+                "summary": "UX output missing ux_markdown body.",
+                "risk": "PM gate cannot validate user journeys without complete UX artifact.",
+                "remediation": "Return full UX markdown in ux_markdown JSON field.",
+            }
+        )
+        return fallback, issues
+    return markdown, issues
+
+
+def run_pm_role(
+    *,
+    root: Path,
+    role_mode: str,
+    prd_text: str,
+    context_boundaries: str,
+    design_text: str,
+    ux_text: str,
+    order_payload: Dict[str, object],
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    dependency_decisions: Sequence[Dict[str, str]],
+) -> Dict[str, Any]:
+    if role_mode == ROLE_MODE_DETERMINISTIC:
+        return {"decision": "APPROVE", "issues": [], "criteria": {}}
+
+    template = load_prompt_template(root, PM_PROMPT_PATH)
+    values = prompt_values(
+        features=features,
+        ordered_slugs=ordered_slugs,
+        graph=graph,
+        prd_text=prd_text,
+        context_boundaries=context_boundaries,
+        dependency_decisions=dependency_decisions,
+    )
+    values.update(
+        {
+            "design_markdown": design_text,
+            "ux_markdown": ux_text,
+            "order_payload_json": json.dumps(
+                order_payload, ensure_ascii=True, indent=2, sort_keys=True
+            ),
+        }
+    )
+    prompt = render_prompt_template(template, values)
+    try:
+        return codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get("PREPARE_PM_PROFILE", "PlanReviewer"),
+            label="product-manager",
+        )
+    except RuntimeError as exc:
+        return {
+            "decision": "BLOCK",
+            "issues": [
+                {
+                    "step": "product-manager",
+                    "summary": f"Product Manager role execution failed: {exc}",
+                    "risk": "PM semantic review did not run; approval would be unsafe.",
+                    "remediation": "Fix PM prompt execution and rerun prepare.",
+                }
+            ],
+            "criteria": {},
+        }
+
+
+def feature_semantic_tokens(feature: Feature) -> List[str]:
+    raw = f"{feature.outcome} {feature.notes}".strip().lower()
+    if not raw:
+        return []
+    candidates = re.findall(r"[a-z0-9]{4,}", raw)
+    stop_tokens = {
+        "feature",
+        "features",
+        "deliver",
+        "workflow",
+        "workflows",
+        "project",
+        "system",
+        "process",
+        "prepare",
+        "review",
+        "execute",
+        "priority",
+        "notes",
+    }
+    ordered: List[str] = []
+    for token in candidates:
+        if token in stop_tokens:
+            continue
+        if token in ordered:
+            continue
+        ordered.append(token)
+        if len(ordered) >= 5:
+            break
+    return ordered
+
+
 def design_markdown(
     *,
     features: Sequence[Feature],
@@ -887,6 +1391,31 @@ def dependency_order_violations(
     return violations
 
 
+def generic_signal_issues(design_text: str, ux_text: str) -> List[Dict[str, str]]:
+    issues: List[Dict[str, str]] = []
+    text_by_step = {"architect": design_text, "ux": ux_text}
+    for step, content in text_by_step.items():
+        matched = [marker for marker in GENERIC_SIGNAL_MARKERS if marker in content]
+        if not matched:
+            continue
+        preview = ", ".join(f"`{marker}`" for marker in matched[:3])
+        issues.append(
+            {
+                "step": step,
+                "summary": (
+                    "Generated artifact contains generic template markers "
+                    f"({preview})."
+                ),
+                "risk": "Artifact appears tooling-centric instead of project-specific.",
+                "remediation": (
+                    "Regenerate with project-specific architecture/journey content "
+                    "derived from PRD outcomes and context constraints."
+                ),
+            }
+        )
+    return issues
+
+
 def product_manager_review(
     *,
     features: Sequence[Feature],
@@ -895,9 +1424,43 @@ def product_manager_review(
     design_text: str,
     ux_text: str,
     order_payload: Dict[str, object],
+    pm_role_payload: Dict[str, Any],
+    seed_issues: Sequence[Dict[str, str]],
+    enforce_semantic_gate: bool = True,
 ) -> List[ReviewIssue]:
     issues: List[ReviewIssue] = []
     issue_count = 1
+
+    def add_issue(
+        *,
+        step: str,
+        summary: str,
+        risk: str,
+        remediation: str,
+    ) -> None:
+        nonlocal issue_count
+        issues.append(
+            ReviewIssue(
+                issue_id=f"PM-{issue_count:03d}",
+                step=step,
+                summary=summary,
+                risk=risk,
+                remediation=remediation,
+            )
+        )
+        issue_count += 1
+
+    for seeded in seed_issues:
+        add_issue(
+            step=str(seeded.get("step", "product-manager")).strip()
+            or "product-manager",
+            summary=str(seeded.get("summary", "")).strip()
+            or "Missing seeded issue summary.",
+            risk=str(seeded.get("risk", "")).strip()
+            or "Seeded issue missing risk context.",
+            remediation=str(seeded.get("remediation", "")).strip()
+            or "Add explicit remediation details for the seeded issue.",
+        )
 
     required_design_headings = (
         "System architecture",
@@ -908,16 +1471,12 @@ def product_manager_review(
     )
     missing_design = check_required_headings(design_text, required_design_headings)
     if missing_design:
-        issues.append(
-            ReviewIssue(
-                issue_id=f"PM-{issue_count:03d}",
-                step="architect",
-                summary=f"design.md missing required sections: {', '.join(missing_design)}",
-                risk="Feature generation may drift from incomplete architecture constraints.",
-                remediation="Regenerate design.md and keep mandatory architecture sections.",
-            )
+        add_issue(
+            step="architect",
+            summary=f"design.md missing required sections: {', '.join(missing_design)}",
+            risk="Feature generation may drift from incomplete architecture constraints.",
+            remediation="Regenerate design.md and keep mandatory architecture sections.",
         )
-        issue_count += 1
 
     required_ux_headings = (
         "User journeys",
@@ -925,41 +1484,69 @@ def product_manager_review(
     )
     missing_ux = check_required_headings(ux_text, required_ux_headings)
     if missing_ux:
-        issues.append(
-            ReviewIssue(
-                issue_id=f"PM-{issue_count:03d}",
-                step="ux",
-                summary=f"ux-ui.md missing required sections: {', '.join(missing_ux)}",
-                risk="User journeys/workflows may be under-specified for feature generation.",
-                remediation="Regenerate ux-ui.md and keep journeys + workflows sections complete.",
-            )
+        add_issue(
+            step="ux",
+            summary=f"ux-ui.md missing required sections: {', '.join(missing_ux)}",
+            risk="User journeys/workflows may be under-specified for feature generation.",
+            remediation="Regenerate ux-ui.md and keep journeys + workflows sections complete.",
         )
-        issue_count += 1
+
+    if enforce_semantic_gate:
+        for generic_issue in generic_signal_issues(design_text, ux_text):
+            add_issue(
+                step=generic_issue["step"],
+                summary=generic_issue["summary"],
+                risk=generic_issue["risk"],
+                remediation=generic_issue["remediation"],
+            )
 
     for feature in features:
         title_lower = feature.title.lower()
         if title_lower not in design_text.lower():
-            issues.append(
-                ReviewIssue(
-                    issue_id=f"PM-{issue_count:03d}",
-                    step="architect",
-                    summary=f"design.md does not mention feature '{feature.title}'",
-                    risk="Feature may be generated without architecture alignment.",
-                    remediation=f"Ensure design.md feature alignment map includes '{feature.title}'.",
-                )
+            add_issue(
+                step="architect",
+                summary=f"design.md does not mention feature '{feature.title}'",
+                risk="Feature may be generated without architecture alignment.",
+                remediation=f"Ensure design.md feature alignment map includes '{feature.title}'.",
             )
-            issue_count += 1
         if title_lower not in ux_text.lower():
-            issues.append(
-                ReviewIssue(
-                    issue_id=f"PM-{issue_count:03d}",
-                    step="ux",
-                    summary=f"ux-ui.md does not mention feature '{feature.title}'",
-                    risk="Feature may be generated without UX journey/workflow alignment.",
-                    remediation=f"Ensure ux-ui.md journeys/workflows include '{feature.title}'.",
-                )
+            add_issue(
+                step="ux",
+                summary=f"ux-ui.md does not mention feature '{feature.title}'",
+                risk="Feature may be generated without UX journey/workflow alignment.",
+                remediation=f"Ensure ux-ui.md journeys/workflows include '{feature.title}'.",
             )
-            issue_count += 1
+
+        semantic_tokens = feature_semantic_tokens(feature)
+        if enforce_semantic_gate and semantic_tokens:
+            design_lower = design_text.lower()
+            ux_lower = ux_text.lower()
+            if not any(token in design_lower for token in semantic_tokens):
+                add_issue(
+                    step="architect",
+                    summary=(
+                        f"design.md lacks feature-specific semantics for '{feature.title}' "
+                        f"(expected one of: {', '.join(semantic_tokens)})."
+                    ),
+                    risk="Architecture can pass structural checks while remaining generic.",
+                    remediation=(
+                        f"Add project-specific architecture details tied to '{feature.title}' "
+                        "outcome/notes from PRD."
+                    ),
+                )
+            if not any(token in ux_lower for token in semantic_tokens):
+                add_issue(
+                    step="ux",
+                    summary=(
+                        f"ux-ui.md lacks feature-specific semantics for '{feature.title}' "
+                        f"(expected one of: {', '.join(semantic_tokens)})."
+                    ),
+                    risk="User journeys may stay generic and miss intended product behavior.",
+                    remediation=(
+                        f"Add journey/workflow details grounded in '{feature.title}' "
+                        "outcome/notes from PRD."
+                    ),
+                )
 
     payload_slugs = order_payload.get("ordered_feature_slugs", [])
     if not isinstance(payload_slugs, list):
@@ -967,28 +1554,70 @@ def product_manager_review(
     payload_slug_set = {str(item) for item in payload_slugs}
     for feature in features:
         if feature.slug not in payload_slug_set:
-            issues.append(
-                ReviewIssue(
-                    issue_id=f"PM-{issue_count:03d}",
-                    step="dependency-planner",
-                    summary=f"feature-order.json missing '{feature.slug}'",
-                    risk="Feature generation order may be incomplete or non-deterministic.",
-                    remediation="Regenerate feature-order artifacts and include every P0/P1 feature.",
-                )
+            add_issue(
+                step="dependency-planner",
+                summary=f"feature-order.json missing '{feature.slug}'",
+                risk="Feature generation order may be incomplete or non-deterministic.",
+                remediation="Regenerate feature-order artifacts and include every P0/P1 feature.",
             )
-            issue_count += 1
 
     for violation in dependency_order_violations(ordered_slugs, graph):
-        issues.append(
-            ReviewIssue(
-                issue_id=f"PM-{issue_count:03d}",
-                step="dependency-planner",
-                summary=violation,
-                risk="Dependent features may be generated before their prerequisites.",
-                remediation="Fix dependency graph or choose a safer cycle/ambiguity resolution.",
-            )
+        add_issue(
+            step="dependency-planner",
+            summary=violation,
+            risk="Dependent features may be generated before their prerequisites.",
+            remediation="Fix dependency graph or choose a safer cycle/ambiguity resolution.",
         )
-        issue_count += 1
+
+    pm_decision = str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
+    pm_role_issues = normalize_role_issues(
+        raw_issues=pm_role_payload.get("issues"),
+        default_step="product-manager",
+        source="product-manager",
+    )
+    for pm_issue in pm_role_issues:
+        add_issue(
+            step=pm_issue["step"],
+            summary=pm_issue["summary"],
+            risk=pm_issue["risk"],
+            remediation=pm_issue["remediation"],
+        )
+
+    if pm_decision not in {"APPROVE", "BLOCK"}:
+        add_issue(
+            step="product-manager",
+            summary="Product Manager decision is invalid (expected APPROVE/BLOCK).",
+            risk="Invalid PM output can cause false approvals.",
+            remediation="Return PM decision as APPROVE or BLOCK in JSON output.",
+        )
+    elif pm_decision == "BLOCK" and not pm_role_issues:
+        add_issue(
+            step="product-manager",
+            summary="Product Manager returned BLOCK without actionable issues.",
+            risk="Prepare loop cannot resolve PM block deterministically.",
+            remediation="Return at least one PM issue with summary, risk, and remediation.",
+        )
+    elif pm_decision == "APPROVE" and pm_role_issues:
+        add_issue(
+            step="product-manager",
+            summary="Product Manager returned APPROVE while listing issues.",
+            risk="Contradictory PM output weakens semantic gate integrity.",
+            remediation="Return BLOCK when PM issues are present.",
+        )
+
+    criteria = pm_role_payload.get("criteria")
+    if enforce_semantic_gate and isinstance(criteria, dict):
+        for key, value in criteria.items():
+            if str(value).strip().lower() not in {"fail", "failed", "block", "blocked"}:
+                continue
+            add_issue(
+                step="product-manager",
+                summary=f"PM semantic criterion '{key}' failed.",
+                risk="Semantic quality gate failed while artifacts may still look structurally complete.",
+                remediation=(
+                    "Address the failed PM criterion and rerun prepare before generation."
+                ),
+            )
 
     return issues
 
@@ -1012,6 +1641,8 @@ def build_prepare_state_payload(
     pm_history: Sequence[Dict[str, object]],
     pm_final_decision: str,
     skip_generation: bool,
+    role_mode: str,
+    include_process_features: bool,
     feature_generation_status: str,
     schema_check_status: str,
 ) -> Dict[str, object]:
@@ -1046,6 +1677,8 @@ def build_prepare_state_payload(
         },
         "execution": {
             "skip_generation": skip_generation,
+            "role_mode": role_mode,
+            "include_process_features": include_process_features,
             "feature_generation_status": feature_generation_status,
             "schema_check_status": schema_check_status,
         },
@@ -1100,7 +1733,11 @@ def run_prepare(args: argparse.Namespace) -> int:
 
     prd_module = load_prd_tool(root)
     prd_text = prd_file.read_text(encoding="utf-8")
-    features = parse_features(prd_module, prd_text)
+    features = parse_features(
+        prd_module,
+        prd_text,
+        include_process_features=bool(args.include_process_features),
+    )
     if not features:
         die("pc-prepare-features: no P0/P1 features found in PRD")
 
@@ -1133,6 +1770,8 @@ def run_prepare(args: argparse.Namespace) -> int:
             pm_history=pm_history,
             pm_final_decision=pm_final_decision,
             skip_generation=bool(args.skip_generation),
+            role_mode=str(args.role_mode),
+            include_process_features=bool(args.include_process_features),
             feature_generation_status=feature_generation_status,
             schema_check_status=schema_check_status,
         )
@@ -1155,28 +1794,40 @@ def run_prepare(args: argparse.Namespace) -> int:
                 "pc-prepare-features: failed to compute deterministic ordered feature list"
             )
 
-        design_doc = design_markdown(
-            features=features,
-            ordered_slugs=ordered_slugs,
-            graph=graph,
-            context_boundaries=context_boundaries,
-        )
-        write_text(root / DESIGN_PATH, design_doc)
-
-        print("pc-prepare-features: ux step -> generating docs/01-product/ux-ui.md")
-        ux_doc = ux_markdown(
-            features=features, ordered_slugs=ordered_slugs, graph=graph
-        )
-        write_text(root / UX_PATH, ux_doc)
-
-        print(
-            "pc-prepare-features: dependency planner step -> generating docs/02-features/feature-order.{json,md}"
-        )
         order_payload = build_order_payload(
             ordered_slugs=ordered_slugs,
             features=features,
             graph=graph,
             decisions=dependency_decisions,
+        )
+
+        design_doc, architect_seed_issues = run_architect_role(
+            root=root,
+            role_mode=args.role_mode,
+            prd_text=prd_text,
+            context_boundaries=context_boundaries,
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            dependency_decisions=dependency_decisions,
+        )
+        write_text(root / DESIGN_PATH, design_doc)
+
+        print("pc-prepare-features: ux step -> generating docs/01-product/ux-ui.md")
+        ux_doc, ux_seed_issues = run_ux_role(
+            root=root,
+            role_mode=args.role_mode,
+            prd_text=prd_text,
+            context_boundaries=context_boundaries,
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            dependency_decisions=dependency_decisions,
+        )
+        write_text(root / UX_PATH, ux_doc)
+
+        print(
+            "pc-prepare-features: dependency planner step -> generating docs/02-features/feature-order.{json,md}"
         )
         write_text(
             root / ORDER_JSON_PATH,
@@ -1185,6 +1836,20 @@ def run_prepare(args: argparse.Namespace) -> int:
         write_text(root / ORDER_MD_PATH, order_markdown(order_payload))
 
         print("pc-prepare-features: product manager gate -> reviewing artifacts")
+        pm_role_payload = run_pm_role(
+            root=root,
+            role_mode=args.role_mode,
+            prd_text=prd_text,
+            context_boundaries=context_boundaries,
+            design_text=design_doc,
+            ux_text=ux_doc,
+            order_payload=order_payload,
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            dependency_decisions=dependency_decisions,
+        )
+        pm_role_decision = str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
         issues = product_manager_review(
             features=features,
             ordered_slugs=ordered_slugs,
@@ -1192,13 +1857,17 @@ def run_prepare(args: argparse.Namespace) -> int:
             design_text=design_doc,
             ux_text=ux_doc,
             order_payload=order_payload,
+            pm_role_payload=pm_role_payload,
+            seed_issues=[*architect_seed_issues, *ux_seed_issues],
+            enforce_semantic_gate=args.role_mode != ROLE_MODE_DETERMINISTIC,
         )
-        if not issues:
+        if not issues and pm_role_decision == "APPROVE":
             pm_history.append(
                 {
                     "iteration": pm_blocks + 1,
                     "gate_id": f"PM-REVIEW-{pm_blocks + 1:03d}",
                     "decision": "approve",
+                    "pm_role_decision": pm_role_decision,
                     "issue_count": 0,
                     "issues": [],
                 }
@@ -1216,6 +1885,7 @@ def run_prepare(args: argparse.Namespace) -> int:
                     "iteration": pm_blocks,
                     "gate_id": f"PM-BLOCK-{pm_blocks:03d}",
                     "decision": "max-block-limit",
+                    "pm_role_decision": pm_role_decision,
                     "issue_count": len(issues),
                     "issues": [review_issue_payload(issue) for issue in issues],
                 }
@@ -1262,6 +1932,7 @@ def run_prepare(args: argparse.Namespace) -> int:
                 "iteration": pm_blocks,
                 "gate_id": f"PM-BLOCK-{pm_blocks:03d}",
                 "decision": choice.key,
+                "pm_role_decision": pm_role_decision,
                 "issue_count": len(issues),
                 "issues": [review_issue_payload(issue) for issue in issues],
             }
@@ -1296,7 +1967,11 @@ def run_prepare(args: argparse.Namespace) -> int:
 
     run_command(
         root,
-        [str(root / PRD_TOOL_PATH), f"--root={root}"],
+        [
+            str(root / PRD_TOOL_PATH),
+            f"--root={root}",
+            *(["--include-process-features"] if args.include_process_features else []),
+        ],
         label="feature generation",
     )
     feature_generation_status = "completed"

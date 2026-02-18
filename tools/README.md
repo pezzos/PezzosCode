@@ -16,7 +16,7 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 ## Workflow
 
 1. Use `bootstrap-into` to initialize a target repo; use `bootstrap-into --reapply` to force-overwrite syncable template-managed files during refresh.
-2. Use `pc-prepare-features` to refresh design/UX/order artifacts and generate feature docs.
+2. Use `pc-prepare-features` to refresh design/UX/order artifacts and generate feature docs (`--include-process-features` is opt-in).
 3. Use `pc-review-features` to inject pre-execution security/product findings.
 4. Use `pc-feature` to execute approved work items.
 5. Use `pc-commit` to finalize scoped commits.

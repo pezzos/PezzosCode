@@ -104,6 +104,24 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-072] - Make prepare-features semantic and role-driven; keep process-feature generation opt-in
+
+**Date:** 2026-02-18
+
+**Status:** Implemented
+
+**Decision:**
+Update `tools/pc-prepare-features` to execute Architect/UX/PM roles via dedicated prompt files and block generation unless PM semantic criteria pass (or explicit PM waiver is chosen). Also change process-feature handling so `## Process Features` is excluded by default and included only with `--include-process-features` / `INCLUDE_PROCESS_FEATURES=1`.
+
+**Rationale:**
+Structural heading checks alone were insufficient and allowed generic tooling-centric artifacts to pass PM review. Explicit semantic gating and project-specific role outputs reduce false approvals. Process/governance checklist items should not silently inflate executable feature scope.
+
+**Implications:**
+
+- `make prepare-features` now depends on prompt contracts for Architect/UX/PM role outputs.
+- PM approval is fail-closed on semantic issues (generic markers, missing feature-specific context, contradictory PM decision payloads).
+- Teams can still include process features, but must opt in explicitly.
+
 ### [DEC-071] - Treat prepare/review state/report artifacts as workflow-level contracts in live and template docs
 
 **Date:** 2026-02-16

@@ -27,6 +27,47 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - Prepare-features role execution hardening and process-feature opt-in
+
+**Feature/Bug:** Fix generic prepare artifacts by enforcing prompt-driven Architect/UX/PM roles with semantic PM gating, and prevent implicit process-feature generation.
+
+**Changed Files:**
+
+- `tools/pc-prepare-features`
+- `tools/prd-to-features`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `prompts/architect-prepare.md`
+- `prompts/ux-prepare.md`
+- `prompts/product-manager-prepare-gate.md`
+- `tools/templates/prompts/architect-prepare.md`
+- `tools/templates/prompts/ux-prepare.md`
+- `tools/templates/prompts/product-manager-prepare-gate.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/README.md`
+- `tools/templates/docs/README.md`
+- `tools/README.md`
+- `tests/test_pc_prepare_features.py`
+- `tests/test_prd_to_features.py`
+- `tests/test_docs_logs.py`
+
+**What Changed:**
+
+- Added prompt-driven role execution to `pc-prepare-features` for Architect, UX, and Product Manager with dedicated prompt files under `prompts/`.
+- Added structured JSON parsing for role outputs and fail-closed PM semantic checks (generic-marker detection, feature-specific semantic token checks, PM decision/issue consistency).
+- Kept deterministic fallback mode (`--role-mode=deterministic`) for controlled/local validation scenarios.
+- Added explicit `--include-process-features` support in both `pc-prepare-features` and `prd-to-features`; default now excludes `## Process Features` unless explicitly enabled.
+- Wired `INCLUDE_PROCESS_FEATURES=1` through live/template Makefile `prepare-features` targets.
+- Updated workflow/docs contracts to state semantic PM criteria and process-feature opt-in behavior.
+- Added tests for semantic PM gate behavior and process-feature opt-in behavior.
+
+**Why:**
+
+- Previous prepare outputs could pass structural checks while remaining generic and tooling-centric.
+- PM gate needed semantic criteria enforcement to block non-project-specific architecture/UX artifacts.
+- Process/governance checklist entries should not become executable feature folders unless explicitly requested.
+
 ### 2026-02-16 - Plan-reviewer conflict remediation output and env-prefixed Allowed Tests normalization
 
 **Feature/Bug:** Improve `pc-feature` conflict remediation clarity and deterministic Plan/Allowed Tests policy alignment when commands include env prefixes.

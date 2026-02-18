@@ -99,10 +99,37 @@ class PrdToFeaturesTests(unittest.TestCase):
         created = {item.name for item in summary["created"]}
         self.assertEqual(
             created,
-            {"01-alpha-feature", "02-beta-feature", "03-gamma-feature"},
+            {"01-alpha-feature", "02-beta-feature"},
         )
         for name in created:
             self.assertTrue((self.root / "docs/02-features" / name).exists())
+
+    def test_process_features_are_included_only_when_opted_in(self):
+        prd = """## Prioritized Feature List (Template)
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | X | Y |
+
+## Process Features
+
+- [ ] Gamma Feature (P1): Details
+"""
+        write_prd(self.root, prd)
+
+        summary_default = self.tool.apply_prd_to_features(self.root)
+        created_default = {item.name for item in summary_default["created"]}
+        self.assertEqual(created_default, {"01-alpha-feature"})
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            second_root = Path(tmp_dir)
+            write_template(second_root)
+            write_prd(second_root, prd)
+            summary_opt_in = self.tool.apply_prd_to_features(
+                second_root, include_process_features=True
+            )
+            created_opt_in = {item.name for item in summary_opt_in["created"]}
+            self.assertEqual(created_opt_in, {"01-alpha-feature", "02-gamma-feature"})
 
     def test_create_hydrates_core_docs(self):
         prd = """## Prioritized Feature List

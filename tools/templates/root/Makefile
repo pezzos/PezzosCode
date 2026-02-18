@@ -45,6 +45,7 @@ prepare-features:
 		args=""; \
 		if [ "$(SKIP_GENERATION)" = "1" ] || [ "$(SKIP_GENERATION)" = "true" ]; then args="$$args --skip-generation"; fi; \
 		if [ "$(SKIP_SCHEMA_CHECK)" = "1" ] || [ "$(SKIP_SCHEMA_CHECK)" = "true" ]; then args="$$args --skip-schema-check"; fi; \
+		if [ "$(INCLUDE_PROCESS_FEATURES)" = "1" ] || [ "$(INCLUDE_PROCESS_FEATURES)" = "true" ]; then args="$$args --include-process-features"; fi; \
 		tools/pc-prepare-features $$args; \
 	fi
 

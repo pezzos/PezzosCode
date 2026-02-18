@@ -136,6 +136,7 @@ def parse_prd_features(_text: str):
                     f"--root={root}",
                     "--skip-generation",
                     "--skip-schema-check",
+                    "--role-mode=deterministic",
                 ],
                 check=False,
                 text=True,
@@ -189,6 +190,170 @@ def parse_prd_features(_text: str):
             overrides={"PM-BLOCK": 2},
         )
         self.assertEqual(selected.key, "waive")
+
+    def test_parse_features_respects_process_feature_opt_in(self):
+        class DummyModule:
+            @staticmethod
+            def parse_prd_features(_text: str, include_process_features: bool = False):
+                base = [
+                    type(
+                        "Record",
+                        (),
+                        {
+                            "title": "Alpha Feature",
+                            "priority": "P0",
+                            "slug": "alpha-feature",
+                            "dependencies": tuple(),
+                            "source": "table",
+                            "outcome": "Alpha outcome.",
+                            "notes": "",
+                        },
+                    )()
+                ]
+                if include_process_features:
+                    base.append(
+                        type(
+                            "Record",
+                            (),
+                            {
+                                "title": "Process Checklist",
+                                "priority": "P1",
+                                "slug": "process-checklist",
+                                "dependencies": tuple(),
+                                "source": "process",
+                                "outcome": "Checklist outcome.",
+                                "notes": "",
+                            },
+                        )()
+                    )
+                return base
+
+        without_process = self.tool.parse_features(
+            DummyModule(), "ignored", include_process_features=False
+        )
+        with_process = self.tool.parse_features(
+            DummyModule(), "ignored", include_process_features=True
+        )
+
+        self.assertEqual([item.slug for item in without_process], ["alpha-feature"])
+        self.assertEqual(
+            [item.slug for item in with_process],
+            ["alpha-feature", "process-checklist"],
+        )
+
+    def test_product_manager_review_blocks_generic_markers(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        order_payload = {"ordered_feature_slugs": ["alpha-feature"]}
+        design_text = "\n".join(
+            [
+                "## System architecture",
+                "Alpha Feature architecture.",
+                "## Module boundaries",
+                "Boundaries for Alpha Feature.",
+                "## Infra considerations",
+                "Local-only CLI execution on macOS with git-backed repository state.",
+                "## Design constraints",
+                "- Keep scope focused.",
+                "## Build strategy",
+                "- Deliver Alpha Feature.",
+            ]
+        )
+        ux_text = "\n".join(
+            [
+                "## User journeys",
+                "Primary persona: Developer/PO running local CLI workflows with explicit gates.",
+                "Journey includes Alpha Feature details.",
+                "## Workflows",
+                "Alpha Feature workflow.",
+            ]
+        )
+
+        issues = self.tool.product_manager_review(
+            features=features,
+            ordered_slugs=["alpha-feature"],
+            graph={"alpha-feature": set()},
+            design_text=design_text,
+            ux_text=ux_text,
+            order_payload=order_payload,
+            pm_role_payload={"decision": "APPROVE", "issues": [], "criteria": {}},
+            seed_issues=[],
+            enforce_semantic_gate=True,
+        )
+
+        self.assertTrue(
+            any("generic template markers" in issue.summary for issue in issues)
+        )
+
+    def test_product_manager_review_rejects_conflicting_pm_decision(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        order_payload = {"ordered_feature_slugs": ["alpha-feature"]}
+        design_text = "\n".join(
+            [
+                "## System architecture",
+                "Alpha Feature system design.",
+                "## Module boundaries",
+                "Alpha boundaries.",
+                "## Infra considerations",
+                "Project-specific infrastructure text.",
+                "## Design constraints",
+                "- Constraint for Alpha.",
+                "## Build strategy",
+                "- Strategy for Alpha Feature.",
+            ]
+        )
+        ux_text = "\n".join(
+            [
+                "## User journeys",
+                "Alpha Feature journey.",
+                "## Workflows",
+                "Alpha Feature workflow.",
+            ]
+        )
+        pm_payload = {
+            "decision": "APPROVE",
+            "issues": [
+                {
+                    "step": "product-manager",
+                    "summary": "Semantic mismatch.",
+                    "risk": "Mismatch risk.",
+                    "remediation": "Fix mismatch.",
+                }
+            ],
+            "criteria": {},
+        }
+
+        issues = self.tool.product_manager_review(
+            features=features,
+            ordered_slugs=["alpha-feature"],
+            graph={"alpha-feature": set()},
+            design_text=design_text,
+            ux_text=ux_text,
+            order_payload=order_payload,
+            pm_role_payload=pm_payload,
+            seed_issues=[],
+            enforce_semantic_gate=False,
+        )
+
+        self.assertTrue(
+            any(
+                "returned APPROVE while listing issues" in issue.summary
+                for issue in issues
+            )
+        )
 
 
 if __name__ == "__main__":

@@ -106,6 +106,18 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
         self.assertIn("docs/03-logs/prepare-features-state.json", content)
         self.assertIn("docs/03-logs/review-features-report.json", content)
 
+    def test_human_orchestration_workflow_mentions_semantic_pm_gate(self):
+        path = ROOT / "docs" / "04-process" / "human-orchestration-workflow.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn("semantic quality criteria", content)
+        self.assertIn("feature-specific architecture", content)
+        self.assertIn("project-specific user journeys", content)
+
+    def test_tools_readme_mentions_process_feature_opt_in(self):
+        path = ROOT / "tools" / "README.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn("--include-process-features", content)
+
     def test_docs_readme_mentions_prepare_and_review_artifacts(self):
         path = ROOT / "docs" / "README.md"
         content = path.read_text(encoding="utf-8")

@@ -27,6 +27,20 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-18 - Prepare role execution and semantic PM gate validation
+
+- `python3 -m py_compile tools/pc-prepare-features tools/prd-to-features` (PASS)
+- `tools/offload-proxy/pp bash -lc 'python3 -m unittest tests.test_pc_prepare_features && python3 -m unittest tests.test_prd_to_features && python3 -m unittest tests.test_docs_logs'` (PASS: 7 + 14 + 22 tests; output stayed inline because size was below offload threshold)
+- `tools/offload-proxy/pp pre-commit run --files Makefile docs/04-process/human-orchestration-workflow.md docs/README.md tests/test_docs_logs.py tests/test_pc_prepare_features.py tests/test_prd_to_features.py tools/README.md tools/pc-prepare-features tools/prd-to-features tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/docs/README.md tools/templates/root/Makefile prompts/architect-prepare.md prompts/product-manager-prepare-gate.md prompts/ux-prepare.md tools/templates/prompts/architect-prepare.md tools/templates/prompts/product-manager-prepare-gate.md tools/templates/prompts/ux-prepare.md` (RUN1 FAIL: `black` auto-formatted files; offload id `4a9b196a2082c19d99b71a179c219568b0311a3200a93ac83516b1b91a9b50bc`; RUN2 PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+- `tools/offload-proxy/pp bash -lc 'python3 -m unittest tests.test_pc_prepare_features && python3 -m unittest tests.test_prd_to_features && python3 -m unittest tests.test_docs_logs'` (PASS: 7 + 14 + 22 tests; rerun after formatter changes)
+
+Verified:
+
+- `pc-prepare-features` now uses prompt-driven Architect/UX/PM role outputs with structured JSON parsing.
+- PM gate blocks contradictory or generic artifacts unless explicit waiver is selected.
+- `prd-to-features` process-feature generation is opt-in (`--include-process-features`), and Makefile wiring exposes it as `INCLUDE_PROCESS_FEATURES=1`.
+- Live/template docs and tests now enforce semantic PM gate wording and process-feature opt-in guidance.
+
 ### 2026-02-16 - `pc-feature` conflict remediation + env-prefixed allowed-test normalization validation
 
 - `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS: 230 tests; offload id `185c58434be177ab54002c6d5fbb45dbaf88dbe0b90046ede61abf70329cbc13`)
