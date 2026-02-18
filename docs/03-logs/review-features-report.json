@@ -1125,7 +1125,7 @@
       "status": "reviewed"
     }
   ],
-  "generated_at": "2026-02-18T21:01:04Z",
+  "generated_at": "2026-02-18T21:13:14Z",
   "notes": [
     "Machine-managed by tools/pc-review-features.",
     "Actionable findings are also mirrored into feature-spec.md and dev-tasks.md."
