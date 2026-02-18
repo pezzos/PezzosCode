@@ -177,6 +177,8 @@ CLI → Run command → Review output → Confirm next step
 
 ### Product Manager
 
-- No findings.
+| ID          | Severity | Risk                                                  | Action                                                                                                   |
+| ----------- | -------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| PROD-06-003 | Medium   | Cross-feature workflow alignment may be inconsistent. | Update `docs/01-product/ux-ui.md` to include 'Worktree policy + naming convention' journey and workflow. |
 
 <!-- review-findings:end -->

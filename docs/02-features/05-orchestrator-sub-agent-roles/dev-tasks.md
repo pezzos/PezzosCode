@@ -36,6 +36,9 @@
 
 ### Product Manager Tasks
 
+- [ ] `PROD-05-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'Orchestrator + sub-agent roles' journey and workflow.
 - [ ] `PROD-05-005` PO validation checkpoint is missing
   - Severity: Low
   - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.

@@ -366,7 +366,9 @@ Commit message: Document WI-20260204-01 execution entry in worktree policy log
 
 ### Product Manager Tasks
 
-- [ ] No product findings.
+- [ ] `PROD-06-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'Worktree policy + naming convention' journey and workflow.
 
 <!-- review-backlog:end -->
 

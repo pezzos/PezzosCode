@@ -177,6 +177,8 @@ CLI → Run command → Review output → Confirm next step
 
 ### Product Manager
 
-- No findings.
+| ID          | Severity | Risk                                                  | Action                                                                                           |
+| ----------- | -------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| PROD-08-003 | Medium   | Cross-feature workflow alignment may be inconsistent. | Update `docs/01-product/ux-ui.md` to include 'Anti-cheat testing strategy' journey and workflow. |
 
 <!-- review-findings:end -->

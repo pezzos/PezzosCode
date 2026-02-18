@@ -186,8 +186,9 @@ CLI → Run command → Review output → Confirm next step
 
 ### Product Manager
 
-| ID          | Severity | Risk                                                            | Action                                                                                       |
-| ----------- | -------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| PROD-05-005 | Low      | Human acceptance timing may be unclear before execution starts. | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution. |
+| ID          | Severity | Risk                                                            | Action                                                                                              |
+| ----------- | -------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| PROD-05-003 | Medium   | Cross-feature workflow alignment may be inconsistent.           | Update `docs/01-product/ux-ui.md` to include 'Orchestrator + sub-agent roles' journey and workflow. |
+| PROD-05-005 | Low      | Human acceptance timing may be unclear before execution starts. | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.        |
 
 <!-- review-findings:end -->

@@ -8030,3 +8030,28 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - This preserves trusted canonical artifacts while still exposing live loop progress through inspectable candidate files.
 - It reduces PM-loop exhaustion caused by repeated dependency representation drift and metadata-only section-diff noise.
+
+### 2026-02-18 - Run `prd-to-features` incremental hydrate and refresh machine-managed feature review findings
+
+**Feature/Bug:** User-requested `prd-to-features` generation pass for current PRD scope with incremental safety.
+
+**Changed Files:**
+
+- `docs/02-features/*/feature-spec.md` (machine-managed findings sections refreshed by `make review-features`)
+- `docs/02-features/*/dev-tasks.md` (machine-managed findings sections refreshed by `make review-features`)
+- `docs/03-logs/review-features-report.json`
+
+**What Changed:**
+
+- Ran `python3 .codex/skills/prd-to-features/scripts/plan_feature_folders.py --json` to preview folder mapping from PRD priorities and `feature-order.json`.
+- Ran `tools/prd-to-features` in hydrate mode; no folders were created or modified because all mapped indices already existed and had no missing sections.
+- Ran `make review-features` after generation; it refreshed machine-managed findings across feature docs and wrote `docs/03-logs/review-features-report.json`.
+
+**Validation:**
+
+- `tools/prd-to-features` summary: `created=(none)`, `updated=(none)`, mapped indices skipped with explicit no-overwrite reasons.
+- `make review-features` summary: complete with updated findings report (`features_updated=22`, `security_findings=68`, `product_findings=58`).
+
+**Why:**
+
+- Keeps PRD->feature documentation flow deterministic and incremental (add/update missing only, no destructive overwrite) while ensuring review-derived findings stay current.

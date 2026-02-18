@@ -118,8 +118,9 @@ Post-run improvement proposals with human gate.
 
 ### Product Manager
 
-| ID          | Severity | Risk                                                                    | Action                                                                |
-| ----------- | -------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| PROD-21-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states. |
+| ID          | Severity | Risk                                                                    | Action                                                                                       |
+| ----------- | -------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| PROD-21-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                        |
+| PROD-21-003 | Medium   | Cross-feature workflow alignment may be inconsistent.                   | Update `docs/01-product/ux-ui.md` to include 'Learning loop proposals' journey and workflow. |
 
 <!-- review-findings:end -->

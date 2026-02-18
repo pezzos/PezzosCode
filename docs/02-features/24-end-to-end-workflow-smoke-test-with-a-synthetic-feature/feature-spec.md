@@ -118,8 +118,9 @@ Validate orchestrator gates and resume/log behavior before real feature runs.
 
 ### Product Manager
 
-| ID          | Severity | Risk                                                                    | Action                                                                |
-| ----------- | -------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| PROD-24-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states. |
+| ID          | Severity | Risk                                                                    | Action                                                                                                                       |
+| ----------- | -------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| PROD-24-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                                                        |
+| PROD-24-003 | Medium   | Cross-feature workflow alignment may be inconsistent.                   | Update `docs/01-product/ux-ui.md` to include 'End-to-end workflow smoke test with a synthetic feature' journey and workflow. |
 
 <!-- review-findings:end -->

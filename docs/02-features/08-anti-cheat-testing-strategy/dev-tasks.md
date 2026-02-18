@@ -391,7 +391,9 @@ Record each execution round here. Link any related logs in `docs/03-logs/`.
 
 ### Product Manager Tasks
 
-- [ ] No product findings.
+- [ ] `PROD-08-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'Anti-cheat testing strategy' journey and workflow.
 
 <!-- review-backlog:end -->
 

@@ -144,6 +144,13 @@
       "feature_title": "Output offload enforcement",
       "product_findings": [
         {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'Output offload enforcement' journey and workflow.",
+          "finding_id": "PROD-04-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
+        },
+        {
           "action": "Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.",
           "finding_id": "PROD-04-005",
           "risk": "Human acceptance timing may be unclear before execution starts.",
@@ -183,6 +190,13 @@
       "feature_title": "Orchestrator + sub-agent roles",
       "product_findings": [
         {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'Orchestrator + sub-agent roles' journey and workflow.",
+          "finding_id": "PROD-05-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
+        },
+        {
           "action": "Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.",
           "finding_id": "PROD-05-005",
           "risk": "Human acceptance timing may be unclear before execution starts.",
@@ -220,7 +234,15 @@
       "dev_tasks_path": "docs/02-features/06-worktree-policy-naming-convention/dev-tasks.md",
       "feature_id": "06-worktree-policy-naming-convention",
       "feature_title": "Worktree policy + naming convention",
-      "product_findings": [],
+      "product_findings": [
+        {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'Worktree policy + naming convention' journey and workflow.",
+          "finding_id": "PROD-06-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
+        }
+      ],
       "security_findings": [
         {
           "action": "Define escaping/parameterization requirements and add dedicated injection test scenarios.",
@@ -244,7 +266,15 @@
       "dev_tasks_path": "docs/02-features/07-anti-cheat-testing-strategy/dev-tasks.md",
       "feature_id": "07-anti-cheat-testing-strategy",
       "feature_title": "Anti-cheat testing strategy",
-      "product_findings": [],
+      "product_findings": [
+        {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'Anti-cheat testing strategy' journey and workflow.",
+          "finding_id": "PROD-07-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
+        }
+      ],
       "security_findings": [
         {
           "action": "Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.",
@@ -275,7 +305,15 @@
       "dev_tasks_path": "docs/02-features/08-anti-cheat-testing-strategy/dev-tasks.md",
       "feature_id": "08-anti-cheat-testing-strategy",
       "feature_title": "Anti-cheat testing strategy",
-      "product_findings": [],
+      "product_findings": [
+        {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'Anti-cheat testing strategy' journey and workflow.",
+          "finding_id": "PROD-08-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
+        }
+      ],
       "security_findings": [
         {
           "action": "Define escaping/parameterization requirements and add dedicated injection test scenarios.",
@@ -767,6 +805,13 @@
           "title": "User journey details are missing in feature docs"
         },
         {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'Resume in-progress tickets' journey and workflow.",
+          "finding_id": "PROD-17-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
+        },
+        {
           "action": "Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.",
           "finding_id": "PROD-17-005",
           "risk": "Human acceptance timing may be unclear before execution starts.",
@@ -804,6 +849,13 @@
           "risk": "Implementation may diverge from intended user path and onboarding flow.",
           "severity": "Medium",
           "title": "User journey details are missing in feature docs"
+        },
+        {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'Commit gated by completed ticket docs' journey and workflow.",
+          "finding_id": "PROD-18-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
         },
         {
           "action": "Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.",
@@ -963,6 +1015,13 @@
           "risk": "Implementation may diverge from intended user path and onboarding flow.",
           "severity": "Medium",
           "title": "User journey details are missing in feature docs"
+        },
+        {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'Learning loop proposals' journey and workflow.",
+          "finding_id": "PROD-21-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
         }
       ],
       "security_findings": [
@@ -1016,6 +1075,13 @@
           "risk": "Implementation may diverge from intended user path and onboarding flow.",
           "severity": "Medium",
           "title": "User journey details are missing in feature docs"
+        },
+        {
+          "action": "Update `docs/01-product/ux-ui.md` to include 'End-to-end workflow smoke test with a synthetic feature' journey and workflow.",
+          "finding_id": "PROD-24-003",
+          "risk": "Cross-feature workflow alignment may be inconsistent.",
+          "severity": "Medium",
+          "title": "Global UX blueprint does not reference this feature"
         }
       ],
       "security_findings": [
@@ -1059,7 +1125,7 @@
       "status": "reviewed"
     }
   ],
-  "generated_at": "2026-02-16T14:09:28Z",
+  "generated_at": "2026-02-18T21:01:04Z",
   "notes": [
     "Machine-managed by tools/pc-review-features.",
     "Actionable findings are also mirrored into feature-spec.md and dev-tasks.md."
@@ -1071,7 +1137,7 @@
     "features_skipped": 0,
     "features_updated": 22,
     "features_with_findings": 22,
-    "product_findings": 49,
+    "product_findings": 58,
     "security_findings": 68
   },
   "version": 1

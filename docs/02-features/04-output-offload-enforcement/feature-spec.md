@@ -186,8 +186,9 @@ The workflow steps make the noisy command handling behavior explicit: the CLI co
 
 ### Product Manager
 
-| ID          | Severity | Risk                                                            | Action                                                                                       |
-| ----------- | -------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| PROD-04-005 | Low      | Human acceptance timing may be unclear before execution starts. | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution. |
+| ID          | Severity | Risk                                                            | Action                                                                                          |
+| ----------- | -------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| PROD-04-003 | Medium   | Cross-feature workflow alignment may be inconsistent.           | Update `docs/01-product/ux-ui.md` to include 'Output offload enforcement' journey and workflow. |
+| PROD-04-005 | Low      | Human acceptance timing may be unclear before execution starts. | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.    |
 
 <!-- review-findings:end -->

@@ -808,6 +808,9 @@ Work Item ID: WI-20260211-01
 - [ ] `PROD-17-002` User journey details are missing in feature docs
   - Severity: Medium
   - Action: Add explicit user journey steps, entry points, and completion states.
+- [ ] `PROD-17-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'Resume in-progress tickets' journey and workflow.
 - [ ] `PROD-17-005` PO validation checkpoint is missing
   - Severity: Low
   - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.

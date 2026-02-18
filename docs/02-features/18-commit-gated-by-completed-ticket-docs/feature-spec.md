@@ -132,11 +132,12 @@ The commit step must verify required execution-log, test, and final-report field
 
 ### Product Manager
 
-| ID          | Severity | Risk                                                                    | Action                                                                                       |
-| ----------- | -------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| PROD-18-001 | High     | Key product capabilities may be missed during implementation.           | Expand functional requirements to cover primary and edge behaviors with acceptance criteria. |
-| PROD-18-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                        |
-| PROD-18-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution. |
+| ID          | Severity | Risk                                                                    | Action                                                                                                     |
+| ----------- | -------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| PROD-18-001 | High     | Key product capabilities may be missed during implementation.           | Expand functional requirements to cover primary and edge behaviors with acceptance criteria.               |
+| PROD-18-002 | Medium   | Implementation may diverge from intended user path and onboarding flow. | Add explicit user journey steps, entry points, and completion states.                                      |
+| PROD-18-003 | Medium   | Cross-feature workflow alignment may be inconsistent.                   | Update `docs/01-product/ux-ui.md` to include 'Commit gated by completed ticket docs' journey and workflow. |
+| PROD-18-005 | Low      | Human acceptance timing may be unclear before execution starts.         | Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.               |
 
 <!-- review-findings:end -->
 

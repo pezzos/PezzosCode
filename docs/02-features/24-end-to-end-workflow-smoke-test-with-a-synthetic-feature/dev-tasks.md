@@ -65,6 +65,9 @@ When execution starts, add a new work-item entry using
 - [ ] `PROD-24-002` User journey details are missing in feature docs
   - Severity: Medium
   - Action: Add explicit user journey steps, entry points, and completion states.
+- [ ] `PROD-24-003` Global UX blueprint does not reference this feature
+  - Severity: Medium
+  - Action: Update `docs/01-product/ux-ui.md` to include 'End-to-end workflow smoke test with a synthetic feature' journey and workflow.
 
 <!-- review-backlog:end -->
 
