@@ -1087,6 +1087,302 @@ def normalize_role_issues(
     return issues
 
 
+def canonical_level2_heading(raw_heading: Any) -> str:
+    return re.sub(r"\s+", " ", str(raw_heading).strip().lower())
+
+
+def parse_level2_sections(markdown: str) -> Dict[str, str]:
+    sections: Dict[str, str] = {}
+    active_heading = ""
+    active_lines: List[str] = []
+    for raw_line in markdown.splitlines():
+        heading_match = re.match(r"^##\s+(.+?)\s*$", raw_line.strip())
+        if heading_match:
+            if active_heading:
+                sections[active_heading] = "\n".join(active_lines).strip()
+            active_heading = canonical_level2_heading(heading_match.group(1))
+            active_lines = []
+            continue
+        if active_heading:
+            active_lines.append(raw_line.rstrip())
+    if active_heading:
+        sections[active_heading] = "\n".join(active_lines).strip()
+    return sections
+
+
+def changed_level2_sections(
+    *, previous_markdown: str, current_markdown: str
+) -> List[str]:
+    previous_sections = parse_level2_sections(previous_markdown)
+    current_sections = parse_level2_sections(current_markdown)
+    changed: List[str] = []
+    for heading in sorted(set(previous_sections) | set(current_sections)):
+        if (
+            previous_sections.get(heading, "").strip()
+            == current_sections.get(heading, "").strip()
+        ):
+            continue
+        changed.append(heading)
+    return changed
+
+
+def normalize_changed_sections(raw_changed_sections: Any) -> List[str]:
+    if not isinstance(raw_changed_sections, list):
+        return []
+    normalized: List[str] = []
+    seen: Set[str] = set()
+    for item in raw_changed_sections:
+        heading = canonical_level2_heading(item)
+        if not heading or heading in seen:
+            continue
+        normalized.append(heading)
+        seen.add(heading)
+    return normalized
+
+
+def role_has_relevant_pm_feedback(
+    *,
+    pm_feedback: Sequence[Dict[str, str]],
+    owner: str,
+) -> bool:
+    normalized_owner = normalize_todo_owner(owner, default=owner)
+    for item in pm_feedback:
+        if not isinstance(item, dict):
+            continue
+        issue_owner = infer_issue_owner(
+            step=item.get("step"),
+            summary=str(item.get("summary", "")),
+            remediation=str(item.get("remediation", "")),
+            default=normalized_owner,
+        )
+        if issue_owner == normalized_owner:
+            return True
+    return False
+
+
+def role_change_contract_issues(
+    *,
+    role_step: str,
+    role_label: str,
+    prepare_iteration: int,
+    previous_markdown: str,
+    current_markdown: str,
+    pm_feedback: Sequence[Dict[str, str]],
+    pm_todos: Sequence[Dict[str, Any]],
+    changed_sections_payload: Any,
+    change_rationale: str,
+) -> List[Dict[str, str]]:
+    if prepare_iteration <= 1 or not previous_markdown.strip():
+        return []
+
+    normalized_owner = normalize_todo_owner(role_step, default=role_step)
+    actionable_todos = owner_actionable_todos(pm_todos, owner=normalized_owner)
+    has_relevant_feedback = role_has_relevant_pm_feedback(
+        pm_feedback=pm_feedback, owner=normalized_owner
+    )
+    expects_no_change = not actionable_todos and not has_relevant_feedback
+
+    previous_body = previous_markdown.strip()
+    current_body = current_markdown.strip()
+    changed = previous_body != current_body
+    declared_sections = normalize_changed_sections(changed_sections_payload)
+    actual_sections = (
+        changed_level2_sections(
+            previous_markdown=previous_markdown, current_markdown=current_markdown
+        )
+        if changed
+        else []
+    )
+
+    issues: List[Dict[str, str]] = []
+    if expects_no_change:
+        if changed:
+            issues.append(
+                {
+                    "step": role_step,
+                    "summary": (
+                        f"{role_label} changed artifact content without actionable "
+                        "PM TODO/feedback in this iteration."
+                    ),
+                    "risk": "Unnecessary rewrites increase diff noise and can hide real fixes.",
+                    "remediation": (
+                        f"Return previous {role_label.lower()} artifact unchanged when no "
+                        "owner-scoped open/carry TODOs or relevant PM feedback exist."
+                    ),
+                }
+            )
+        if declared_sections:
+            issues.append(
+                {
+                    "step": role_step,
+                    "summary": (
+                        f"{role_label} reported changed_sections despite no actionable "
+                        "PM TODO/feedback."
+                    ),
+                    "risk": "Change metadata becomes unreliable for review and rerun diagnostics.",
+                    "remediation": (
+                        "Set changed_sections to [] and keep artifact content unchanged when "
+                        "no actionable owner-scoped work exists."
+                    ),
+                }
+            )
+        return issues
+
+    if not changed:
+        issues.append(
+            {
+                "step": role_step,
+                "summary": (
+                    f"{role_label} returned unchanged artifact despite actionable "
+                    "PM TODO/feedback."
+                ),
+                "risk": "PM blockers may persist across retries without concrete progress.",
+                "remediation": (
+                    f"Apply targeted updates for {role_label.lower()} owner TODOs and PM "
+                    "feedback, then return updated artifact content."
+                ),
+            }
+        )
+        return issues
+
+    if not declared_sections:
+        issues.append(
+            {
+                "step": role_step,
+                "summary": f"{role_label} changed artifact but omitted changed_sections metadata.",
+                "risk": "Reviewers cannot verify whether edits stayed within requested scope.",
+                "remediation": (
+                    "Return changed_sections listing the exact `##` headings intentionally updated."
+                ),
+            }
+        )
+    else:
+        undeclared = [
+            heading for heading in actual_sections if heading not in declared_sections
+        ]
+        if undeclared:
+            issues.append(
+                {
+                    "step": role_step,
+                    "summary": (
+                        f"{role_label} edited sections outside declared changed_sections: "
+                        + ", ".join(undeclared)
+                    ),
+                    "risk": "Unexpected section rewrites can introduce regression risk and noise.",
+                    "remediation": (
+                        "Keep edits limited to declared headings or update changed_sections to "
+                        "accurately describe all modified sections."
+                    ),
+                }
+            )
+
+    change_rationale_text = change_rationale.strip()
+    if not change_rationale_text:
+        issues.append(
+            {
+                "step": role_step,
+                "summary": f"{role_label} changed artifact but omitted change_rationale.",
+                "risk": "There is no auditable explanation linking edits to PM feedback.",
+                "remediation": (
+                    "Provide change_rationale referencing relevant PM issue ids and/or PM TODO ids."
+                ),
+            }
+        )
+    elif not re.search(r"(PM-TODO-\d+|PM-\d+)", change_rationale_text):
+        issues.append(
+            {
+                "step": role_step,
+                "summary": (
+                    f"{role_label} change_rationale does not reference PM issue/TODO ids."
+                ),
+                "risk": "Reviewers cannot trace edits to specific PM blockers deterministically.",
+                "remediation": (
+                    "Include PM ids (for example PM-001 or PM-TODO-001) in change_rationale."
+                ),
+            }
+        )
+
+    return issues
+
+
+def validate_pm_issue_actionability(raw_issues: Any) -> List[Dict[str, str]]:
+    if not isinstance(raw_issues, list):
+        return []
+    violations: List[Dict[str, str]] = []
+    artifact_tokens = {
+        "design.md",
+        "ux-ui.md",
+        "feature-order.json",
+        "feature-order.md",
+    }
+    section_tokens = {
+        "section",
+        "heading",
+        "system architecture",
+        "module boundaries",
+        "infra considerations",
+        "design constraints",
+        "build strategy",
+        "feature alignment map",
+        "user journeys",
+        "workflows",
+        "ux constraints",
+        "ordered_feature_slugs",
+        "dependencies",
+        "decisions",
+    }
+    acceptance_tokens = {"must", "acceptance", "verify", "should", "passes", "contains"}
+    for item in raw_issues:
+        if not isinstance(item, dict):
+            continue
+        summary = str(item.get("summary", "")).strip()
+        if not summary:
+            continue
+        step = normalize_prepare_step(item.get("step"), default=STEP_PRODUCT_MANAGER)
+        if step not in TODO_OWNERS:
+            continue
+        remediation = str(item.get("remediation", "")).strip()
+        combined = f"{summary} {remediation}".lower()
+        missing_parts: List[str] = []
+        if not any(token in combined for token in artifact_tokens):
+            missing_parts.append("target artifact")
+        if not any(token in combined for token in section_tokens):
+            missing_parts.append("target section/heading")
+        if not any(token in combined for token in acceptance_tokens):
+            missing_parts.append("acceptance condition")
+        if not missing_parts:
+            continue
+        violations.append(
+            {
+                "step": STEP_PRODUCT_MANAGER,
+                "summary": (
+                    f"PM issue for step '{step}' is ambiguous; missing "
+                    + ", ".join(missing_parts)
+                    + "."
+                ),
+                "risk": "Ambiguous PM feedback can trigger noisy rewrites or failed retries.",
+                "remediation": (
+                    "For each PM issue, specify target artifact, target section/heading, "
+                    "and explicit acceptance condition."
+                ),
+            }
+        )
+    return violations
+
+
+def pm_todo_update_owner_statuses(raw_todo_updates: Any) -> Dict[str, Set[str]]:
+    if not isinstance(raw_todo_updates, list):
+        return {}
+    owner_statuses: Dict[str, Set[str]] = {}
+    for item in raw_todo_updates:
+        if not isinstance(item, dict):
+            continue
+        owner = normalize_todo_owner(item.get("owner"))
+        status = normalize_todo_status(item.get("status"), default=TODO_STATUS_OPEN)
+        owner_statuses.setdefault(owner, set()).add(status)
+    return owner_statuses
+
+
 def validate_pm_issue_step_names(raw_issues: Any) -> List[Dict[str, str]]:
     if not isinstance(raw_issues, list):
         return []
@@ -1254,6 +1550,20 @@ def run_architect_role(
                 "remediation": "Return architect issues with summary, risk, and remediation.",
             }
         )
+
+    issues.extend(
+        role_change_contract_issues(
+            role_step=STEP_ARCHITECT,
+            role_label="Architect",
+            prepare_iteration=prepare_iteration,
+            previous_markdown=previous_design_markdown,
+            current_markdown=markdown,
+            pm_feedback=pm_feedback,
+            pm_todos=pm_todos,
+            changed_sections_payload=payload.get("changed_sections"),
+            change_rationale=str(payload.get("change_rationale", "")),
+        )
+    )
     if not markdown:
         fallback = design_markdown(
             features=features,
@@ -1360,6 +1670,20 @@ def run_ux_role(
                 "remediation": "Return UX issues with summary, risk, and remediation.",
             }
         )
+
+    issues.extend(
+        role_change_contract_issues(
+            role_step=STEP_UX,
+            role_label="UX",
+            prepare_iteration=prepare_iteration,
+            previous_markdown=previous_ux_markdown,
+            current_markdown=markdown,
+            pm_feedback=pm_feedback,
+            pm_todos=pm_todos,
+            changed_sections_payload=payload.get("changed_sections"),
+            change_rationale=str(payload.get("change_rationale", "")),
+        )
+    )
     if not markdown:
         fallback = ux_markdown(
             features=features, ordered_slugs=ordered_slugs, graph=graph
@@ -2129,6 +2453,15 @@ def product_manager_review(
             risk=invalid_step_issue["risk"],
             remediation=invalid_step_issue["remediation"],
         )
+    for actionability_issue in validate_pm_issue_actionability(
+        pm_role_payload.get("issues")
+    ):
+        add_issue(
+            step=actionability_issue["step"],
+            summary=actionability_issue["summary"],
+            risk=actionability_issue["risk"],
+            remediation=actionability_issue["remediation"],
+        )
 
     pm_decision = str(pm_role_payload.get("decision", "BLOCK")).strip().upper()
     pm_role_issues = normalize_role_issues(
@@ -2136,6 +2469,13 @@ def product_manager_review(
         default_step=STEP_PRODUCT_MANAGER,
         source="product-manager",
     )
+    criteria = pm_role_payload.get("criteria")
+    failed_criteria_keys: List[str] = []
+    if enforce_semantic_gate and isinstance(criteria, dict):
+        for key, value in criteria.items():
+            if str(value).strip().lower() not in {"fail", "failed", "block", "blocked"}:
+                continue
+            failed_criteria_keys.append(str(key).strip())
     for pm_issue in pm_role_issues:
         add_issue(
             step=pm_issue["step"],
@@ -2151,7 +2491,7 @@ def product_manager_review(
             risk="Invalid PM output can cause false approvals.",
             remediation="Return PM decision as APPROVE or BLOCK in JSON output.",
         )
-    elif pm_decision == "BLOCK" and not pm_role_issues:
+    elif pm_decision == "BLOCK" and not pm_role_issues and not failed_criteria_keys:
         add_issue(
             step=STEP_PRODUCT_MANAGER,
             summary="Product Manager returned BLOCK without actionable issues.",
@@ -2166,19 +2506,96 @@ def product_manager_review(
             remediation="Return BLOCK when PM issues are present.",
         )
 
-    criteria = pm_role_payload.get("criteria")
-    if enforce_semantic_gate and isinstance(criteria, dict):
-        for key, value in criteria.items():
-            if str(value).strip().lower() not in {"fail", "failed", "block", "blocked"}:
-                continue
+    if pm_decision == "BLOCK":
+        owner_statuses = pm_todo_update_owner_statuses(
+            pm_role_payload.get("todo_updates")
+        )
+        if not owner_statuses:
             add_issue(
                 step=STEP_PRODUCT_MANAGER,
-                summary=f"PM semantic criterion '{key}' failed.",
-                risk="Semantic quality gate failed while artifacts may still look structurally complete.",
+                summary="Product Manager BLOCK response missing actionable todo_updates.",
+                risk="Retry loop may not route work to owners deterministically.",
                 remediation=(
-                    "Address the failed PM criterion and rerun prepare before generation."
+                    "On BLOCK, include open/carry todo_updates per unresolved owner "
+                    "(architect, ux, dependency-planner)."
                 ),
             )
+        else:
+            unresolved_owners: Set[str] = set()
+            for pm_issue in pm_role_issues:
+                owner = infer_issue_owner(
+                    step=pm_issue["step"],
+                    summary=pm_issue["summary"],
+                    remediation=pm_issue["remediation"],
+                    default=TODO_OWNER_ARCHITECT,
+                )
+                if owner in TODO_OWNERS:
+                    unresolved_owners.add(owner)
+            missing_owners = [
+                owner
+                for owner in sorted(unresolved_owners)
+                if not owner_statuses.get(owner, set()).intersection(
+                    {TODO_STATUS_OPEN, TODO_STATUS_CARRY}
+                )
+            ]
+            if missing_owners:
+                add_issue(
+                    step=STEP_PRODUCT_MANAGER,
+                    summary=(
+                        "Product Manager BLOCK response missing open/carry todo_updates for owners: "
+                        + ", ".join(missing_owners)
+                    ),
+                    risk="Owners may not receive deterministic action items for retry.",
+                    remediation=(
+                        "Add todo_updates entries with owner and open/carry status for each "
+                        "unresolved owner-scoped issue."
+                    ),
+                )
+
+    for key in failed_criteria_keys:
+        if key == "feature_specificity":
+            add_issue(
+                step=STEP_ARCHITECT,
+                summary="PM semantic criterion 'feature_specificity' failed for architecture content.",
+                risk="Architecture text may remain generic and fail to guide generation.",
+                remediation=(
+                    "Update `design.md` in `Feature alignment map` and related architecture "
+                    "sections; acceptance: each P0/P1 feature includes project-specific "
+                    "architecture rationale tied to PRD outcome/notes."
+                ),
+            )
+            continue
+        if key == "journey_specificity":
+            add_issue(
+                step=STEP_UX,
+                summary="PM semantic criterion 'journey_specificity' failed for UX journeys/workflows.",
+                risk="UX blueprint may stay generic and not map to expected user behavior.",
+                remediation=(
+                    "Update `ux-ui.md` in `User journeys` and `Workflows`; acceptance: each "
+                    "P0/P1 feature includes journey/workflow details grounded in PRD outcomes."
+                ),
+            )
+            continue
+        if key == "dependency_alignment":
+            add_issue(
+                step=STEP_DEPENDENCY_PLANNER,
+                summary="PM semantic criterion 'dependency_alignment' failed for dependency ordering.",
+                risk="Feature generation order may violate prerequisites.",
+                remediation=(
+                    "Update `feature-order.json` dependencies and ordered_feature_slugs; "
+                    "acceptance: every feature appears once and dependency order has no violations."
+                ),
+            )
+            continue
+        add_issue(
+            step=STEP_PRODUCT_MANAGER,
+            summary=f"PM semantic criterion '{key}' failed but lacks owner-specific routing.",
+            risk="Criterion failures can remain ambiguous and slow retry convergence.",
+            remediation=(
+                "Map failed criterion to architect, ux, or dependency-planner with explicit "
+                "artifact, section, and acceptance condition."
+            ),
+        )
 
     return issues
 

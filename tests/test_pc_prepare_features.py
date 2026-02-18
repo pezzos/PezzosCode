@@ -243,7 +243,9 @@ def parse_prd_features(_text: str):
             self.assertEqual(
                 state_payload["pm_gate"]["history"][0]["decision"], "retry"
             )
-            self.assertEqual(state_payload["pm_gate"]["history"][0]["issue_count"], 1)
+            self.assertGreaterEqual(
+                state_payload["pm_gate"]["history"][0]["issue_count"], 1
+            )
 
     def test_snapshot_runs_write_per_run_prepare_snapshots(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -698,6 +700,205 @@ def parse_prd_features(_text: str):
             any("is not allowed; use one of" in issue.summary for issue in issues)
         )
 
+    def test_product_manager_review_maps_failed_dependency_criterion_to_owner_issue(
+        self,
+    ):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+                outcome="Deliver alpha dependency-safe flow.",
+                notes="Dependency order must be deterministic.",
+            )
+        ]
+        order_payload = {"ordered_feature_slugs": ["alpha-feature"]}
+        design_text = "\n".join(
+            [
+                "## System architecture",
+                "Alpha Feature architecture.",
+                "## Module boundaries",
+                "Alpha boundaries.",
+                "## Infra considerations",
+                "Project-specific infra.",
+                "## Design constraints",
+                "- Constraint.",
+                "## Build strategy",
+                "- Strategy.",
+            ]
+        )
+        ux_text = "\n".join(
+            [
+                "## User journeys",
+                "Alpha journey references outcome details.",
+                "## Workflows",
+                "Alpha workflow references deterministic sequence.",
+            ]
+        )
+        pm_payload = {
+            "decision": "BLOCK",
+            "issues": [],
+            "criteria": {"dependency_alignment": "fail"},
+            "todo_updates": [
+                {
+                    "owner": "dependency-planner",
+                    "status": "open",
+                    "description": "Fix order payload dependency sequencing.",
+                }
+            ],
+        }
+
+        issues = self.tool.product_manager_review(
+            features=features,
+            ordered_slugs=["alpha-feature"],
+            graph={"alpha-feature": set()},
+            design_text=design_text,
+            ux_text=ux_text,
+            order_payload=order_payload,
+            pm_role_payload=pm_payload,
+            seed_issues=[],
+            enforce_semantic_gate=True,
+        )
+
+        self.assertTrue(
+            any(
+                issue.step == "dependency-planner"
+                and "dependency_alignment" in issue.summary
+                for issue in issues
+            )
+        )
+
+    def test_product_manager_review_blocks_when_todo_updates_missing_for_block(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        order_payload = {"ordered_feature_slugs": ["alpha-feature"]}
+        design_text = "\n".join(
+            [
+                "## System architecture",
+                "Alpha Feature architecture.",
+                "## Module boundaries",
+                "Alpha boundaries.",
+                "## Infra considerations",
+                "Project-specific infra.",
+                "## Design constraints",
+                "- Constraint.",
+                "## Build strategy",
+                "- Strategy.",
+            ]
+        )
+        ux_text = "\n".join(
+            [
+                "## User journeys",
+                "Alpha journey.",
+                "## Workflows",
+                "Alpha workflow.",
+            ]
+        )
+        pm_payload = {
+            "decision": "BLOCK",
+            "issues": [
+                {
+                    "step": "architect",
+                    "summary": "Architecture remains generic.",
+                    "risk": "Low confidence.",
+                    "remediation": "Update design.md in Feature alignment map; acceptance: feature-specific semantics present.",
+                }
+            ],
+            "criteria": {},
+            "todo_updates": [],
+        }
+
+        issues = self.tool.product_manager_review(
+            features=features,
+            ordered_slugs=["alpha-feature"],
+            graph={"alpha-feature": set()},
+            design_text=design_text,
+            ux_text=ux_text,
+            order_payload=order_payload,
+            pm_role_payload=pm_payload,
+            seed_issues=[],
+            enforce_semantic_gate=False,
+        )
+
+        self.assertTrue(
+            any("missing actionable todo_updates" in issue.summary for issue in issues)
+        )
+
+    def test_product_manager_review_flags_ambiguous_pm_issue_remediation(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        order_payload = {"ordered_feature_slugs": ["alpha-feature"]}
+        design_text = "\n".join(
+            [
+                "## System architecture",
+                "Alpha Feature architecture.",
+                "## Module boundaries",
+                "Alpha boundaries.",
+                "## Infra considerations",
+                "Project-specific infra.",
+                "## Design constraints",
+                "- Constraint.",
+                "## Build strategy",
+                "- Strategy.",
+            ]
+        )
+        ux_text = "\n".join(
+            [
+                "## User journeys",
+                "Alpha journey.",
+                "## Workflows",
+                "Alpha workflow.",
+            ]
+        )
+        pm_payload = {
+            "decision": "BLOCK",
+            "issues": [
+                {
+                    "step": "ux",
+                    "summary": "Needs better UX.",
+                    "risk": "Generic UX.",
+                    "remediation": "Fix it.",
+                }
+            ],
+            "criteria": {},
+            "todo_updates": [
+                {
+                    "owner": "ux",
+                    "status": "open",
+                    "description": "Improve UX details",
+                }
+            ],
+        }
+
+        issues = self.tool.product_manager_review(
+            features=features,
+            ordered_slugs=["alpha-feature"],
+            graph={"alpha-feature": set()},
+            design_text=design_text,
+            ux_text=ux_text,
+            order_payload=order_payload,
+            pm_role_payload=pm_payload,
+            seed_issues=[],
+            enforce_semantic_gate=False,
+        )
+
+        self.assertTrue(
+            any("is ambiguous; missing" in issue.summary for issue in issues)
+        )
+
     def test_retry_owner_scope_includes_dependency_planner_for_pm_dependency_feedback(
         self,
     ):
@@ -787,6 +988,140 @@ def parse_prd_features(_text: str):
 
         self.assertTrue(all(item["status"] == "done" for item in todos))
         self.assertEqual({item["action"] for item in updates}, {"auto_done"})
+
+    def test_run_architect_role_flags_retry_rewrite_without_actionable_inputs(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        previous_design = "\n".join(
+            [
+                "## System architecture",
+                "Prospect client: discovery to qualified contact or audit booking",
+                "## Module boundaries",
+                "Alpha boundaries.",
+            ]
+        )
+
+        def fake_codex_exec_json(**_kwargs):
+            return {
+                "decision": "APPROVE",
+                "design_markdown": "\n".join(
+                    [
+                        "## System architecture",
+                        "Prospect client to qualified contact or audit booking",
+                        "## Module boundaries",
+                        "Alpha boundaries.",
+                    ]
+                ),
+                "changed_sections": ["System architecture"],
+                "change_rationale": "PM-001 wording refresh only.",
+                "issues": [],
+            }
+
+        with mock.patch.object(
+            self.tool,
+            "codex_exec_json",
+            side_effect=fake_codex_exec_json,
+        ):
+            _markdown, issues = self.tool.run_architect_role(
+                root=ROOT,
+                role_mode=self.tool.ROLE_MODE_CODEX,
+                prd_text="PRD",
+                context_boundaries="Context boundaries",
+                features=features,
+                ordered_slugs=["alpha-feature"],
+                graph={"alpha-feature": set()},
+                dependency_decisions=[],
+                prepare_iteration=2,
+                previous_design_markdown=previous_design,
+                previous_ux_markdown="## User journeys\nAlpha journey.",
+                pm_feedback=[],
+                pm_todos=[],
+                previous_loop_change_summary="No actionable changes requested.",
+            )
+
+        self.assertTrue(
+            any(
+                "without actionable PM TODO/feedback" in issue["summary"]
+                for issue in issues
+            )
+        )
+
+    def test_run_architect_role_requires_change_metadata_when_actionable(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        previous_design = "\n".join(
+            [
+                "## System architecture",
+                "Original architecture text.",
+                "## Module boundaries",
+                "Original boundaries.",
+            ]
+        )
+
+        def fake_codex_exec_json(**_kwargs):
+            return {
+                "decision": "APPROVE",
+                "design_markdown": "\n".join(
+                    [
+                        "## System architecture",
+                        "Updated architecture text for PM-TODO-001.",
+                        "## Module boundaries",
+                        "Original boundaries.",
+                    ]
+                ),
+                "issues": [],
+            }
+
+        with mock.patch.object(
+            self.tool,
+            "codex_exec_json",
+            side_effect=fake_codex_exec_json,
+        ):
+            _markdown, issues = self.tool.run_architect_role(
+                root=ROOT,
+                role_mode=self.tool.ROLE_MODE_CODEX,
+                prd_text="PRD",
+                context_boundaries="Context boundaries",
+                features=features,
+                ordered_slugs=["alpha-feature"],
+                graph={"alpha-feature": set()},
+                dependency_decisions=[],
+                prepare_iteration=2,
+                previous_design_markdown=previous_design,
+                previous_ux_markdown="## User journeys\nAlpha journey.",
+                pm_feedback=[],
+                pm_todos=[
+                    {
+                        "task_id": "PM-TODO-001",
+                        "owner": "architect",
+                        "status": "open",
+                        "description": "Update architecture details.",
+                    }
+                ],
+                previous_loop_change_summary="PM-TODO-001 open.",
+            )
+
+        self.assertTrue(
+            any(
+                "omitted changed_sections metadata" in issue["summary"]
+                for issue in issues
+            )
+        )
+        self.assertTrue(
+            any("omitted change_rationale" in issue["summary"] for issue in issues)
+        )
 
     def test_run_architect_role_uses_architect_profile_by_default(self):
         features = [

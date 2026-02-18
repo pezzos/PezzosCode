@@ -27,6 +27,19 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-18 - Prepare minimal-diff role contract + PM actionable feedback validation
+
+- `python3 -m py_compile tools/pc-prepare-features` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (RUN1 FAIL: legacy assertion expected single PM issue count after new guardrails; offload id `45f72aeea6b09b1c1a8431590a90fab4966b3b833bd4b0d0bca35ea7a9a70b3f`; RUN2 PASS: 25 tests; offload id `cba6024cd0ee9d8001589f216877b836c7f7d3f999a7031a51494116be96f8a7`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 24 tests; offload id `b83727e4d931e3c56dcc5227e11bdffb9126d443423a6099353a7b5662ca78e1`)
+
+Verified:
+
+- Architect/UX retry runs now enforce no-op behavior when no actionable owner-scoped PM inputs exist.
+- Architect/UX retry changes now require explicit change metadata (`changed_sections`, `change_rationale`) for auditable scoped edits.
+- PM BLOCK feedback now fails closed when issues are ambiguous or when owner-scoped `todo_updates` coverage is missing.
+- Failed PM semantic criteria now map to owner-specific actionable issues instead of generic PM-only remediation text.
+
 ### 2026-02-18 - Prepare retry-persistence + snapshot-run guardrails validation
 
 - `python3 -m py_compile tools/pc-prepare-features` (PASS)

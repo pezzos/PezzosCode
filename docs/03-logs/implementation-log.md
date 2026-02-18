@@ -27,6 +27,48 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - Prepare prompt minimal-diff contract + PM actionable routing hardening
+
+**Feature/Bug:** Reduce unnecessary artifact rewrites in prepare retries and make PM BLOCK feedback deterministic and owner-actionable.
+
+**Changed Files:**
+
+- `prompts/architect-prepare.md`
+- `prompts/ux-prepare.md`
+- `prompts/product-manager-prepare-gate.md`
+- `tools/templates/prompts/architect-prepare.md`
+- `tools/templates/prompts/ux-prepare.md`
+- `tools/templates/prompts/product-manager-prepare-gate.md`
+- `tools/pc-prepare-features`
+- `tests/test_pc_prepare_features.py`
+
+**What Changed:**
+
+- Updated Architect/UX prompt contracts to require retry-loop minimal diff behavior:
+  - avoid style-only rewrites when no actionable owner-scoped PM work exists,
+  - emit `changed_sections` and `change_rationale` metadata on updates.
+- Updated PM gate prompt contract to require owner-actionable issues with:
+  - target artifact,
+  - target section/heading,
+  - explicit acceptance condition,
+    and owner-scoped `todo_updates` on BLOCK.
+- Added runtime guardrails in `pc-prepare-features`:
+  - role change-contract validation for Architect/UX retries (no-op when no actionable inputs; metadata required on changes),
+  - PM issue actionability validation,
+  - PM BLOCK todo update coverage checks,
+  - criterion failure mapping to owner-specific actionable issues (`feature_specificity` -> architect, `journey_specificity` -> ux, `dependency_alignment` -> dependency-planner).
+- Added regression tests covering:
+  - Architect retry rewrite rejection without actionable inputs,
+  - Architect change-metadata requirements when actionable tasks exist,
+  - PM criterion-to-owner mapping,
+  - PM BLOCK missing-todo validation,
+  - PM issue ambiguity validation.
+
+**Why:**
+
+- Retry loops were producing noisy wording edits that increased review cost without resolving PM blockers.
+- PM criterion-level feedback could remain ambiguous and slow deterministic convergence across owner roles.
+
 ### 2026-02-18 - Prepare retry-persistence, PM guardrails, and optional per-run snapshots
 
 **Feature/Bug:** Make PM feedback evolution inspectable during retries and add deterministic snapshot history for prepare runs.

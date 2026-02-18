@@ -9,6 +9,8 @@ Return ONLY a JSON object with keys:
 
 - `decision`: `APPROVE` or `BLOCK`
 - `design_markdown`: full markdown content for `design.md`
+- `changed_sections`: list of `##` section headings intentionally changed in this iteration (empty list when no content changes)
+- `change_rationale`: concise rationale that references relevant PM issue ids / PM TODO ids; use `No changes required.` when unchanged
 - `issues`: list of objects `{{step, summary, risk, remediation}}` (empty list when APPROVE)
 
 Rules:
@@ -26,6 +28,10 @@ Rules:
 - Resolve actionable items assigned to architect in `architect_open_todos_json`.
 - Use `previous_loop_change_summary` to avoid reverting resolved work from the prior loop.
 - Use `previous_ux_markdown` as alignment context when revising architecture.
+- Minimal-diff contract on retry iterations:
+  - keep wording, punctuation, and ordering unchanged unless required to resolve an actionable PM TODO/feedback item,
+  - avoid style-only rewrites and copy edits that do not change behavior or acceptance outcome,
+  - if there are no actionable architect items, return `previous_design_markdown` unchanged and set `changed_sections` to `[]`.
 - If context is insufficient, set `decision` to `BLOCK` and provide actionable issues.
 
 Inputs:
