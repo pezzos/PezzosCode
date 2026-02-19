@@ -38,6 +38,7 @@ VALID_PRIORITIES = ("P0", "P1", "P2")
 VALID_DECISIONS = {"READY", "NOT_READY", "BLOCK"}
 MARKER_START = "<!-- release-readiness:start -->"
 MARKER_END = "<!-- release-readiness:end -->"
+TASK_ID_PATTERN = re.compile(r"^RR-\d{3}$")
 
 
 @dataclass(frozen=True)
@@ -254,6 +255,16 @@ def normalize_bool(raw: Any) -> bool:
     return token in {"1", "true", "yes", "y"}
 
 
+def canonical_release_task_key(title: str, refs: Sequence[str]) -> str:
+    normalized_refs = sorted(normalize_feature_refs(refs))
+    if normalized_refs:
+        return "refs:" + "|".join(normalized_refs)
+    slug = slugify(title)
+    if slug:
+        return f"title:{slug}"
+    return "title:unknown"
+
+
 def feature_dirs(root: Path) -> List[Path]:
     base = root / FEATURES_DIR
     if not base.exists():
@@ -335,7 +346,8 @@ def normalize_release_tasks(raw: Any) -> List[Dict[str, Any]]:
         title = normalize_text(item.get("title", ""))
         if not title:
             continue
-        canonical_key = slugify(title)
+        refs = normalize_feature_refs(item.get("existing_feature_refs"))
+        canonical_key = canonical_release_task_key(title, refs)
         if not canonical_key or canonical_key in seen:
             continue
         seen.add(canonical_key)
@@ -345,7 +357,6 @@ def normalize_release_tasks(raw: Any) -> List[Dict[str, Any]]:
         )
         outcome = normalize_text(item.get("outcome", "")) or "Outcome not specified."
         notes = normalize_text(item.get("notes", ""))
-        refs = normalize_feature_refs(item.get("existing_feature_refs"))
         accepted_for_now = normalize_bool(item.get("accepted_for_now"))
         normalized.append(
             {
@@ -363,9 +374,220 @@ def normalize_release_tasks(raw: Any) -> List[Dict[str, Any]]:
     normalized.sort(
         key=lambda item: (priority_rank(item["priority"]), item["canonical_key"])
     )
-    for index, item in enumerate(normalized, start=1):
-        item["task_id"] = f"RR-{index:03d}"
     return normalized
+
+
+def marker_block(content: str) -> str:
+    marker_pattern = re.compile(
+        rf"{re.escape(MARKER_START)}.*?{re.escape(MARKER_END)}",
+        re.DOTALL,
+    )
+    match = marker_pattern.search(content)
+    return match.group(0) if match else ""
+
+
+def parse_existing_release_readiness(content: str) -> Dict[str, Any]:
+    block = marker_block(content)
+    if not block:
+        return {}
+
+    generated_at = ""
+    decision = ""
+    summary = ""
+    actionable_tasks: List[Dict[str, Any]] = []
+    current_task: Optional[Dict[str, Any]] = None
+
+    for raw_line in block.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("- Generated at:"):
+            generated_at = normalize_text(line.split(":", 1)[1])
+            continue
+        if line.startswith("- Decision:"):
+            decision = normalize_text(line.split(":", 1)[1]).upper()
+            continue
+        if line.startswith("- Summary:"):
+            summary = normalize_text(line.split(":", 1)[1])
+            continue
+        if line.startswith("- No release-readiness follow-up features required."):
+            actionable_tasks = []
+            continue
+
+        feature_match = re.match(
+            r"^- Feature: Release readiness (RR-\d{3}) - (.+)$",
+            line,
+        )
+        if feature_match:
+            if current_task:
+                actionable_tasks.append(current_task)
+            current_task = {
+                "task_id": feature_match.group(1),
+                "title": normalize_text(feature_match.group(2)),
+                "priority": "P1",
+                "problem": "Release gap not specified.",
+                "outcome": "Outcome not specified.",
+                "notes": "",
+                "existing_feature_refs": [],
+                "accepted_for_now": False,
+            }
+            continue
+
+        if current_task is None:
+            continue
+        if line.startswith("- Problem:"):
+            current_task["problem"] = normalize_text(line.split(":", 1)[1])
+            continue
+        if line.startswith("- Outcome:"):
+            current_task["outcome"] = normalize_text(line.split(":", 1)[1])
+            continue
+        if line.startswith("- Priority:"):
+            current_task["priority"] = normalize_priority(line.split(":", 1)[1])
+            continue
+        if line.startswith("- Notes:"):
+            notes = normalize_text(line.split(":", 1)[1])
+            current_task["notes"] = "" if notes in {"None", "None."} else notes
+            continue
+        if line.startswith("- Existing Feature Refs:"):
+            refs_raw = normalize_text(line.split(":", 1)[1])
+            if refs_raw in {"None", "None."}:
+                refs = []
+            else:
+                refs = [part.strip() for part in refs_raw.split(",")]
+            current_task["existing_feature_refs"] = normalize_feature_refs(refs)
+            continue
+
+    if current_task:
+        actionable_tasks.append(current_task)
+
+    for item in actionable_tasks:
+        item["canonical_key"] = canonical_release_task_key(
+            item["title"],
+            item["existing_feature_refs"],
+        )
+
+    return {
+        "generated_at": generated_at,
+        "decision": decision,
+        "summary": summary,
+        "actionable_tasks": actionable_tasks,
+    }
+
+
+def apply_existing_actionable_continuity(
+    release_tasks: List[Dict[str, Any]],
+    existing_actionable_tasks: Sequence[Dict[str, Any]],
+) -> None:
+    existing_by_key = {
+        item.get("canonical_key", ""): item
+        for item in existing_actionable_tasks
+        if item.get("canonical_key")
+    }
+    for task in release_tasks:
+        if task["accepted_for_now"]:
+            continue
+        existing = existing_by_key.get(task["canonical_key"])
+        if not existing:
+            continue
+        task["title"] = existing["title"]
+        task["problem"] = existing["problem"]
+        task["outcome"] = existing["outcome"]
+        task["notes"] = existing.get("notes", "")
+        task["existing_feature_refs"] = normalize_feature_refs(
+            existing.get("existing_feature_refs", [])
+        )
+
+
+def assign_release_task_ids(
+    release_tasks: List[Dict[str, Any]],
+    existing_actionable_tasks: Sequence[Dict[str, Any]],
+) -> None:
+    existing_id_by_key: Dict[str, str] = {}
+    used_ids = set()
+    for item in existing_actionable_tasks:
+        key = item.get("canonical_key", "")
+        task_id = normalize_text(item.get("task_id", ""))
+        if key and TASK_ID_PATTERN.match(task_id):
+            existing_id_by_key[key] = task_id
+
+    for task in release_tasks:
+        task_id = ""
+        if not task["accepted_for_now"]:
+            task_id = existing_id_by_key.get(task["canonical_key"], "")
+        if task_id and task_id not in used_ids:
+            task["task_id"] = task_id
+            used_ids.add(task_id)
+            continue
+        task.pop("task_id", None)
+
+    next_id = 1
+    for task in release_tasks:
+        if task.get("task_id"):
+            continue
+        while True:
+            candidate = f"RR-{next_id:03d}"
+            next_id += 1
+            if candidate not in used_ids:
+                break
+        task["task_id"] = candidate
+        used_ids.add(candidate)
+
+
+def actionable_tasks_equivalent(
+    left: Sequence[Dict[str, Any]],
+    right: Sequence[Dict[str, Any]],
+) -> bool:
+    def normalized(task: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "canonical_key": task["canonical_key"],
+            "title": normalize_text(task["title"]),
+            "priority": normalize_priority(task["priority"]),
+            "problem": normalize_text(task["problem"]),
+            "outcome": normalize_text(task["outcome"]),
+            "notes": normalize_text(task.get("notes", "")),
+            "existing_feature_refs": sorted(
+                normalize_feature_refs(task.get("existing_feature_refs", []))
+            ),
+        }
+
+    left_payload = sorted(
+        (normalized(item) for item in left), key=lambda item: item["canonical_key"]
+    )
+    right_payload = sorted(
+        (normalized(item) for item in right),
+        key=lambda item: item["canonical_key"],
+    )
+    return left_payload == right_payload
+
+
+def load_existing_report(path: Path) -> Dict[str, Any]:
+    raw = read_text(path)
+    if not raw.strip():
+        return {}
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return payload
+
+
+def preserve_generated_at_if_unchanged(
+    report_payload: Dict[str, Any],
+    existing_report: Dict[str, Any],
+) -> Dict[str, Any]:
+    existing_generated_at = normalize_text(existing_report.get("generated_at", ""))
+    if not existing_generated_at:
+        return report_payload
+
+    existing_copy = dict(existing_report)
+    next_copy = dict(report_payload)
+    existing_copy.pop("generated_at", None)
+    next_copy.pop("generated_at", None)
+    if existing_copy == next_copy:
+        report_payload["generated_at"] = existing_generated_at
+    return report_payload
 
 
 def deterministic_release_assessment(
@@ -499,10 +721,9 @@ def upsert_expected_features(content: str, block: str) -> str:
         rf"{re.escape(MARKER_START)}.*?{re.escape(MARKER_END)}",
         re.DOTALL,
     )
-    marker_match = marker_pattern.search(block)
-    marker_block = marker_match.group(0) if marker_match else ""
-    if marker_pattern.search(content) and marker_block:
-        return marker_pattern.sub(marker_block, content, count=1)
+    block_slice = marker_block(block)
+    if marker_pattern.search(content) and block_slice:
+        return marker_pattern.sub(block_slice, content, count=1)
     return content.rstrip() + "\n\n" + block.rstrip() + "\n"
 
 
@@ -510,6 +731,7 @@ def run_release_readiness(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     report_path = root / REPORT_PATH
     expected_features_path = root / EXPECTED_FEATURES_PATH
+    existing_report = load_existing_report(report_path)
 
     features = collect_feature_status(root)
     feature_payload = [
@@ -523,6 +745,11 @@ def run_release_readiness(args: argparse.Namespace) -> int:
         }
         for item in features
     ]
+
+    expected_features_markdown = read_text(expected_features_path)
+    existing_release_readiness = parse_existing_release_readiness(
+        expected_features_markdown
+    )
 
     if args.role_mode == ROLE_MODE_DETERMINISTIC:
         (
@@ -543,8 +770,7 @@ def run_release_readiness(args: argparse.Namespace) -> int:
                 "design_markdown": read_text(root / DESIGN_PATH) or "(missing)",
                 "ux_markdown": read_text(root / UX_PATH) or "(missing)",
                 "security_markdown": read_text(root / SECURITY_PATH) or "(missing)",
-                "expected_features_markdown": read_text(root / EXPECTED_FEATURES_PATH)
-                or "(missing)",
+                "expected_features_markdown": expected_features_markdown or "(missing)",
                 "feature_status_json": json.dumps(
                     feature_payload, ensure_ascii=True, indent=2, sort_keys=True
                 ),
@@ -582,11 +808,19 @@ def run_release_readiness(args: argparse.Namespace) -> int:
                 issues,
             ) = deterministic_release_assessment(features)
 
+    apply_existing_actionable_continuity(
+        release_tasks,
+        existing_release_readiness.get("actionable_tasks", []),
+    )
+    assign_release_task_ids(
+        release_tasks,
+        existing_release_readiness.get("actionable_tasks", []),
+    )
     actionable_tasks = [item for item in release_tasks if not item["accepted_for_now"]]
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     if decision != "BLOCK":
-        expected_features = read_text(expected_features_path)
+        expected_features = expected_features_markdown
         if not expected_features.strip():
             expected_features = "\n".join(
                 [
@@ -596,6 +830,25 @@ def run_release_readiness(args: argparse.Namespace) -> int:
                     "",
                 ]
             )
+            existing_release_readiness = {}
+        if (
+            existing_release_readiness
+            and decision == existing_release_readiness.get("decision")
+            and actionable_tasks_equivalent(
+                actionable_tasks,
+                existing_release_readiness.get("actionable_tasks", []),
+            )
+        ):
+            prior_summary = normalize_text(
+                existing_release_readiness.get("summary", "")
+            )
+            if prior_summary:
+                summary = prior_summary
+            prior_generated_at = normalize_text(
+                existing_release_readiness.get("generated_at", "")
+            )
+            if prior_generated_at:
+                generated_at = prior_generated_at
         block = finding_block(
             generated_at=generated_at,
             decision=decision,
@@ -631,8 +884,13 @@ def run_release_readiness(args: argparse.Namespace) -> int:
             "Actionable follow-up tasks are mirrored into docs/00-context/expected-features.md.",
         ],
     }
-    write_text(report_path, json_dumps(report_payload))
-    print(f"pc-release-readiness: wrote report artifact -> {REPORT_PATH}")
+    report_payload = preserve_generated_at_if_unchanged(report_payload, existing_report)
+    next_report = json_dumps(report_payload)
+    if next_report.rstrip() != read_text(report_path).rstrip():
+        write_text(report_path, next_report)
+        print(f"pc-release-readiness: wrote report artifact -> {REPORT_PATH}")
+    else:
+        print(f"pc-release-readiness: report unchanged -> {REPORT_PATH}")
     if decision != "BLOCK":
         print(
             "pc-release-readiness: updated expected features -> "

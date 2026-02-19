@@ -22,6 +22,9 @@ Rules:
 - `priority` must be one of `P0`, `P1`, `P2`.
 - Mark `accepted_for_now=true` only for explicit defer/acceptance cases.
 - Prefer referencing existing feature ids in `existing_feature_refs` when applicable.
+- Use existing release-readiness entries in Expected Features as continuity context.
+- Prefer incremental updates (`keep`, `update`, `add`, `remove`) over full rewrites.
+- Do not reword unchanged follow-up tasks just for style.
 - If no actionable follow-up is required, return `decision=READY` and empty `release_tasks`.
 - If input quality is insufficient to decide, return `decision=BLOCK` with actionable
   `issues`.

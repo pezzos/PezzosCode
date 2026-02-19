@@ -8355,3 +8355,34 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - PRD updates now run through a deterministic, idempotent command that keeps stable sections unchanged unless context/process inputs require updates.
 - Release readiness now yields both a status artifact and a concrete planning input surface, so unresolved work is actionable instead of being only informational.
+
+### 2026-02-19 - Harden `release-readiness` continuity + idempotent reruns
+
+**Feature/Bug:** `make release-readiness` rewrote follow-up items on rerun instead of continuing from the existing machine-managed block.
+
+**Changed Files:**
+
+- `tools/pc-release-readiness`
+- `prompts/product-manager-release-readiness.md`
+- `tools/templates/prompts/product-manager-release-readiness.md`
+- `tests/test_pc_release_readiness.py`
+
+**What Changed:**
+
+- Added parsing of the existing `<!-- release-readiness:start --> ... <!-- release-readiness:end -->` block and canonical task-key derivation based on `existing_feature_refs` first.
+- Added continuity behavior in `pc-release-readiness`:
+  - reuse existing actionable task wording when the same task key still applies,
+  - preserve existing task ids when possible,
+  - avoid timestamp churn by reusing prior `Generated at` when decision + actionable task semantics are unchanged.
+- Added report stability guard:
+  - preserve prior report `generated_at` when payload content is unchanged,
+  - skip report rewrite when serialized report is unchanged.
+- Updated Product Manager release-readiness prompt (live + template) to explicitly prefer incremental updates and avoid rewording unchanged tasks.
+- Strengthened release-readiness tests:
+  - rerun idempotency now asserts full file equality for both expected-features block and report artifact,
+  - added regression coverage ensuring existing task entries are continued (not rewritten) when refs still match.
+
+**Why:**
+
+- Keeps `release-readiness` output update-in-place and continuation-oriented instead of appearing to restart the follow-up plan each run.
+- Reduces noisy diffs, stabilizes task identity, and aligns behavior with repository idempotency expectations.

@@ -2541,3 +2541,19 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - New Makefile targets (`write-prd`, `release-readiness`) are wired in both live and template roots.
   - Prompt/template inventories remain synchronized after adding Product Manager prompt files.
   - Workflow/docs assertions now cover new PRD and release-readiness artifacts.
+
+## 2026-02-19 - Validate release-readiness continuity + idempotent reruns
+
+- Command: `python3 -m py_compile tools/pc-release-readiness tests/test_pc_release_readiness.py`
+- Result: PASS.
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_release_readiness.py"`
+- Result: PASS (`4` tests; offload ids `922e44ecf9cb5caab997a268061fcfd8638babc1754ff3abb62baa465bc2acff`, `7b057eb92a50bb1f8d57fc3b9ddd0f11876e42732f607a548eb9dcecc13213a4`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`24` tests; offload id `b83727e4d931e3c56dcc5227e11bdffb9126d443423a6099353a7b5662ca78e1`).
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-release-readiness prompts/product-manager-release-readiness.md tools/templates/prompts/product-manager-release-readiness.md tests/test_pc_release_readiness.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md`
+- Result: FAIL first run (`black` reformatted files; offload id `4a9b196a2082c19d99b71a179c219568b0311a3200a93ac83516b1b91a9b50bc`), PASS second run (offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`).
+- Command: `tmpdir=$(mktemp -d); ...; python3 tools/pc-release-readiness --root="$tmpdir" --role-mode=deterministic` (run twice with identical inputs and diff expected-features/report artifacts between runs)
+- Result: PASS (no diffs across reruns; second run output `report unchanged`).
+- Verification notes:
+  - Existing release-readiness entries are now used as continuity input, with task identity keyed by `existing_feature_refs` first.
+  - Unchanged reruns no longer churn the expected-features block or release-readiness report timestamps.
