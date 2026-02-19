@@ -5,20 +5,27 @@
       "feature_slug": "bootstrap-safe-template-reapply",
       "id": "order-001",
       "order_index": 1,
-      "rationale": "Carry forward as the only root capability; establishes idempotent bootstrap/template baseline for all downstream work.",
-      "reason_codes": ["FOUNDATION", "ROOT_ONLY", "IDEMPOTENT_ENTRYPOINT"]
+      "rationale": "Carry forward prior ordering: bootstrap remains the single root capability and deterministic entrypoint for all downstream features.",
+      "reason_codes": [
+        "FOUNDATION",
+        "ROOT_ONLY",
+        "IDEMPOTENT_ENTRYPOINT",
+        "RETRY_CARRY_FORWARD",
+        "NO_REGRESSION"
+      ]
     },
     {
       "depends_on": ["bootstrap-safe-template-reapply"],
       "feature_slug": "output-offload-token-budget-guardrails-structured-logs-shared-runner",
       "id": "order-002",
       "order_index": 2,
-      "rationale": "Shared runner, offload, token guardrails, and structured logging must exist before orchestration/recovery layers consume them.",
+      "rationale": "Offload, logging, token guardrails, and shared runner are prerequisite infrastructure for deterministic execution and later recovery/governance layers.",
       "reason_codes": [
         "SHARED_INFRA",
         "OBSERVABILITY",
         "TOKEN_GUARDRAILS",
-        "NO_REGRESSION"
+        "CANONICAL_PREREQ_SYNC",
+        "RETRY_CARRY_FORWARD"
       ]
     },
     {
@@ -29,12 +36,13 @@
       "feature_slug": "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
       "id": "order-003",
       "order_index": 3,
-      "rationale": "Deterministic gated execution with zero-input defaults depends on baseline templates plus shared infra/telemetry.",
+      "rationale": "Core Plan->Patch->Test->Report gate behavior depends on both template baseline and shared infra/telemetry being in place.",
       "reason_codes": [
         "EXECUTION_CORE",
         "ZERO_INPUT_POLICY",
         "GATE_ENFORCEMENT",
-        "NO_REGRESSION"
+        "CANONICAL_PREREQ_SYNC",
+        "RETRY_CARRY_FORWARD"
       ]
     },
     {
@@ -46,11 +54,12 @@
       "feature_slug": "single-worktree-orchestration-template-drift-hardening",
       "id": "order-004",
       "order_index": 4,
-      "rationale": "Single-worktree and drift-hardening controls are layered after orchestration semantics and observability are stable.",
+      "rationale": "Single-worktree and drift-hardening controls are sequenced after execution semantics and observability are stable.",
       "reason_codes": [
         "WORKTREE_POLICY",
         "DRIFT_HARDENING",
-        "DEPENDENCY_ALIGNMENT"
+        "DEPENDENCY_ALIGNMENT",
+        "RETRY_CARRY_FORWARD"
       ]
     },
     {
@@ -62,12 +71,12 @@
       "feature_slug": "resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
       "id": "order-005",
       "order_index": 5,
-      "rationale": "Resume/auto-recovery/commit-gate behavior requires prior execution semantics, drift controls, and evidence infrastructure.",
+      "rationale": "Resume and deterministic auto-recovery require prior execution state model, drift controls, and evidence infrastructure.",
       "reason_codes": [
         "RESUME_SEMANTICS",
         "AUTO_RECOVERY",
         "FAIL_CLOSED_GATES",
-        "NO_REGRESSION"
+        "RETRY_CARRY_FORWARD"
       ]
     },
     {
@@ -77,11 +86,12 @@
       "feature_slug": "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
       "id": "order-006",
       "order_index": 6,
-      "rationale": "Role partitioning and mandatory plan review are governance layers on top of deterministic execution.",
+      "rationale": "Role partitioning and plan-review governance are layered on top of deterministic execution core behavior.",
       "reason_codes": [
         "ROLE_COORDINATION",
-        "PLAN_QUALITY_GATE",
-        "MINIMAL_PREREQ_ALIGNMENT"
+        "PLAN_REVIEW_GATE",
+        "MINIMAL_PREREQ_ALIGNMENT",
+        "RETRY_CARRY_FORWARD"
       ]
     },
     {
@@ -92,8 +102,13 @@
       "feature_slug": "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
       "id": "order-007",
       "order_index": 7,
-      "rationale": "Validation policy and synthetic smoke checks depend on established execution gates and role-governed handoffs.",
-      "reason_codes": ["VALIDATION_LAYER", "REGRESSION_GUARD", "GATE_DEPENDENT"]
+      "rationale": "Anti-hardcode enforcement and synthetic smoke testing depend on established gated execution and role-governed handoffs.",
+      "reason_codes": [
+        "VALIDATION_LAYER",
+        "REGRESSION_GUARD",
+        "GATE_DEPENDENT",
+        "RETRY_CARRY_FORWARD"
+      ]
     },
     {
       "depends_on": [
@@ -104,11 +119,12 @@
       "feature_slug": "incremental-prd-to-features-post-run-learning-loop",
       "id": "order-008",
       "order_index": 8,
-      "rationale": "Incremental doc evolution and learning-loop proposals are sequenced after stable bootstrap, drift hardening, and resume integrity.",
+      "rationale": "Incremental reconciliation and learning-loop proposals are sequenced after bootstrap, drift hardening, and resume integrity are stable.",
       "reason_codes": [
         "DOC_EVOLUTION",
-        "FEEDBACK_LOOP",
-        "POST_RECOVERY_STABILITY"
+        "LEARNING_LOOP",
+        "POST_RECOVERY_STABILITY",
+        "RETRY_CARRY_FORWARD"
       ]
     },
     {
@@ -120,14 +136,14 @@
       "feature_slug": "workflow-complexity-reduction-skill-inventory-pruning",
       "id": "order-009",
       "order_index": 9,
-      "rationale": "Prerequisites aligned exactly to architect canonical map; simplification/pruning is last to avoid destabilizing earlier gate/reliability work.",
+      "rationale": "Complexity reduction is intentionally last to avoid destabilizing required gates before execution reliability and doc-evolution flows are in place.",
       "reason_codes": [
         "POST_MVP_HARDENING",
         "SAFE_SIMPLIFICATION",
         "CANONICAL_PREREQ_SYNC",
-        "PM_FEEDBACK_RESOLVED"
-      ],
-      "resolves": ["PM-001", "PM-002", "PM-TODO-067", "PM-TODO-068"]
+        "RETRY_CARRY_FORWARD",
+        "NO_REGRESSION"
+      ]
     }
   ],
   "execution": {
@@ -137,7 +153,7 @@
     "schema_check_status": "completed",
     "skip_generation": false
   },
-  "generated_at": "2026-02-19T16:12:52Z",
+  "generated_at": "2026-02-19T17:06:54Z",
   "notes": [
     "Machine-managed by tools/pc-prepare-features.",
     "Captures PM-gate outcomes and execution status for deterministic reruns."
@@ -219,127 +235,26 @@
     }
   ],
   "pm_gate": {
-    "blocked_count": 1,
+    "blocked_count": 0,
     "final_decision": "approve",
     "history": [
       {
-        "decision": "retry",
-        "gate_id": "PM-BLOCK-001",
-        "issue_count": 2,
-        "issues": [
-          {
-            "issue_id": "PM-001",
-            "remediation": "Edit `feature-order.json` in `decisions` (`order-009`), `dependencies.workflow-complexity-reduction-skill-inventory-pruning`, and `ordered_features` (slug `workflow-complexity-reduction-skill-inventory-pruning`) so all three prerequisite arrays exactly match `design.md` `## Feature alignment map`; acceptance condition: the three arrays are identical and equal to the architect canonical prerequisite list.",
-            "risk": "Dependency resolution becomes source-dependent, which can mis-gate feature eligibility and cause incorrect execution order decisions.",
-            "step": "dependency-planner",
-            "summary": "`feature-order.json` sets `workflow-complexity-reduction-skill-inventory-pruning` prerequisites to `[\"anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature\", \"incremental-prd-to-features-post-run-learning-loop\"]`, but `design.md` (`## Feature alignment map`) defines the canonical prerequisites as `[\"deterministic-work-item-execution-with-explicit-gates-zero-input-defaults\", \"orchestrator-roles-plan-reviewer-gate-role-specific-prompts\", \"incremental-prd-to-features-post-run-learning-loop\"]`."
-          },
-          {
-            "issue_id": "PM-002",
-            "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
-            "risk": "Feature generation order may violate prerequisites.",
-            "step": "dependency-planner",
-            "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
-          }
-        ],
-        "iteration": 2,
-        "pm_feedback": {
-          "criteria": {
-            "dependency_alignment": "fail",
-            "feature_specificity": "pass",
-            "journey_specificity": "pass"
-          },
-          "loop_change_summary": "## design.md diff\n--- previous/design.md\n+++ current/design.md\n@@ -61,13 +61,14 @@\n ## Build strategy\n \n 1. Foundation baseline (feature 1): keep bootstrap and safe template reapply as the only root capability so every later phase inherits idempotent repo setup.\n-2. Shared infra and observability (feature 3): establish shared runner metadata, structured logs, and offload pointers used by all downstream execution and validation gates.\n-3. Deterministic orchestration core (feature 2): enforce gated Plan -> Patch -> Test -> Report, authority controls, and HIGH-risk stop conditions.\n-4. Worktree and drift hardening (feature 5): apply single-worktree orchestration and deterministic template-drift repair once orchestration semantics are stable.\n-5. Resume and commit integrity (feature 4): add resume checkpoints, scoped autofix recovery, and fail-closed evidence-based commit gating.\n+2. Shared infra and observability (feature 2): establish output offload + token budget guardrails + structured logs + shared runner metadata used by all downstream execution and validation gates.\n+3. Deterministic orchestration core (feature 3): enforce gated Plan -> Patch -> Test -> Report, zero-input defaults, authority controls, and HIGH-risk stop conditions.\n+4. Worktree and drift hardening (feature 4): apply single-worktree orchestration and deterministic template-drift repair once orchestration semantics are stable.\n+5. Resume and commit integrity (feature 5): add resume checkpoints, deterministic auto-recovery, and fail-closed evidence-based commit gating.\n 6. Role governance (feature 6): layer role prompts and Plan Reviewer enforcement after core gates and recovery behavior are in place.\n 7. Quality resilience (feature 7): enforce anti-hardcode test policy and synthetic end-to-end smoke execution to catch regression paths early.\n 8. Controlled evolution (feature 8): run incremental PRD-to-features reconciliation and human-gated learning-loop proposals without rewriting completed work.\n+9. Workflow simplification (feature 9): reduce workflow complexity and prune low-value skill inventory/redundant script paths without changing required gates.\n \n Dependency-alignment acceptance condition for downstream ordering artifacts: `bootstrap-safe-template-reapply` is the only root feature and every other feature must declare at least one prerequisite from an earlier phase.\n \n@@ -81,17 +82,18 @@\n \n Dependency-intent acceptance condition: bootstrap is the only zero-prerequisite row and every other row depends on modules established by earlier features in this map.\n \n-UX alignment anchor from `ux-ui.md`: Journey 1 maps to feature 1, Journey 2 maps to features 2/6/7, Journey 3 maps to feature 3, Journey 4 maps to features 4/5, and Journey 5 maps to feature 8.\n+UX alignment anchor from `ux-ui.md`: Journey 1 maps to feature 1, Journey 2 maps to features 2/3/6/7, Journey 3 maps to feature 4, Journey 4 maps to feature 5, Journey 5 maps to feature 8, and Journey 6 maps to feature 9.\n \n PM-TODO-059 resolution contract: prerequisite arrays in this table are the architect canonical source for downstream dependency-planner outputs.\n \n-| Feature                                                                                                                         | Outcome and notes                                                                                        | Architectural alignment                                                                                     | Prerequisites                                                                                                                                                       |\n-| ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n-| Bootstrap + safe template reapply (`bootstrap-safe-template-reapply`)                                                           | Execution-ready repos with idempotent reruns; conflict handling overwrite/merge/skip                     | Template manager with deterministic merge policy and non-destructive reapply semantics                      | `[]`                                                                                                                                                                |\n-| Output offload + structured logs + shared runner (`output-offload-structured-logs-shared-runner`)                               | Token-efficient noisy output handling and full traceability via `pp` pointers and `logs/<WI>/<step>.log` | Shared runner adapter + offload service + structured observability store                                    | [`bootstrap-safe-template-reapply`]                                                                                                                                 |\n-| Deterministic work-item execution with explicit gates (`deterministic-work-item-execution-with-explicit-gates`)                 | Predictable, auditable Plan -> Patch -> Test -> Report; command authority remains with human PO/user     | Workflow orchestrator state machine, risk gate, and authority enforcement for protected commands            | [`bootstrap-safe-template-reapply`, `output-offload-structured-logs-shared-runner`]                                                                                 |\n-| Single-worktree orchestration + template-drift hardening (`single-worktree-orchestration-template-drift-hardening`)             | Reliable role collaboration without worktree tracking drift; deterministic recovery                      | Single-worktree controller and drift hardening module with scoped repair + fail-closed remediation          | [`bootstrap-safe-template-reapply`, `output-offload-structured-logs-shared-runner`, `deterministic-work-item-execution-with-explicit-gates`]                        |\n-| Resume safety + fail-closed commit gate + scoped autofix (`resume-safety-fail-closed-commit-gate-scoped-autofix`)               | Safe interruption recovery and strict evidence-based commit decisions; active WIP preserved by default   | Resume manager, scoped autofix, and commit gate validator tied to required work-item artifacts              | [`output-offload-structured-logs-shared-runner`, `deterministic-work-item-execution-with-explicit-gates`, `single-worktree-orchestration-template-drift-hardening`] |\n-| Orchestrator roles + Plan Reviewer gate + role-specific prompts (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) | Better plan quality and cleaner responsibility split across planner/reviewer/patcher/tester/reporter     | Role boundary enforcer + role prompt registry + mandatory plan-review gate                                  | [`deterministic-work-item-execution-with-explicit-gates`]                                                                                                           |\n-| Anti-hardcode test policy + synthetic end-to-end smoke feature (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) | Higher regression resistance using fixtures, seeds, invariants, and boundary contracts                   | Test policy validator and synthetic feature harness integrated into validation stage                        | [`deterministic-work-item-execution-with-explicit-gates`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`]                                            |\n-| Incremental PRD-to-features + post-run learning loop (`incremental-prd-to-features-post-run-learning-loop`)                     | Safe docs evolution and reduced repeated failures through add-missing updates and human-gated proposals  | Incremental feature reconciler and improvement proposal pipeline writing to `docs/possible-improvements.md` | [`bootstrap-safe-template-reapply`, `single-worktree-orchestration-template-drift-hardening`, `resume-safety-fail-closed-commit-gate-scoped-autofix`]               |\n... (truncated)\n\n## ux-ui.md diff\n--- previous/ux-ui.md\n+++ current/ux-ui.md\n@@ -8,33 +8,46 @@\n - User runs bootstrap in a local repo.\n - If template conflicts exist, CLI asks `overwrite`, `merge`, or `skip` and shows scope before applying.\n - Success is a concise summary with applied/skipped items and explicit rerun safety.\n+- Blocked outcome is missing prerequisites or unreadable repo context, with remediation and safe rerun guidance.\n \n ### Journey 2: Move one ticket through deterministic gates\n \n-- **Outcomes covered:** **Deterministic work-item execution with explicit gates** (`deterministic-work-item-execution-with-explicit-gates`) -> Plan -> Patch -> Test -> Report is predictable and auditable; **Orchestrator roles + Plan Reviewer gate + role-specific prompts** (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) -> cleaner role separation and plan quality; **Anti-hardcode test policy + synthetic end-to-end smoke feature** (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) -> better regression resistance via policy/smoke checks.\n-- Human PO/user starts execution; system emits preflight (scope, risk, files-to-change, TDD plan, DoD).\n+- **Outcomes covered:** **Deterministic work-item execution with explicit gates + zero-input defaults** (`deterministic-work-item-execution-with-explicit-gates-zero-input-defaults`) -> Plan -> Patch -> Test -> Report is predictable and auditable with deterministic defaults when optional inputs are omitted; **Orchestrator roles + Plan Reviewer gate + role-specific prompts** (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) -> cleaner role separation and plan quality; **Anti-hardcode test policy + synthetic end-to-end smoke feature** (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) -> better regression resistance via policy/smoke checks.\n+- Human PO/user starts execution; zero-input defaults populate optional execution fields before preflight.\n+- System emits preflight (scope, risk, files-to-change, TDD plan, DoD).\n - HIGH risk halts at `Awaiting PO Approval` until explicit approval.\n - Planner -> Plan Reviewer -> Patcher -> Tester -> Reporter handoffs are explicit; failed review/test/report loops return to Planner with owner-scoped PM TODO ids.\n+- Success is a completed role loop with final CI gate pass and full evidence.\n+- Blocked outcomes are missing PO approval, rejected plan, or failing allowed tests.\n \n ### Journey 3: Keep traceability high and prompt noise low\n \n-- **Outcomes covered:** **Output offload + structured logs + shared runner** (`output-offload-structured-logs-shared-runner`) -> noisy output stays token-efficient and every step is traceable.\n+- **Outcomes covered:** **Output offload + token budget guardrails + structured logs + shared runner** (`output-offload-token-budget-guardrails-structured-logs-shared-runner`) -> noisy output stays token-efficient and every step is traceable.\n - During noisy steps, CLI shows pointer ids and short status instead of long inline output.\n+- Token budget guardrails force offload when inline output would exceed limits.\n - User debugs from `.offload/<id>.txt` and `logs/<WI>/<step>.log` with timestamped prefixes.\n+- Success is complete troubleshooting context without rerunning expensive commands.\n+- Blocked outcome is missing offload/log artifact, with explicit rerun/remediation instructions.\n \n ### Journey 4: Resume safely and block incomplete commits\n \n-- **Outcomes covered:** **Resume safety + fail-closed commit gate + scoped autofix** (`resume-safety-fail-closed-commit-gate-scoped-autofix`) -> interrupted runs resume safely and commits require complete evidence; **Single-worktree orchestration + template-drift hardening** (`single-worktree-orchestration-template-drift-hardening`) -> reliable collaboration in a single feature worktree with drift hardening.\n+- **Outcomes covered:** **Resume safety + deterministic auto-recovery + fail-closed commit gate** (`resume-safety-deterministic-auto-recovery-fail-closed-commit-gate`) -> interrupted runs resume safely and commits require complete evidence; **Single-worktree orchestration + template-drift hardening** (`single-worktree-orchestration-template-drift-hardening`) -> reliable collaboration in a single feature worktree with drift hardening.\n - On rerun, system resumes in place, preserves active WIP by default, and re-runs tests/CI.\n+- Deterministic auto-recovery selects the next stage from persisted execution markers instead of re-planning from scratch.\n - Drift repair is scoped and deterministic; unresolved drift returns explicit remediation.\n - Commit remains blocked until required planner/tester/reporter evidence is complete.\n+- Success is resumed completion with a passing fail-closed commit gate.\n+- Blocked outcomes are unresolved drift, recovery ambiguity, or missing execution evidence.\n... (truncated)\n\n## security.md diff\nsecurity.md: no changes.\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -5,7 +5,7 @@\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n       \"order_index\": 1,\n-      \"rationale\": \"Establishes the idempotent bootstrap/template baseline and remains the only root prerequisite.\",\n+      \"rationale\": \"Carry forward root from previous iteration; establishes idempotent template baseline for all downstream features.\",\n       \"reason_codes\": [\n         \"FOUNDATION\",\n         \"ROOT_ONLY\",\n@@ -16,40 +16,41 @@\n       \"depends_on\": [\n         \"bootstrap-safe-template-reapply\"\n       ],\n-      \"feature_slug\": \"output-offload-structured-logs-shared-runner\",\n+      \"feature_slug\": \"output-offload-token-budget-guardrails-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n       \"order_index\": 2,\n-      \"rationale\": \"Adds shared runner metadata, offload pointers, and structured logs immediately after bootstrap so downstream gates inherit observability.\",\n+      \"rationale\": \"Direct revision of prior offload/logging/runner foundation with token-budget expansion; must precede orchestration and recovery behavior.\",\n       \"reason_codes\": [\n         \"SHARED_INFRA\",\n         \"OBSERVABILITY\",\n-        \"TOKEN_EFFICIENCY\"\n-      ]\n-    },\n-    {\n-      \"depends_on\": [\n-        \"bootstrap-safe-template-reapply\",\n-        \"output-offload-structured-logs-shared-runner\"\n-      ],\n-      \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates\",\n+        \"TOKEN_GUARDRAILS\"\n+      ]\n+    },\n+    {\n+      \"depends_on\": [\n+        \"bootstrap-safe-template-reapply\",\n+        \"output-offload-token-budget-guardrails-structured-logs-shared-runner\"\n... (truncated)",
-          "raw_issues": [
-            {
-              "remediation": "Edit `feature-order.json` in `decisions` (`order-009`), `dependencies.workflow-complexity-reduction-skill-inventory-pruning`, and `ordered_features` (slug `workflow-complexity-reduction-skill-inventory-pruning`) so all three prerequisite arrays exactly match `design.md` `## Feature alignment map`; acceptance condition: the three arrays are identical and equal to the architect canonical prerequisite list.",
-              "risk": "Dependency resolution becomes source-dependent, which can mis-gate feature eligibility and cause incorrect execution order decisions.",
-              "step": "dependency-planner",
-              "summary": "`feature-order.json` sets `workflow-complexity-reduction-skill-inventory-pruning` prerequisites to `[\"anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature\", \"incremental-prd-to-features-post-run-learning-loop\"]`, but `design.md` (`## Feature alignment map`) defines the canonical prerequisites as `[\"deterministic-work-item-execution-with-explicit-gates-zero-input-defaults\", \"orchestrator-roles-plan-reviewer-gate-role-specific-prompts\", \"incremental-prd-to-features-post-run-learning-loop\"]`."
-            }
-          ],
-          "review_issues": [
-            {
-              "issue_id": "PM-001",
-              "remediation": "Edit `feature-order.json` in `decisions` (`order-009`), `dependencies.workflow-complexity-reduction-skill-inventory-pruning`, and `ordered_features` (slug `workflow-complexity-reduction-skill-inventory-pruning`) so all three prerequisite arrays exactly match `design.md` `## Feature alignment map`; acceptance condition: the three arrays are identical and equal to the architect canonical prerequisite list.",
-              "risk": "Dependency resolution becomes source-dependent, which can mis-gate feature eligibility and cause incorrect execution order decisions.",
-              "step": "dependency-planner",
-              "summary": "`feature-order.json` sets `workflow-complexity-reduction-skill-inventory-pruning` prerequisites to `[\"anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature\", \"incremental-prd-to-features-post-run-learning-loop\"]`, but `design.md` (`## Feature alignment map`) defines the canonical prerequisites as `[\"deterministic-work-item-execution-with-explicit-gates-zero-input-defaults\", \"orchestrator-roles-plan-reviewer-gate-role-specific-prompts\", \"incremental-prd-to-features-post-run-learning-loop\"]`."
-            },
-            {
-              "issue_id": "PM-002",
-              "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
-              "risk": "Feature generation order may violate prerequisites.",
-              "step": "dependency-planner",
-              "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
-            }
-          ],
-          "role_decision": "BLOCK",
-          "todo_updates": [
-            {
-              "action": "create",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-DEP-010",
-              "status": "open",
-              "task_id": "PM-TODO-066"
-            },
-            {
-              "action": "auto_create",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-001",
-              "status": "open",
-              "task_id": "PM-TODO-067"
-            },
-            {
-              "action": "auto_create",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-002",
-              "status": "open",
-              "task_id": "PM-TODO-068"
-            },
-            {
-              "action": "auto_done_resolved",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-DEP-010",
-              "status": "done",
-              "task_id": "PM-TODO-066"
-            }
-          ]
-        },
-        "pm_role_decision": "BLOCK"
-      },
-      {
         "decision": "approve",
-        "gate_id": "PM-REVIEW-003",
+        "gate_id": "PM-REVIEW-002",
         "issue_count": 0,
         "issues": [],
-        "iteration": 3,
+        "iteration": 2,
         "pm_feedback": {
           "criteria": {
             "dependency_alignment": "pass",
             "feature_specificity": "pass",
             "journey_specificity": "pass"
           },
-          "loop_change_summary": "## design.md diff\ndesign.md: no changes.\n\n## ux-ui.md diff\nux-ui.md: no changes.\n\n## security.md diff\nsecurity.md: no changes.\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -5,7 +5,7 @@\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n       \"order_index\": 1,\n-      \"rationale\": \"Carry forward root from previous iteration; establishes idempotent template baseline for all downstream features.\",\n+      \"rationale\": \"Carry forward as the only root capability; establishes idempotent bootstrap/template baseline for all downstream work.\",\n       \"reason_codes\": [\n         \"FOUNDATION\",\n         \"ROOT_ONLY\",\n@@ -19,11 +19,12 @@\n       \"feature_slug\": \"output-offload-token-budget-guardrails-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n       \"order_index\": 2,\n-      \"rationale\": \"Direct revision of prior offload/logging/runner foundation with token-budget expansion; must precede orchestration and recovery behavior.\",\n+      \"rationale\": \"Shared runner, offload, token guardrails, and structured logging must exist before orchestration/recovery layers consume them.\",\n       \"reason_codes\": [\n         \"SHARED_INFRA\",\n         \"OBSERVABILITY\",\n-        \"TOKEN_GUARDRAILS\"\n+        \"TOKEN_GUARDRAILS\",\n+        \"NO_REGRESSION\"\n       ]\n     },\n     {\n@@ -34,11 +35,12 @@\n       \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates-zero-input-defaults\",\n       \"id\": \"order-003\",\n       \"order_index\": 3,\n-      \"rationale\": \"Revision of prior deterministic execution core; explicit gates and zero-input defaults require bootstrap baseline plus shared runner/offload telemetry.\",\n+      \"rationale\": \"Deterministic gated execution with zero-input defaults depends on baseline templates plus shared infra/telemetry.\",\n       \"reason_codes\": [\n         \"EXECUTION_CORE\",\n+        \"ZERO_INPUT_POLICY\",\n         \"GATE_ENFORCEMENT\",\n-        \"ZERO_INPUT_POLICY\"\n+        \"NO_REGRESSION\"\n       ]\n     },\n... (truncated)",
+          "loop_change_summary": "## design.md diff\ndesign.md: no changes.\n\n## ux-ui.md diff\nux-ui.md: no changes.\n\n## security.md diff\nsecurity.md: no changes.\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -5,11 +5,13 @@\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n       \"order_index\": 1,\n-      \"rationale\": \"Carry forward as the only root capability; establishes idempotent bootstrap/template baseline for all downstream work.\",\n+      \"rationale\": \"Carry forward prior ordering: bootstrap remains the single root capability and deterministic entrypoint for all downstream features.\",\n       \"reason_codes\": [\n         \"FOUNDATION\",\n         \"ROOT_ONLY\",\n-        \"IDEMPOTENT_ENTRYPOINT\"\n+        \"IDEMPOTENT_ENTRYPOINT\",\n+        \"RETRY_CARRY_FORWARD\",\n+        \"NO_REGRESSION\"\n       ]\n     },\n     {\n@@ -19,12 +21,13 @@\n       \"feature_slug\": \"output-offload-token-budget-guardrails-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n       \"order_index\": 2,\n-      \"rationale\": \"Shared runner, offload, token guardrails, and structured logging must exist before orchestration/recovery layers consume them.\",\n+      \"rationale\": \"Offload, logging, token guardrails, and shared runner are prerequisite infrastructure for deterministic execution and later recovery/governance layers.\",\n       \"reason_codes\": [\n         \"SHARED_INFRA\",\n         \"OBSERVABILITY\",\n         \"TOKEN_GUARDRAILS\",\n-        \"NO_REGRESSION\"\n+        \"CANONICAL_PREREQ_SYNC\",\n+        \"RETRY_CARRY_FORWARD\"\n       ]\n     },\n     {\n@@ -35,12 +38,13 @@\n       \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates-zero-input-defaults\",\n       \"id\": \"order-003\",\n       \"order_index\": 3,\n-      \"rationale\": \"Deterministic gated execution with zero-input defaults depends on baseline templates plus shared infra/telemetry.\",\n+      \"rationale\": \"Core Plan->Patch->Test->Report gate behavior depends on both template baseline and shared infra/telemetry being in place.\",\n... (truncated)",
           "raw_issues": [],
           "review_issues": [],
           "role_decision": "APPROVE",
-          "todo_updates": [
-            {
-              "action": "update",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-001",
-              "status": "done",
-              "task_id": "PM-TODO-067"
-            },
-            {
-              "action": "update",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-002",
-              "status": "done",
-              "task_id": "PM-TODO-068"
-            }
-          ]
+          "todo_updates": []
         },
         "pm_role_decision": "APPROVE"
       }

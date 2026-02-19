@@ -81,5 +81,4 @@
 
 ## PM Loop History (summary)
 
-- loop=2 gate=PM-BLOCK-001 decision=retry pm_role_decision=BLOCK issues=2
-- loop=3 gate=PM-REVIEW-003 decision=approve pm_role_decision=APPROVE issues=0
+- loop=2 gate=PM-REVIEW-002 decision=approve pm_role_decision=APPROVE issues=0
