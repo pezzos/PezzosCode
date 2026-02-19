@@ -207,6 +207,203 @@ class TestPcReleaseReadiness(unittest.TestCase):
             self.assertIn("- Outcome: Existing outcome to preserve.", expected)
             self.assertIn("- Notes: Existing notes to preserve.", expected)
 
+    def test_release_readiness_tasks_are_rendered_in_rr_id_order(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            path = root / "docs/00-context/expected-features.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                (
+                    "# Expected Features\n\n"
+                    "## Current Expected Features\n\n"
+                    "- Feature: Existing baseline\n"
+                    "  - Owner: Product Manager\n"
+                    "  - Problem: Baseline\n"
+                    "  - Outcome: Baseline\n"
+                    "  - Priority: P1\n"
+                    "  - Notes: Baseline\n\n"
+                    "## Release Readiness Follow-up Features (Auto-managed)\n\n"
+                    "<!-- release-readiness:start -->\n\n"
+                    "- Generated at: 2026-02-19T12:00:00Z\n"
+                    "- Decision: NOT_READY\n"
+                    "- Summary: Existing summary to preserve.\n"
+                    "- Actionable follow-up features: 3\n\n"
+                    "- Feature: Release readiness RR-005 - Existing wording alpha\n"
+                    "  - Owner: Product Manager\n"
+                    "  - Problem: Existing problem alpha.\n"
+                    "  - Outcome: Existing outcome alpha.\n"
+                    "  - Priority: P0\n"
+                    "  - Notes: Existing notes alpha.\n"
+                    "  - Source: release-readiness (RR-005)\n"
+                    "  - Existing Feature Refs: 01-alpha-feature\n\n"
+                    "- Feature: Release readiness RR-002 - Existing wording beta\n"
+                    "  - Owner: Product Manager\n"
+                    "  - Problem: Existing problem beta.\n"
+                    "  - Outcome: Existing outcome beta.\n"
+                    "  - Priority: P0\n"
+                    "  - Notes: Existing notes beta.\n"
+                    "  - Source: release-readiness (RR-002)\n"
+                    "  - Existing Feature Refs: 02-beta-feature\n\n"
+                    "- Feature: Release readiness RR-001 - Existing wording gamma\n"
+                    "  - Owner: Product Manager\n"
+                    "  - Problem: Existing problem gamma.\n"
+                    "  - Outcome: Existing outcome gamma.\n"
+                    "  - Priority: P0\n"
+                    "  - Notes: Existing notes gamma.\n"
+                    "  - Source: release-readiness (RR-001)\n"
+                    "  - Existing Feature Refs: 03-gamma-feature\n\n"
+                    "<!-- release-readiness:end -->\n"
+                ),
+                encoding="utf-8",
+            )
+            write_feature(root, "01-alpha-feature", "Alpha Feature", "In Progress")
+            write_feature(root, "02-beta-feature", "Beta Feature", "In Progress")
+            write_feature(root, "03-gamma-feature", "Gamma Feature", "In Progress")
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(TOOL_PATH),
+                    f"--root={root}",
+                    "--role-mode=deterministic",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if result.returncode != 0:
+                self.fail(
+                    f"pc-release-readiness failed: {result.stderr}\n{result.stdout}"
+                )
+
+            expected = path.read_text(encoding="utf-8")
+            feature_lines = [
+                line.strip()
+                for line in expected.splitlines()
+                if line.startswith("- Feature: Release readiness ")
+            ]
+            self.assertEqual(
+                feature_lines,
+                [
+                    "- Feature: Release readiness RR-001 - Existing wording gamma",
+                    "- Feature: Release readiness RR-002 - Existing wording beta",
+                    "- Feature: Release readiness RR-005 - Existing wording alpha",
+                ],
+            )
+
+    def test_report_timestamp_updates_when_payload_changes_but_block_is_stable(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            path = root / "docs/00-context/expected-features.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                (
+                    "# Expected Features\n\n"
+                    "## Current Expected Features\n\n"
+                    "- Feature: Existing baseline\n"
+                    "  - Owner: Product Manager\n"
+                    "  - Problem: Baseline\n"
+                    "  - Outcome: Baseline\n"
+                    "  - Priority: P1\n"
+                    "  - Notes: Baseline\n\n"
+                    "## Release Readiness Follow-up Features (Auto-managed)\n\n"
+                    "<!-- release-readiness:start -->\n\n"
+                    "- Generated at: 2026-02-19T12:00:00Z\n"
+                    "- Decision: NOT_READY\n"
+                    "- Summary: Existing summary to preserve.\n"
+                    "- Actionable follow-up features: 1\n\n"
+                    "- Feature: Release readiness RR-007 - Existing wording\n"
+                    "  - Owner: Product Manager\n"
+                    "  - Problem: Existing problem to preserve.\n"
+                    "  - Outcome: Existing outcome to preserve.\n"
+                    "  - Priority: P0\n"
+                    "  - Notes: Existing notes to preserve.\n"
+                    "  - Source: release-readiness (RR-007)\n"
+                    "  - Existing Feature Refs: 01-alpha-feature\n\n"
+                    "<!-- release-readiness:end -->\n"
+                ),
+                encoding="utf-8",
+            )
+            report_path = root / "docs/03-logs/release-readiness-report.json"
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "generated_at": "2026-02-19T12:00:00Z",
+                        "role_mode": "deterministic",
+                        "decision": "NOT_READY",
+                        "summary": "Existing summary to preserve.",
+                        "totals": {
+                            "features_scanned": 1,
+                            "features_completed": 0,
+                            "features_incomplete": 1,
+                            "release_tasks": 1,
+                            "actionable_release_tasks": 1,
+                            "accepted_risks": 1,
+                        },
+                        "feature_status": [],
+                        "release_tasks": [
+                            {
+                                "accepted_for_now": False,
+                                "canonical_key": "refs:01-alpha-feature",
+                                "existing_feature_refs": ["01-alpha-feature"],
+                                "notes": "Existing notes to preserve.",
+                                "outcome": "Existing outcome to preserve.",
+                                "priority": "P0",
+                                "problem": "Existing problem to preserve.",
+                                "task_id": "RR-007",
+                                "title": "Existing wording",
+                            }
+                        ],
+                        "accepted_risks": ["stale accepted risk"],
+                        "issues": [
+                            {
+                                "summary": "stale issue",
+                                "risk": "stale risk",
+                                "remediation": "stale remediation",
+                            }
+                        ],
+                        "notes": [
+                            "Machine-managed by tools/pc-release-readiness.",
+                            "Actionable follow-up tasks are mirrored into docs/00-context/expected-features.md.",
+                        ],
+                    },
+                    ensure_ascii=True,
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            write_feature(root, "01-alpha-feature", "Alpha Feature", "In Progress")
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(TOOL_PATH),
+                    f"--root={root}",
+                    "--role-mode=deterministic",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if result.returncode != 0:
+                self.fail(
+                    f"pc-release-readiness failed: {result.stderr}\n{result.stdout}"
+                )
+
+            expected = path.read_text(encoding="utf-8")
+            self.assertIn("- Generated at: 2026-02-19T12:00:00Z", expected)
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertNotEqual(report["generated_at"], "2026-02-19T12:00:00Z")
+            self.assertEqual(report["accepted_risks"], [])
+            self.assertEqual(report["issues"], [])
+
     def test_ready_decision_when_all_features_are_completed(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -8386,3 +8386,68 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Keeps `release-readiness` output update-in-place and continuation-oriented instead of appearing to restart the follow-up plan each run.
 - Reduces noisy diffs, stabilizes task identity, and aligns behavior with repository idempotency expectations.
+
+### 2026-02-19 - Phase-split Allowed Tests validation + repo-aware command contract
+
+**Feature/Bug:** `make feature` could loop before patching when planner-proposed Allowed Tests were validated with Python-only, pre-patch existence checks.
+
+**Changed Files:**
+
+- `tools/pc-allowed-tests-check`
+- `tools/pc-feature`
+- `prompts/planner-update-allowed-tests.md`
+- `tools/templates/prompts/planner-update-allowed-tests.md`
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `tests/test_pc_allowed_tests_check.py`
+- `tests/test_pc_feature.py`
+
+**What Changed:**
+
+- Split Allowed Tests validation in `tools/pc-allowed-tests-check` into phase-aware behavior via `--phase`:
+  - `prepatch`: syntax/forbidden/contract validation only,
+  - `postpatch`: includes target existence checks where applicable.
+- Added repo capability detection in `tools/pc-allowed-tests-check` for Python, Node, Go, Rust, Make targets, and repo-local script commands.
+- Replaced strict unittest/pytest-only acceptance with repo-aware command families (`npm`/`pnpm`/`yarn`, `go test`, `cargo test`, `make <target>`, `tools/...`, plus existing Python commands).
+- Updated `tools/pc-feature` to call Allowed Tests validation with:
+  - `phase="prepatch"` during planner remediation,
+  - `phase="postpatch"` at tester gate.
+- Expanded `normalize_allowed_test(...)` in `tools/pc-feature` to preserve supported non-Python command families.
+- Updated planner remediation prompt/template and feature-template guidance to remove Python-only bias and require repo-supported commands.
+- Added regression coverage for:
+  - phase split behavior,
+  - non-Python repo command acceptance,
+  - docs-only/no-tests repo command acceptance,
+  - `pc-feature` phase forwarding to validator.
+
+**Why:**
+
+- Prevents planner/tester retry loops caused by pre-patch filesystem assumptions.
+- Allows consumer repos with non-Python stacks or docs/tooling-only checks to pass Allowed Tests contract checks before patching.
+- Preserves fail-closed tester behavior after patching.
+
+### 2026-02-19 - Stabilize release-readiness RR ordering and decouple report freshness timestamp
+
+**Feature/Bug:** Follow-up release-readiness output still showed ordering churn (`RR-005` before `RR-001`) and reused report timestamps when the report payload changed.
+
+**Changed Files:**
+
+- `tools/pc-release-readiness`
+- `tests/test_pc_release_readiness.py`
+
+**What Changed:**
+
+- Added deterministic output ordering in `tools/pc-release-readiness`:
+  - keep existing RR ids when task identity matches,
+  - sort rendered `release_tasks` by numeric RR id before writing block/report output.
+- Split timestamp semantics in `tools/pc-release-readiness`:
+  - expected-features block keeps prior `Generated at` only when decision + actionable tasks are semantically unchanged,
+  - report artifact uses independent run timestamp and only preserves it when the full report payload is unchanged.
+- Added regression coverage in `tests/test_pc_release_readiness.py`:
+  - verifies RR output is rendered in RR-id order even when prior block order is shuffled,
+  - verifies report `generated_at` updates when report payload changes (e.g., issues/accepted-risks drift) while block continuity remains stable.
+
+**Why:**
+
+- Removes non-semantic diff noise from task ordering and preserves predictable RR display order.
+- Prevents stale report timestamps from masking real report payload changes.

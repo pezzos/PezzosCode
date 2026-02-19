@@ -72,7 +72,7 @@ Work Item IDs increment per feature; the sequence continues across dates.
 #### Allowed Tests
 
 - (list exact commands; each command must resolve via `tools/pc-allowed-tests-check`)
-- (allowed forms: `python3 -m unittest discover -s tests -p "test_*.py"` or `python3 -m pytest tests/test_example.py -q`)
+- (allowed forms: repo-supported commands such as `python3 -m pytest tests/test_example.py -q`, `npm test`, `go test ./...`, `cargo test`, or `make test`)
 - (forbidden: `make ci`, `make feature`, `pc-feature`, placeholders, or narrative text)
 
 #### Files to Change

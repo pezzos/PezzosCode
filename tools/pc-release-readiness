@@ -533,6 +533,25 @@ def assign_release_task_ids(
         used_ids.add(candidate)
 
 
+def task_id_number(task_id: str) -> int:
+    match = re.match(r"^RR-(\d+)$", task_id)
+    if not match:
+        return 999_999
+    return int(match.group(1))
+
+
+def sort_release_tasks_for_output(release_tasks: List[Dict[str, Any]]) -> None:
+    # Deterministic output contract:
+    # - preserve existing task IDs when task identity is stable
+    # - render output in RR numeric order to avoid ordering churn on reruns
+    release_tasks.sort(
+        key=lambda item: (
+            task_id_number(normalize_text(item.get("task_id", ""))),
+            normalize_text(item.get("canonical_key", "")),
+        )
+    )
+
+
 def actionable_tasks_equivalent(
     left: Sequence[Dict[str, Any]],
     right: Sequence[Dict[str, Any]],
@@ -816,8 +835,10 @@ def run_release_readiness(args: argparse.Namespace) -> int:
         release_tasks,
         existing_release_readiness.get("actionable_tasks", []),
     )
+    sort_release_tasks_for_output(release_tasks)
     actionable_tasks = [item for item in release_tasks if not item["accepted_for_now"]]
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    report_generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    block_generated_at = report_generated_at
 
     if decision != "BLOCK":
         expected_features = expected_features_markdown
@@ -848,9 +869,9 @@ def run_release_readiness(args: argparse.Namespace) -> int:
                 existing_release_readiness.get("generated_at", "")
             )
             if prior_generated_at:
-                generated_at = prior_generated_at
+                block_generated_at = prior_generated_at
         block = finding_block(
-            generated_at=generated_at,
+            generated_at=block_generated_at,
             decision=decision,
             summary=summary,
             actionable_tasks=actionable_tasks,
@@ -861,7 +882,9 @@ def run_release_readiness(args: argparse.Namespace) -> int:
 
     report_payload = {
         "version": 1,
-        "generated_at": generated_at,
+        # Report freshness is evaluated against full payload equality below.
+        # It is intentionally decoupled from expected-features block continuity.
+        "generated_at": report_generated_at,
         "role_mode": args.role_mode,
         "decision": decision,
         "summary": summary,

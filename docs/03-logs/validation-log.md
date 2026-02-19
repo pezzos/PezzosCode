@@ -2557,3 +2557,43 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verification notes:
   - Existing release-readiness entries are now used as continuity input, with task identity keyed by `existing_feature_refs` first.
   - Unchanged reruns no longer churn the expected-features block or release-readiness report timestamps.
+
+## 2026-02-19 - Validate phase-split Allowed Tests + repo-aware contract
+
+- Command: `python3 -m py_compile tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_allowed_tests_check.py tests/test_pc_feature.py`
+- Result: PASS.
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"`
+- Result: FAIL first run due outdated expectation after capability contract change (offload id `5fd59e5d3daf3e3a46f835cb4f74dd3a04fd2845b94aeeb6bed1afaa3d8c4ba6`), PASS after test update (`21` tests; offload id `3cab2fcf2d072652f17982a5774f74101ad4afcfb27baeea68d5a9c9d3fdf57b`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`241` tests; offload ids `54ee98850ad9458f0a44c3b8dd47fb7d3219c3c488f6bd0316ae0aa7c65a74b0`, `7c81d574787010c29a03fb4ff3b78129d619f0cb5b1b4345d7705cad4139c8b3`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"`
+- Result: PASS (`6` tests; offload ids `0499a2d72d8b6b36e4d29788d46c61894e0ca03272fa2bd3b986d8b14a0a8388`, `d324651f915864a59d0259f6393c98a1966cb6810dc26512162795b8c475205b`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`24` tests; offload id `b83727e4d931e3c56dcc5227e11bdffb9126d443423a6099353a7b5662ca78e1`).
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_allowed_tests_check.py tests/test_pc_feature.py prompts/planner-update-allowed-tests.md tools/templates/prompts/planner-update-allowed-tests.md docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- Result: FAIL first run due formatter rewrites (`black`/`prettier`; offload id `e7ba9c8213f35b8a8fda87e8749103425b1294ee40cb1dd7121646b7b54b3e30`), PASS second run (offload id `9a128b78570e5d7353c1ffb3bf2010b7b3382151c2c1c8ea75f28e7c1be56a64`).
+- Verified:
+  - Prepatch Allowed Tests checks are now contract/syntax-only and no longer require pre-existing test targets.
+  - Postpatch tester checks still enforce target validity and command success.
+  - Node-script and docs-only repo command forms are covered by validator tests.
+- Follow-up (same work item): refined prepatch behavior so `make` target existence and package script existence are enforced only in `postpatch`.
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_allowed_tests_check.py"`
+- Result: PASS (`23` tests; offload ids `e45d8e29e7aa510f8ba297fb9bb19e7a52f535597f4f6c94d8d9b2ef85c1cf81`, `327b3345ea30051e7d047286bca03afb9dcb72d56852460bd6c0cdad948e0e10`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (`241` tests; offload ids `c14dd15cac1557aa0e98cd8b79b002cee3cf0ebed922b6af6a3d581d324f7ca6`, `e93e1ebaed12258410247890f5e229368de204d974646f772328a0be81287e8f`).
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-allowed-tests-check tools/pc-feature tests/test_pc_allowed_tests_check.py tests/test_pc_feature.py prompts/planner-update-allowed-tests.md tools/templates/prompts/planner-update-allowed-tests.md docs/02-features/feature-template/dev-tasks.md tools/templates/docs/02-features/feature-template/dev-tasks.md docs/03-logs/implementation-log.md docs/03-logs/decision-log.md docs/03-logs/validation-log.md`
+- Result: FAIL first run (`black` modified files; offload id `c3064249ae44829675761ba2d4c48b0fc3510d0929f06989e7fb6a86ca7ce26f`), PASS second run (offload id `9a128b78570e5d7353c1ffb3bf2010b7b3382151c2c1c8ea75f28e7c1be56a64`).
+
+## 2026-02-19 - Validate release-readiness ordering + report timestamp semantics
+
+- Command: `python3 -m py_compile tools/pc-release-readiness tests/test_pc_release_readiness.py`
+- Result: PASS.
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_release_readiness.py"`
+- Result: PASS (`6` tests; offload id `e504fe7649acfb157039d59eb938eff63ea4efb63af539b744a74520bb9f2e72`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`24` tests; offload id `b83727e4d931e3c56dcc5227e11bdffb9126d443423a6099353a7b5662ca78e1`).
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-release-readiness tests/test_pc_release_readiness.py docs/03-logs/implementation-log.md docs/03-logs/validation-log.md`
+- Result: PASS (offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`).
+- Verification notes:
+  - RR follow-up output now renders in deterministic RR-id order.
+  - Report `generated_at` is now freshness-correct when report payload changes even if expected-features block continuity is preserved.

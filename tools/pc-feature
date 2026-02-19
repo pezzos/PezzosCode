@@ -1585,11 +1585,11 @@ def reset_dev_tasks_if_dirty(worktree_path: str, dev_tasks_path: str) -> bool:
 
 
 def check_allowed_tests_exist(
-    allowed_tests: List[str], worktree_path: str
+    allowed_tests: List[str], worktree_path: str, *, phase: str = "postpatch"
 ) -> List[str]:
     if not allowed_tests:
         return []
-    cmd = ["tools/pc-allowed-tests-check"]
+    cmd = ["tools/pc-allowed-tests-check", "--phase", phase]
     for entry in allowed_tests:
         cmd.extend(["--cmd", entry])
     result = subprocess.run(
@@ -4564,7 +4564,13 @@ def normalize_allowed_test(raw: str) -> Optional[str]:
         parts = strip_leading_env_assignments(parts[1:])
         if not parts:
             return None
-    if parts[0] in {"pytest", "py.test"}:
+    if parts[0] in {"pytest", "py.test", "make"}:
+        return shlex.join(parts)
+    if parts[0] in {"npm", "pnpm", "yarn", "go", "cargo", "bun", "vitest", "jest"}:
+        return shlex.join(parts)
+    if parts[0] == "npx" and len(parts) >= 2 and parts[1] in {"vitest", "jest"}:
+        return shlex.join(parts)
+    if parts[0].startswith("./") or parts[0].startswith("tools/"):
         return shlex.join(parts)
     if len(parts) >= 3 and parts[0] in {"python", "python3"} and parts[1] == "-m":
         if parts[2] in {"unittest", "pytest"}:
@@ -7449,7 +7455,7 @@ def main() -> None:
         planner_note = ""
         allowed_tests: List[str] = []
         forbidden: List[str] = []
-        missing: List[str] = []
+        validation_issues: List[str] = []
         touched_test_paths = collect_touched_work_item_test_paths(
             root, "refs/heads/main", patcher_branch
         )
@@ -7458,19 +7464,29 @@ def main() -> None:
             allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
             allowed_tests = parse_allowed_tests(allowed_section)
             forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
-            missing = check_allowed_tests_exist(allowed_tests, planner_path)
+            validation_issues = check_allowed_tests_exist(
+                allowed_tests, planner_path, phase="prepatch"
+            )
             missing_touched_allowed = allowed_tests_touched_test_coverage_issues(
                 touched_test_paths=touched_test_paths,
                 allowed_tests=allowed_tests,
             )
-            if not allowed_tests or forbidden or missing or missing_touched_allowed:
+            if (
+                not allowed_tests
+                or forbidden
+                or validation_issues
+                or missing_touched_allowed
+            ):
                 issues: List[str] = []
                 if not allowed_tests:
                     issues.append("No allowed tests are listed.")
                 if forbidden:
                     issues.append("Forbidden commands detected (do not use `make ci`).")
-                if missing:
-                    issues.append("Missing tests: " + "; ".join(sorted(set(missing))))
+                if validation_issues:
+                    issues.append(
+                        "Validation issues: "
+                        + "; ".join(sorted(set(validation_issues)))
+                    )
                 issues.extend(missing_touched_allowed)
                 planner_prompt = render_prompt_template(
                     load_prompt_template("planner", "update-allowed-tests"),
@@ -7529,7 +7545,7 @@ def main() -> None:
             )
             note = (
                 planner_note
-                or "Updated Allowed Tests to satisfy existence and scope checks."
+                or "Updated Allowed Tests to satisfy prepatch contract/scope checks."
             )
             append_role_log(
                 os.path.join(planner_path, role_paths["planner"]),
@@ -7551,7 +7567,12 @@ def main() -> None:
         else:
             emit_workflow_event("planner", "DONE", attempt=attempt, outcome="NO_CHANGE")
 
-        if not allowed_tests or forbidden or missing or missing_touched_allowed:
+        if (
+            not allowed_tests
+            or forbidden
+            or validation_issues
+            or missing_touched_allowed
+        ):
             emit_workflow_event(
                 "plan-reviewer",
                 "SKIP",
@@ -7570,13 +7591,16 @@ def main() -> None:
                 issues.append("no allowed tests listed")
             if forbidden:
                 issues.append("forbidden commands: " + "; ".join(forbidden))
-            if missing:
-                issues.append("missing targets: " + "; ".join(sorted(set(missing))))
+            if validation_issues:
+                issues.append(
+                    "validation issues: " + "; ".join(sorted(set(validation_issues)))
+                )
             if missing_touched_allowed:
                 issues.append(" | ".join(missing_touched_allowed))
             remediation = (
-                "Allowed Tests must contain only specific, existing unittest/pytest commands "
-                "and explicitly cover each touched test file path/module. "
+                "Allowed Tests must contain specific repo-supported test/validation commands. "
+                "Prepatch checks validate syntax/contract only; postpatch checks validate target existence/execution. "
+                "Allowed Tests must explicitly cover each touched test file path/module. "
                 "Do not include `make ci`, `make feature`, `pc-feature`, or placeholders."
             )
             issue_summary = " | ".join(issues)
@@ -7586,7 +7610,7 @@ def main() -> None:
                 f"Notes: Invalid Allowed Tests after planner remediation attempts ({issue_summary}). "
                 f"{remediation}\n"
                 f"File/Path: {dev_tasks_repo_path}\n"
-                "Check: Allowed Tests must list existing scoped unittest/pytest commands and touched-test coverage.\n"
+                "Check: Allowed Tests must list repo-supported commands and touched-test coverage.\n"
                 f"Evidence: {issue_summary}\n"
                 f"Expected fix: {remediation}\n"
                 f"Work Item ID: {work_item_id}\n"
@@ -7997,21 +8021,23 @@ def main() -> None:
         allowed_section = get_entry_section(content, work_item_id, "Allowed Tests")
         allowed_tests = parse_allowed_tests(allowed_section)
         forbidden = [cmd for cmd in allowed_tests if is_forbidden_test(cmd)]
-        missing = check_allowed_tests_exist(allowed_tests, tester_path)
-        if not allowed_tests or forbidden or missing:
+        validation_issues = check_allowed_tests_exist(
+            allowed_tests, tester_path, phase="postpatch"
+        )
+        if not allowed_tests or forbidden or validation_issues:
             if not allowed_tests:
                 note = "No allowed tests are listed."
             elif forbidden:
                 note = "Forbidden tests detected: " + "; ".join(forbidden)
             else:
-                note = "Missing tests: " + "; ".join(sorted(set(missing)))
+                note = "Validation issues: " + "; ".join(sorted(set(validation_issues)))
             tester_feedback = (
                 "Outcome: FAIL\n"
                 "Tests run: (none)\n"
-                f"Notes: {note} Add specific, scoped tests to Allowed Tests; "
+                f"Notes: {note} Add specific, repo-supported commands to Allowed Tests; "
                 "`make ci`, `make feature`, and `pc-feature` are forbidden.\n"
                 f"File/Path: {dev_tasks_repo_path}\n"
-                "Check: Allowed Tests must list existing scoped unittest/pytest commands.\n"
+                "Check: Allowed Tests must list repo-supported commands.\n"
                 f"Evidence: {note}\n"
                 "Expected fix: Update Allowed Tests with exact commands that exit 0.\n"
                 f"Work Item ID: {work_item_id}\n"

@@ -2959,3 +2959,22 @@ When a decision is reversed or replaced, document it here:
   - PRD updates become explicit, repeatable, and less prone to broad rewording drift.
   - Release-readiness outcomes become directly actionable through existing planning/generation commands instead of requiring manual task translation.
   - Workflow docs and template docs now describe a complete closed loop from context → PRD → features → readiness → expected-features follow-up.
+
+### DEC-080 - Phase-split Allowed Tests validation and repo-aware command contract
+
+- **Date:** 2026-02-19
+- **Status:** Accepted
+- **Context:** Work item execution could stall before patching because Allowed Tests were validated as explicit, existing unittest/pytest targets during planner remediation. In repos without Python tests yet (or with non-Python test stacks), this created deterministic planner/tester retry loops.
+- **Decision:**
+  - Split Allowed Tests validation into two phases in `tools/pc-allowed-tests-check`:
+    - `prepatch`: command syntax, forbidden-command policy, and repo capability contract checks.
+    - `postpatch`: all prepatch checks plus target existence checks where the command family supports deterministic path/target validation.
+  - Route `tools/pc-feature` Allowed Tests validation through phase-aware calls:
+    - planner remediation uses `--phase prepatch`,
+    - tester gate uses `--phase postpatch`.
+  - Replace Python-only command acceptance with a repo-aware contract that supports configured command families (`python -m unittest/pytest`, `pytest`, `npm`/`pnpm`/`yarn`, `go test`, `cargo test`, `make <target>`, repo-local `tools/...` scripts), while keeping forbidden commands fail-closed.
+  - Update planner remediation prompts/templates and feature-template guidance to require repo-supported commands rather than Python-only examples.
+- **Consequences:**
+  - Pre-patch gating no longer blocks patcher flow due to missing future test targets.
+  - Non-Python and docs/tooling-only repos can satisfy Allowed Tests contract checks without planner loop churn.
+  - Tester gate remains strict and fail-closed for invalid/missing targets and non-zero command outcomes after patching.

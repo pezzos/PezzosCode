@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
+import re
 import shlex
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 def module_to_path(module: str) -> str:
@@ -49,7 +52,14 @@ def check_unittest_targets(targets: list[str]) -> list[str]:
     return missing
 
 
-def check_unittest_discover(args: list[str]) -> list[str]:
+def check_unittest_targets_prepatch(targets: list[str]) -> list[str]:
+    has_target = any(not token.startswith("-") and token.strip() for token in targets)
+    if has_target:
+        return []
+    return ["unittest requires explicit test target"]
+
+
+def check_unittest_discover(args: list[str], *, phase: str) -> list[str]:
     missing: list[str] = []
     start_dir: str | None = None
     pattern: str | None = None
@@ -102,6 +112,8 @@ def check_unittest_discover(args: list[str]) -> list[str]:
     if not explicit_start_dir:
         missing.append("discover requires explicit start directory")
         return missing
+    if phase == "prepatch":
+        return missing
 
     start = Path(start_dir)
     if not start.exists() or not start.is_dir():
@@ -119,15 +131,17 @@ def check_unittest_discover(args: list[str]) -> list[str]:
     return missing
 
 
-def check_unittest(parts: list[str]) -> list[str]:
+def check_unittest(parts: list[str], *, phase: str) -> list[str]:
     if len(parts) <= 3:
         return ["unittest requires explicit test target"]
     if parts[3] == "discover":
-        return check_unittest_discover(parts[4:])
+        return check_unittest_discover(parts[4:], phase=phase)
+    if phase == "prepatch":
+        return check_unittest_targets_prepatch(parts[3:])
     return check_unittest_targets(parts[3:])
 
 
-def check_pytest(parts: list[str], start_idx: int) -> list[str]:
+def check_pytest(parts: list[str], start_idx: int, *, phase: str) -> list[str]:
     missing: list[str] = []
     has_target = False
     options_with_value = {
@@ -151,7 +165,7 @@ def check_pytest(parts: list[str], start_idx: int) -> list[str]:
             continue
         target = arg.split("::", 1)[0]
         has_target = True
-        if not os.path.exists(target):
+        if phase == "postpatch" and not os.path.exists(target):
             missing.append(arg)
         idx += 1
     if not has_target:
@@ -159,48 +173,298 @@ def check_pytest(parts: list[str], start_idx: int) -> list[str]:
     return missing
 
 
-def check_command(raw: str) -> list[str]:
+def strip_leading_env_assignments(parts: List[str]) -> List[str]:
+    idx = 0
+    while idx < len(parts):
+        token = parts[idx]
+        if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", token):
+            break
+        idx += 1
+    return parts[idx:]
+
+
+def parse_make_targets_from_content(content: str) -> Set[str]:
+    targets: Set[str] = set()
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith(".PHONY:"):
+            for token in line.split(":", 1)[1].strip().split():
+                if token:
+                    targets.add(token)
+            continue
+        if raw_line.startswith((" ", "\t")):
+            continue
+        if ":" not in line:
+            continue
+        lhs = line.split(":", 1)[0].strip()
+        if not lhs or "=" in lhs:
+            continue
+        for token in lhs.split():
+            if re.match(r"^[A-Za-z0-9_.-]+$", token):
+                targets.add(token)
+    return targets
+
+
+def load_make_targets(root: Path) -> Set[str]:
+    targets: Set[str] = set()
+    for candidate in ("Makefile", "makefile"):
+        path = root / candidate
+        if not path.exists():
+            continue
+        try:
+            targets.update(
+                parse_make_targets_from_content(path.read_text(encoding="utf-8"))
+            )
+        except OSError:
+            continue
+    return targets
+
+
+def load_package_json(root: Path) -> Tuple[Set[str], Set[str]]:
+    package_json = root / "package.json"
+    if not package_json.exists():
+        return set(), set()
+    try:
+        data = json.loads(package_json.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set(), set()
+    scripts_raw = data.get("scripts", {})
+    scripts = (
+        {key for key, value in scripts_raw.items() if isinstance(key, str) and value}
+        if isinstance(scripts_raw, dict)
+        else set()
+    )
+    deps: Set[str] = set()
+    for dep_key in ("dependencies", "devDependencies"):
+        dep_map = data.get(dep_key, {})
+        if isinstance(dep_map, dict):
+            deps.update(str(key) for key in dep_map.keys())
+    return scripts, deps
+
+
+def detect_repo_capabilities(root: Path) -> Dict[str, Any]:
+    python_markers = (
+        "pyproject.toml",
+        "setup.py",
+        "setup.cfg",
+        "requirements.txt",
+        "requirements-dev.txt",
+        "requirements-test.txt",
+        "Pipfile",
+        "tox.ini",
+        "pytest.ini",
+    )
+    tests_dir = root / "tests"
+    has_python_tests = tests_dir.exists() or any(root.glob("test_*.py"))
+    has_python_markers = any((root / marker).exists() for marker in python_markers)
+    node_scripts, node_deps = load_package_json(root)
+    return {
+        "python": has_python_markers or has_python_tests,
+        "node": (root / "package.json").exists(),
+        "node_scripts": node_scripts,
+        "node_deps": node_deps,
+        "go": (root / "go.mod").exists(),
+        "rust": (root / "Cargo.toml").exists(),
+        "make_targets": load_make_targets(root),
+    }
+
+
+def detect_runner_capability(capabilities: Dict[str, Any], runner: str) -> bool:
+    if not capabilities["node"]:
+        return False
+    deps = capabilities["node_deps"]
+    scripts = capabilities["node_scripts"]
+    if runner in deps:
+        return True
+    for script_name in scripts:
+        if runner in script_name:
+            return True
+    return True
+
+
+def extract_make_target(parts: List[str]) -> Optional[str]:
+    idx = 1
+    while idx < len(parts):
+        token = parts[idx]
+        if token in {"-C", "--directory", "-f", "--file"}:
+            idx += 2
+            continue
+        if token.startswith("-"):
+            idx += 1
+            continue
+        if "=" in token:
+            idx += 1
+            continue
+        return token
+    return None
+
+
+def is_forbidden_command(parts: List[str]) -> Optional[str]:
+    if not parts:
+        return "unsupported empty command"
+    head = parts[0]
+    if head in {"pc-feature", "tools/pc-feature"}:
+        return f"forbidden command: {shlex.join(parts)}"
+    if head == "make":
+        target = extract_make_target(parts)
+        if target == "ci":
+            return f"forbidden command: {shlex.join(parts)}"
+        if target == "feature":
+            return f"forbidden command: {shlex.join(parts)}"
+    return None
+
+
+def check_make(
+    parts: List[str], capabilities: Dict[str, Any], *, phase: str
+) -> List[str]:
+    target = extract_make_target(parts)
+    if not target:
+        return ["make requires explicit target"]
+    if phase == "postpatch" and target not in capabilities["make_targets"]:
+        return [f"missing make target: {target}"]
+    return []
+
+
+def check_node_package_manager(
+    parts: List[str], capabilities: Dict[str, Any], *, phase: str
+) -> List[str]:
+    if not capabilities["node"]:
+        return [f"repo does not advertise Node.js test capability: {shlex.join(parts)}"]
+    scripts = capabilities["node_scripts"]
+    tool = parts[0]
+    script_name: Optional[str] = None
+    if tool in {"npm", "pnpm"}:
+        if len(parts) < 2:
+            return [f"{tool} requires explicit test target"]
+        if parts[1] == "test":
+            script_name = "test"
+        elif parts[1] == "run":
+            if len(parts) < 3 or not parts[2].strip():
+                return [f"{tool} run requires explicit script name"]
+            script_name = parts[2]
+        else:
+            return [f"unsupported test command: {shlex.join(parts)}"]
+    elif tool == "yarn":
+        if len(parts) < 2:
+            return ["yarn requires explicit test target"]
+        if parts[1] == "test":
+            script_name = "test"
+        elif parts[1] == "run":
+            if len(parts) < 3 or not parts[2].strip():
+                return ["yarn run requires explicit script name"]
+            script_name = parts[2]
+        else:
+            return [f"unsupported test command: {shlex.join(parts)}"]
+    if phase == "postpatch" and script_name and script_name not in scripts:
+        return [f"missing package.json script: {script_name}"]
+    return []
+
+
+def check_local_script(parts: List[str], *, phase: str) -> List[str]:
+    script = parts[0]
+    if phase == "prepatch":
+        return []
+    path = Path(script)
+    if not path.exists():
+        return [f"script not found: {script}"]
+    if not path.is_file():
+        return [f"script is not a file: {script}"]
+    return []
+
+
+def check_command(
+    raw: str,
+    *,
+    phase: str = "postpatch",
+    capabilities: Optional[Dict[str, Any]] = None,
+) -> list[str]:
     try:
         parts = shlex.split(raw)
     except ValueError:
         return [raw]
+    parts = strip_leading_env_assignments(parts)
     if not parts:
         return []
     if parts[0] == "tools/offload-proxy/pp":
-        parts = parts[1:]
+        parts = strip_leading_env_assignments(parts[1:])
         if not parts:
             return [f"unsupported test command: {raw}"]
-    if len(parts) >= 2 and parts[0] == "make" and parts[1] == "ci":
-        return [f"forbidden command: {raw}"]
+    capabilities = capabilities or detect_repo_capabilities(Path.cwd())
+    forbidden = is_forbidden_command(parts)
+    if forbidden:
+        return [forbidden]
+
+    raw_effective = shlex.join(parts)
     if (
         parts[0] in {"python", "python3"}
         and len(parts) >= 3
         and parts[1] == "-m"
         and parts[2] == "unittest"
     ):
-        return check_unittest(parts)
+        if not capabilities["python"]:
+            return [f"repo does not advertise Python test capability: {raw_effective}"]
+        return check_unittest(parts, phase=phase)
     if parts[0] in {"pytest", "py.test"}:
-        return check_pytest(parts, 1)
+        if not capabilities["python"]:
+            return [f"repo does not advertise Python test capability: {raw_effective}"]
+        return check_pytest(parts, 1, phase=phase)
     if (
         parts[0] in {"python", "python3"}
         and len(parts) >= 3
         and parts[1] == "-m"
         and parts[2] == "pytest"
     ):
-        return check_pytest(parts, 3)
-    return [f"unsupported test command: {raw}"]
+        if not capabilities["python"]:
+            return [f"repo does not advertise Python test capability: {raw_effective}"]
+        return check_pytest(parts, 3, phase=phase)
+    if parts[0] == "make":
+        return check_make(parts, capabilities, phase=phase)
+    if parts[0] in {"npm", "pnpm", "yarn"}:
+        return check_node_package_manager(parts, capabilities, phase=phase)
+    if parts[0] == "go" and len(parts) >= 2 and parts[1] == "test":
+        if not capabilities["go"]:
+            return [f"repo does not advertise Go test capability: {raw_effective}"]
+        return []
+    if parts[0] == "cargo" and len(parts) >= 2 and parts[1] == "test":
+        if not capabilities["rust"]:
+            return [f"repo does not advertise Rust test capability: {raw_effective}"]
+        return []
+    if parts[0] in {"vitest", "jest"}:
+        if not detect_runner_capability(capabilities, parts[0]):
+            return [f"repo does not advertise Node.js test capability: {raw_effective}"]
+        return []
+    if parts[0] == "npx" and len(parts) >= 2 and parts[1] in {"vitest", "jest"}:
+        if not detect_runner_capability(capabilities, parts[1]):
+            return [f"repo does not advertise Node.js test capability: {raw_effective}"]
+        return []
+    if parts[0] == "bun" and len(parts) >= 2 and parts[1] == "test":
+        if not capabilities["node"]:
+            return [f"repo does not advertise Node.js test capability: {raw_effective}"]
+        return []
+    if parts[0].startswith("./") or parts[0].startswith("tools/"):
+        return check_local_script(parts, phase=phase)
+    return [f"unsupported test command: {raw_effective}"]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Validate that allowed test commands reference existing tests."
+        description="Validate allowed test commands against repo capability and phase."
     )
     parser.add_argument("--cmd", action="append", default=[], help="Test command")
+    parser.add_argument(
+        "--phase",
+        choices=["prepatch", "postpatch"],
+        default="postpatch",
+        help="Validation phase: prepatch checks syntax/capability, postpatch checks target existence when applicable.",
+    )
     args = parser.parse_args()
 
     missing: list[str] = []
+    capabilities = detect_repo_capabilities(Path.cwd())
     for raw in args.cmd:
-        missing.extend(check_command(raw))
+        missing.extend(check_command(raw, phase=args.phase, capabilities=capabilities))
 
     if missing:
         for entry in missing:

@@ -649,7 +649,7 @@ class TestPcFeature(unittest.TestCase):
         self.assertEqual(summary["skipped_paths"], ["src/b.py", "src/c.py"])
         self.assertEqual(summary["conflict_paths"], ["src/b.py", "src/c.py"])
 
-    def test_normalize_allowed_test_restricts_to_unittest_or_pytest(self):
+    def test_normalize_allowed_test_accepts_supported_command_families(self):
         self.assertEqual(
             self.pc_feature.normalize_allowed_test(
                 "python -m unittest discover -s tests"
@@ -684,6 +684,26 @@ class TestPcFeature(unittest.TestCase):
             ),
             "pytest tests/test_pc_feature.py -q",
         )
+        self.assertEqual(
+            self.pc_feature.normalize_allowed_test("make test"),
+            "make test",
+        )
+        self.assertEqual(
+            self.pc_feature.normalize_allowed_test("npm test"),
+            "npm test",
+        )
+        self.assertEqual(
+            self.pc_feature.normalize_allowed_test("go test ./..."),
+            "go test ./...",
+        )
+        self.assertEqual(
+            self.pc_feature.normalize_allowed_test("cargo test"),
+            "cargo test",
+        )
+        self.assertEqual(
+            self.pc_feature.normalize_allowed_test("tools/pc-devtasks-schema-check"),
+            "tools/pc-devtasks-schema-check",
+        )
         self.assertIsNone(self.pc_feature.normalize_allowed_test("PYTHONHASHSEED=0"))
         self.assertIsNone(self.pc_feature.normalize_allowed_test("bash -lc 'echo hi'"))
         self.assertIsNone(
@@ -694,6 +714,39 @@ class TestPcFeature(unittest.TestCase):
         self.assertIsNone(
             self.pc_feature.normalize_allowed_test("node scripts/test.js")
         )
+
+    def test_check_allowed_tests_exist_includes_phase_argument(self):
+        completed = mock.Mock(returncode=0, stdout="", stderr="")
+        with mock.patch.object(
+            self.pc_feature.subprocess, "run", return_value=completed
+        ) as run_mock:
+            issues = self.pc_feature.check_allowed_tests_exist(
+                ["npm test"], "/tmp/worktree", phase="prepatch"
+            )
+
+        self.assertEqual(issues, [])
+        run_mock.assert_called_once()
+        cmd = run_mock.call_args[0][0]
+        self.assertEqual(
+            cmd[:3], ["tools/pc-allowed-tests-check", "--phase", "prepatch"]
+        )
+        self.assertIn("--cmd", cmd)
+        self.assertIn("npm test", cmd)
+
+    def test_check_allowed_tests_exist_collects_validator_issues(self):
+        completed = mock.Mock(
+            returncode=1,
+            stdout="missing package.json script: test\n",
+            stderr="",
+        )
+        with mock.patch.object(
+            self.pc_feature.subprocess, "run", return_value=completed
+        ):
+            issues = self.pc_feature.check_allowed_tests_exist(
+                ["npm test"], "/tmp/worktree", phase="postpatch"
+            )
+
+        self.assertEqual(issues, ["missing package.json script: test"])
 
     def test_sanitize_allowed_tests_response_keeps_only_commands(self):
         response = (

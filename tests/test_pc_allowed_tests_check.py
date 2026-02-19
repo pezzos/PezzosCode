@@ -75,6 +75,17 @@ class TestPcAllowedTestsCheck(unittest.TestCase):
                 any("no tests match pattern" in entry for entry in missing), missing
             )
 
+    def test_check_command_prepatch_allows_unittest_discover_before_tests_exist(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "pyproject.toml").write_text("[project]\nname='demo'\n")
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    'python -m unittest discover -s tests -p "test_*.py"',
+                    phase="prepatch",
+                )
+            self.assertEqual(missing, [])
+
     def test_check_command_accepts_unittest_dotted_class_target(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -137,6 +148,7 @@ class TestPcAllowedTestsCheck(unittest.TestCase):
     def test_check_command_rejects_pytest_missing_target(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            (root / "pyproject.toml").write_text("[project]\nname='demo'\n")
             with pushd(root):
                 missing = self.pc_allowed_tests_check.check_command(
                     "python -m pytest tests/test_missing.py -q"
@@ -168,6 +180,98 @@ class TestPcAllowedTestsCheck(unittest.TestCase):
     def test_check_command_rejects_make_ci(self):
         missing = self.pc_allowed_tests_check.check_command("make ci")
         self.assertEqual(missing, ["forbidden command: make ci"])
+
+    def test_check_command_accepts_make_target_when_present(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "Makefile").write_text("test:\n\t@echo ok\n", encoding="utf-8")
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command("make test")
+            self.assertEqual(missing, [])
+
+    def test_check_command_rejects_make_target_when_missing(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "Makefile").write_text("lint:\n\t@echo ok\n", encoding="utf-8")
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command("make test")
+            self.assertEqual(missing, ["missing make target: test"])
+
+    def test_check_command_prepatch_allows_make_target_to_be_added_by_patch(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "Makefile").write_text("lint:\n\t@echo ok\n", encoding="utf-8")
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "make test", phase="prepatch"
+                )
+            self.assertEqual(missing, [])
+
+    def test_check_command_accepts_node_package_script(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "package.json").write_text(
+                '{"name":"demo","scripts":{"test":"vitest run"}}', encoding="utf-8"
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command("npm test")
+            self.assertEqual(missing, [])
+
+    def test_check_command_rejects_node_package_missing_script(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "package.json").write_text(
+                '{"name":"demo","scripts":{"lint":"eslint ."}}', encoding="utf-8"
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command("npm test")
+            self.assertEqual(missing, ["missing package.json script: test"])
+
+    def test_check_command_prepatch_allows_node_script_to_be_added_by_patch(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "package.json").write_text(
+                '{"name":"demo","scripts":{"lint":"eslint ."}}', encoding="utf-8"
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "npm test", phase="prepatch"
+                )
+            self.assertEqual(missing, [])
+
+    def test_check_command_rejects_python_when_repo_is_not_python_capable(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "package.json").write_text(
+                '{"name":"demo","scripts":{"test":"vitest run"}}', encoding="utf-8"
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "python -m pytest tests/test_missing.py -q",
+                    phase="prepatch",
+                )
+            self.assertEqual(
+                missing,
+                [
+                    "repo does not advertise Python test capability: python -m pytest tests/test_missing.py -q"
+                ],
+            )
+
+    def test_check_command_accepts_tools_script_for_docs_only_repo(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tools_dir = root / "tools"
+            tools_dir.mkdir()
+            (tools_dir / "pc-devtasks-schema-check").write_text(
+                "#!/bin/sh\nexit 0\n",
+                encoding="utf-8",
+            )
+            with pushd(root):
+                missing = self.pc_allowed_tests_check.check_command(
+                    "tools/pc-devtasks-schema-check",
+                    phase="prepatch",
+                )
+            self.assertEqual(missing, [])
 
     def test_check_command_rejects_unsupported_commands(self):
         missing = self.pc_allowed_tests_check.check_command("bash -lc 'echo hi'")
