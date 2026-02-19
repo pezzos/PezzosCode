@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -54,6 +55,7 @@ class TestPcReviewFeatures(unittest.TestCase):
                     "python3",
                     str(TOOL_PATH),
                     f"--root={root}",
+                    "--role-mode=deterministic",
                     "--skip-schema-check",
                 ],
                 check=False,
@@ -78,16 +80,22 @@ class TestPcReviewFeatures(unittest.TestCase):
 
             self.assertIn("## Automated Review Findings", spec_content)
             self.assertIn("<!-- review-findings:start -->", spec_content)
+            self.assertIn("### Security Expert", spec_content)
+            self.assertIn("### Product Manager (End-User Feedback)", spec_content)
             self.assertIn("SEC-01-", spec_content)
             self.assertIn("PROD-01-", spec_content)
 
             self.assertIn("## Review Findings Backlog", dev_tasks_content)
             self.assertIn("<!-- review-backlog:start -->", dev_tasks_content)
+            self.assertIn("### Patcher Tasks", dev_tasks_content)
+            self.assertIn("### Human Validation Requests", dev_tasks_content)
             self.assertIn("SEC-01-", dev_tasks_content)
             self.assertIn("PROD-01-", dev_tasks_content)
+            self.assertEqual(report_payload["version"], 2)
             self.assertEqual(report_payload["totals"]["features_reviewed"], 1)
             self.assertGreater(report_payload["totals"]["security_findings"], 0)
             self.assertGreater(report_payload["totals"]["product_findings"], 0)
+            self.assertGreater(report_payload["totals"]["patcher_findings"], 0)
             self.assertEqual(
                 report_payload["features"][0]["feature_id"], "01-alpha-feature"
             )
@@ -115,6 +123,7 @@ class TestPcReviewFeatures(unittest.TestCase):
                 "python3",
                 str(TOOL_PATH),
                 f"--root={root}",
+                "--role-mode=deterministic",
                 "--skip-schema-check",
             ]
             first = subprocess.run(
@@ -145,6 +154,63 @@ class TestPcReviewFeatures(unittest.TestCase):
             self.assertEqual(
                 dev_tasks_content.count("<!-- review-backlog:start -->"), 1
             )
+
+    def test_run_security_role_uses_security_expert_profile_by_default(self):
+        captured = {"profile": None}
+
+        def fake_codex_exec_json(**kwargs):
+            captured["profile"] = kwargs.get("profile")
+            return {"decision": "APPROVE", "findings": [], "issues": []}
+
+        with mock.patch.dict(self.tool.os.environ, {}, clear=False):
+            self.tool.os.environ.pop("REVIEW_SECURITY_PROFILE", None)
+            with mock.patch.object(
+                self.tool,
+                "codex_exec_json",
+                side_effect=fake_codex_exec_json,
+            ):
+                findings = self.tool.run_security_role(
+                    root=ROOT,
+                    role_mode=self.tool.ROLE_MODE_CODEX,
+                    feature_id="01-alpha-feature",
+                    feature_key="01",
+                    feature_title="Alpha Feature",
+                    feature_spec_content="## Feature Requirements\n- x",
+                    dev_tasks_content="## Task Breakdown\n- [ ] x",
+                    ux_content="## User journeys",
+                )
+
+        self.assertEqual(captured["profile"], "SecurityExpert")
+        self.assertEqual(findings, [])
+
+    def test_run_product_role_uses_product_manager_profile_by_default(self):
+        captured = {"profile": None}
+
+        def fake_codex_exec_json(**kwargs):
+            captured["profile"] = kwargs.get("profile")
+            return {"decision": "APPROVE", "findings": [], "issues": []}
+
+        with mock.patch.dict(self.tool.os.environ, {}, clear=False):
+            self.tool.os.environ.pop("REVIEW_PM_PROFILE", None)
+            with mock.patch.object(
+                self.tool,
+                "codex_exec_json",
+                side_effect=fake_codex_exec_json,
+            ):
+                findings = self.tool.run_product_role(
+                    root=ROOT,
+                    role_mode=self.tool.ROLE_MODE_CODEX,
+                    feature_id="01-alpha-feature",
+                    feature_key="01",
+                    feature_title="Alpha Feature",
+                    feature_spec_content="## Feature Requirements\n- x",
+                    dev_tasks_content="## Task Breakdown\n- [ ] x",
+                    ux_content="## User journeys",
+                    security_findings=[],
+                )
+
+        self.assertEqual(captured["profile"], "ProductManager")
+        self.assertEqual(findings, [])
 
 
 if __name__ == "__main__":

@@ -27,6 +27,21 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-18 - Role-driven review-features validation (Security Expert + Product Manager)
+
+- `python3 -m py_compile tools/pc-review-features` (PASS)
+- `python3 -m py_compile tests/test_pc_review_features.py` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_review_features.py"` (PASS: 5 tests; offload id `a313f951d2777a35ddd6eb0a192117cc682272bfa2c24bba9792b87759556e4c`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 24 tests; offload id `84a7ab403af2322bcfe6ed0618c774e421b8a5f5727f8ebb8e27ca6605d61cd1`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"` (PASS: 14 tests; offload id `d41f3c846ddc49b0edee5f0cc7d1f92afb009ffd88a2bdac06fe9b8c1e024766`)
+- `tools/offload-proxy/pp pre-commit run --files .codex.toml Makefile docs/README.md docs/04-process/human-orchestration-workflow.md prompts/product-manager-review-features.md prompts/security-review-features.md tests/test_pc_review_features.py tools/README.md tools/pc-review-features tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/docs/README.md tools/templates/prompts/product-manager-review-features.md tools/templates/prompts/security-review-features.md tools/templates/root/.codex.toml tools/templates/root/Makefile` (RUN1 FAIL: `black` auto-formatted Python files; offload id `7707880b2d43428ae868806de0fa4a5b348bfdf57f0ee14d7357a207305560c6`; RUN2 PASS; offload id `74098591df15bb6c06957984480d81ab3daec62d2c60b825d8aacffe30764d99`)
+
+Verified:
+
+- `pc-review-features` now supports dedicated role-mode execution (`codex` + deterministic fallback) with Security Expert first, Product Manager second.
+- Review findings now carry owner/phase/blocking metadata and are rendered into patcher vs human validation task buckets in `dev-tasks.md`.
+- Review report schema upgraded to include routing totals (`patcher_findings`, `human_findings`) and `role_mode`.
+
 ### 2026-02-18 - Prepare minimal-diff role contract + PM actionable feedback validation
 
 - `python3 -m py_compile tools/pc-prepare-features` (PASS)

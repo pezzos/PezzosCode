@@ -28,7 +28,8 @@
    - Never re-add features whose `dev-tasks.md` has `Status: Done`.
    - Keep each feature small enough to execute as a single work item; split oversized features here, not during execution.
 4. **Review Features (`make review-features`)**
-   - Runs `Security Reviewer → Product Manager` over generated feature folders.
+   - Runs `Security Expert → Product Manager` over generated feature folders.
+   - Review role outputs are prompt-driven (`prompts/security-review-features.md`, `prompts/product-manager-review-features.md`) and run in dedicated profile sessions by default.
    - Injects actionable findings into `feature-spec.md` and `dev-tasks.md` before execution starts.
    - Persists aggregated findings to `docs/03-logs/review-features-report.json`.
 5. **Audit Feature Status (feature-status-audit)**
@@ -69,7 +70,7 @@
    - Skip any feature whose `dev-tasks.md` shows `Status: Done`.
    - Keep each feature small enough to execute as a single work item; split oversized features here, not during execution.
 4. **Review Features (`make review-features`)**
-   - Runs security/product findings pass on generated features and writes actionable fixes to feature docs.
+   - Runs Security Expert + Product Manager findings pass on generated features and writes actionable fixes to feature docs.
    - Refreshes `docs/03-logs/review-features-report.json` with per-feature findings/totals.
 5. **Audit Feature Status**
    - Run the skill `feature-status-audit` to update task statuses for the current feature.
@@ -121,6 +122,7 @@ Context docs → PRD → design/ux blueprints → dependency order plan + prepar
   - Logs: update `docs/03-logs/implementation-log.md` when preparation updates artifacts/features
 - **make review-features / tools/pc-review-features**
   - Reads: generated `docs/02-features/<feature>/feature-spec.md` + `dev-tasks.md`, plus `docs/01-product/ux-ui.md`
+  - Reads prompts: `prompts/security-review-features.md`, `prompts/product-manager-review-features.md`
   - Writes: machine-managed review findings into `feature-spec.md` and `dev-tasks.md`, plus `docs/03-logs/review-features-report.json`
   - Logs: update `docs/03-logs/validation-log.md` when review pass completes
 - **feature-status-audit**

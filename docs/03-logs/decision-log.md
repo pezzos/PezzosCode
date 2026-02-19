@@ -104,6 +104,40 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-077] - Make `review-features` role-driven and owner-routed
+
+**Date:** 2026-02-18
+
+**Status:** Implemented
+
+**Decision:**
+Evolve `tools/pc-review-features` from deterministic-only checks to a role-driven review flow that runs:
+
+1. Security Expert
+2. Product Manager
+
+via dedicated prompt sessions (Codex mode by default, deterministic fallback available).
+
+Also standardize finding routing metadata so each finding declares:
+
+- execution owner (`patcher` or `human`),
+- handling phase (`patch`, `automated-test`, `human-validation`),
+- blocking flag.
+
+Persist the upgraded report as `docs/03-logs/review-features-report.json` `version: 2`.
+
+**Rationale:**
+`make prepare-features` already uses explicit role sessions/profiles, while `make review-features` lagged behind with fixed heuristics. Matching orchestration patterns improves consistency and enables more actionable feedback routing into patch vs human validation paths.
+
+**Implications:**
+
+- Review prompts are now explicit artifacts:
+  - `prompts/security-review-features.md`
+  - `prompts/product-manager-review-features.md`
+- Default profile routing includes a dedicated `SecurityExpert` profile.
+- Injected review sections in `feature-spec.md`/`dev-tasks.md` now distinguish patcher tasks from human validation requests.
+- `REVIEW_ROLE_MODE=deterministic` remains available for fallback and local deterministic runs.
+
 ### [DEC-076] - Reconcile PM TODO artifact against full unresolved PM findings
 
 **Date:** 2026-02-18

@@ -5,23 +5,44 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 FEATURES_DIR = Path("docs/02-features")
 UX_PATH = Path("docs/01-product/ux-ui.md")
 REVIEW_REPORT_PATH = Path("docs/03-logs/review-features-report.json")
+PROMPTS_DIR = Path("prompts")
+SECURITY_PROMPT_PATH = PROMPTS_DIR / "security-review-features.md"
+PRODUCT_PROMPT_PATH = PROMPTS_DIR / "product-manager-review-features.md"
+ROLE_MODE_CODEX = "codex"
+ROLE_MODE_DETERMINISTIC = "deterministic"
 
 SPEC_MARKER_START = "<!-- review-findings:start -->"
 SPEC_MARKER_END = "<!-- review-findings:end -->"
 TASK_MARKER_START = "<!-- review-backlog:start -->"
 TASK_MARKER_END = "<!-- review-backlog:end -->"
+
+SEVERITY_HIGH = "High"
+SEVERITY_MEDIUM = "Medium"
+SEVERITY_LOW = "Low"
+VALID_SEVERITIES = {SEVERITY_HIGH, SEVERITY_MEDIUM, SEVERITY_LOW}
+OWNER_PATCHER = "patcher"
+OWNER_HUMAN = "human"
+VALID_OWNERS = {OWNER_PATCHER, OWNER_HUMAN}
+PHASE_PATCH = "patch"
+PHASE_AUTOMATED_TEST = "automated-test"
+PHASE_HUMAN_VALIDATION = "human-validation"
+VALID_PHASES = {PHASE_PATCH, PHASE_AUTOMATED_TEST, PHASE_HUMAN_VALIDATION}
+REVIEWER_SECURITY = "security-expert"
+REVIEWER_PM = "product-manager"
 
 
 @dataclass(frozen=True)
@@ -31,6 +52,10 @@ class Finding:
     title: str
     risk: str
     action: str
+    owner: str
+    phase: str
+    blocking: bool
+    reviewer: str
 
 
 def die(message: str) -> None:
@@ -38,9 +63,19 @@ def die(message: str) -> None:
     raise SystemExit(1)
 
 
+def default_role_mode() -> str:
+    raw = os.environ.get("REVIEW_ROLE_MODE", ROLE_MODE_CODEX).strip().lower()
+    if raw in {ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC}:
+        return raw
+    return ROLE_MODE_CODEX
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Review feature folders for security and product risks and inject actionable findings."
+        description=(
+            "Review feature folders for security and product risks and inject "
+            "actionable findings."
+        )
     )
     parser.add_argument(
         "--root",
@@ -51,6 +86,16 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--feature",
         default="",
         help="Optional feature selector (e.g. '01' or '01-alpha-feature').",
+    )
+    parser.add_argument(
+        "--role-mode",
+        choices=(ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC),
+        default=default_role_mode(),
+        help=(
+            "Role execution mode for Security Expert/Product Manager review steps. "
+            "'codex' runs prompt-driven role execution; "
+            "'deterministic' uses local fallback heuristics."
+        ),
     )
     parser.add_argument(
         "--skip-schema-check",
@@ -109,52 +154,196 @@ def count_functional_requirements(feature_spec: str) -> int:
     return total
 
 
+def normalize_severity(raw: Any, default: str = SEVERITY_MEDIUM) -> str:
+    token = str(raw).strip().lower()
+    if token in {"high", "sev1", "critical", "blocker"}:
+        return SEVERITY_HIGH
+    if token in {"low", "sev3"}:
+        return SEVERITY_LOW
+    if token in {"medium", "med", "sev2"}:
+        return SEVERITY_MEDIUM
+    return default
+
+
+def normalize_owner(raw: Any, default: str = OWNER_PATCHER) -> str:
+    token = str(raw).strip().lower()
+    if token in {OWNER_HUMAN, "product-owner", "po", "manual", "end-user"}:
+        return OWNER_HUMAN
+    if token in {OWNER_PATCHER, "developer", "engineer", "codex"}:
+        return OWNER_PATCHER
+    return default
+
+
+def normalize_phase(raw: Any, default: str = PHASE_PATCH) -> str:
+    token = str(raw).strip().lower()
+    if token in {PHASE_PATCH, "implementation", "develop", "development"}:
+        return PHASE_PATCH
+    if token in {
+        PHASE_AUTOMATED_TEST,
+        "automated",
+        "tests",
+        "test",
+        "tester",
+    }:
+        return PHASE_AUTOMATED_TEST
+    if token in {PHASE_HUMAN_VALIDATION, "human", "manual", "acceptance"}:
+        return PHASE_HUMAN_VALIDATION
+    return default
+
+
+def normalize_blocking(raw: Any, default: bool = False) -> bool:
+    if isinstance(raw, bool):
+        return raw
+    token = str(raw).strip().lower()
+    if token in {"true", "yes", "y", "1", "block", "blocking"}:
+        return True
+    if token in {"false", "no", "n", "0", "non-blocking"}:
+        return False
+    return default
+
+
+def extract_json_payload(raw: str) -> str:
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return raw
+    return raw[start : end + 1]
+
+
+def load_prompt_template(root: Path, prompt_rel_path: Path) -> str:
+    prompt_path = root / prompt_rel_path
+    if not prompt_path.exists():
+        die(
+            "pc-review-features: missing prompt template "
+            f"{prompt_path}; restore prompts under {root / PROMPTS_DIR}"
+        )
+    return prompt_path.read_text(encoding="utf-8")
+
+
+def render_prompt_template(template: str, values: Dict[str, str]) -> str:
+    class StrictMap(dict):
+        def __missing__(self, key):
+            die(f"pc-review-features: prompt template missing value for '{key}'")
+            return ""
+
+    return template.format_map(StrictMap(values))
+
+
+def truncate_for_error(raw: str, max_chars: int = 800) -> str:
+    compact = re.sub(r"\s+", " ", raw.strip())
+    if len(compact) <= max_chars:
+        return compact
+    return compact[:max_chars].rstrip() + "..."
+
+
+def codex_exec_json(
+    *,
+    root: Path,
+    prompt: str,
+    profile: str,
+    label: str,
+) -> Dict[str, Any]:
+    if shutil.which("codex") is None:
+        raise RuntimeError("codex CLI not found in PATH")
+
+    cmd = ["codex", "-C", str(root), "--profile", profile, "exec", prompt]
+    result = subprocess.run(
+        cmd,
+        cwd=str(root),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        combined = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        raise RuntimeError(
+            f"{label} role execution failed with exit {result.returncode}: "
+            f"{truncate_for_error(combined)}"
+        )
+    payload = extract_json_payload(result.stdout or "")
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"{label} role returned non-JSON output: {truncate_for_error(result.stdout or '')}"
+        ) from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{label} role JSON payload must be an object")
+    return data
+
+
 def build_security_findings(feature_key: str, content: str) -> List[Finding]:
     checks = [
         (
             "001",
-            "High",
+            SEVERITY_HIGH,
             "Input validation controls are not explicit",
             "Unvalidated input can trigger data corruption or unsafe behavior.",
             "Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.",
             ("input validation", "sanitize", "schema validation", "validated"),
+            OWNER_PATCHER,
+            PHASE_PATCH,
+            True,
         ),
         (
             "002",
-            "High",
+            SEVERITY_HIGH,
             "Authentication/authorization expectations are missing",
             "Access controls may be implemented inconsistently or omitted.",
             "Specify authN/authZ requirements, denied-path behavior, and least-privilege checks.",
             ("authentication", "authorization", "auth", "permission"),
+            OWNER_PATCHER,
+            PHASE_PATCH,
+            True,
         ),
         (
             "003",
-            "Medium",
+            SEVERITY_MEDIUM,
             "Secrets handling is not documented",
             "Credentials or tokens may leak into code, logs, or config.",
             "Document secret sources, redaction strategy, and prohibited storage locations.",
             ("secret", "credential", "token", "redact"),
+            OWNER_PATCHER,
+            PHASE_AUTOMATED_TEST,
+            True,
         ),
         (
             "004",
-            "High",
+            SEVERITY_HIGH,
             "Injection defenses are not explicit",
             "Missing injection controls can expose command, SQL, or script injection paths.",
             "Define escaping/parameterization requirements and add dedicated injection test scenarios.",
             ("injection", "xss", "sql", "escape", "parameterized"),
+            OWNER_PATCHER,
+            PHASE_PATCH,
+            True,
         ),
         (
             "005",
-            "Medium",
+            SEVERITY_MEDIUM,
             "Infrastructure misconfiguration guardrails are missing",
             "Unsafe defaults can bypass intended runtime protections.",
             "Capture required config defaults, permission boundaries, and misconfiguration failure behavior.",
             ("misconfiguration", "configuration", "fail-close", "least privilege"),
+            OWNER_PATCHER,
+            PHASE_PATCH,
+            False,
         ),
     ]
 
     findings: List[Finding] = []
-    for suffix, severity, title, risk, action, keywords in checks:
+    for (
+        suffix,
+        severity,
+        title,
+        risk,
+        action,
+        keywords,
+        owner,
+        phase,
+        blocking,
+    ) in checks:
         if contains_any(content, keywords):
             continue
         findings.append(
@@ -164,6 +353,10 @@ def build_security_findings(feature_key: str, content: str) -> List[Finding]:
                 title=title,
                 risk=risk,
                 action=action,
+                owner=owner,
+                phase=phase,
+                blocking=blocking,
+                reviewer=REVIEWER_SECURITY,
             )
         )
     return findings
@@ -183,10 +376,14 @@ def build_product_findings(
         findings.append(
             Finding(
                 finding_id=f"PROD-{feature_key}-001",
-                severity="High",
+                severity=SEVERITY_HIGH,
                 title="Functional scope is under-specified",
                 risk="Key product capabilities may be missed during implementation.",
                 action="Expand functional requirements to cover primary and edge behaviors with acceptance criteria.",
+                owner=OWNER_PATCHER,
+                phase=PHASE_PATCH,
+                blocking=True,
+                reviewer=REVIEWER_PM,
             )
         )
 
@@ -196,10 +393,14 @@ def build_product_findings(
         findings.append(
             Finding(
                 finding_id=f"PROD-{feature_key}-002",
-                severity="Medium",
+                severity=SEVERITY_MEDIUM,
                 title="User journey details are missing in feature docs",
                 risk="Implementation may diverge from intended user path and onboarding flow.",
                 action="Add explicit user journey steps, entry points, and completion states.",
+                owner=OWNER_PATCHER,
+                phase=PHASE_PATCH,
+                blocking=True,
+                reviewer=REVIEWER_PM,
             )
         )
 
@@ -207,10 +408,14 @@ def build_product_findings(
         findings.append(
             Finding(
                 finding_id=f"PROD-{feature_key}-003",
-                severity="Medium",
+                severity=SEVERITY_MEDIUM,
                 title="Global UX blueprint does not reference this feature",
-                risk="Cross-feature workflow alignment may be inconsistent.",
-                action=f"Update `docs/01-product/ux-ui.md` to include '{feature_title}' journey and workflow.",
+                risk="Cross-feature workflow alignment may be inconsistent for end users.",
+                action=f"Ask the Product Owner to validate and update `docs/01-product/ux-ui.md` with '{feature_title}' journey/workflow coverage before final sign-off.",
+                owner=OWNER_HUMAN,
+                phase=PHASE_HUMAN_VALIDATION,
+                blocking=False,
+                reviewer=REVIEWER_PM,
             )
         )
 
@@ -218,10 +423,14 @@ def build_product_findings(
         findings.append(
             Finding(
                 finding_id=f"PROD-{feature_key}-004",
-                severity="Medium",
+                severity=SEVERITY_MEDIUM,
                 title="Workflow definition is incomplete",
                 risk="Execution order and handoff expectations may be unclear for delivery.",
                 action="Define end-to-end workflow states, system responses, and handoff boundaries.",
+                owner=OWNER_PATCHER,
+                phase=PHASE_PATCH,
+                blocking=True,
+                reviewer=REVIEWER_PM,
             )
         )
 
@@ -232,38 +441,261 @@ def build_product_findings(
         findings.append(
             Finding(
                 finding_id=f"PROD-{feature_key}-005",
-                severity="Low",
+                severity=SEVERITY_LOW,
                 title="PO validation checkpoint is missing",
-                risk="Human acceptance timing may be unclear before execution starts.",
-                action="Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.",
+                risk="End-user acceptance timing may be unclear before completion.",
+                action="Add a Product Owner end-user validation checkpoint task in dev-tasks before completion.",
+                owner=OWNER_HUMAN,
+                phase=PHASE_HUMAN_VALIDATION,
+                blocking=False,
+                reviewer=REVIEWER_PM,
             )
         )
 
     return findings
 
 
-def render_findings_table(findings: Sequence[Finding]) -> List[str]:
-    if not findings:
-        return ["- No findings."]
-    rows = [
-        "| ID | Severity | Risk | Action |",
-        "| -- | -------- | ---- | ------ |",
-    ]
-    for finding in findings:
-        rows.append(
-            f"| {finding.finding_id} | {finding.severity} | {finding.risk} | {finding.action} |"
+def normalize_role_findings(
+    *,
+    raw_findings: Any,
+    prefix: str,
+    feature_key: str,
+    reviewer: str,
+    default_owner: str,
+    default_phase: str,
+) -> Optional[List[Finding]]:
+    if not isinstance(raw_findings, list):
+        return None
+
+    normalized: List[Finding] = []
+    for idx, item in enumerate(raw_findings, start=1):
+        if not isinstance(item, dict):
+            continue
+        finding_id = str(item.get("finding_id", "")).strip()
+        if not finding_id:
+            finding_id = f"{prefix}-{feature_key}-{idx:03d}"
+        severity = normalize_severity(item.get("severity"), default=SEVERITY_MEDIUM)
+        title = str(item.get("title", "")).strip() or "Untitled finding"
+        risk = str(item.get("risk", "")).strip() or "Risk not specified."
+        action = str(item.get("action", "")).strip() or "Action not specified."
+        owner = normalize_owner(item.get("owner"), default=default_owner)
+        phase = normalize_phase(item.get("phase"), default=default_phase)
+        blocking_default = severity == SEVERITY_HIGH
+        blocking = normalize_blocking(item.get("blocking"), default=blocking_default)
+        normalized.append(
+            Finding(
+                finding_id=finding_id,
+                severity=severity,
+                title=title,
+                risk=risk,
+                action=action,
+                owner=owner,
+                phase=phase,
+                blocking=blocking,
+                reviewer=reviewer,
+            )
         )
-    return rows
+    return normalized
 
 
-def finding_payload(finding: Finding) -> dict:
+def run_security_role(
+    *,
+    root: Path,
+    role_mode: str,
+    feature_id: str,
+    feature_key: str,
+    feature_title: str,
+    feature_spec_content: str,
+    dev_tasks_content: str,
+    ux_content: str,
+) -> List[Finding]:
+    fallback = build_security_findings(
+        feature_key,
+        feature_spec_content + "\n" + dev_tasks_content,
+    )
+    if role_mode == ROLE_MODE_DETERMINISTIC:
+        return fallback
+
+    template = load_prompt_template(root, SECURITY_PROMPT_PATH)
+    prompt = render_prompt_template(
+        template,
+        {
+            "feature_id": feature_id,
+            "feature_key": feature_key,
+            "feature_title": feature_title,
+            "feature_spec_markdown": feature_spec_content,
+            "dev_tasks_markdown": dev_tasks_content,
+            "ux_blueprint_markdown": ux_content,
+        },
+    )
+    try:
+        payload = codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get("REVIEW_SECURITY_PROFILE", "SecurityExpert"),
+            label="security-expert",
+        )
+    except RuntimeError as exc:
+        print(
+            "pc-review-features: warning: Security Expert role failed for "
+            f"{feature_id}; using deterministic findings ({exc})"
+        )
+        return fallback
+
+    decision = str(payload.get("decision", "APPROVE")).strip().upper()
+    if decision not in {"APPROVE", "BLOCK"}:
+        print(
+            "pc-review-features: warning: Security Expert returned invalid decision "
+            f"for {feature_id}; using deterministic findings"
+        )
+        return fallback
+
+    normalized = normalize_role_findings(
+        raw_findings=payload.get("findings"),
+        prefix="SEC",
+        feature_key=feature_key,
+        reviewer=REVIEWER_SECURITY,
+        default_owner=OWNER_PATCHER,
+        default_phase=PHASE_PATCH,
+    )
+    if normalized is None:
+        print(
+            "pc-review-features: warning: Security Expert findings payload invalid "
+            f"for {feature_id}; using deterministic findings"
+        )
+        return fallback
+    if decision == "BLOCK" and not normalized:
+        print(
+            "pc-review-features: warning: Security Expert returned BLOCK without "
+            f"findings for {feature_id}; using deterministic findings"
+        )
+        return fallback
+    return normalized
+
+
+def run_product_role(
+    *,
+    root: Path,
+    role_mode: str,
+    feature_id: str,
+    feature_key: str,
+    feature_title: str,
+    feature_spec_content: str,
+    dev_tasks_content: str,
+    ux_content: str,
+    security_findings: Sequence[Finding],
+) -> List[Finding]:
+    fallback = build_product_findings(
+        feature_key,
+        feature_title,
+        feature_spec_content,
+        dev_tasks_content,
+        ux_content,
+    )
+    if role_mode == ROLE_MODE_DETERMINISTIC:
+        return fallback
+
+    template = load_prompt_template(root, PRODUCT_PROMPT_PATH)
+    prompt = render_prompt_template(
+        template,
+        {
+            "feature_id": feature_id,
+            "feature_key": feature_key,
+            "feature_title": feature_title,
+            "feature_spec_markdown": feature_spec_content,
+            "dev_tasks_markdown": dev_tasks_content,
+            "ux_blueprint_markdown": ux_content,
+            "security_findings_json": json.dumps(
+                [finding_payload(item) for item in security_findings],
+                ensure_ascii=True,
+                indent=2,
+                sort_keys=True,
+            ),
+        },
+    )
+    try:
+        payload = codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get("REVIEW_PM_PROFILE", "ProductManager"),
+            label="product-manager-review",
+        )
+    except RuntimeError as exc:
+        print(
+            "pc-review-features: warning: Product Manager role failed for "
+            f"{feature_id}; using deterministic findings ({exc})"
+        )
+        return fallback
+
+    decision = str(payload.get("decision", "APPROVE")).strip().upper()
+    if decision not in {"APPROVE", "BLOCK"}:
+        print(
+            "pc-review-features: warning: Product Manager returned invalid decision "
+            f"for {feature_id}; using deterministic findings"
+        )
+        return fallback
+
+    normalized = normalize_role_findings(
+        raw_findings=payload.get("findings"),
+        prefix="PROD",
+        feature_key=feature_key,
+        reviewer=REVIEWER_PM,
+        default_owner=OWNER_PATCHER,
+        default_phase=PHASE_PATCH,
+    )
+    if normalized is None:
+        print(
+            "pc-review-features: warning: Product Manager findings payload invalid "
+            f"for {feature_id}; using deterministic findings"
+        )
+        return fallback
+    if decision == "BLOCK" and not normalized:
+        print(
+            "pc-review-features: warning: Product Manager returned BLOCK without "
+            f"findings for {feature_id}; using deterministic findings"
+        )
+        return fallback
+    return normalized
+
+
+def reviewer_label(reviewer: str) -> str:
+    if reviewer == REVIEWER_SECURITY:
+        return "Security Expert"
+    if reviewer == REVIEWER_PM:
+        return "Product Manager"
+    return reviewer
+
+
+def finding_payload(finding: Finding) -> Dict[str, Any]:
     return {
         "finding_id": finding.finding_id,
         "severity": finding.severity,
         "title": finding.title,
         "risk": finding.risk,
         "action": finding.action,
+        "owner": finding.owner,
+        "phase": finding.phase,
+        "blocking": finding.blocking,
+        "reviewer": finding.reviewer,
     }
+
+
+def render_findings_table(findings: Sequence[Finding]) -> List[str]:
+    if not findings:
+        return ["- No findings."]
+    rows = [
+        "| ID | Severity | Owner | Phase | Blocking | Title | Risk | Action |",
+        "| -- | -------- | ----- | ----- | -------- | ----- | ---- | ------ |",
+    ]
+    for finding in findings:
+        blocking = "Yes" if finding.blocking else "No"
+        rows.append(
+            "| "
+            + f"{finding.finding_id} | {finding.severity} | {finding.owner} | "
+            + f"{finding.phase} | {blocking} | {finding.title} | "
+            + f"{finding.risk} | {finding.action} |"
+        )
+    return rows
 
 
 def render_feature_spec_block(
@@ -275,11 +707,11 @@ def render_feature_spec_block(
         "",
         SPEC_MARKER_START,
         "",
-        "### Security Reviewer",
+        "### Security Expert",
         "",
         *render_findings_table(security_findings),
         "",
-        "### Product Manager",
+        "### Product Manager (End-User Feedback)",
         "",
         *render_findings_table(product_findings),
         "",
@@ -289,36 +721,22 @@ def render_feature_spec_block(
     return "\n".join(lines)
 
 
-def render_backlog_items(
-    security_findings: Sequence[Finding],
-    product_findings: Sequence[Finding],
+def render_finding_checklist(
+    findings: Sequence[Finding], empty_label: str, *, include_blocking: bool = True
 ) -> List[str]:
+    if not findings:
+        return [f"- [ ] {empty_label}", ""]
+
     lines: List[str] = []
-
-    if security_findings:
-        lines.extend(["### Security Reviewer Tasks", ""])
-        for finding in security_findings:
-            lines.append(f"- [ ] `{finding.finding_id}` {finding.title}")
-            lines.append(f"  - Severity: {finding.severity}")
-            lines.append(f"  - Action: {finding.action}")
-        lines.append("")
-    else:
-        lines.extend(
-            ["### Security Reviewer Tasks", "", "- [ ] No security findings.", ""]
-        )
-
-    if product_findings:
-        lines.extend(["### Product Manager Tasks", ""])
-        for finding in product_findings:
-            lines.append(f"- [ ] `{finding.finding_id}` {finding.title}")
-            lines.append(f"  - Severity: {finding.severity}")
-            lines.append(f"  - Action: {finding.action}")
-        lines.append("")
-    else:
-        lines.extend(
-            ["### Product Manager Tasks", "", "- [ ] No product findings.", ""]
-        )
-
+    for finding in findings:
+        lines.append(f"- [ ] `{finding.finding_id}` {finding.title}")
+        lines.append(f"  - Reviewer: {reviewer_label(finding.reviewer)}")
+        lines.append(f"  - Severity: {finding.severity}")
+        lines.append(f"  - Phase: {finding.phase}")
+        if include_blocking:
+            lines.append(f"  - Blocking: {'Yes' if finding.blocking else 'No'}")
+        lines.append(f"  - Action: {finding.action}")
+    lines.append("")
     return lines
 
 
@@ -326,12 +744,28 @@ def render_dev_tasks_block(
     security_findings: Sequence[Finding],
     product_findings: Sequence[Finding],
 ) -> str:
+    all_findings = list(security_findings) + list(product_findings)
+    patcher_findings = [item for item in all_findings if item.owner == OWNER_PATCHER]
+    human_findings = [item for item in all_findings if item.owner == OWNER_HUMAN]
+
     lines = [
         "## Review Findings Backlog",
         "",
         TASK_MARKER_START,
         "",
-        *render_backlog_items(security_findings, product_findings),
+        "### Patcher Tasks (must be handled during patch/test steps)",
+        "",
+        *render_finding_checklist(
+            patcher_findings,
+            "No patcher-target findings.",
+        ),
+        "### Human Validation Requests (Product Owner / end-user)",
+        "",
+        *render_finding_checklist(
+            human_findings,
+            "No human-validation requests.",
+            include_blocking=False,
+        ),
         TASK_MARKER_END,
         "",
     ]
@@ -438,10 +872,12 @@ def run_review(args: argparse.Namespace) -> int:
     updated = 0
     total_security = 0
     total_product = 0
+    total_patcher = 0
+    total_human = 0
     features_with_findings = 0
     reviewed = 0
     skipped = 0
-    report_features: List[dict] = []
+    report_features: List[Dict[str, Any]] = []
 
     for feature_dir in selected:
         spec_path = feature_dir / "feature-spec.md"
@@ -476,22 +912,37 @@ def run_review(args: argparse.Namespace) -> int:
         fallback_slug = feature_dir.name.split("-", 1)[-1]
         feature_title = feature_title_from_spec(spec_content, fallback_slug)
 
-        security_findings = build_security_findings(
-            feature_key,
-            analysis_spec + "\n" + analysis_tasks,
+        security_findings = run_security_role(
+            root=root,
+            role_mode=args.role_mode,
+            feature_id=feature_dir.name,
+            feature_key=feature_key,
+            feature_title=feature_title,
+            feature_spec_content=analysis_spec,
+            dev_tasks_content=analysis_tasks,
+            ux_content=ux_content,
         )
-        product_findings = build_product_findings(
-            feature_key,
-            feature_title,
-            analysis_spec,
-            analysis_tasks,
-            ux_content,
+        product_findings = run_product_role(
+            root=root,
+            role_mode=args.role_mode,
+            feature_id=feature_dir.name,
+            feature_key=feature_key,
+            feature_title=feature_title,
+            feature_spec_content=analysis_spec,
+            dev_tasks_content=analysis_tasks,
+            ux_content=ux_content,
+            security_findings=security_findings,
         )
 
+        all_findings = [*security_findings, *product_findings]
         reviewed += 1
         total_security += len(security_findings)
         total_product += len(product_findings)
-        if security_findings or product_findings:
+        total_patcher += len(
+            [item for item in all_findings if item.owner == OWNER_PATCHER]
+        )
+        total_human += len([item for item in all_findings if item.owner == OWNER_HUMAN])
+        if all_findings:
             features_with_findings += 1
 
         spec_block = render_feature_spec_block(security_findings, product_findings)
@@ -525,9 +976,10 @@ def run_review(args: argparse.Namespace) -> int:
         )
 
     report_payload = {
-        "version": 1,
+        "version": 2,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "selector": args.feature.strip() or "all",
+        "role_mode": args.role_mode,
         "totals": {
             "features_selected": len(selected),
             "features_reviewed": reviewed,
@@ -536,11 +988,14 @@ def run_review(args: argparse.Namespace) -> int:
             "features_with_findings": features_with_findings,
             "security_findings": total_security,
             "product_findings": total_product,
+            "patcher_findings": total_patcher,
+            "human_findings": total_human,
         },
         "features": report_features,
         "notes": [
             "Machine-managed by tools/pc-review-features.",
-            "Actionable findings are also mirrored into feature-spec.md and dev-tasks.md.",
+            "Actionable findings are mirrored into feature-spec.md and dev-tasks.md.",
+            "Review order is Security Expert first, then Product Manager.",
         ],
     }
     write_text(
@@ -551,7 +1006,9 @@ def run_review(args: argparse.Namespace) -> int:
 
     print(
         "pc-review-features: complete "
-        f"(features_updated={updated}, security_findings={total_security}, product_findings={total_product})"
+        f"(features_updated={updated}, security_findings={total_security}, "
+        f"product_findings={total_product}, patcher_findings={total_patcher}, "
+        f"human_findings={total_human})"
     )
 
     if not args.skip_schema_check:

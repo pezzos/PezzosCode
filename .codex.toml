@@ -74,6 +74,12 @@ model_reasoning_effort = "high"
 model_reasoning_summary = "none"
 model_verbosity = "medium"
 
+[profiles.SecurityExpert]
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+model_reasoning_summary = "none"
+model_verbosity = "medium"
+
 [profiles.Orderer]
 model = "gpt-5.3-codex"
 model_reasoning_effort = "high"

@@ -27,6 +27,52 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-18 - Role-driven `review-features` with Security Expert + PM routing
+
+**Feature/Bug:** Upgrade `make review-features` to use dedicated Security Expert and Product Manager sessions (matching prepare-features role model) and route findings to patcher vs human validation.
+
+**Changed Files:**
+
+- `tools/pc-review-features`
+- `tests/test_pc_review_features.py`
+- `prompts/security-review-features.md`
+- `prompts/product-manager-review-features.md`
+- `tools/templates/prompts/security-review-features.md`
+- `tools/templates/prompts/product-manager-review-features.md`
+- `.codex.toml`
+- `tools/templates/root/.codex.toml`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/README.md`
+- `tools/templates/docs/README.md`
+- `tools/README.md`
+
+**What Changed:**
+
+- Refactored `pc-review-features` to support:
+  - role mode selection (`codex` default, `deterministic` fallback),
+  - dedicated role sessions in sequence: `Security Expert -> Product Manager`,
+  - profile defaults: `SecurityExpert` (`REVIEW_SECURITY_PROFILE`) and `ProductManager` (`REVIEW_PM_PROFILE`).
+- Added prompt-driven review contracts for both review roles (live + template prompt files).
+- Extended findings model to include routing metadata:
+  - `owner` (`patcher` or `human`),
+  - `phase` (`patch`, `automated-test`, `human-validation`),
+  - `blocking` boolean.
+- Updated machine-managed insertion blocks:
+  - `feature-spec.md`: role-labeled findings table with routing metadata.
+  - `dev-tasks.md`: explicit `Patcher Tasks` and `Human Validation Requests`.
+- Upgraded `review-features-report.json` to `version: 2` with aggregate owner-route totals (`patcher_findings`, `human_findings`) and role mode.
+- Added Makefile passthrough `REVIEW_ROLE_MODE=<codex|deterministic>` for both live and template make targets.
+- Updated workflow/docs references to the new review prompts and role labels.
+- Added regression tests for deterministic run output, idempotent marker behavior, and default profile routing.
+
+**Why:**
+
+- The previous review pass was deterministic-only and did not leverage dedicated role prompts/profiles like prepare-features.
+- Patcher vs human validation ownership needed to be explicit in review outputs so downstream execution can route findings correctly.
+
 ### 2026-02-18 - PM TODO reconciliation now tracks all unresolved PM findings
 
 **Feature/Bug:** PM TODO artifact only reflected coarse owner-level todo updates, not the full unresolved PM finding set.
