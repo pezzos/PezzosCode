@@ -74,14 +74,14 @@ inputs to the PRD feature list and must be reflected unless explicitly rejected.
 - Summary: Release is not ready: key P0 release outcomes in the current PRD baseline remain Not Started (features 22, 23, 25, 26, 27), so the core user promise of deterministic, gated, token-efficient, fail-closed execution is not yet fully releasable.
 - Actionable follow-up features: 5
 
-- Feature: Release readiness RR-001 - Close token guardrail + offload + observability integration
+- Feature: Release readiness RR-005 - Ship consolidated P0 bootstrap + safe reapply baseline
   - Owner: Product Manager
-  - Problem: Consolidated guardrail/offload/logging runner feature is Not Started, so token-efficiency and traceability commitments are not yet release-safe as one integrated capability.
-  - Outcome: Feature 23 is implemented with enforced offload for noisy output, per-step budget behavior, pointer-based retrieval, and structured logs across role steps.
+  - Problem: Current release baseline marks the consolidated bootstrap/reapply feature as Not Started, leaving ambiguity on whether release evidence aligns to the latest scope.
+  - Outcome: Feature 22 is implemented and validated with idempotent reruns, conflict handling (overwrite/merge/skip), and explicit release evidence tied to current PRD scope.
   - Priority: P0
-  - Notes: Require end-to-end evidence from real workflow runs, not isolated script checks.
-  - Source: release-readiness (RR-001)
-  - Existing Feature Refs: 23-output-offload-token-budget-guardrails-structured-logs-shared-runner, 04-output-offload-enforcement, 09-runner-structured-logs, 15-offload-audit-and-log-compaction
+  - Notes: Treat this as scope-alignment closure, not net-new surface area.
+  - Source: release-readiness (RR-005)
+  - Existing Feature Refs: 22-bootstrap-safe-template-reapply, 01-bootstrap-templates-into-a-repo, 03-update-reapply-templates
 
 - Feature: Release readiness RR-002 - Complete deterministic gated execution with zero-input defaults
   - Owner: Product Manager
@@ -92,14 +92,14 @@ inputs to the PRD feature list and must be reflected unless explicitly rejected.
   - Source: release-readiness (RR-002)
   - Existing Feature Refs: 25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults, 02-execute-ticket-workflow, 13-role-prompts-plan-reviewer
 
-- Feature: Release readiness RR-003 - Deliver fail-closed recovery and commit integrity bundle
+- Feature: Release readiness RR-001 - Close token guardrail + offload + observability integration
   - Owner: Product Manager
-  - Problem: Resume safety, deterministic auto-recovery, and commit fail-closed behavior are not complete in the consolidated baseline, creating release integrity risk.
-  - Outcome: Feature 27 is implemented with deterministic resume, scoped recovery, required evidence checks, and commit blocking when planner/tester/reporter artifacts are incomplete.
+  - Problem: Consolidated guardrail/offload/logging runner feature is Not Started, so token-efficiency and traceability commitments are not yet release-safe as one integrated capability.
+  - Outcome: Feature 23 is implemented with enforced offload for noisy output, per-step budget behavior, pointer-based retrieval, and structured logs across role steps.
   - Priority: P0
-  - Notes: Validate interrupted run and dirty-worktree scenarios.
-  - Source: release-readiness (RR-003)
-  - Existing Feature Refs: 27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate, 17-resume-in-progress-tickets, 18-commit-gated-by-completed-ticket-docs, 19-template-drift-hardening-autofix-recovery, 10-unified-autofix-precommit
+  - Notes: Require end-to-end evidence from real workflow runs, not isolated script checks.
+  - Source: release-readiness (RR-001)
+  - Existing Feature Refs: 23-output-offload-token-budget-guardrails-structured-logs-shared-runner, 04-output-offload-enforcement, 09-runner-structured-logs, 15-offload-audit-and-log-compaction
 
 - Feature: Release readiness RR-004 - Finalize single-worktree orchestration + drift-hardening in consolidated scope
   - Owner: Product Manager
@@ -110,13 +110,13 @@ inputs to the PRD feature list and must be reflected unless explicitly rejected.
   - Source: release-readiness (RR-004)
   - Existing Feature Refs: 26-single-worktree-orchestration-template-drift-hardening, 06-worktree-policy-naming-convention, 11-simplify-worktree-tracking, 19-template-drift-hardening-autofix-recovery
 
-- Feature: Release readiness RR-005 - Ship consolidated P0 bootstrap + safe reapply baseline
+- Feature: Release readiness RR-003 - Deliver fail-closed recovery and commit integrity bundle
   - Owner: Product Manager
-  - Problem: Current release baseline marks the consolidated bootstrap/reapply feature as Not Started, leaving ambiguity on whether release evidence aligns to the latest scope.
-  - Outcome: Feature 22 is implemented and validated with idempotent reruns, conflict handling (overwrite/merge/skip), and explicit release evidence tied to current PRD scope.
+  - Problem: Resume safety, deterministic auto-recovery, and commit fail-closed behavior are not complete in the consolidated baseline, creating release integrity risk.
+  - Outcome: Feature 27 is implemented with deterministic resume, scoped recovery, required evidence checks, and commit blocking when planner/tester/reporter artifacts are incomplete.
   - Priority: P0
-  - Notes: Treat this as scope-alignment closure, not net-new surface area.
-  - Source: release-readiness (RR-005)
-  - Existing Feature Refs: 22-bootstrap-safe-template-reapply, 01-bootstrap-templates-into-a-repo, 03-update-reapply-templates
+  - Notes: Validate interrupted run and dirty-worktree scenarios.
+  - Source: release-readiness (RR-003)
+  - Existing Feature Refs: 27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate, 17-resume-in-progress-tickets, 18-commit-gated-by-completed-ticket-docs, 19-template-drift-hardening-autofix-recovery, 10-unified-autofix-precommit
 
 <!-- release-readiness:end -->

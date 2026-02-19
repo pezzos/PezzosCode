@@ -1,7 +1,8 @@
 {
   "accepted_risks": [
-    "P1 workflow simplification and skill-pruning can be deferred for this release if P0 reliability and authority gates are fully validated.",
-    "Additional post-run optimization scope is acceptable to defer provided token guardrails/offload enforcement are complete in the P0 bundle."
+    "Consolidated P1 features 28-31 are deferred for now; existing completed legacy features provide interim coverage while P0 closure is completed.",
+    "Feature 24 is deferred for now; feature 20 synthetic smoke test is accepted as temporary workflow-regression coverage.",
+    "Short-term duplication between legacy (01-21) and consolidated (22-31) feature tracks is accepted until RR-005 establishes canonical release evidence mapping."
   ],
   "decision": "NOT_READY",
   "feature_status": [
@@ -257,9 +258,14 @@
   "generated_at": "2026-02-19T19:17:24Z",
   "issues": [
     {
-      "remediation": "Publish a one-to-one closure matrix mapping 01-21 evidence to 22-31 acceptance criteria and mark consolidated features complete only after explicit validation.",
-      "risk": "Release evidence can be misread, causing false readiness assumptions.",
-      "summary": "Feature status model is split between completed legacy features (01-21) and not-started consolidated baseline features (22-31)."
+      "remediation": "Define concrete default thresholds and escalation behavior in feature 23 acceptance criteria and validation logs before release sign-off.",
+      "risk": "Guardrail acceptance can remain ambiguous, weakening release gate determinism for RR-001.",
+      "summary": "PRD v0.7 still lists token-budget thresholds as an open question."
+    },
+    {
+      "remediation": "Publish an explicit equivalence/evidence map during RR-005 so release checks reference one canonical baseline.",
+      "risk": "Release decisions can be disputed due to evidence-mapping ambiguity across feature generations.",
+      "summary": "Current status mixes completed legacy features with Not Started consolidated baseline features."
     }
   ],
   "notes": [
@@ -269,7 +275,37 @@
   "release_tasks": [
     {
       "accepted_for_now": false,
-      "canonical_key": "close-token-guardrail-offload-observability-integration",
+      "canonical_key": "refs:01-bootstrap-templates-into-a-repo|03-update-reapply-templates|22-bootstrap-safe-template-reapply",
+      "existing_feature_refs": [
+        "22-bootstrap-safe-template-reapply",
+        "01-bootstrap-templates-into-a-repo",
+        "03-update-reapply-templates"
+      ],
+      "notes": "Treat this as scope-alignment closure, not net-new surface area.",
+      "outcome": "Feature 22 is implemented and validated with idempotent reruns, conflict handling (overwrite/merge/skip), and explicit release evidence tied to current PRD scope.",
+      "priority": "P0",
+      "problem": "Current release baseline marks the consolidated bootstrap/reapply feature as Not Started, leaving ambiguity on whether release evidence aligns to the latest scope.",
+      "task_id": "RR-005",
+      "title": "Ship consolidated P0 bootstrap + safe reapply baseline"
+    },
+    {
+      "accepted_for_now": false,
+      "canonical_key": "refs:02-execute-ticket-workflow|13-role-prompts-plan-reviewer|25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+      "existing_feature_refs": [
+        "25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+        "02-execute-ticket-workflow",
+        "13-role-prompts-plan-reviewer"
+      ],
+      "notes": "Must include authority control behavior for protected commands.",
+      "outcome": "Feature 25 enforces Preflight -> Risk gate -> Plan -> Plan review -> Patch -> Test -> Report with HIGH-risk approval stop state and zero-input defaults outside required gates.",
+      "priority": "P0",
+      "problem": "The core execution journey is not complete in the consolidated baseline, risking gate bypasses or prompt-heavy behavior versus PM expectations.",
+      "task_id": "RR-002",
+      "title": "Complete deterministic gated execution with zero-input defaults"
+    },
+    {
+      "accepted_for_now": false,
+      "canonical_key": "refs:04-output-offload-enforcement|09-runner-structured-logs|15-offload-audit-and-log-compaction|23-output-offload-token-budget-guardrails-structured-logs-shared-runner",
       "existing_feature_refs": [
         "23-output-offload-token-budget-guardrails-structured-logs-shared-runner",
         "04-output-offload-enforcement",
@@ -285,39 +321,7 @@
     },
     {
       "accepted_for_now": false,
-      "canonical_key": "complete-deterministic-gated-execution-with-zero-input-defaults",
-      "existing_feature_refs": [
-        "25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
-        "02-execute-ticket-workflow",
-        "13-role-prompts-plan-reviewer"
-      ],
-      "notes": "Must include authority control behavior for protected commands.",
-      "outcome": "Feature 25 enforces Preflight -> Risk gate -> Plan -> Plan review -> Patch -> Test -> Report with HIGH-risk approval stop state and zero-input defaults outside required gates.",
-      "priority": "P0",
-      "problem": "The core execution journey is not complete in the consolidated baseline, risking gate bypasses or prompt-heavy behavior versus PM expectations.",
-      "task_id": "RR-002",
-      "title": "Complete deterministic gated execution with zero-input defaults"
-    },
-    {
-      "accepted_for_now": false,
-      "canonical_key": "deliver-fail-closed-recovery-and-commit-integrity-bundle",
-      "existing_feature_refs": [
-        "27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
-        "17-resume-in-progress-tickets",
-        "18-commit-gated-by-completed-ticket-docs",
-        "19-template-drift-hardening-autofix-recovery",
-        "10-unified-autofix-precommit"
-      ],
-      "notes": "Validate interrupted run and dirty-worktree scenarios.",
-      "outcome": "Feature 27 is implemented with deterministic resume, scoped recovery, required evidence checks, and commit blocking when planner/tester/reporter artifacts are incomplete.",
-      "priority": "P0",
-      "problem": "Resume safety, deterministic auto-recovery, and commit fail-closed behavior are not complete in the consolidated baseline, creating release integrity risk.",
-      "task_id": "RR-003",
-      "title": "Deliver fail-closed recovery and commit integrity bundle"
-    },
-    {
-      "accepted_for_now": false,
-      "canonical_key": "finalize-single-worktree-orchestration-drift-hardening-in-consolidated-scope",
+      "canonical_key": "refs:06-worktree-policy-naming-convention|11-simplify-worktree-tracking|19-template-drift-hardening-autofix-recovery|26-single-worktree-orchestration-template-drift-hardening",
       "existing_feature_refs": [
         "26-single-worktree-orchestration-template-drift-hardening",
         "06-worktree-policy-naming-convention",
@@ -333,43 +337,31 @@
     },
     {
       "accepted_for_now": false,
-      "canonical_key": "ship-consolidated-p0-bootstrap-safe-reapply-baseline",
+      "canonical_key": "refs:10-unified-autofix-precommit|17-resume-in-progress-tickets|18-commit-gated-by-completed-ticket-docs|19-template-drift-hardening-autofix-recovery|27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
       "existing_feature_refs": [
-        "22-bootstrap-safe-template-reapply",
-        "01-bootstrap-templates-into-a-repo",
-        "03-update-reapply-templates"
+        "27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
+        "17-resume-in-progress-tickets",
+        "18-commit-gated-by-completed-ticket-docs",
+        "19-template-drift-hardening-autofix-recovery",
+        "10-unified-autofix-precommit"
       ],
-      "notes": "Treat this as scope-alignment closure, not net-new surface area.",
-      "outcome": "Feature 22 is implemented and validated with idempotent reruns, conflict handling (overwrite/merge/skip), and explicit release evidence tied to current PRD scope.",
+      "notes": "Validate interrupted run and dirty-worktree scenarios.",
+      "outcome": "Feature 27 is implemented with deterministic resume, scoped recovery, required evidence checks, and commit blocking when planner/tester/reporter artifacts are incomplete.",
       "priority": "P0",
-      "problem": "Current release baseline marks the consolidated bootstrap/reapply feature as Not Started, leaving ambiguity on whether release evidence aligns to the latest scope.",
-      "task_id": "RR-005",
-      "title": "Ship consolidated P0 bootstrap + safe reapply baseline"
-    },
-    {
-      "accepted_for_now": true,
-      "canonical_key": "defer-post-mvp-workflow-simplification-track",
-      "existing_feature_refs": [
-        "31-workflow-complexity-reduction-skill-inventory-pruning",
-        "16-feature-gating-and-skill-mining"
-      ],
-      "notes": "Defer only after P0 readiness gates pass.",
-      "outcome": "Feature 31 is explicitly deferred with acceptance criteria and revisit trigger documented for next planning cycle.",
-      "priority": "P1",
-      "problem": "Workflow complexity reduction and skill pruning are valuable but not required to satisfy immediate MVP release promise once P0 closure is complete.",
-      "task_id": "RR-006",
-      "title": "Defer post-MVP workflow simplification track"
+      "problem": "Resume safety, deterministic auto-recovery, and commit fail-closed behavior are not complete in the consolidated baseline, creating release integrity risk.",
+      "task_id": "RR-003",
+      "title": "Deliver fail-closed recovery and commit integrity bundle"
     }
   ],
   "role_mode": "codex",
   "summary": "Release is not ready: key P0 release outcomes in the current PRD baseline remain Not Started (features 22, 23, 25, 26, 27), so the core user promise of deterministic, gated, token-efficient, fail-closed execution is not yet fully releasable.",
   "totals": {
-    "accepted_risks": 2,
+    "accepted_risks": 3,
     "actionable_release_tasks": 5,
     "features_completed": 21,
     "features_incomplete": 10,
     "features_scanned": 31,
-    "release_tasks": 6
+    "release_tasks": 5
   },
   "version": 1
 }
