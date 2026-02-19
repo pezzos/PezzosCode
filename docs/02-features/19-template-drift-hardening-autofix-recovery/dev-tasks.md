@@ -8,7 +8,7 @@
 
 **Feature:** Template drift hardening + autofix recovery
 
-Status: Not Started
+Status: Done
 
 **Last Updated:** 2026-02-11
 

@@ -10,7 +10,7 @@ Feature: Learning loop proposals
 
 Priority: P1
 
-Status: Not Started
+Status: Done
 
 Last Updated: 2026-02-16
 

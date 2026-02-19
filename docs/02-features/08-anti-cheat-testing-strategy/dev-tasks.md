@@ -10,7 +10,7 @@
 
 **Feature:** Anti-cheat testing strategy
 
-Status: Complete
+Status: Done
 
 **Last Updated:** 2026-02-05
 

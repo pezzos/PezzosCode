@@ -10,7 +10,7 @@
 
 **Feature:** Bootstrap templates into a repo
 
-Status: Not Started
+Status: Done
 
 **Last Updated:** 2026-02-02
 

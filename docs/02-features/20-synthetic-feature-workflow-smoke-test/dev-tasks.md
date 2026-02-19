@@ -8,7 +8,7 @@
 
 **Feature:** Synthetic feature workflow smoke test
 
-Status: Not Started
+Status: Done
 
 **Last Updated:** 2026-02-11
 

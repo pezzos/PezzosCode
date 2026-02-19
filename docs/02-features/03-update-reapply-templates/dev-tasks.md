@@ -10,7 +10,7 @@
 
 **Feature:** Update/reapply templates
 
-Status: Not Started
+Status: Done
 
 **Last Updated:** 2026-02-02
 

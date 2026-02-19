@@ -8,7 +8,7 @@
 
 **Feature:** Role prompts + Plan Reviewer
 
-Status: Completed
+Status: Done
 
 **Last Updated:** 2026-02-09
 

@@ -8,7 +8,7 @@
 
 **Feature:** Learning loop improvement proposals
 
-Status: Completed
+Status: Done
 
 **Last Updated:** 2026-02-09
 

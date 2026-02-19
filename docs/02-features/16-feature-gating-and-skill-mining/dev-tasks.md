@@ -8,7 +8,7 @@
 
 **Feature:** Feature gating + skill mining
 
-Status: Not Started
+Status: Done
 
 **Last Updated:** 2026-02-08
 
