@@ -3,9 +3,9 @@
 > Machine-managed by `tools/pc-prepare-features`.
 
 - Run mode: `rerun`
-- Loop iteration: `4`
+- Loop iteration: `3`
 - PM final decision: `approve`
-- PM blocks: `2`
+- PM blocks: `1`
 - Feature generation status: `completed`
 - Schema check status: `completed`
 

@@ -5,38 +5,48 @@
       "feature_slug": "bootstrap-safe-template-reapply",
       "id": "order-001",
       "order_index": 1,
-      "rationale": "Establishes the idempotent bootstrap/template baseline and remains the only root prerequisite.",
+      "rationale": "Carry forward as the only root capability; establishes idempotent bootstrap/template baseline for all downstream work.",
       "reason_codes": ["FOUNDATION", "ROOT_ONLY", "IDEMPOTENT_ENTRYPOINT"]
     },
     {
       "depends_on": ["bootstrap-safe-template-reapply"],
-      "feature_slug": "output-offload-structured-logs-shared-runner",
+      "feature_slug": "output-offload-token-budget-guardrails-structured-logs-shared-runner",
       "id": "order-002",
       "order_index": 2,
-      "rationale": "Adds shared runner metadata, offload pointers, and structured logs immediately after bootstrap so downstream gates inherit observability.",
-      "reason_codes": ["SHARED_INFRA", "OBSERVABILITY", "TOKEN_EFFICIENCY"]
+      "rationale": "Shared runner, offload, token guardrails, and structured logging must exist before orchestration/recovery layers consume them.",
+      "reason_codes": [
+        "SHARED_INFRA",
+        "OBSERVABILITY",
+        "TOKEN_GUARDRAILS",
+        "NO_REGRESSION"
+      ]
     },
     {
       "depends_on": [
         "bootstrap-safe-template-reapply",
-        "output-offload-structured-logs-shared-runner"
+        "output-offload-token-budget-guardrails-structured-logs-shared-runner"
       ],
-      "feature_slug": "deterministic-work-item-execution-with-explicit-gates",
+      "feature_slug": "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
       "id": "order-003",
       "order_index": 3,
-      "rationale": "Builds deterministic Plan->Patch->Test->Report and authority/risk gates on top of baseline templates and telemetry infra.",
-      "reason_codes": ["EXECUTION_CORE", "GATE_ENFORCEMENT"]
+      "rationale": "Deterministic gated execution with zero-input defaults depends on baseline templates plus shared infra/telemetry.",
+      "reason_codes": [
+        "EXECUTION_CORE",
+        "ZERO_INPUT_POLICY",
+        "GATE_ENFORCEMENT",
+        "NO_REGRESSION"
+      ]
     },
     {
       "depends_on": [
         "bootstrap-safe-template-reapply",
-        "output-offload-structured-logs-shared-runner",
-        "deterministic-work-item-execution-with-explicit-gates"
+        "output-offload-token-budget-guardrails-structured-logs-shared-runner",
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults"
       ],
       "feature_slug": "single-worktree-orchestration-template-drift-hardening",
       "id": "order-004",
       "order_index": 4,
-      "rationale": "Applies single-worktree and drift hardening only after bootstrap, telemetry, and orchestration semantics are in place.",
+      "rationale": "Single-worktree and drift-hardening controls are layered after orchestration semantics and observability are stable.",
       "reason_codes": [
         "WORKTREE_POLICY",
         "DRIFT_HARDENING",
@@ -45,22 +55,29 @@
     },
     {
       "depends_on": [
-        "output-offload-structured-logs-shared-runner",
-        "deterministic-work-item-execution-with-explicit-gates",
+        "output-offload-token-budget-guardrails-structured-logs-shared-runner",
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
         "single-worktree-orchestration-template-drift-hardening"
       ],
-      "feature_slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
+      "feature_slug": "resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
       "id": "order-005",
       "order_index": 5,
-      "rationale": "Resume checkpoints, scoped autofix, and fail-closed commit gate depend on stable orchestration plus drift-safe recovery and evidence logs.",
-      "reason_codes": ["RESUME_SEMANTICS", "FAIL_CLOSED_GATES"]
+      "rationale": "Resume/auto-recovery/commit-gate behavior requires prior execution semantics, drift controls, and evidence infrastructure.",
+      "reason_codes": [
+        "RESUME_SEMANTICS",
+        "AUTO_RECOVERY",
+        "FAIL_CLOSED_GATES",
+        "NO_REGRESSION"
+      ]
     },
     {
-      "depends_on": ["deterministic-work-item-execution-with-explicit-gates"],
+      "depends_on": [
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults"
+      ],
       "feature_slug": "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
       "id": "order-006",
       "order_index": 6,
-      "rationale": "Role separation and mandatory Plan Reviewer gate layer on deterministic execution core; no extra prerequisite is required by the alignment contract.",
+      "rationale": "Role partitioning and mandatory plan review are governance layers on top of deterministic execution.",
       "reason_codes": [
         "ROLE_COORDINATION",
         "PLAN_QUALITY_GATE",
@@ -69,78 +86,102 @@
     },
     {
       "depends_on": [
-        "deterministic-work-item-execution-with-explicit-gates",
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
         "orchestrator-roles-plan-reviewer-gate-role-specific-prompts"
       ],
       "feature_slug": "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
       "id": "order-007",
       "order_index": 7,
-      "rationale": "Anti-hardcode policy and synthetic smoke validation run after deterministic orchestration and role-gated execution are established.",
+      "rationale": "Validation policy and synthetic smoke checks depend on established execution gates and role-governed handoffs.",
       "reason_codes": ["VALIDATION_LAYER", "REGRESSION_GUARD", "GATE_DEPENDENT"]
     },
     {
       "depends_on": [
         "bootstrap-safe-template-reapply",
         "single-worktree-orchestration-template-drift-hardening",
-        "resume-safety-fail-closed-commit-gate-scoped-autofix"
+        "resume-safety-deterministic-auto-recovery-fail-closed-commit-gate"
       ],
       "feature_slug": "incremental-prd-to-features-post-run-learning-loop",
       "id": "order-008",
       "order_index": 8,
-      "rationale": "Incremental PRD reconciliation and learning-loop proposals are sequenced last, after bootstrap baseline plus drift-hardened resume/commit reliability.",
+      "rationale": "Incremental doc evolution and learning-loop proposals are sequenced after stable bootstrap, drift hardening, and resume integrity.",
       "reason_codes": [
         "DOC_EVOLUTION",
         "FEEDBACK_LOOP",
         "POST_RECOVERY_STABILITY"
       ]
+    },
+    {
+      "depends_on": [
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+        "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+        "incremental-prd-to-features-post-run-learning-loop"
+      ],
+      "feature_slug": "workflow-complexity-reduction-skill-inventory-pruning",
+      "id": "order-009",
+      "order_index": 9,
+      "rationale": "Prerequisites aligned exactly to architect canonical map; simplification/pruning is last to avoid destabilizing earlier gate/reliability work.",
+      "reason_codes": [
+        "POST_MVP_HARDENING",
+        "SAFE_SIMPLIFICATION",
+        "CANONICAL_PREREQ_SYNC",
+        "PM_FEEDBACK_RESOLVED"
+      ],
+      "resolves": ["PM-001", "PM-002", "PM-TODO-067", "PM-TODO-068"]
     }
   ],
   "dependencies": {
     "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature": [
-      "deterministic-work-item-execution-with-explicit-gates",
+      "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
       "orchestrator-roles-plan-reviewer-gate-role-specific-prompts"
     ],
     "bootstrap-safe-template-reapply": [],
-    "deterministic-work-item-execution-with-explicit-gates": [
+    "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults": [
       "bootstrap-safe-template-reapply",
-      "output-offload-structured-logs-shared-runner"
+      "output-offload-token-budget-guardrails-structured-logs-shared-runner"
     ],
     "incremental-prd-to-features-post-run-learning-loop": [
       "bootstrap-safe-template-reapply",
       "single-worktree-orchestration-template-drift-hardening",
-      "resume-safety-fail-closed-commit-gate-scoped-autofix"
+      "resume-safety-deterministic-auto-recovery-fail-closed-commit-gate"
     ],
     "orchestrator-roles-plan-reviewer-gate-role-specific-prompts": [
-      "deterministic-work-item-execution-with-explicit-gates"
+      "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults"
     ],
-    "output-offload-structured-logs-shared-runner": [
+    "output-offload-token-budget-guardrails-structured-logs-shared-runner": [
       "bootstrap-safe-template-reapply"
     ],
-    "resume-safety-fail-closed-commit-gate-scoped-autofix": [
-      "output-offload-structured-logs-shared-runner",
-      "deterministic-work-item-execution-with-explicit-gates",
+    "resume-safety-deterministic-auto-recovery-fail-closed-commit-gate": [
+      "output-offload-token-budget-guardrails-structured-logs-shared-runner",
+      "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
       "single-worktree-orchestration-template-drift-hardening"
     ],
     "single-worktree-orchestration-template-drift-hardening": [
       "bootstrap-safe-template-reapply",
-      "output-offload-structured-logs-shared-runner",
-      "deterministic-work-item-execution-with-explicit-gates"
+      "output-offload-token-budget-guardrails-structured-logs-shared-runner",
+      "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults"
+    ],
+    "workflow-complexity-reduction-skill-inventory-pruning": [
+      "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+      "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+      "incremental-prd-to-features-post-run-learning-loop"
     ]
   },
-  "generated_at": "2026-02-19T10:50:43Z",
+  "generated_at": "2026-02-19T16:12:25Z",
   "notes": [
     "This file is machine-managed by tools/pc-prepare-features.",
     "tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order."
   ],
   "ordered_feature_slugs": [
     "bootstrap-safe-template-reapply",
-    "output-offload-structured-logs-shared-runner",
-    "deterministic-work-item-execution-with-explicit-gates",
+    "output-offload-token-budget-guardrails-structured-logs-shared-runner",
+    "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
     "single-worktree-orchestration-template-drift-hardening",
-    "resume-safety-fail-closed-commit-gate-scoped-autofix",
+    "resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
     "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
     "anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
-    "incremental-prd-to-features-post-run-learning-loop"
+    "incremental-prd-to-features-post-run-learning-loop",
+    "workflow-complexity-reduction-skill-inventory-pruning"
   ],
   "ordered_features": [
     {
@@ -154,24 +195,24 @@
       "dependencies": ["bootstrap-safe-template-reapply"],
       "index": 2,
       "priority": "P0",
-      "slug": "output-offload-structured-logs-shared-runner",
-      "title": "Output offload + structured logs + shared runner"
+      "slug": "output-offload-token-budget-guardrails-structured-logs-shared-runner",
+      "title": "Output offload + token budget guardrails + structured logs + shared runner"
     },
     {
       "dependencies": [
         "bootstrap-safe-template-reapply",
-        "output-offload-structured-logs-shared-runner"
+        "output-offload-token-budget-guardrails-structured-logs-shared-runner"
       ],
       "index": 3,
       "priority": "P0",
-      "slug": "deterministic-work-item-execution-with-explicit-gates",
-      "title": "Deterministic work-item execution with explicit gates"
+      "slug": "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+      "title": "Deterministic work-item execution with explicit gates + zero-input defaults"
     },
     {
       "dependencies": [
         "bootstrap-safe-template-reapply",
-        "output-offload-structured-logs-shared-runner",
-        "deterministic-work-item-execution-with-explicit-gates"
+        "output-offload-token-budget-guardrails-structured-logs-shared-runner",
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults"
       ],
       "index": 4,
       "priority": "P0",
@@ -180,17 +221,19 @@
     },
     {
       "dependencies": [
-        "output-offload-structured-logs-shared-runner",
-        "deterministic-work-item-execution-with-explicit-gates",
+        "output-offload-token-budget-guardrails-structured-logs-shared-runner",
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
         "single-worktree-orchestration-template-drift-hardening"
       ],
       "index": 5,
       "priority": "P0",
-      "slug": "resume-safety-fail-closed-commit-gate-scoped-autofix",
-      "title": "Resume safety + fail-closed commit gate + scoped autofix"
+      "slug": "resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
+      "title": "Resume safety + deterministic auto-recovery + fail-closed commit gate"
     },
     {
-      "dependencies": ["deterministic-work-item-execution-with-explicit-gates"],
+      "dependencies": [
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults"
+      ],
       "index": 6,
       "priority": "P1",
       "slug": "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
@@ -198,7 +241,7 @@
     },
     {
       "dependencies": [
-        "deterministic-work-item-execution-with-explicit-gates",
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
         "orchestrator-roles-plan-reviewer-gate-role-specific-prompts"
       ],
       "index": 7,
@@ -210,12 +253,23 @@
       "dependencies": [
         "bootstrap-safe-template-reapply",
         "single-worktree-orchestration-template-drift-hardening",
-        "resume-safety-fail-closed-commit-gate-scoped-autofix"
+        "resume-safety-deterministic-auto-recovery-fail-closed-commit-gate"
       ],
       "index": 8,
       "priority": "P1",
       "slug": "incremental-prd-to-features-post-run-learning-loop",
       "title": "Incremental PRD-to-features + post-run learning loop"
+    },
+    {
+      "dependencies": [
+        "deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+        "orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+        "incremental-prd-to-features-post-run-learning-loop"
+      ],
+      "index": 9,
+      "priority": "P1",
+      "slug": "workflow-complexity-reduction-skill-inventory-pruning",
+      "title": "Workflow complexity reduction + skill inventory pruning"
     }
   ],
   "version": 1

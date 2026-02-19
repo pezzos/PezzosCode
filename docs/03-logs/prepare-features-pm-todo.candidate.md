@@ -75,9 +75,11 @@
 | PM-TODO-063 | security           | 3            | PM-001       | Security changed artifact content without actionable PM TODO/feedback in this iteration.                                                                                                                                                                                     |
 | PM-TODO-064 | security           | 3            | PM-002       | Security reported changed_sections despite no actionable PM TODO/feedback.                                                                                                                                                                                                   |
 | PM-TODO-065 | security           | 4            | PM-001       | Security returned unchanged artifact despite actionable PM TODO/feedback.                                                                                                                                                                                                    |
+| PM-TODO-066 | dependency-planner | 2            | PM-DEP-010   | Align `feature-order.json` prerequisites for `workflow-complexity-reduction-skill-inventory-pruning` across `decisions[*].depends_on`, `dependencies[slug]`, and `ordered_features[*].dependencies` to exactly match `design.md` `## Feature alignment map`.                 |
+| PM-TODO-067 | dependency-planner | 3            | PM-001       | Closed: `feature-order.json` now sets `workflow-complexity-reduction-skill-inventory-pruning` prerequisites to the canonical set from `design.md` and keeps them identical across `decisions[*].depends_on`, `dependencies[slug]`, and `ordered_features[*].dependencies`.   |
+| PM-TODO-068 | dependency-planner | 3            | PM-002       | Closed: PM dependency gate now passes because bootstrap is the only root feature and all non-root features declare aligned prerequisite arrays in dependency-order artifacts.                                                                                                |
 
 ## PM Loop History (summary)
 
-- loop=2 gate=PM-BLOCK-001 decision=retry pm_role_decision=APPROVE issues=2
-- loop=3 gate=PM-BLOCK-002 decision=retry pm_role_decision=APPROVE issues=1
-- loop=4 gate=PM-REVIEW-004 decision=approve pm_role_decision=APPROVE issues=0
+- loop=2 gate=PM-BLOCK-001 decision=retry pm_role_decision=BLOCK issues=2
+- loop=3 gate=PM-REVIEW-003 decision=approve pm_role_decision=APPROVE issues=0
