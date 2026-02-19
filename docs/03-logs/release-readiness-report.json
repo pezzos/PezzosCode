@@ -1,57 +1,57 @@
 {
   "accepted_risks": [
-    "P2 quality nudges (feature gating + skill mining) are deferred until after core P0 release criteria are complete.",
-    "FR-201 single-command approved-feature loop is deferred; initial release can use manual per-feature execution with existing gates."
+    "P1 workflow simplification and skill-pruning can be deferred for this release if P0 reliability and authority gates are fully validated.",
+    "Additional post-run optimization scope is acceptable to defer provided token guardrails/offload enforcement are complete in the P0 bundle."
   ],
   "decision": "NOT_READY",
   "feature_status": [
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/01-bootstrap-templates-into-a-repo/dev-tasks.md",
       "feature_id": "01-bootstrap-templates-into-a-repo",
       "feature_title": "Bootstrap templates into a repo",
       "spec_path": "docs/02-features/01-bootstrap-templates-into-a-repo/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/02-execute-ticket-workflow/dev-tasks.md",
       "feature_id": "02-execute-ticket-workflow",
       "feature_title": "Execute ticket workflow",
       "spec_path": "docs/02-features/02-execute-ticket-workflow/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/03-update-reapply-templates/dev-tasks.md",
       "feature_id": "03-update-reapply-templates",
       "feature_title": "Update/reapply templates",
       "spec_path": "docs/02-features/03-update-reapply-templates/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/04-output-offload-enforcement/dev-tasks.md",
       "feature_id": "04-output-offload-enforcement",
       "feature_title": "Output offload enforcement",
       "spec_path": "docs/02-features/04-output-offload-enforcement/feature-spec.md",
-      "status": "In Progress"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/05-orchestrator-sub-agent-roles/dev-tasks.md",
       "feature_id": "05-orchestrator-sub-agent-roles",
       "feature_title": "Orchestrator + sub-agent roles",
       "spec_path": "docs/02-features/05-orchestrator-sub-agent-roles/feature-spec.md",
-      "status": "In Progress"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/06-worktree-policy-naming-convention/dev-tasks.md",
       "feature_id": "06-worktree-policy-naming-convention",
       "feature_title": "Worktree policy + naming convention",
       "spec_path": "docs/02-features/06-worktree-policy-naming-convention/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
       "completed": true,
@@ -59,7 +59,7 @@
       "feature_id": "07-anti-cheat-testing-strategy",
       "feature_title": "Anti-cheat testing strategy",
       "spec_path": "docs/02-features/07-anti-cheat-testing-strategy/feature-spec.md",
-      "status": "Complete"
+      "status": "Done"
     },
     {
       "completed": true,
@@ -67,7 +67,7 @@
       "feature_id": "08-anti-cheat-testing-strategy",
       "feature_title": "Anti-cheat testing strategy",
       "spec_path": "docs/02-features/08-anti-cheat-testing-strategy/feature-spec.md",
-      "status": "Complete"
+      "status": "Done"
     },
     {
       "completed": true,
@@ -86,12 +86,12 @@
       "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/11-simplify-worktree-tracking/dev-tasks.md",
       "feature_id": "11-simplify-worktree-tracking",
       "feature_title": "Simplify worktree tracking",
       "spec_path": "docs/02-features/11-simplify-worktree-tracking/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
       "completed": true,
@@ -107,7 +107,7 @@
       "feature_id": "13-role-prompts-plan-reviewer",
       "feature_title": "Role prompts + Plan Reviewer",
       "spec_path": "docs/02-features/13-role-prompts-plan-reviewer/feature-spec.md",
-      "status": "Completed"
+      "status": "Done"
     },
     {
       "completed": true,
@@ -115,7 +115,7 @@
       "feature_id": "14-learning-loop-improvement-proposals",
       "feature_title": "Learning loop improvement proposals",
       "spec_path": "docs/02-features/14-learning-loop-improvement-proposals/feature-spec.md",
-      "status": "Completed"
+      "status": "Done"
     },
     {
       "completed": true,
@@ -123,15 +123,15 @@
       "feature_id": "15-offload-audit-and-log-compaction",
       "feature_title": "Offload audit + useful log compaction",
       "spec_path": "docs/02-features/15-offload-audit-and-log-compaction/feature-spec.md",
-      "status": "Complete"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/16-feature-gating-and-skill-mining/dev-tasks.md",
       "feature_id": "16-feature-gating-and-skill-mining",
       "feature_title": "Feature gating + skill mining",
       "spec_path": "docs/02-features/16-feature-gating-and-skill-mining/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
       "completed": true,
@@ -139,38 +139,54 @@
       "feature_id": "17-resume-in-progress-tickets",
       "feature_title": "Resume in-progress tickets",
       "spec_path": "docs/02-features/17-resume-in-progress-tickets/feature-spec.md",
-      "status": "Completed"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/18-commit-gated-by-completed-ticket-docs/dev-tasks.md",
       "feature_id": "18-commit-gated-by-completed-ticket-docs",
       "feature_title": "Commit gated by completed ticket docs",
       "spec_path": "docs/02-features/18-commit-gated-by-completed-ticket-docs/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/19-template-drift-hardening-autofix-recovery/dev-tasks.md",
       "feature_id": "19-template-drift-hardening-autofix-recovery",
       "feature_title": "Template drift hardening + autofix recovery",
       "spec_path": "docs/02-features/19-template-drift-hardening-autofix-recovery/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/20-synthetic-feature-workflow-smoke-test/dev-tasks.md",
       "feature_id": "20-synthetic-feature-workflow-smoke-test",
       "feature_title": "Synthetic feature workflow smoke test",
       "spec_path": "docs/02-features/20-synthetic-feature-workflow-smoke-test/feature-spec.md",
-      "status": "Not Started"
+      "status": "Done"
     },
     {
-      "completed": false,
+      "completed": true,
       "dev_tasks_path": "docs/02-features/21-learning-loop-proposals/dev-tasks.md",
       "feature_id": "21-learning-loop-proposals",
       "feature_title": "Learning loop proposals",
       "spec_path": "docs/02-features/21-learning-loop-proposals/feature-spec.md",
+      "status": "Done"
+    },
+    {
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/22-bootstrap-safe-template-reapply/dev-tasks.md",
+      "feature_id": "22-bootstrap-safe-template-reapply",
+      "feature_title": "Bootstrap + safe template reapply",
+      "spec_path": "docs/02-features/22-bootstrap-safe-template-reapply/feature-spec.md",
+      "status": "Not Started"
+    },
+    {
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/23-output-offload-token-budget-guardrails-structured-logs-shared-runner/dev-tasks.md",
+      "feature_id": "23-output-offload-token-budget-guardrails-structured-logs-shared-runner",
+      "feature_title": "Output offload + token budget guardrails + structured logs + shared runner",
+      "spec_path": "docs/02-features/23-output-offload-token-budget-guardrails-structured-logs-shared-runner/feature-spec.md",
       "status": "Not Started"
     },
     {
@@ -180,19 +196,70 @@
       "feature_title": "End-to-end workflow smoke test with a synthetic feature",
       "spec_path": "docs/02-features/24-end-to-end-workflow-smoke-test-with-a-synthetic-feature/feature-spec.md",
       "status": "Not Started"
-    }
-  ],
-  "generated_at": "2026-02-19T15:40:57Z",
-  "issues": [
-    {
-      "remediation": "Define canonical feature IDs for release tracking and map duplicates to a single owner/status before final go/no-go.",
-      "risk": "Readiness reporting can be misleading, causing false confidence or missed scope.",
-      "summary": "Feature inventory contains overlapping/duplicate tracks (e.g., 07/08, 20/24, 14/21)."
     },
     {
-      "remediation": "Freeze a release baseline (must-ship list + explicit deferrals) and stamp PRD/release checklist to that baseline.",
-      "risk": "Late scope churn can invalidate release commitments and acceptance criteria.",
-      "summary": "PRD is still marked Draft while release readiness is being evaluated."
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults/dev-tasks.md",
+      "feature_id": "25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+      "feature_title": "Deterministic work-item execution with explicit gates + zero-input defaults",
+      "spec_path": "docs/02-features/25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults/feature-spec.md",
+      "status": "Not Started"
+    },
+    {
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/26-single-worktree-orchestration-template-drift-hardening/dev-tasks.md",
+      "feature_id": "26-single-worktree-orchestration-template-drift-hardening",
+      "feature_title": "Single-worktree orchestration + template-drift hardening",
+      "spec_path": "docs/02-features/26-single-worktree-orchestration-template-drift-hardening/feature-spec.md",
+      "status": "Not Started"
+    },
+    {
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate/dev-tasks.md",
+      "feature_id": "27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
+      "feature_title": "Resume safety + deterministic auto-recovery + fail-closed commit gate",
+      "spec_path": "docs/02-features/27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate/feature-spec.md",
+      "status": "Not Started"
+    },
+    {
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/28-orchestrator-roles-plan-reviewer-gate-role-specific-prompts/dev-tasks.md",
+      "feature_id": "28-orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+      "feature_title": "Orchestrator roles + Plan Reviewer gate + role-specific prompts",
+      "spec_path": "docs/02-features/28-orchestrator-roles-plan-reviewer-gate-role-specific-prompts/feature-spec.md",
+      "status": "Not Started"
+    },
+    {
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/29-anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature/dev-tasks.md",
+      "feature_id": "29-anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
+      "feature_title": "Anti-hardcode test policy + synthetic end-to-end smoke feature",
+      "spec_path": "docs/02-features/29-anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature/feature-spec.md",
+      "status": "Not Started"
+    },
+    {
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/30-incremental-prd-to-features-post-run-learning-loop/dev-tasks.md",
+      "feature_id": "30-incremental-prd-to-features-post-run-learning-loop",
+      "feature_title": "Incremental PRD-to-features + post-run learning loop",
+      "spec_path": "docs/02-features/30-incremental-prd-to-features-post-run-learning-loop/feature-spec.md",
+      "status": "Not Started"
+    },
+    {
+      "completed": false,
+      "dev_tasks_path": "docs/02-features/31-workflow-complexity-reduction-skill-inventory-pruning/dev-tasks.md",
+      "feature_id": "31-workflow-complexity-reduction-skill-inventory-pruning",
+      "feature_title": "Workflow complexity reduction + skill inventory pruning",
+      "spec_path": "docs/02-features/31-workflow-complexity-reduction-skill-inventory-pruning/feature-spec.md",
+      "status": "Not Started"
+    }
+  ],
+  "generated_at": "2026-02-19T19:17:24Z",
+  "issues": [
+    {
+      "remediation": "Publish a one-to-one closure matrix mapping 01-21 evidence to 22-31 acceptance criteria and mark consolidated features complete only after explicit validation.",
+      "risk": "Release evidence can be misread, causing false readiness assumptions.",
+      "summary": "Feature status model is split between completed legacy features (01-21) and not-started consolidated baseline features (22-31)."
     }
   ],
   "notes": [
@@ -202,98 +269,106 @@
   "release_tasks": [
     {
       "accepted_for_now": false,
-      "canonical_key": "complete-deterministic-ticket-execution-with-authority-and-risk-gates",
+      "canonical_key": "close-token-guardrail-offload-observability-integration",
       "existing_feature_refs": [
-        "02-execute-ticket-workflow",
-        "05-orchestrator-sub-agent-roles",
-        "13-role-prompts-plan-reviewer"
-      ],
-      "notes": "Must demonstrate protected-command authority behavior for human PO/user.",
-      "outcome": "Preflight -> Risk gate -> Plan -> Plan review -> Patch -> Test -> Report runs predictably, with HIGH-risk halting at 'Awaiting PO Approval' until explicit approval.",
-      "priority": "P0",
-      "problem": "Primary execution journey is incomplete: execute-ticket workflow is not started and role orchestration remains partial.",
-      "task_id": "RR-001",
-      "title": "Complete deterministic ticket execution with authority and risk gates"
-    },
-    {
-      "accepted_for_now": false,
-      "canonical_key": "enforce-single-worktree-orchestration-policy-for-release-reliability",
-      "existing_feature_refs": [
-        "06-worktree-policy-naming-convention",
-        "11-simplify-worktree-tracking"
-      ],
-      "notes": "Resolve overlap between policy and simplification tracks into one canonical release behavior.",
-      "outcome": "Single-worktree behavior is consistently enforced and role collaboration does not depend on deprecated tracking patterns.",
-      "priority": "P0",
-      "problem": "Worktree policy/simplification items are not started, leaving orchestration reliability expectations unproven.",
-      "task_id": "RR-002",
-      "title": "Enforce single-worktree orchestration policy for release reliability"
-    },
-    {
-      "accepted_for_now": false,
-      "canonical_key": "finish-mandatory-noisy-output-offload-enforcement",
-      "existing_feature_refs": [
+        "23-output-offload-token-budget-guardrails-structured-logs-shared-runner",
         "04-output-offload-enforcement",
         "09-runner-structured-logs",
         "15-offload-audit-and-log-compaction"
       ],
-      "notes": "Runner/log foundation exists; this task closes enforcement coverage gaps.",
-      "outcome": "All noisy workflow steps consistently produce `pp` pointer ids and corresponding structured logs.",
+      "notes": "Require end-to-end evidence from real workflow runs, not isolated script checks.",
+      "outcome": "Feature 23 is implemented with enforced offload for noisy output, per-step budget behavior, pointer-based retrieval, and structured logs across role steps.",
       "priority": "P0",
-      "problem": "Offload enforcement is still in progress, so token-efficiency and traceability commitments are not yet reliable end-to-end.",
-      "task_id": "RR-003",
-      "title": "Finish mandatory noisy-output offload enforcement"
+      "problem": "Consolidated guardrail/offload/logging runner feature is Not Started, so token-efficiency and traceability commitments are not yet release-safe as one integrated capability.",
+      "task_id": "RR-001",
+      "title": "Close token guardrail + offload + observability integration"
     },
     {
       "accepted_for_now": false,
-      "canonical_key": "implement-fail-closed-commit-gate-and-scoped-drift-autofix-recovery",
+      "canonical_key": "complete-deterministic-gated-execution-with-zero-input-defaults",
       "existing_feature_refs": [
+        "25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+        "02-execute-ticket-workflow",
+        "13-role-prompts-plan-reviewer"
+      ],
+      "notes": "Must include authority control behavior for protected commands.",
+      "outcome": "Feature 25 enforces Preflight -> Risk gate -> Plan -> Plan review -> Patch -> Test -> Report with HIGH-risk approval stop state and zero-input defaults outside required gates.",
+      "priority": "P0",
+      "problem": "The core execution journey is not complete in the consolidated baseline, risking gate bypasses or prompt-heavy behavior versus PM expectations.",
+      "task_id": "RR-002",
+      "title": "Complete deterministic gated execution with zero-input defaults"
+    },
+    {
+      "accepted_for_now": false,
+      "canonical_key": "deliver-fail-closed-recovery-and-commit-integrity-bundle",
+      "existing_feature_refs": [
+        "27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
+        "17-resume-in-progress-tickets",
         "18-commit-gated-by-completed-ticket-docs",
         "19-template-drift-hardening-autofix-recovery",
-        "17-resume-in-progress-tickets",
         "10-unified-autofix-precommit"
       ],
-      "notes": "Validate behavior on interrupted reruns and dirty active worktree states.",
-      "outcome": "Commit is blocked until required planner/tester/reporter evidence is complete; unresolved drift/autofix failures fail closed with clear remediation.",
+      "notes": "Validate interrupted run and dirty-worktree scenarios.",
+      "outcome": "Feature 27 is implemented with deterministic resume, scoped recovery, required evidence checks, and commit blocking when planner/tester/reporter artifacts are incomplete.",
       "priority": "P0",
-      "problem": "Release integrity is not protected: commit gate and drift-hardening features are not started.",
-      "task_id": "RR-004",
-      "title": "Implement fail-closed commit gate and scoped drift/autofix recovery"
+      "problem": "Resume safety, deterministic auto-recovery, and commit fail-closed behavior are not complete in the consolidated baseline, creating release integrity risk.",
+      "task_id": "RR-003",
+      "title": "Deliver fail-closed recovery and commit integrity bundle"
     },
     {
       "accepted_for_now": false,
-      "canonical_key": "ship-bootstrap-and-safe-template-reapply-for-new-existing-repos",
+      "canonical_key": "finalize-single-worktree-orchestration-drift-hardening-in-consolidated-scope",
       "existing_feature_refs": [
+        "26-single-worktree-orchestration-template-drift-hardening",
+        "06-worktree-policy-naming-convention",
+        "11-simplify-worktree-tracking",
+        "19-template-drift-hardening-autofix-recovery"
+      ],
+      "notes": "Must align with role-boundary ownership and no tracking-file drift.",
+      "outcome": "Feature 26 is implemented with canonical single-worktree behavior, scoped drift repair, and explicit fail-closed remediation paths.",
+      "priority": "P0",
+      "problem": "Single-worktree reliability and drift-hardening are not complete in the current release baseline, which can undermine predictable orchestration under reruns.",
+      "task_id": "RR-004",
+      "title": "Finalize single-worktree orchestration + drift-hardening in consolidated scope"
+    },
+    {
+      "accepted_for_now": false,
+      "canonical_key": "ship-consolidated-p0-bootstrap-safe-reapply-baseline",
+      "existing_feature_refs": [
+        "22-bootstrap-safe-template-reapply",
         "01-bootstrap-templates-into-a-repo",
         "03-update-reapply-templates"
       ],
-      "notes": "Acceptance should include conflict-path validation and rerun safety proof.",
-      "outcome": "One-command bootstrap plus idempotent overwrite/merge/skip reapply works on clean and existing repos without destructive regressions.",
+      "notes": "Treat this as scope-alignment closure, not net-new surface area.",
+      "outcome": "Feature 22 is implemented and validated with idempotent reruns, conflict handling (overwrite/merge/skip), and explicit release evidence tied to current PRD scope.",
       "priority": "P0",
-      "problem": "Core onboarding value is missing: bootstrap and reapply capabilities are both not started, so Journey 1 is not deliverable.",
+      "problem": "Current release baseline marks the consolidated bootstrap/reapply feature as Not Started, leaving ambiguity on whether release evidence aligns to the latest scope.",
       "task_id": "RR-005",
-      "title": "Ship bootstrap and safe template reapply for new/existing repos"
+      "title": "Ship consolidated P0 bootstrap + safe reapply baseline"
     },
     {
       "accepted_for_now": true,
-      "canonical_key": "defer-workflow-quality-nudges-to-post-release-hardening",
-      "existing_feature_refs": ["16-feature-gating-and-skill-mining"],
-      "notes": "Track as a separate hardening milestone after P0 closure.",
-      "outcome": "Capability is explicitly scheduled post-release without blocking MVP value delivery.",
-      "priority": "P2",
-      "problem": "Feature-gating and skill-mining nudges are not started.",
+      "canonical_key": "defer-post-mvp-workflow-simplification-track",
+      "existing_feature_refs": [
+        "31-workflow-complexity-reduction-skill-inventory-pruning",
+        "16-feature-gating-and-skill-mining"
+      ],
+      "notes": "Defer only after P0 readiness gates pass.",
+      "outcome": "Feature 31 is explicitly deferred with acceptance criteria and revisit trigger documented for next planning cycle.",
+      "priority": "P1",
+      "problem": "Workflow complexity reduction and skill pruning are valuable but not required to satisfy immediate MVP release promise once P0 closure is complete.",
       "task_id": "RR-006",
-      "title": "Defer workflow quality nudges to post-release hardening"
+      "title": "Defer post-MVP workflow simplification track"
     }
   ],
   "role_mode": "codex",
-  "summary": "Release is not ready from a PM perspective: core P0 value paths (bootstrap/reapply, deterministic ticket execution, mandatory offload enforcement completion, and fail-closed commit/drift controls) are still incomplete, with several required features not started.",
+  "summary": "Release is not ready: key P0 release outcomes in the current PRD baseline remain Not Started (features 22, 23, 25, 26, 27), so the core user promise of deterministic, gated, token-efficient, fail-closed execution is not yet fully releasable.",
   "totals": {
     "accepted_risks": 2,
     "actionable_release_tasks": 5,
-    "features_completed": 9,
-    "features_incomplete": 13,
-    "features_scanned": 22,
+    "features_completed": 21,
+    "features_incomplete": 10,
+    "features_scanned": 31,
     "release_tasks": 6
   },
   "version": 1

@@ -69,54 +69,54 @@ inputs to the PRD feature list and must be reflected unless explicitly rejected.
 
 <!-- release-readiness:start -->
 
-- Generated at: 2026-02-19T15:40:57Z
+- Generated at: 2026-02-19T19:17:24Z
 - Decision: NOT_READY
-- Summary: Release is not ready from a PM perspective: core P0 value paths (bootstrap/reapply, deterministic ticket execution, mandatory offload enforcement completion, and fail-closed commit/drift controls) are still incomplete, with several required features not started.
+- Summary: Release is not ready: key P0 release outcomes in the current PRD baseline remain Not Started (features 22, 23, 25, 26, 27), so the core user promise of deterministic, gated, token-efficient, fail-closed execution is not yet fully releasable.
 - Actionable follow-up features: 5
 
-- Feature: Release readiness RR-001 - Complete deterministic ticket execution with authority and risk gates
+- Feature: Release readiness RR-001 - Close token guardrail + offload + observability integration
   - Owner: Product Manager
-  - Problem: Primary execution journey is incomplete: execute-ticket workflow is not started and role orchestration remains partial.
-  - Outcome: Preflight -> Risk gate -> Plan -> Plan review -> Patch -> Test -> Report runs predictably, with HIGH-risk halting at 'Awaiting PO Approval' until explicit approval.
+  - Problem: Consolidated guardrail/offload/logging runner feature is Not Started, so token-efficiency and traceability commitments are not yet release-safe as one integrated capability.
+  - Outcome: Feature 23 is implemented with enforced offload for noisy output, per-step budget behavior, pointer-based retrieval, and structured logs across role steps.
   - Priority: P0
-  - Notes: Must demonstrate protected-command authority behavior for human PO/user.
+  - Notes: Require end-to-end evidence from real workflow runs, not isolated script checks.
   - Source: release-readiness (RR-001)
-  - Existing Feature Refs: 02-execute-ticket-workflow, 05-orchestrator-sub-agent-roles, 13-role-prompts-plan-reviewer
+  - Existing Feature Refs: 23-output-offload-token-budget-guardrails-structured-logs-shared-runner, 04-output-offload-enforcement, 09-runner-structured-logs, 15-offload-audit-and-log-compaction
 
-- Feature: Release readiness RR-002 - Enforce single-worktree orchestration policy for release reliability
+- Feature: Release readiness RR-002 - Complete deterministic gated execution with zero-input defaults
   - Owner: Product Manager
-  - Problem: Worktree policy/simplification items are not started, leaving orchestration reliability expectations unproven.
-  - Outcome: Single-worktree behavior is consistently enforced and role collaboration does not depend on deprecated tracking patterns.
+  - Problem: The core execution journey is not complete in the consolidated baseline, risking gate bypasses or prompt-heavy behavior versus PM expectations.
+  - Outcome: Feature 25 enforces Preflight -> Risk gate -> Plan -> Plan review -> Patch -> Test -> Report with HIGH-risk approval stop state and zero-input defaults outside required gates.
   - Priority: P0
-  - Notes: Resolve overlap between policy and simplification tracks into one canonical release behavior.
+  - Notes: Must include authority control behavior for protected commands.
   - Source: release-readiness (RR-002)
-  - Existing Feature Refs: 06-worktree-policy-naming-convention, 11-simplify-worktree-tracking
+  - Existing Feature Refs: 25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults, 02-execute-ticket-workflow, 13-role-prompts-plan-reviewer
 
-- Feature: Release readiness RR-003 - Finish mandatory noisy-output offload enforcement
+- Feature: Release readiness RR-003 - Deliver fail-closed recovery and commit integrity bundle
   - Owner: Product Manager
-  - Problem: Offload enforcement is still in progress, so token-efficiency and traceability commitments are not yet reliable end-to-end.
-  - Outcome: All noisy workflow steps consistently produce `pp` pointer ids and corresponding structured logs.
+  - Problem: Resume safety, deterministic auto-recovery, and commit fail-closed behavior are not complete in the consolidated baseline, creating release integrity risk.
+  - Outcome: Feature 27 is implemented with deterministic resume, scoped recovery, required evidence checks, and commit blocking when planner/tester/reporter artifacts are incomplete.
   - Priority: P0
-  - Notes: Runner/log foundation exists; this task closes enforcement coverage gaps.
+  - Notes: Validate interrupted run and dirty-worktree scenarios.
   - Source: release-readiness (RR-003)
-  - Existing Feature Refs: 04-output-offload-enforcement, 09-runner-structured-logs, 15-offload-audit-and-log-compaction
+  - Existing Feature Refs: 27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate, 17-resume-in-progress-tickets, 18-commit-gated-by-completed-ticket-docs, 19-template-drift-hardening-autofix-recovery, 10-unified-autofix-precommit
 
-- Feature: Release readiness RR-004 - Implement fail-closed commit gate and scoped drift/autofix recovery
+- Feature: Release readiness RR-004 - Finalize single-worktree orchestration + drift-hardening in consolidated scope
   - Owner: Product Manager
-  - Problem: Release integrity is not protected: commit gate and drift-hardening features are not started.
-  - Outcome: Commit is blocked until required planner/tester/reporter evidence is complete; unresolved drift/autofix failures fail closed with clear remediation.
+  - Problem: Single-worktree reliability and drift-hardening are not complete in the current release baseline, which can undermine predictable orchestration under reruns.
+  - Outcome: Feature 26 is implemented with canonical single-worktree behavior, scoped drift repair, and explicit fail-closed remediation paths.
   - Priority: P0
-  - Notes: Validate behavior on interrupted reruns and dirty active worktree states.
+  - Notes: Must align with role-boundary ownership and no tracking-file drift.
   - Source: release-readiness (RR-004)
-  - Existing Feature Refs: 18-commit-gated-by-completed-ticket-docs, 19-template-drift-hardening-autofix-recovery, 17-resume-in-progress-tickets, 10-unified-autofix-precommit
+  - Existing Feature Refs: 26-single-worktree-orchestration-template-drift-hardening, 06-worktree-policy-naming-convention, 11-simplify-worktree-tracking, 19-template-drift-hardening-autofix-recovery
 
-- Feature: Release readiness RR-005 - Ship bootstrap and safe template reapply for new/existing repos
+- Feature: Release readiness RR-005 - Ship consolidated P0 bootstrap + safe reapply baseline
   - Owner: Product Manager
-  - Problem: Core onboarding value is missing: bootstrap and reapply capabilities are both not started, so Journey 1 is not deliverable.
-  - Outcome: One-command bootstrap plus idempotent overwrite/merge/skip reapply works on clean and existing repos without destructive regressions.
+  - Problem: Current release baseline marks the consolidated bootstrap/reapply feature as Not Started, leaving ambiguity on whether release evidence aligns to the latest scope.
+  - Outcome: Feature 22 is implemented and validated with idempotent reruns, conflict handling (overwrite/merge/skip), and explicit release evidence tied to current PRD scope.
   - Priority: P0
-  - Notes: Acceptance should include conflict-path validation and rerun safety proof.
+  - Notes: Treat this as scope-alignment closure, not net-new surface area.
   - Source: release-readiness (RR-005)
-  - Existing Feature Refs: 01-bootstrap-templates-into-a-repo, 03-update-reapply-templates
+  - Existing Feature Refs: 22-bootstrap-safe-template-reapply, 01-bootstrap-templates-into-a-repo, 03-update-reapply-templates
 
 <!-- release-readiness:end -->
