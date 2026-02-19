@@ -2894,3 +2894,21 @@ When a decision is reversed or replaced, document it here:
 - **Consequences:**
   - Security direction is available before feature execution, reducing per-feature review noise and avoiding duplicated blocking tasks for global concerns.
   - Human PO/end-user validation now has an explicit terminal handoff protocol, improving feedback loop reliability.
+
+### DEC-079 - Add explicit `write-prd` and PM-only `release-readiness` commands with feedback-loop artifacts
+
+- **Date:** 2026-02-19
+- **Status:** Accepted
+- **Context:** PRD refresh previously depended on manual skill invocation, and end-of-project readiness checks produced discussion-only outcomes without deterministic conversion into new planning inputs.
+- **Decision:**
+  - Add `make write-prd` / `tools/pc-write-prd` as the canonical PRD refresh command.
+  - Implement `pc-write-prd` with Product Manager prompt execution, deterministic fallback mode, focused update policy (preserve unchanged PRD text), and idempotency cache/report artifacts:
+    - `docs/03-logs/write-prd-state.json`
+    - `docs/03-logs/write-prd-report.json`
+  - Add `make release-readiness` / `tools/pc-release-readiness` as a PM-only release-go/no-go workflow.
+  - Implement `pc-release-readiness` to emit a status artifact and convert actionable follow-ups into a machine-managed block in `docs/00-context/expected-features.md`, so a subsequent `make write-prd` + `make prepare-features` run can generate new feature folders deterministically.
+  - Keep release-readiness scope simple for now: PM role only, with deterministic fallback when prompt execution fails.
+- **Consequences:**
+  - PRD updates become explicit, repeatable, and less prone to broad rewording drift.
+  - Release-readiness outcomes become directly actionable through existing planning/generation commands instead of requiring manual task translation.
+  - Workflow docs and template docs now describe a complete closed loop from context → PRD → features → readiness → expected-features follow-up.

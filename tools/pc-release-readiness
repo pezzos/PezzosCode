@@ -1,0 +1,661 @@
+#!/usr/bin/env python3
+"""Assess project release readiness and write PM follow-up feature candidates."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+ROOT = Path(__file__).resolve().parents[1]
+PRD_PATH = Path("docs/01-product/prd.md")
+DESIGN_PATH = Path("docs/01-product/design.md")
+UX_PATH = Path("docs/01-product/ux-ui.md")
+SECURITY_PATH = Path("docs/01-product/security.md")
+EXPECTED_FEATURES_PATH = Path("docs/00-context/expected-features.md")
+FEATURES_DIR = Path("docs/02-features")
+REPORT_PATH = Path("docs/03-logs/release-readiness-report.json")
+PROMPTS_DIR = Path("prompts")
+PM_PROMPT_PATH = PROMPTS_DIR / "product-manager-release-readiness.md"
+ROLE_MODE_CODEX = "codex"
+ROLE_MODE_DETERMINISTIC = "deterministic"
+VALID_PRIORITIES = ("P0", "P1", "P2")
+VALID_DECISIONS = {"READY", "NOT_READY", "BLOCK"}
+MARKER_START = "<!-- release-readiness:start -->"
+MARKER_END = "<!-- release-readiness:end -->"
+
+
+@dataclass(frozen=True)
+class FeatureStatus:
+    feature_id: str
+    feature_title: str
+    status: str
+    completed: bool
+    spec_path: str
+    dev_tasks_path: str
+
+
+def die(message: str) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def default_role_mode() -> str:
+    raw = os.environ.get("RELEASE_READINESS_ROLE_MODE", ROLE_MODE_CODEX).strip().lower()
+    if raw in {ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC}:
+        return raw
+    return ROLE_MODE_CODEX
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run Product Manager release-readiness review and map actionable follow-ups "
+            "into docs/00-context/expected-features.md."
+        )
+    )
+    parser.add_argument(
+        "--root",
+        default=str(ROOT),
+        help="Repository root (defaults to detected root).",
+    )
+    parser.add_argument(
+        "--role-mode",
+        choices=(ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC),
+        default=default_role_mode(),
+        help=(
+            "Role execution mode. "
+            "'codex' runs Product Manager prompt workflow; "
+            "'deterministic' uses local status-based fallback."
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def read_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def json_dumps(data: Any) -> str:
+    return json.dumps(data, ensure_ascii=True, indent=2, sort_keys=True)
+
+
+def extract_json_payload(raw: str) -> str:
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return raw
+    return raw[start : end + 1]
+
+
+def truncate_for_error(raw: str, max_chars: int = 800) -> str:
+    compact = re.sub(r"\s+", " ", raw.strip())
+    if len(compact) <= max_chars:
+        return compact
+    return compact[:max_chars].rstrip() + "..."
+
+
+def load_prompt_template(root: Path, prompt_rel_path: Path) -> str:
+    prompt_path = root / prompt_rel_path
+    if not prompt_path.exists():
+        die(
+            "pc-release-readiness: missing prompt template "
+            f"{prompt_path}; restore prompts under {root / PROMPTS_DIR}"
+        )
+    return prompt_path.read_text(encoding="utf-8")
+
+
+def render_prompt_template(template: str, values: Dict[str, str]) -> str:
+    class StrictMap(dict):
+        def __missing__(self, key):
+            die(f"pc-release-readiness: prompt template missing value for '{key}'")
+            return ""
+
+    return template.format_map(StrictMap(values))
+
+
+def codex_exec_json(
+    *,
+    root: Path,
+    prompt: str,
+    profile: str,
+    label: str,
+) -> Dict[str, Any]:
+    if shutil.which("codex") is None:
+        raise RuntimeError("codex CLI not found in PATH")
+
+    cmd = ["codex", "-C", str(root), "--profile", profile, "exec", prompt]
+    result = subprocess.run(
+        cmd,
+        cwd=str(root),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        combined = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        raise RuntimeError(
+            f"{label} role execution failed with exit {result.returncode}: "
+            f"{truncate_for_error(combined)}"
+        )
+    payload = extract_json_payload(result.stdout or "")
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"{label} role returned non-JSON output: {truncate_for_error(result.stdout or '')}"
+        ) from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{label} role JSON payload must be an object")
+    return data
+
+
+def normalize_issue_list(raw: Any) -> List[Dict[str, str]]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        return [
+            {
+                "summary": "Product Manager returned non-list issues payload.",
+                "risk": "Malformed role output can hide release readiness blockers.",
+                "remediation": "Return issues as a JSON list of {summary, risk, remediation}.",
+            }
+        ]
+    issues: List[Dict[str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        summary = str(item.get("summary", "")).strip()
+        if not summary:
+            continue
+        issues.append(
+            {
+                "summary": summary,
+                "risk": str(item.get("risk", "")).strip()
+                or "Release-readiness rationale missing.",
+                "remediation": str(item.get("remediation", "")).strip()
+                or "Provide concrete PM remediation steps.",
+            }
+        )
+    return issues
+
+
+def normalize_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value).strip())
+
+
+def slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.strip().lower())
+    return slug.strip("-")
+
+
+def priority_rank(priority: str) -> int:
+    if priority == "P0":
+        return 0
+    if priority == "P1":
+        return 1
+    return 2
+
+
+def normalize_priority(raw: Any) -> str:
+    token = str(raw).strip().upper()
+    if token in VALID_PRIORITIES:
+        return token
+    return "P1"
+
+
+def normalize_feature_refs(raw: Any) -> List[str]:
+    if raw is None:
+        return []
+    values: List[str] = []
+    seen = set()
+    if isinstance(raw, (list, tuple)):
+        items = raw
+    else:
+        items = [raw]
+    for item in items:
+        text = normalize_text(item)
+        if not text:
+            continue
+        if text in seen:
+            continue
+        seen.add(text)
+        values.append(text)
+    return values
+
+
+def normalize_bool(raw: Any) -> bool:
+    if isinstance(raw, bool):
+        return raw
+    token = str(raw).strip().lower()
+    return token in {"1", "true", "yes", "y"}
+
+
+def feature_dirs(root: Path) -> List[Path]:
+    base = root / FEATURES_DIR
+    if not base.exists():
+        return []
+    dirs: List[Path] = []
+    for child in base.iterdir():
+        if not child.is_dir():
+            continue
+        if child.name == "feature-template":
+            continue
+        if re.match(r"^\d+-", child.name):
+            dirs.append(child)
+
+    def sort_key(path: Path) -> Tuple[int, str]:
+        match = re.match(r"^(\d+)-", path.name)
+        index = int(match.group(1)) if match else 0
+        return (index, path.name)
+
+    return sorted(dirs, key=sort_key)
+
+
+def status_from_dev_tasks(content: str) -> str:
+    patterns = (
+        r"^\*\*Status:\*\*\s*(.+)$",
+        r"^Status:\s*(.+)$",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, content, flags=re.MULTILINE)
+        if match:
+            return normalize_text(match.group(1))
+    return ""
+
+
+def is_completed_status(status: str) -> bool:
+    token = status.strip().lower()
+    if not token:
+        return False
+    return bool(re.search(r"\b(done|complete|completed|shipped)\b", token))
+
+
+def title_from_spec(content: str, fallback: str) -> str:
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.lower().startswith("# feature specification:"):
+            candidate = stripped.split(":", 1)[1].strip()
+            if candidate:
+                return candidate
+    return fallback
+
+
+def collect_feature_status(root: Path) -> List[FeatureStatus]:
+    items: List[FeatureStatus] = []
+    for feature_dir in feature_dirs(root):
+        spec_path = feature_dir / "feature-spec.md"
+        dev_tasks_path = feature_dir / "dev-tasks.md"
+        spec_rel = str(spec_path.relative_to(root))
+        tasks_rel = str(dev_tasks_path.relative_to(root))
+        spec_content = read_text(spec_path)
+        tasks_content = read_text(dev_tasks_path)
+        fallback_title = feature_dir.name.split("-", 1)[-1].replace("-", " ").strip()
+        title = title_from_spec(spec_content, fallback_title or feature_dir.name)
+
+        if not dev_tasks_path.exists():
+            status = "Missing dev-tasks.md"
+            completed = False
+        else:
+            status = status_from_dev_tasks(tasks_content) or "Unknown"
+            completed = is_completed_status(status)
+
+        items.append(
+            FeatureStatus(
+                feature_id=feature_dir.name,
+                feature_title=title,
+                status=status,
+                completed=completed,
+                spec_path=spec_rel,
+                dev_tasks_path=tasks_rel,
+            )
+        )
+    return items
+
+
+def normalize_release_tasks(raw: Any) -> List[Dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+    normalized: List[Dict[str, Any]] = []
+    seen = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        title = normalize_text(item.get("title", ""))
+        if not title:
+            continue
+        canonical_key = slugify(title)
+        if not canonical_key or canonical_key in seen:
+            continue
+        seen.add(canonical_key)
+        priority = normalize_priority(item.get("priority", "P1"))
+        problem = (
+            normalize_text(item.get("problem", "")) or "Release gap not specified."
+        )
+        outcome = normalize_text(item.get("outcome", "")) or "Outcome not specified."
+        notes = normalize_text(item.get("notes", ""))
+        refs = normalize_feature_refs(item.get("existing_feature_refs"))
+        accepted_for_now = normalize_bool(item.get("accepted_for_now"))
+        normalized.append(
+            {
+                "canonical_key": canonical_key,
+                "title": title,
+                "priority": priority,
+                "problem": problem,
+                "outcome": outcome,
+                "notes": notes,
+                "existing_feature_refs": refs,
+                "accepted_for_now": accepted_for_now,
+            }
+        )
+
+    normalized.sort(
+        key=lambda item: (priority_rank(item["priority"]), item["canonical_key"])
+    )
+    for index, item in enumerate(normalized, start=1):
+        item["task_id"] = f"RR-{index:03d}"
+    return normalized
+
+
+def deterministic_release_assessment(
+    features: Sequence[FeatureStatus],
+) -> Tuple[str, str, List[Dict[str, Any]], List[str], List[Dict[str, str]]]:
+    tasks: List[Dict[str, Any]] = []
+    for feature in features:
+        if feature.completed:
+            continue
+        tasks.append(
+            {
+                "title": f"Complete {feature.feature_id} {feature.feature_title}",
+                "priority": "P0",
+                "problem": (
+                    f"{feature.feature_id} is not complete "
+                    f"(current status: {feature.status})."
+                ),
+                "outcome": (
+                    f"Ship {feature.feature_id} with completed tasks, evidence, and "
+                    "validation logs."
+                ),
+                "notes": (
+                    "Close remaining scope, run required tests, and update logs before "
+                    "release."
+                ),
+                "existing_feature_refs": [feature.feature_id],
+                "accepted_for_now": False,
+            }
+        )
+    normalized_tasks = normalize_release_tasks(tasks)
+    if normalized_tasks:
+        return (
+            "NOT_READY",
+            "Project has incomplete feature work and is not release-ready.",
+            normalized_tasks,
+            [],
+            [],
+        )
+    return (
+        "READY",
+        "No incomplete feature work detected; project is release-ready.",
+        [],
+        [],
+        [],
+    )
+
+
+def normalize_role_payload(
+    payload: Dict[str, Any],
+) -> Tuple[str, str, List[Dict[str, Any]], List[str], List[Dict[str, str]]]:
+    decision = str(payload.get("decision", "")).strip().upper()
+    if decision not in VALID_DECISIONS:
+        raise RuntimeError(
+            f"Product Manager returned invalid decision '{decision or '<empty>'}'"
+        )
+    summary = normalize_text(payload.get("summary", ""))
+    if not summary:
+        summary = "No summary provided."
+    release_tasks = normalize_release_tasks(payload.get("release_tasks", []))
+    accepted_risks = [
+        normalize_text(item)
+        for item in (payload.get("accepted_risks") or [])
+        if normalize_text(item)
+    ]
+    issues = normalize_issue_list(payload.get("issues"))
+
+    if decision == "READY" and release_tasks:
+        decision = "NOT_READY"
+    if decision == "NOT_READY" and not release_tasks and not issues:
+        decision = "READY"
+
+    if decision == "BLOCK" and not issues:
+        issues = [
+            {
+                "summary": "Product Manager blocked release-readiness without issues.",
+                "risk": "No actionable remediation for blocked readiness state.",
+                "remediation": "Return explicit issues with remediation steps.",
+            }
+        ]
+    return decision, summary, release_tasks, accepted_risks, issues
+
+
+def finding_block(
+    *,
+    generated_at: str,
+    decision: str,
+    summary: str,
+    actionable_tasks: Sequence[Dict[str, Any]],
+) -> str:
+    lines = [
+        "## Release Readiness Follow-up Features (Auto-managed)",
+        "",
+        MARKER_START,
+        "",
+        f"- Generated at: {generated_at}",
+        f"- Decision: {decision}",
+        f"- Summary: {summary}",
+        f"- Actionable follow-up features: {len(actionable_tasks)}",
+        "",
+    ]
+    if not actionable_tasks:
+        lines.extend(
+            [
+                "- No release-readiness follow-up features required.",
+                "",
+            ]
+        )
+    else:
+        for task in actionable_tasks:
+            refs = ", ".join(task["existing_feature_refs"]) or "None"
+            notes = task.get("notes", "") or "None."
+            lines.extend(
+                [
+                    f"- Feature: Release readiness {task['task_id']} - {task['title']}",
+                    "  - Owner: Product Manager",
+                    f"  - Problem: {task['problem']}",
+                    f"  - Outcome: {task['outcome']}",
+                    f"  - Priority: {task['priority']}",
+                    f"  - Notes: {notes}",
+                    f"  - Source: release-readiness ({task['task_id']})",
+                    f"  - Existing Feature Refs: {refs}",
+                    "",
+                ]
+            )
+    lines.extend([MARKER_END, ""])
+    return "\n".join(lines)
+
+
+def upsert_expected_features(content: str, block: str) -> str:
+    marker_pattern = re.compile(
+        rf"{re.escape(MARKER_START)}.*?{re.escape(MARKER_END)}",
+        re.DOTALL,
+    )
+    marker_match = marker_pattern.search(block)
+    marker_block = marker_match.group(0) if marker_match else ""
+    if marker_pattern.search(content) and marker_block:
+        return marker_pattern.sub(marker_block, content, count=1)
+    return content.rstrip() + "\n\n" + block.rstrip() + "\n"
+
+
+def run_release_readiness(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    report_path = root / REPORT_PATH
+    expected_features_path = root / EXPECTED_FEATURES_PATH
+
+    features = collect_feature_status(root)
+    feature_payload = [
+        {
+            "feature_id": item.feature_id,
+            "feature_title": item.feature_title,
+            "status": item.status,
+            "completed": item.completed,
+            "spec_path": item.spec_path,
+            "dev_tasks_path": item.dev_tasks_path,
+        }
+        for item in features
+    ]
+
+    if args.role_mode == ROLE_MODE_DETERMINISTIC:
+        (
+            decision,
+            summary,
+            release_tasks,
+            accepted_risks,
+            issues,
+        ) = deterministic_release_assessment(features)
+    else:
+        template = load_prompt_template(root, PM_PROMPT_PATH)
+        prompt = render_prompt_template(
+            template,
+            {
+                "repo_name": root.name,
+                "today_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "prd_markdown": read_text(root / PRD_PATH) or "(missing)",
+                "design_markdown": read_text(root / DESIGN_PATH) or "(missing)",
+                "ux_markdown": read_text(root / UX_PATH) or "(missing)",
+                "security_markdown": read_text(root / SECURITY_PATH) or "(missing)",
+                "expected_features_markdown": read_text(root / EXPECTED_FEATURES_PATH)
+                or "(missing)",
+                "feature_status_json": json.dumps(
+                    feature_payload, ensure_ascii=True, indent=2, sort_keys=True
+                ),
+                "allowed_priorities_json": json.dumps(
+                    list(VALID_PRIORITIES), ensure_ascii=True, sort_keys=True
+                ),
+            },
+        )
+        try:
+            payload = codex_exec_json(
+                root=root,
+                prompt=prompt,
+                profile=os.environ.get(
+                    "RELEASE_READINESS_PM_PROFILE", "ProductManager"
+                ),
+                label="product-manager-release-readiness",
+            )
+            (
+                decision,
+                summary,
+                release_tasks,
+                accepted_risks,
+                issues,
+            ) = normalize_role_payload(payload)
+        except RuntimeError as exc:
+            print(
+                "pc-release-readiness: warning: Product Manager role failed; "
+                f"using deterministic fallback ({exc})"
+            )
+            (
+                decision,
+                summary,
+                release_tasks,
+                accepted_risks,
+                issues,
+            ) = deterministic_release_assessment(features)
+
+    actionable_tasks = [item for item in release_tasks if not item["accepted_for_now"]]
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    if decision != "BLOCK":
+        expected_features = read_text(expected_features_path)
+        if not expected_features.strip():
+            expected_features = "\n".join(
+                [
+                    "# Expected Features",
+                    "",
+                    "## Current Expected Features",
+                    "",
+                ]
+            )
+        block = finding_block(
+            generated_at=generated_at,
+            decision=decision,
+            summary=summary,
+            actionable_tasks=actionable_tasks,
+        )
+        next_expected = upsert_expected_features(expected_features, block)
+        if next_expected != expected_features:
+            write_text(expected_features_path, next_expected)
+
+    report_payload = {
+        "version": 1,
+        "generated_at": generated_at,
+        "role_mode": args.role_mode,
+        "decision": decision,
+        "summary": summary,
+        "totals": {
+            "features_scanned": len(features),
+            "features_completed": len([item for item in features if item.completed]),
+            "features_incomplete": len(
+                [item for item in features if not item.completed]
+            ),
+            "release_tasks": len(release_tasks),
+            "actionable_release_tasks": len(actionable_tasks),
+            "accepted_risks": len(accepted_risks),
+        },
+        "feature_status": feature_payload,
+        "release_tasks": release_tasks,
+        "accepted_risks": accepted_risks,
+        "issues": issues,
+        "notes": [
+            "Machine-managed by tools/pc-release-readiness.",
+            "Actionable follow-up tasks are mirrored into docs/00-context/expected-features.md.",
+        ],
+    }
+    write_text(report_path, json_dumps(report_payload))
+    print(f"pc-release-readiness: wrote report artifact -> {REPORT_PATH}")
+    if decision != "BLOCK":
+        print(
+            "pc-release-readiness: updated expected features -> "
+            f"{EXPECTED_FEATURES_PATH}"
+        )
+
+    print(
+        "pc-release-readiness: complete "
+        f"(decision={decision}, release_tasks={len(release_tasks)}, "
+        f"actionable_release_tasks={len(actionable_tasks)})"
+    )
+    return 0 if decision != "BLOCK" else 1
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv)
+    return run_release_readiness(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

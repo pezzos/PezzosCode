@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check skills-metadata-check feature feature-help feature-status prepare-features review-features ci
+.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check skills-metadata-check feature feature-help feature-status write-prd prepare-features review-features release-readiness ci
 
 fmt:
 	@tools/pc-hooks-run --hook-stage manual --all-files
@@ -38,6 +38,16 @@ feature-status:
 	if [ -n "$(INTERVAL)" ]; then args="$$args --interval $(INTERVAL)"; fi; \
 	tools/pc-feature-status $$args
 
+write-prd:
+	@if [[ "$(HELP)" == "1" || "$(HELP)" == "true" || "$(HELP)" == "yes" ]]; then \
+		tools/pc-write-prd --help; \
+	else \
+		args=""; \
+		if [ -n "$(WRITE_PRD_ROLE_MODE)" ]; then args="$$args --role-mode $(WRITE_PRD_ROLE_MODE)"; fi; \
+		if [ "$(FORCE)" = "1" ] || [ "$(FORCE)" = "true" ]; then args="$$args --force"; fi; \
+		tools/pc-write-prd $$args; \
+	fi
+
 prepare-features:
 	@if [[ "$(HELP)" == "1" || "$(HELP)" == "true" || "$(HELP)" == "yes" ]]; then \
 		tools/pc-prepare-features --help; \
@@ -60,6 +70,15 @@ review-features:
 		if [ "$(INCLUDE_COMPLETED)" = "1" ] || [ "$(INCLUDE_COMPLETED)" = "true" ]; then args="$$args --include-completed"; fi; \
 		if [ "$(SKIP_SCHEMA_CHECK)" = "1" ] || [ "$(SKIP_SCHEMA_CHECK)" = "true" ]; then args="$$args --skip-schema-check"; fi; \
 		tools/pc-review-features $$args; \
+	fi
+
+release-readiness:
+	@if [[ "$(HELP)" == "1" || "$(HELP)" == "true" || "$(HELP)" == "yes" ]]; then \
+		tools/pc-release-readiness --help; \
+	else \
+		args=""; \
+		if [ -n "$(RELEASE_READINESS_ROLE_MODE)" ]; then args="$$args --role-mode $(RELEASE_READINESS_ROLE_MODE)"; fi; \
+		tools/pc-release-readiness $$args; \
 	fi
 
 skills-check:

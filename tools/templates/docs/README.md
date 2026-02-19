@@ -17,10 +17,12 @@
 ## Workflow
 
 1. Start from `docs/00-context/` before changing product or feature docs.
-2. Run `make prepare-features` before feature generation to refresh design/UX/security/order artifacts and write `docs/03-logs/prepare-features-state.json` plus `docs/03-logs/prepare-features-pm-todo.md` (use `INCLUDE_PROCESS_FEATURES=1` only when process features should be generated; use `SNAPSHOT_RUNS=1` for per-run snapshots).
-3. Run `make review-features` after generation to inject Security Expert/Product Manager findings for open/in-progress features (use `INCLUDE_COMPLETED=1` only for explicit audits); actionable tasks are written in `dev-tasks.md`, summary constraints in `feature-spec.md`, and the run report in `docs/03-logs/review-features-report.json`.
-4. Follow `Plan -> Patch -> Test -> Report` for each work item via `make feature`.
-5. Record meaningful changes, decisions, bugs, validations, and insights in `docs/03-logs/`.
+2. Run `make write-prd` to update `docs/01-product/prd.md` in place from context/process inputs and write `docs/03-logs/write-prd-report.json` plus `docs/03-logs/write-prd-state.json`.
+3. Run `make prepare-features` before feature generation to refresh design/UX/security/order artifacts and write `docs/03-logs/prepare-features-state.json` plus `docs/03-logs/prepare-features-pm-todo.md` (use `INCLUDE_PROCESS_FEATURES=1` only when process features should be generated; use `SNAPSHOT_RUNS=1` for per-run snapshots).
+4. Run `make review-features` after generation to inject Security Expert/Product Manager findings for open/in-progress features (use `INCLUDE_COMPLETED=1` only for explicit audits); actionable tasks are written in `dev-tasks.md`, summary constraints in `feature-spec.md`, and the run report in `docs/03-logs/review-features-report.json`.
+5. Follow `Plan -> Patch -> Test -> Report` for each work item via `make feature`.
+6. Run `make release-readiness` when you want a PM go/no-go and follow-up plan; it writes `docs/03-logs/release-readiness-report.json` and updates the machine-managed release-readiness block in `docs/00-context/expected-features.md`.
+7. Record meaningful changes, decisions, bugs, validations, and insights in `docs/03-logs/`.
 
 ## Related Docs
 

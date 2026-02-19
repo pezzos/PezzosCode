@@ -8186,3 +8186,52 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Human validation requests now have a deterministic command-line handoff at the end of execution instead of being buried in markdown.
 - Project-level security direction is now generated during prepare and kept separate from per-feature review-task noise, aligning security guidance with project scope before feature execution starts.
+
+### 2026-02-19 - Implement Phase 1/2: `make write-prd` + PM-only `make release-readiness`
+
+**Feature/Bug:** Add explicit commands for PRD refresh and release-go/no-go planning that feed unresolved work back into planning inputs.
+
+**Changed Files:**
+
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `tools/pc-write-prd`
+- `tools/pc-release-readiness`
+- `prompts/product-manager-write-prd.md`
+- `tools/templates/prompts/product-manager-write-prd.md`
+- `prompts/product-manager-release-readiness.md`
+- `tools/templates/prompts/product-manager-release-readiness.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/README.md`
+- `tools/templates/docs/README.md`
+- `tools/README.md`
+- `tests/test_pc_write_prd.py`
+- `tests/test_pc_release_readiness.py`
+- `tests/test_docs_logs.py`
+
+**What Changed:**
+
+- Added `make write-prd` (live + template Makefiles) and new tool `tools/pc-write-prd`.
+- Implemented `pc-write-prd` with:
+  - Product Manager prompt-driven PRD refresh contract (`product-manager-write-prd.md`),
+  - focused in-place updates to avoid unnecessary PRD rewording,
+  - deterministic fallback mode,
+  - idempotency cache artifact `docs/03-logs/write-prd-state.json`,
+  - run report artifact `docs/03-logs/write-prd-report.json`.
+- Added `make release-readiness` (live + template Makefiles) and new tool `tools/pc-release-readiness`.
+- Implemented PM-only release-readiness with:
+  - Product Manager prompt contract (`product-manager-release-readiness.md`),
+  - deterministic fallback mode,
+  - report artifact `docs/03-logs/release-readiness-report.json`,
+  - machine-managed follow-up feature block updates in `docs/00-context/expected-features.md`.
+- Updated workflow docs/readmes (live + template copies) to document:
+  - `make write-prd` before prepare/generation,
+  - PM-only `make release-readiness` at project-go/no-go time,
+  - loop-back path when release-readiness creates actionable follow-up features.
+- Added regression tests for new tools and updated docs assertions.
+
+**Why:**
+
+- PRD updates now run through a deterministic, idempotent command that keeps stable sections unchanged unless context/process inputs require updates.
+- Release readiness now yields both a status artifact and a concrete planning input surface, so unresolved work is actionable instead of being only informational.

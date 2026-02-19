@@ -10,8 +10,10 @@
 
 1. **Create/Update Context (00-context)**
    - Fill `docs/00-context/*.md` as the source of truth.
-2. **Update PRD (context-to-product)**
-   - Run the skill `context-to-product` to update `docs/01-product/prd.md` in place.
+2. **Write/Refresh PRD (`make write-prd`)**
+   - Runs Product Manager prompt review over context + process docs and existing PRD.
+   - Applies focused updates only (no unnecessary rewording of unchanged sections).
+   - Writes `docs/03-logs/write-prd-report.json` and `docs/03-logs/write-prd-state.json`.
 3. **Prepare Features (`make prepare-features`)**
    - Runs `Architect → UX → Security → dependency planner baseline → Orderer → Product Manager gate → feature generation`.
    - Generates/updates `docs/01-product/design.md`, `docs/01-product/ux-ui.md`, and `docs/01-product/security.md`.
@@ -52,15 +54,22 @@
    - Restart rules: reviewer `BLOCK` returns to Planner; tester `FAIL` returns to Planner; reporter `FAIL` returns to Planner; only reporter `PASS` advances to final orchestrator gates/commit.
    - If any role has no work on a restart pass, record a no-op note in the iteration log and continue to the next role.
    - During the run, roles can propose improvements in feedback fields; after the run completes or stops, the orchestrator writes a clarified, deduplicated collection to `docs/possible-improvements.md`.
-7. **Repeat**
-   - Go back to step 5 for the next feature.
+7. **Release Readiness Check (`make release-readiness`)**
+   - Runs Product Manager role only (no additional specialist profiles in this command).
+   - Writes `docs/03-logs/release-readiness-report.json`.
+   - Updates a machine-managed release-readiness block in `docs/00-context/expected-features.md`.
+   - If actionable follow-up features are added, loop back to step 2 (`make write-prd`) then step 3.
+8. **Repeat**
+   - Continue step 5 execution until target scope is complete, then run step 7.
 
 ## Add Features / Existing Project
 
 1. **Context delta only**
    - Update `docs/00-context/*.md` only if assumptions, constraints, users, or system state changed.
-2. **Update PRD (context-to-product)**
-   - Run the skill `context-to-product` to update `docs/01-product/prd.md` in place.
+2. **Write/Refresh PRD (`make write-prd`)**
+   - Runs Product Manager prompt review over context + process docs and existing PRD.
+   - Applies focused updates only (no unnecessary rewording of unchanged sections).
+   - Writes `docs/03-logs/write-prd-report.json` and `docs/03-logs/write-prd-state.json`.
 3. **Prepare Features (`make prepare-features`)**
    - Refreshes `design.md`, `ux-ui.md`, `security.md`, dependency order plan, and incremental feature generation from the updated PRD.
    - PM approval is semantic, not only structural: block when artifacts are generic/tooling-centric instead of project-specific.
@@ -92,16 +101,22 @@
    - Restart rules: reviewer `BLOCK` returns to Planner; tester `FAIL` returns to Planner; reporter `FAIL` returns to Planner; only reporter `PASS` advances to final orchestrator gates/commit.
    - If any role has no work on a restart pass, record a no-op note in the iteration log and continue to the next role.
    - During the run, roles can propose improvements in feedback fields; after the run completes or stops, the orchestrator writes a clarified, deduplicated collection to `docs/possible-improvements.md`.
-7. **Repeat**
-   - Continue from step 5 until P0/P1 items are complete.
+7. **Release Readiness Check (`make release-readiness`)**
+   - Runs Product Manager role only (no additional specialist profiles in this command).
+   - Writes `docs/03-logs/release-readiness-report.json`.
+   - Updates a machine-managed release-readiness block in `docs/00-context/expected-features.md`.
+   - If actionable follow-up features are added, loop back to step 2 (`make write-prd`) then step 3.
+8. **Repeat**
+   - Continue from step 5 until P0/P1 items are complete, then run step 7.
 
 ## Chain of Truth
 
-Context docs → PRD → design/ux/security blueprints → dependency order plan + prepare state artifact → feature folders → review findings in feature docs + review report artifact → dev-tasks execution logs → Implementation/Decision logs
+Context docs + expected features → write-prd report/state + PRD → design/ux/security blueprints + dependency order plan → feature folders → review findings in feature docs + review report artifact → dev-tasks execution logs → release-readiness report + expected-features follow-ups → PRD refresh loop
 
 ## Update-in-Place Rules (by skill)
 
-- **context-to-product:** update `docs/01-product/prd.md` only; do not create a new PRD file.
+- **make write-prd:** update `docs/01-product/prd.md` in place with focused changes only.
+- **make write-prd:** write `docs/03-logs/write-prd-report.json` and `docs/03-logs/write-prd-state.json`.
 - **make prepare-features:** update `docs/01-product/design.md`, `docs/01-product/ux-ui.md`, `docs/01-product/security.md`, and `docs/02-features/feature-order.{json,md}` before running generation.
 - **make prepare-features:** persist PM loop/runtime state to `docs/03-logs/prepare-features-state.json`.
 - **make prepare-features:** persist PM feedback TODO tracking to `docs/03-logs/prepare-features-pm-todo.md`.
@@ -109,14 +124,17 @@ Context docs → PRD → design/ux/security blueprints → dependency order plan
 - **make prepare-features:** never delete feature folders; skip features marked `Status: Done` in `dev-tasks.md`.
 - **make review-features:** update machine-managed findings sections in `feature-spec.md` and `dev-tasks.md` only.
 - **make review-features:** write aggregated findings report to `docs/03-logs/review-features-report.json`.
+- **make release-readiness:** write `docs/03-logs/release-readiness-report.json`.
+- **make release-readiness:** update only the machine-managed release-readiness block inside `docs/00-context/expected-features.md`.
 - **feature-status-audit:** update task `status` fields for the current feature.
 
 ## Skill Invocation Guide
 
-- **context-to-product**
-  - Reads: `docs/00-context/*.md`
-  - Writes: `docs/01-product/prd.md` (update in place)
-  - Logs: update `docs/03-logs/decision-log.md` when scope/priorities change
+- **make write-prd / tools/pc-write-prd**
+  - Reads: `docs/00-context/*.md`, `docs/04-process/*.md`, `docs/00-context/expected-features.md`, existing `docs/01-product/prd.md`
+  - Reads prompts: `prompts/product-manager-write-prd.md`
+  - Writes: `docs/01-product/prd.md`, `docs/03-logs/write-prd-report.json`, `docs/03-logs/write-prd-state.json`
+  - Logs: update `docs/03-logs/decision-log.md` when priorities/scope materially change
 - **make prepare-features / tools/pc-prepare-features**
   - Reads: `docs/01-product/prd.md`, `docs/00-context/context-boundaries-operating-model.md`, `docs/02-features/AGENTS.md`
   - Reads prompts: `prompts/architect-prepare.md`, `prompts/ux-prepare.md`, `prompts/security-prepare.md`, `prompts/orderer-prepare.md`, `prompts/product-manager-prepare-gate.md`
@@ -127,6 +145,11 @@ Context docs → PRD → design/ux/security blueprints → dependency order plan
   - Reads prompts: `prompts/security-review-features.md`, `prompts/product-manager-review-features.md`
   - Writes: actionable review tasks in `dev-tasks.md`, constraint summaries in `feature-spec.md`, plus `docs/03-logs/review-features-report.json`
   - Logs: update `docs/03-logs/validation-log.md` when review pass completes
+- **make release-readiness / tools/pc-release-readiness**
+  - Reads: `docs/01-product/{prd.md,design.md,ux-ui.md,security.md}`, `docs/02-features/*/{feature-spec.md,dev-tasks.md}`, `docs/00-context/expected-features.md`
+  - Reads prompts: `prompts/product-manager-release-readiness.md`
+  - Writes: `docs/03-logs/release-readiness-report.json`, machine-managed release-readiness block in `docs/00-context/expected-features.md`
+  - Logs: update `docs/03-logs/validation-log.md` when release-readiness pass completes
 - **feature-status-audit**
   - Reads: `docs/02-features/<feature>/dev-tasks.md`
   - Writes: updates task `status` in dev-tasks

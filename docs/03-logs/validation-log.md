@@ -2487,3 +2487,26 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Added Security Expert prepare step generates/promotes `docs/01-product/security.md` and `security.candidate.md`.
   - `pc-feature` now renders deterministic human validation instructions at completion when `### Human Validation Requests` exists.
   - Prompt/template inventory remains synchronized after adding `security-prepare.md`.
+
+## 2026-02-19 - Validate Phase 1/2 (`write-prd` + PM-only `release-readiness`)
+
+- Command: `python3 -m py_compile tools/pc-write-prd tools/pc-release-readiness tests/test_pc_write_prd.py tests/test_pc_release_readiness.py`
+- Result: PASS.
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_write_prd tests.test_pc_release_readiness tests.test_docs_logs tests.test_pc_feature.TestPcFeature.test_prompt_templates_match_prompt_inventory tests.test_bootstrap_into.TestBootstrapInto.test_bootstrap_into_deploys_prompts_as_living_files_only`
+- Result: PASS (`32` tests; offload id `244de80c20a27d89520ae16c7a1ecfddaa7ba6e09ee5b930d6ec1559a99248ac`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_template_sync`
+- Result: PASS (`6` tests; offload id `1419be227fca4297759913f40332214c3897be256b6d0055954b29ec98094692`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_bootstrap_into`
+- Result: PASS (`20` tests; offload id `24ec4ec44cf2c61e47b1ec260507dd9848338feafffa080e208b6f3726bded7b`).
+- Command: `tools/offload-proxy/pp pre-commit run --files Makefile docs/04-process/human-orchestration-workflow.md docs/README.md tests/test_docs_logs.py tools/README.md tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/docs/README.md tools/templates/root/Makefile prompts/product-manager-release-readiness.md prompts/product-manager-write-prd.md tests/test_pc_release_readiness.py tests/test_pc_write_prd.py tools/pc-release-readiness tools/pc-write-prd tools/templates/prompts/product-manager-release-readiness.md tools/templates/prompts/product-manager-write-prd.md`
+- Result: PASS (offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`).
+- Command: `tools/pc-template-sync`
+- Result: PASS.
+- Command: `make write-prd HELP=1`
+- Result: PASS (help output rendered).
+- Command: `make release-readiness HELP=1`
+- Result: PASS (help output rendered).
+- Verification notes:
+  - New Makefile targets (`write-prd`, `release-readiness`) are wired in both live and template roots.
+  - Prompt/template inventories remain synchronized after adding Product Manager prompt files.
+  - Workflow/docs assertions now cover new PRD and release-readiness artifacts.

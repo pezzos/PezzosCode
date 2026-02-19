@@ -1,0 +1,520 @@
+#!/usr/bin/env python3
+"""Write or refresh docs/01-product/prd.md from context with focused updates."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+ROOT = Path(__file__).resolve().parents[1]
+PRD_PATH = Path("docs/01-product/prd.md")
+EXPECTED_FEATURES_PATH = Path("docs/00-context/expected-features.md")
+REPORT_PATH = Path("docs/03-logs/write-prd-report.json")
+STATE_PATH = Path("docs/03-logs/write-prd-state.json")
+PROMPTS_DIR = Path("prompts")
+PM_PROMPT_PATH = PROMPTS_DIR / "product-manager-write-prd.md"
+TEMPLATE_PRD_PATH = Path("tools/templates/docs/01-product/prd.md")
+ROLE_MODE_CODEX = "codex"
+ROLE_MODE_DETERMINISTIC = "deterministic"
+
+CONTEXT_SOURCE_PATHS = (
+    Path("docs/00-context/vision.md"),
+    Path("docs/00-context/users.md"),
+    Path("docs/00-context/system-map.md"),
+    Path("docs/00-context/assumptions.md"),
+    Path("docs/00-context/context-boundaries-operating-model.md"),
+)
+PROCESS_SOURCE_PATHS = (
+    Path("docs/04-process/dev-workflow.md"),
+    Path("docs/04-process/definition-of-done.md"),
+    Path("docs/04-process/testing-strategy.md"),
+    Path("docs/04-process/ticket-execution-protocol.md"),
+    Path("docs/04-process/output-offload.md"),
+    Path("docs/04-process/git-workflow.md"),
+    Path("docs/04-process/human-orchestration-workflow.md"),
+)
+
+VALID_DECISIONS = {"UPDATE", "NO_CHANGE", "BLOCK"}
+
+
+def die(message: str) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def default_role_mode() -> str:
+    raw = os.environ.get("WRITE_PRD_ROLE_MODE", ROLE_MODE_CODEX).strip().lower()
+    if raw in {ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC}:
+        return raw
+    return ROLE_MODE_CODEX
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Refresh docs/01-product/prd.md in place from context/process docs "
+            "using Product Manager review."
+        )
+    )
+    parser.add_argument(
+        "--root",
+        default=str(ROOT),
+        help="Repository root (defaults to detected root).",
+    )
+    parser.add_argument(
+        "--role-mode",
+        choices=(ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC),
+        default=default_role_mode(),
+        help=(
+            "Role execution mode. "
+            "'codex' runs Product Manager prompt workflow; "
+            "'deterministic' applies a local idempotent fallback."
+        ),
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore write-prd state cache and recompute PRD update decisions.",
+    )
+    return parser.parse_args(argv)
+
+
+def read_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def json_dumps(data: Any) -> str:
+    return json.dumps(data, ensure_ascii=True, indent=2, sort_keys=True)
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def extract_json_payload(raw: str) -> str:
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return raw
+    return raw[start : end + 1]
+
+
+def truncate_for_error(raw: str, max_chars: int = 800) -> str:
+    compact = re.sub(r"\s+", " ", raw.strip())
+    if len(compact) <= max_chars:
+        return compact
+    return compact[:max_chars].rstrip() + "..."
+
+
+def load_prompt_template(root: Path, prompt_rel_path: Path) -> str:
+    prompt_path = root / prompt_rel_path
+    if not prompt_path.exists():
+        die(
+            "pc-write-prd: missing prompt template "
+            f"{prompt_path}; restore prompts under {root / PROMPTS_DIR}"
+        )
+    return prompt_path.read_text(encoding="utf-8")
+
+
+def render_prompt_template(template: str, values: Dict[str, str]) -> str:
+    class StrictMap(dict):
+        def __missing__(self, key):
+            die(f"pc-write-prd: prompt template missing value for '{key}'")
+            return ""
+
+    return template.format_map(StrictMap(values))
+
+
+def codex_exec_json(
+    *,
+    root: Path,
+    prompt: str,
+    profile: str,
+    label: str,
+) -> Dict[str, Any]:
+    if shutil.which("codex") is None:
+        raise RuntimeError("codex CLI not found in PATH")
+
+    cmd = ["codex", "-C", str(root), "--profile", profile, "exec", prompt]
+    result = subprocess.run(
+        cmd,
+        cwd=str(root),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        combined = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        raise RuntimeError(
+            f"{label} role execution failed with exit {result.returncode}: "
+            f"{truncate_for_error(combined)}"
+        )
+    payload = extract_json_payload(result.stdout or "")
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"{label} role returned non-JSON output: {truncate_for_error(result.stdout or '')}"
+        ) from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{label} role JSON payload must be an object")
+    return data
+
+
+def normalize_string_list(raw: Any) -> List[str]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        return []
+    values: List[str] = []
+    seen = set()
+    for item in raw:
+        text = re.sub(r"\s+", " ", str(item).strip())
+        if not text:
+            continue
+        if text in seen:
+            continue
+        seen.add(text)
+        values.append(text)
+    return values
+
+
+def normalize_issues(raw: Any) -> List[Dict[str, str]]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        return [
+            {
+                "summary": "Product Manager returned non-list issues payload.",
+                "risk": "Malformed role output can hide missing PRD updates.",
+                "remediation": "Return issues as a JSON list of {summary, risk, remediation}.",
+            }
+        ]
+    issues: List[Dict[str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        summary = str(item.get("summary", "")).strip()
+        if not summary:
+            continue
+        issues.append(
+            {
+                "summary": summary,
+                "risk": str(item.get("risk", "")).strip()
+                or "Role output lacks semantic confidence.",
+                "remediation": str(item.get("remediation", "")).strip()
+                or "Provide an actionable remediation for the PRD update gate.",
+            }
+        )
+    return issues
+
+
+def markdown_bundle(root: Path, rel_paths: Sequence[Path]) -> str:
+    lines: List[str] = []
+    for rel in rel_paths:
+        content = read_text(root / rel).strip()
+        lines.append(f"### {rel.as_posix()}")
+        lines.append("")
+        lines.append(content or "(missing)")
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+def source_fingerprint(root: Path) -> Tuple[str, Dict[str, str]]:
+    payload: Dict[str, str] = {}
+    for rel in [*CONTEXT_SOURCE_PATHS, *PROCESS_SOURCE_PATHS, EXPECTED_FEATURES_PATH]:
+        payload[rel.as_posix()] = sha256_text(read_text(root / rel))
+    digest = sha256_text(json_dumps(payload))
+    return digest, payload
+
+
+def load_state(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return data
+
+
+def deterministic_prd(
+    *,
+    root: Path,
+    existing_prd: str,
+) -> Tuple[str, str, List[str], str, List[str], List[Dict[str, str]]]:
+    if existing_prd.strip():
+        return (
+            "NO_CHANGE",
+            existing_prd,
+            [],
+            "No material changes required.",
+            [],
+            [],
+        )
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    repo_name = root.name
+    template = read_text(root / TEMPLATE_PRD_PATH).strip()
+    if template:
+        generated = template
+        generated = generated.replace("[Product Name]", repo_name)
+        generated = generated.replace("[Version Number]", "0.1")
+        generated = generated.replace(
+            "**Last Updated:** [YYYY-MM-DD]", f"**Last Updated:** {today}"
+        )
+        generated = generated.replace(
+            "**Status:** [Draft | In Review | Approved | Implemented]",
+            "**Status:** Draft",
+        )
+        generated = generated.replace("YYYY-MM-DD", today)
+        return (
+            "UPDATE",
+            generated,
+            ["Overview"],
+            "Created PRD baseline from template because docs/01-product/prd.md was missing.",
+            [],
+            [],
+        )
+
+    generated = "\n".join(
+        [
+            "# Product Requirements Document (PRD)",
+            "",
+            "## Overview",
+            "",
+            f"**Product Name:** {repo_name}",
+            "",
+            "**Version:** 0.1",
+            "",
+            f"**Last Updated:** {today}",
+            "",
+            "**Status:** Draft",
+            "",
+            "## Prioritized Feature List",
+            "",
+            "| Priority | Feature | Outcome | Notes | Dependencies |",
+            "| -------- | ------- | ------- | ----- | ------------ |",
+            "| P0 | TBD | TBD | Generated placeholder | - |",
+            "",
+            "## Workflow/Process Requirements",
+            "",
+            "- Plan -> Patch -> Test -> Report is required.",
+        ]
+    )
+    return (
+        "UPDATE",
+        generated,
+        ["Overview", "Prioritized Feature List", "Workflow/Process Requirements"],
+        "Created minimal PRD baseline because no template was available.",
+        [],
+        [],
+    )
+
+
+def normalize_role_payload(
+    *,
+    payload: Dict[str, Any],
+    existing_prd: str,
+) -> Tuple[str, str, List[str], str, List[str], List[Dict[str, str]]]:
+    decision = str(payload.get("decision", "")).strip().upper()
+    if decision not in VALID_DECISIONS:
+        raise RuntimeError(
+            f"Product Manager returned invalid decision '{decision or '<empty>'}'"
+        )
+
+    prd_markdown = str(payload.get("prd_markdown", "")).strip()
+    if decision in {"UPDATE", "NO_CHANGE"} and not prd_markdown:
+        if decision == "NO_CHANGE" and existing_prd.strip():
+            prd_markdown = existing_prd
+        else:
+            raise RuntimeError(
+                "Product Manager returned empty prd_markdown for non-block decision"
+            )
+    changed_sections = normalize_string_list(payload.get("changed_sections"))
+    change_summary = (
+        str(payload.get("change_summary", "")).strip()
+        or "No material changes required."
+    )
+    open_questions = normalize_string_list(payload.get("open_questions"))
+    issues = normalize_issues(payload.get("issues"))
+    if decision == "BLOCK" and not issues:
+        issues = [
+            {
+                "summary": "Product Manager blocked write-prd without actionable issues.",
+                "risk": "Missing remediation leaves PRD update flow stalled.",
+                "remediation": "Return issues with concrete remediation instructions.",
+            }
+        ]
+    return (
+        decision,
+        prd_markdown,
+        changed_sections,
+        change_summary,
+        open_questions,
+        issues,
+    )
+
+
+def run_write_prd(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    prd_path = root / PRD_PATH
+    report_path = root / REPORT_PATH
+    state_path = root / STATE_PATH
+
+    existing_prd = read_text(prd_path)
+    current_prd_hash = sha256_text(existing_prd)
+    source_hash, source_hashes = source_fingerprint(root)
+    state = load_state(state_path)
+
+    from_cache = False
+    if (
+        not args.force
+        and existing_prd.strip()
+        and state.get("source_hash") == source_hash
+        and state.get("prd_hash") == current_prd_hash
+    ):
+        from_cache = True
+        decision = "NO_CHANGE"
+        prd_markdown = existing_prd
+        changed_sections = []
+        change_summary = "No material changes required."
+        open_questions: List[str] = []
+        issues: List[Dict[str, str]] = []
+    else:
+        if args.role_mode == ROLE_MODE_DETERMINISTIC:
+            (
+                decision,
+                prd_markdown,
+                changed_sections,
+                change_summary,
+                open_questions,
+                issues,
+            ) = deterministic_prd(root=root, existing_prd=existing_prd)
+        else:
+            template = load_prompt_template(root, PM_PROMPT_PATH)
+            prompt = render_prompt_template(
+                template,
+                {
+                    "repo_name": root.name,
+                    "today_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                    "existing_prd_markdown": existing_prd or "(missing)",
+                    "context_markdown_bundle": markdown_bundle(
+                        root, CONTEXT_SOURCE_PATHS
+                    ),
+                    "process_markdown_bundle": markdown_bundle(
+                        root, PROCESS_SOURCE_PATHS
+                    ),
+                    "expected_features_markdown": read_text(
+                        root / EXPECTED_FEATURES_PATH
+                    )
+                    or "(missing)",
+                },
+            )
+            try:
+                payload = codex_exec_json(
+                    root=root,
+                    prompt=prompt,
+                    profile=os.environ.get("WRITE_PRD_PM_PROFILE", "ProductManager"),
+                    label="product-manager-write-prd",
+                )
+                (
+                    decision,
+                    prd_markdown,
+                    changed_sections,
+                    change_summary,
+                    open_questions,
+                    issues,
+                ) = normalize_role_payload(payload=payload, existing_prd=existing_prd)
+            except RuntimeError as exc:
+                print(
+                    "pc-write-prd: warning: Product Manager role failed; "
+                    f"using deterministic fallback ({exc})"
+                )
+                (
+                    decision,
+                    prd_markdown,
+                    changed_sections,
+                    change_summary,
+                    open_questions,
+                    issues,
+                ) = deterministic_prd(root=root, existing_prd=existing_prd)
+
+    prd_updated = False
+    if decision in {"UPDATE", "NO_CHANGE"}:
+        normalized_existing = existing_prd.rstrip() + ("\n" if existing_prd else "")
+        normalized_candidate = prd_markdown.rstrip() + ("\n" if prd_markdown else "")
+        if normalized_candidate != normalized_existing:
+            write_text(prd_path, prd_markdown)
+            prd_updated = True
+            existing_prd = read_text(prd_path)
+            current_prd_hash = sha256_text(existing_prd)
+
+    report_payload = {
+        "version": 1,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "role_mode": args.role_mode,
+        "decision": decision,
+        "prd_path": PRD_PATH.as_posix(),
+        "prd_updated": prd_updated,
+        "changed_sections": changed_sections,
+        "change_summary": change_summary,
+        "open_questions": open_questions,
+        "issues": issues,
+        "from_cache": from_cache,
+        "source_hash": source_hash,
+        "source_hashes": source_hashes,
+        "notes": [
+            "Machine-managed by tools/pc-write-prd.",
+            "Updates are in-place and idempotent when source + PRD hashes are unchanged.",
+        ],
+    }
+    write_text(report_path, json_dumps(report_payload))
+    print(f"pc-write-prd: wrote report artifact -> {REPORT_PATH}")
+
+    if decision != "BLOCK":
+        state_payload = {
+            "version": 1,
+            "generated_at": report_payload["generated_at"],
+            "source_hash": source_hash,
+            "prd_hash": current_prd_hash,
+            "role_mode": args.role_mode,
+            "decision": decision,
+        }
+        write_text(state_path, json_dumps(state_payload))
+
+    print(
+        "pc-write-prd: complete "
+        f"(decision={decision}, prd_updated={1 if prd_updated else 0}, "
+        f"changed_sections={len(changed_sections)})"
+    )
+
+    return 0 if decision != "BLOCK" else 1
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv)
+    return run_write_prd(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
