@@ -3,12 +3,20 @@ import argparse
 import json
 import re
 import shutil
+import sys
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from lib.devtasks_status import (  # noqa: E402
+    is_completed_status,
+    parse_status_from_file,
+)
+
 DEFAULT_PRD_PATH = Path("docs/01-product/prd.md")
 DEFAULT_FEATURES_DIR = Path("docs/02-features")
 FEATURE_ORDER_PLAN_PATH = Path("docs/02-features/feature-order.json")
@@ -325,29 +333,11 @@ def discover_existing_features(
 
 
 def parse_dev_tasks_status(dev_tasks_path: Path) -> Tuple[Optional[str], Optional[str]]:
-    if not dev_tasks_path.exists():
-        return None, "dev-tasks.md missing"
-    content = dev_tasks_path.read_text(encoding="utf-8")
-    for line in content.splitlines():
-        stripped = line.strip()
-        if stripped.lower().startswith("status:"):
-            value = stripped.split(":", 1)[1].strip()
-            if not value:
-                return None, "Status line missing value"
-            return value, None
-        bold_match = re.match(r"^\*\*status:\*\*\s*(.+)$", stripped, re.IGNORECASE)
-        if bold_match:
-            value = bold_match.group(1).strip()
-            if not value:
-                return None, "Status line missing value"
-            return value, None
-    return None, "Status line not found"
+    return parse_status_from_file(dev_tasks_path)
 
 
 def status_is_done(status: Optional[str]) -> bool:
-    if not status:
-        return False
-    return bool(re.match(r"^(done|completed|shipped)\b", status.strip(), re.IGNORECASE))
+    return is_completed_status(status)
 
 
 def next_free_index(by_index: Dict[int, ExistingFeature], start: int) -> int:

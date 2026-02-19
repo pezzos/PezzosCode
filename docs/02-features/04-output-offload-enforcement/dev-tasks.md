@@ -10,7 +10,7 @@
 
 **Feature:** Output offload enforcement
 
-**Status:** In Progress
+Status: In Progress
 
 **Last Updated:** 2026-02-03
 

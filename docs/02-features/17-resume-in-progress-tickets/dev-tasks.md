@@ -8,7 +8,7 @@
 
 **Feature:** Resume in-progress tickets
 
-**Status:** Completed
+Status: Completed
 
 **Last Updated:** 2026-02-12
 

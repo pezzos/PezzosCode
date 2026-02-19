@@ -10,7 +10,7 @@
 
 **Feature:** Simplify worktree tracking
 
-**Status:** Not Started
+Status: Not Started
 
 **Last Updated:** 2026-02-05
 

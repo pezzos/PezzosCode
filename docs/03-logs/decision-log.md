@@ -104,6 +104,30 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-079] - Canonical dev-tasks status format + ordered review scope
+
+**Date:** 2026-02-19
+
+**Status:** Implemented
+
+**Decision:**
+Standardize feature `dev-tasks.md` status handling around a single canonical line format and tighten review scope selection:
+
+1. Canonical status line is `Status: <value>` (legacy `**Status:**` is invalid).
+2. `tools/pc-devtasks-schema-check` fails when legacy/missing/multiple canonical status lines are present.
+3. `tools/pc-review-features` defaults to the current ordered feature set from `feature-order.json`/`prepare-features-state.json` (explicit selector still allowed).
+4. Status parsing/completion detection is centralized in `lib/devtasks_status.py` and reused across review, release-readiness, PRD-to-features, and schema checks.
+
+**Rationale:**
+Mixed status formats caused fragile parsing behavior and inconsistent runtime filtering. Reviewing every numeric folder also reintroduced churn on legacy feature sets. A single status contract plus ordered-scope selection keeps automation deterministic and aligned with current planning artifacts.
+
+**Implications:**
+
+- New and migrated feature docs now use only `Status:`.
+- Pre-commit fails closed for non-canonical status format drift.
+- Default `make review-features` runs focus on the current ordered feature plan, not legacy numbered folders.
+- Shared status helper reduces parser drift across tooling commands.
+
 ### [DEC-078] - Batch A scope/contract hardening for `make review-features`
 
 **Date:** 2026-02-19

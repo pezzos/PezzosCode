@@ -55,7 +55,7 @@ class TestPcReviewFeatures(unittest.TestCase):
             (feature_dir / "dev-tasks.md").write_text(
                 (
                     "# Development Tasks: Alpha Feature\n\n"
-                    "**Status:** Not Started\n\n"
+                    "Status: Not Started\n\n"
                     "## Execution Log\n\n- No runs yet.\n\n"
                     "## Task Breakdown\n\n- [ ] placeholder\n"
                 ),
@@ -142,7 +142,7 @@ class TestPcReviewFeatures(unittest.TestCase):
             (feature_dir / "dev-tasks.md").write_text(
                 (
                     "# Development Tasks: Alpha Feature\n\n"
-                    "**Status:** Not Started\n\n"
+                    "Status: Not Started\n\n"
                     "## Execution Log\n\n- No runs yet.\n\n"
                     "## Task Breakdown\n\n- [ ] placeholder\n"
                 ),
@@ -198,7 +198,7 @@ class TestPcReviewFeatures(unittest.TestCase):
             )
             original_tasks = (
                 "# Development Tasks: Alpha Feature\n\n"
-                "**Status:** Done\n\n"
+                "Status: Done\n\n"
                 "## Execution Log\n\n- No runs yet.\n\n"
                 "## Task Breakdown\n\n- [ ] placeholder\n"
             )
@@ -246,6 +246,98 @@ class TestPcReviewFeatures(unittest.TestCase):
             )
             self.assertEqual(report_payload["totals"]["features_reviewed"], 0)
             self.assertEqual(report_payload["totals"]["features_skipped_completed"], 1)
+
+    def test_review_command_defaults_to_ordered_features(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            features_root = root / "docs/02-features"
+            ordered_feature = features_root / "22-target-feature"
+            legacy_feature = features_root / "01-legacy-feature"
+            ordered_feature.mkdir(parents=True, exist_ok=True)
+            legacy_feature.mkdir(parents=True, exist_ok=True)
+            (root / "docs/01-product").mkdir(parents=True, exist_ok=True)
+
+            (root / "docs/01-product/ux-ui.md").write_text(
+                "# Global UX / UI Blueprint\n\n## User journeys\n\n", encoding="utf-8"
+            )
+            (features_root / "feature-order.json").write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "ordered_feature_slugs": ["target-feature"],
+                    },
+                    ensure_ascii=True,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+            for feature_dir, title in (
+                (ordered_feature, "Target Feature"),
+                (legacy_feature, "Legacy Feature"),
+            ):
+                (feature_dir / "feature-spec.md").write_text(
+                    (
+                        f"# Feature Specification: {title}\n\n"
+                        "## Functional Requirements\n\n"
+                        "- Input parameter drives output path behavior.\n"
+                    ),
+                    encoding="utf-8",
+                )
+                (feature_dir / "dev-tasks.md").write_text(
+                    (
+                        f"# Development Tasks: {title}\n\n"
+                        "Status: Not Started\n\n"
+                        "## Execution Log\n\n- No runs yet.\n\n"
+                        "## Task Breakdown\n\n- [ ] placeholder\n"
+                    ),
+                    encoding="utf-8",
+                )
+
+            legacy_spec_before = (legacy_feature / "feature-spec.md").read_text(
+                encoding="utf-8"
+            )
+            legacy_tasks_before = (legacy_feature / "dev-tasks.md").read_text(
+                encoding="utf-8"
+            )
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(TOOL_PATH),
+                    f"--root={root}",
+                    "--role-mode=deterministic",
+                    "--skip-schema-check",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if result.returncode != 0:
+                self.fail(
+                    f"pc-review-features failed: {result.stderr}\n{result.stdout}"
+                )
+
+            report_payload = json.loads(
+                (root / "docs/03-logs/review-features-report.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(report_payload["totals"]["features_selected"], 1)
+            self.assertEqual(report_payload["totals"]["features_reviewed"], 1)
+            self.assertEqual(
+                [item["feature_id"] for item in report_payload["features"]],
+                ["22-target-feature"],
+            )
+            self.assertEqual(
+                (legacy_feature / "feature-spec.md").read_text(encoding="utf-8"),
+                legacy_spec_before,
+            )
+            self.assertEqual(
+                (legacy_feature / "dev-tasks.md").read_text(encoding="utf-8"),
+                legacy_tasks_before,
+            )
 
     def test_run_security_role_uses_security_expert_profile_by_default(self):
         captured = {"profile": None}

@@ -12,7 +12,7 @@
 
 **Feature:** [Feature Name]
 
-**Status:** [Not Started | In Progress | Complete]
+Status: [Not Started | In Progress | Complete]
 
 **Last Updated:** [YYYY-MM-DD]
 

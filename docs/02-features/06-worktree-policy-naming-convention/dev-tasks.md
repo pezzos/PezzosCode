@@ -10,7 +10,7 @@
 
 **Feature:** Worktree policy + naming convention
 
-**Status:** Not Started
+Status: Not Started
 
 **Last Updated:** 2026-02-04
 

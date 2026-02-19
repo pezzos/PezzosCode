@@ -16,7 +16,16 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from lib.devtasks_status import (  # noqa: E402
+    is_completed_status,
+    parse_status_from_content,
+)
+
 FEATURES_DIR = Path("docs/02-features")
+FEATURE_ORDER_PLAN_PATH = FEATURES_DIR / "feature-order.json"
+PREPARE_FEATURES_STATE_PATH = Path("docs/03-logs/prepare-features-state.json")
 UX_PATH = Path("docs/01-product/ux-ui.md")
 REVIEW_REPORT_PATH = Path("docs/03-logs/review-features-report.json")
 PROMPTS_DIR = Path("prompts")
@@ -362,12 +371,15 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def feature_dirs(root: Path, selector: str) -> List[Path]:
-    features_root = root / FEATURES_DIR
-    if not features_root.exists():
-        return []
+def feature_slug_from_dir_name(name: str) -> str:
+    parts = name.split("-", 1)
+    if len(parts) == 2:
+        return parts[1]
+    return name
+
+
+def numeric_feature_dirs(features_root: Path) -> List[Path]:
     selected: List[Path] = []
-    normalized = selector.strip()
     for entry in sorted(features_root.iterdir(), key=lambda item: item.name):
         if not entry.is_dir():
             continue
@@ -375,11 +387,70 @@ def feature_dirs(root: Path, selector: str) -> List[Path]:
             continue
         if not re.match(r"^\d+-", entry.name):
             continue
-        if normalized:
-            if entry.name == normalized or entry.name.startswith(f"{normalized}-"):
-                selected.append(entry)
+        selected.append(entry)
+    return selected
+
+
+def ordered_feature_slugs(root: Path) -> List[str]:
+    for rel_path in (FEATURE_ORDER_PLAN_PATH, PREPARE_FEATURES_STATE_PATH):
+        path = root / rel_path
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            print(
+                f"pc-review-features: warning: invalid JSON in {rel_path}; "
+                "falling back to numeric feature folder scan"
+            )
+            continue
+        raw_values = payload.get("ordered_feature_slugs")
+        if not isinstance(raw_values, list):
+            continue
+        values: List[str] = []
+        seen = set()
+        for raw in raw_values:
+            token = str(raw).strip()
+            if not token or token in seen:
+                continue
+            seen.add(token)
+            values.append(token)
+        if values:
+            return values
+    return []
+
+
+def feature_dirs(root: Path, selector: str) -> List[Path]:
+    features_root = root / FEATURES_DIR
+    if not features_root.exists():
+        return []
+    numeric_dirs = numeric_feature_dirs(features_root)
+    normalized = selector.strip()
+    if normalized:
+        return [
+            entry
+            for entry in numeric_dirs
+            if entry.name == normalized or entry.name.startswith(f"{normalized}-")
+        ]
+
+    slugs = ordered_feature_slugs(root)
+    if not slugs:
+        return numeric_dirs
+
+    by_slug = {feature_slug_from_dir_name(entry.name): entry for entry in numeric_dirs}
+    selected: List[Path] = []
+    missing: List[str] = []
+    for slug in slugs:
+        entry = by_slug.get(slug)
+        if entry is None:
+            missing.append(slug)
             continue
         selected.append(entry)
+    if missing:
+        print(
+            "pc-review-features: warning: ordered feature slug(s) missing folders: "
+            + ", ".join(missing)
+        )
     return selected
 
 
@@ -483,17 +554,10 @@ def codex_exec_json(
 
 
 def feature_status_from_dev_tasks(content: str) -> str:
-    match = re.search(r"^\*\*Status:\*\*\s*(.+)$", content, flags=re.MULTILINE)
-    if not match:
+    status, _ = parse_status_from_content(content)
+    if not status:
         return ""
-    return match.group(1).strip()
-
-
-def is_completed_status(status: str) -> bool:
-    token = status.strip().lower()
-    if not token:
-        return False
-    return bool(re.search(r"\b(done|complete|completed|shipped)\b", token))
+    return status.strip()
 
 
 def has_measurable_acceptance(feature_spec_content: str) -> bool:

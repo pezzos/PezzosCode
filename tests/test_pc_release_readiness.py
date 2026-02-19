@@ -37,7 +37,7 @@ def write_feature(root: Path, feature_id: str, title: str, status: str) -> None:
     (feature_dir / "dev-tasks.md").write_text(
         (
             f"# Development Tasks: {title}\n\n"
-            f"**Status:** {status}\n\n"
+            f"Status: {status}\n\n"
             "## Task Breakdown\n\n- [ ] Placeholder\n"
         ),
         encoding="utf-8",

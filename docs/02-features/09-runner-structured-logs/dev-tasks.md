@@ -10,7 +10,7 @@
 
 **Feature:** Runner library + structured logs
 
-**Status:** Done
+Status: Done
 
 **Last Updated:** 2026-02-06
 

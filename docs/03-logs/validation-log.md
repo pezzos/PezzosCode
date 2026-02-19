@@ -27,6 +27,21 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-19 - Canonical status enforcement + ordered review scope validation
+
+- `python3 -m py_compile lib/devtasks_status.py tools/pc-review-features tools/pc-release-readiness tools/prd-to-features tools/pc-devtasks-schema-check tests/test_devtasks_status.py tests/test_pc_review_features.py tests/test_pc_release_readiness.py tests/test_prd_to_features.py tests/test_pc_devtasks_schema_check.py` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest tests.test_devtasks_status tests.test_pc_devtasks_schema_check tests.test_pc_review_features tests.test_pc_release_readiness tests.test_prd_to_features` (PASS: 47 tests; offload id `54c225558a95bae830d4b84bee1bc0ba0fd641ac4a4e2810f7bc62ac511d6f5f`)
+- `tools/offload-proxy/pp make lint` (PASS)
+- `tools/offload-proxy/pp make test` (PASS; offload id `f6a33e855c8969cc84f00484e1efe9fec175ec9167121fbca04abc13eed94676`)
+- `python3` runtime probe for `tools/pc-review-features` `feature_dirs(root, '')` (PASS: selected_count=`9`; selected features match ordered slugs in `feature-order.json`)
+
+Verified:
+
+- Canonical status format enforcement is fail-closed (`Status:` required; legacy `**Status:**` rejected).
+- Shared status parsing logic is reused across review-features, release-readiness, PRD-to-features, and schema-check tooling.
+- Default review scope now follows ordered feature slugs (current feature set), while explicit selector behavior is preserved.
+- Repository feature/task docs and template copies now use canonical `Status:` formatting.
+
 ### 2026-02-19 - Batch A review-features scope + canonical task contract validation
 
 - `python3 -m py_compile tools/pc-review-features` (PASS)

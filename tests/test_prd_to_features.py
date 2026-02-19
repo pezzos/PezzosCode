@@ -384,7 +384,7 @@ class PrdToFeaturesTests(unittest.TestCase):
             any("deferred marker" in item.reason for item in summary["skipped"])
         )
 
-    def test_bold_status_done_is_skipped(self):
+    def test_legacy_bold_status_requires_migration(self):
         prd = """## Prioritized Feature List
 
 | Priority | Feature | Outcome | Notes |
@@ -400,8 +400,12 @@ class PrdToFeaturesTests(unittest.TestCase):
         )
         summary = self.tool.apply_prd_to_features(self.root)
         self.assertEqual(len(summary["created"]), 0)
+        self.assertEqual(len(summary["updated"]), 1)
         self.assertTrue(
-            any("Status: Done" in item.reason for item in summary["skipped"])
+            any(
+                "legacy '**Status:**' format is not allowed" in item.reason
+                for item in summary["updated"]
+            )
         )
 
     def test_idempotent_rerun_produces_no_changes(self):

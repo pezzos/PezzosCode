@@ -8,7 +8,7 @@
 
 **Feature:** Commit gated by completed ticket docs
 
-**Status:** Not Started
+Status: Not Started
 
 **Last Updated:** 2026-02-11
 

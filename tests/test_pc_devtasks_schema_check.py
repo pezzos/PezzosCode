@@ -49,6 +49,7 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
     @staticmethod
     def _valid_template_content() -> str:
         return (
+            "Status: Not Started\n\n"
             "## Execution Log\n\n"
             "#### Allowed Tests\n\n"
             "- (list exact commands; each command must resolve via `tools/pc-allowed-tests-check`)\n"
@@ -65,6 +66,7 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
         reporter_outcome = "- Outcome: \n" if include_reporter_outcome else ""
         return (
             f"<!-- devtasks-schema-compat: {marker} -->\n\n"
+            "Status: Not Started\n\n"
             "## Execution Log\n\n"
             "#### Tester Feedback\n\n"
             f"{tester_outcome}"
@@ -84,13 +86,14 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
 
     @staticmethod
     def _valid_feature_content() -> str:
-        return "## Execution Log\n"
+        return "Status: Not Started\n\n## Execution Log\n"
 
     @staticmethod
     def _work_item_with_required_sections(
         *, test_results: str = "- (pending)", tester_feedback: str = "- (pending)"
     ) -> str:
         return (
+            "Status: Not Started\n\n"
             "## Execution Log\n\n"
             "### WI-20260214-01 - Work item execution\n\n"
             "- Date: 2026-02-14\n"
@@ -122,9 +125,39 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
 
             errors = self.checker.run_check(root)
 
-            self.assertEqual(len(errors), 1)
-            self.assertIn("01-sample", errors[0])
-            self.assertIn("## Execution Log", errors[0])
+            self.assertTrue(any("01-sample" in item for item in errors))
+            self.assertTrue(any("## Execution Log" in item for item in errors))
+
+    def test_missing_status_line_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._seed_template(root, self._valid_template_content())
+            self._seed_feature(root, "01-sample", "## Execution Log\n")
+
+            errors = self.checker.run_check(root)
+
+            self.assertTrue(
+                any("missing canonical 'Status:' line" in item for item in errors)
+            )
+
+    def test_legacy_bold_status_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._seed_template(root, self._valid_template_content())
+            self._seed_feature(
+                root,
+                "01-sample",
+                "**Status:** Not Started\n\n## Execution Log\n",
+            )
+
+            errors = self.checker.run_check(root)
+
+            self.assertTrue(
+                any(
+                    "legacy '**Status:**' format is not allowed" in item
+                    for item in errors
+                )
+            )
 
     def test_missing_template_execution_log_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

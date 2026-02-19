@@ -10,7 +10,7 @@
 
 **Feature:** Unified autofix for CI + precommit
 
-**Status:** Done
+Status: Done
 
 **Last Updated:** 2026-02-07
 

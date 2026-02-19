@@ -27,6 +27,51 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-19 - Canonical `Status:` enforcement and ordered default scope for `make review-features`
+
+**Feature/Bug:** `make review-features` continued touching legacy/completed feature folders due broad folder selection and status format drift.
+
+**Changed Files:**
+
+- `lib/devtasks_status.py`
+- `tools/pc-review-features`
+- `tools/pc-release-readiness`
+- `tools/prd-to-features`
+- `tools/pc-devtasks-schema-check`
+- `tests/test_devtasks_status.py`
+- `tests/test_pc_review_features.py`
+- `tests/test_pc_release_readiness.py`
+- `tests/test_prd_to_features.py`
+- `tests/test_pc_devtasks_schema_check.py`
+- `docs/02-features/*/dev-tasks.md` (status-line canonicalization)
+- `docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+
+**What Changed:**
+
+- Added shared status parsing/validation helper in `lib/devtasks_status.py`.
+- Migrated tooling commands to shared helper:
+  - `pc-review-features` now uses shared status parsing and completion detection.
+  - `pc-release-readiness` now uses shared status parsing and completion detection.
+  - `prd-to-features` now uses shared status parsing and completion detection.
+  - `pc-devtasks-schema-check` now enforces canonical `Status:` format and rejects legacy `**Status:**`.
+- Changed `pc-review-features` default feature selection to ordered-scope mode:
+  - Reads `ordered_feature_slugs` from `docs/02-features/feature-order.json` (fallback to `docs/03-logs/prepare-features-state.json`).
+  - Falls back to numeric folder scan only when ordered slugs are unavailable.
+  - Preserves explicit `--feature` selection behavior.
+- Performed one-time status-line migration across feature `dev-tasks.md` files and template copies from `**Status:** ...` to `Status: ...`.
+- Added regression tests for:
+  - shared status helper behavior,
+  - schema-check rejection of legacy status format,
+  - review-features default ordered-scope filtering,
+  - release-readiness/prd-to-features compatibility with canonical status format.
+
+**Why:**
+
+- Single-format status parsing removes ambiguity and parser drift.
+- Failing closed in pre-commit prevents status-format regressions from silently changing tool behavior.
+- Ordered default scope keeps review runs aligned with current planned features and prevents unnecessary rewrites of legacy folders.
+
 ### 2026-02-19 - `prd-to-features` collision-safe append generation
 
 **Feature/Bug:** `make prepare-features` skipped generating new feature folders when PRD indexes drifted onto already-occupied feature indexes.

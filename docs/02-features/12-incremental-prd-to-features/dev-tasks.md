@@ -8,7 +8,7 @@
 
 **Feature:** Incremental prd-to-features
 
-**Status:** Done
+Status: Done
 
 **Last Updated:** 2026-02-09
 

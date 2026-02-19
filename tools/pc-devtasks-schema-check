@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Iterable, List
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(DEFAULT_ROOT))
+
+from lib.devtasks_status import status_format_errors  # noqa: E402
+
 FEATURES_DIR = Path("docs/02-features")
 TEMPLATE_DIRNAME = "feature-template"
 TEMPLATE_SOURCE_DEV_TASKS_REL = Path(
@@ -223,11 +227,15 @@ def check_dev_tasks_file(path: Path, *, label: str) -> List[str]:
     if not path.exists():
         return [f"{label}: missing file {path.as_posix()}"]
     content = path.read_text(encoding="utf-8")
-    missing = missing_sections(content)
     errors = [
+        f"{label}: {issue} in {path.as_posix()}"
+        for issue in status_format_errors(content)
+    ]
+    missing = missing_sections(content)
+    errors.extend(
         f"{label}: missing section '## {section}' in {path.as_posix()}"
         for section in missing
-    ]
+    )
     for work_item_id, block in work_item_blocks(content):
         missing_work_item = missing_work_item_sections(block)
         if not missing_work_item:
@@ -397,8 +405,9 @@ def main(argv: List[str] | None = None) -> int:
             print(f"- {item}", file=sys.stderr)
         print(
             "remediation: align files with docs/02-features/feature-template/dev-tasks.md, "
-            "ensure required sections are present for each work item, and add "
-            "Tester Feedback outcome when Test Results are complete",
+            "use a single canonical 'Status: <value>' line (no '**Status:**'), "
+            "ensure required sections are present for each work item, and add Tester "
+            "Feedback outcome when Test Results are complete",
             file=sys.stderr,
         )
         return 1

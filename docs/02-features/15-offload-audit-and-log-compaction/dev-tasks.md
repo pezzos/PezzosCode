@@ -8,7 +8,7 @@
 
 **Feature:** Offload audit + log compaction
 
-**Status:** Complete
+Status: Complete
 
 **Last Updated:** 2026-02-10
 
