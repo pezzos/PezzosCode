@@ -358,10 +358,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--include-completed",
         action="store_true",
-        help=(
-            "Include features already marked Done/Complete/Completed/Shipped in "
-            "dev-tasks.md."
-        ),
+        help="Include features already marked `Status: Done` in dev-tasks.md.",
     )
     parser.add_argument(
         "--skip-schema-check",
@@ -1254,7 +1251,7 @@ def run_review(args: argparse.Namespace) -> int:
             "Machine-managed by tools/pc-review-features.",
             "Actionable tasks are canonical in dev-tasks.md Review Findings Backlog.",
             "feature-spec.md contains constraint summaries only (no duplicate actionable checklist).",
-            "Completed features are skipped by default unless --include-completed is set.",
+            "Features marked `Status: Done` are skipped by default unless --include-completed is set.",
         ],
     }
     write_text(

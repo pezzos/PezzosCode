@@ -128,7 +128,7 @@ class TestPcReleaseReadiness(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             write_expected_features(root)
-            write_feature(root, "01-alpha-feature", "Alpha Feature", "Completed")
+            write_feature(root, "01-alpha-feature", "Alpha Feature", "Done")
 
             result = subprocess.run(
                 [

@@ -8,8 +8,6 @@
 
 **Feature ID:** `F-08`
 
-**Status:** Draft
-
 **Owner:** Developer/PO
 
 **Last Updated:** 2026-02-19

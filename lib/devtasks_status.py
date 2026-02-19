@@ -8,9 +8,8 @@ from typing import List, Optional, Tuple
 
 CANONICAL_STATUS_PATTERN = re.compile(r"^Status:\s*(.*?)\s*$", re.MULTILINE)
 LEGACY_BOLD_STATUS_PATTERN = re.compile(r"^\*\*Status:\*\*\s*(.*?)\s*$", re.MULTILINE)
-COMPLETED_STATUS_PATTERN = re.compile(
-    r"\b(done|complete|completed|shipped)\b", re.IGNORECASE
-)
+ALLOWED_STATUS_VALUES = ("Not Started", "In Progress", "Done")
+COMPLETED_STATUS_VALUE = "Done"
 
 
 def _canonical_status_values(content: str) -> List[str]:
@@ -40,6 +39,12 @@ def status_format_errors(content: str) -> List[str]:
         errors.append("multiple canonical 'Status:' lines found")
     if any(not value for value in canonical_values):
         errors.append("canonical 'Status:' line is missing a value")
+    for value in canonical_values:
+        if value and value not in ALLOWED_STATUS_VALUES:
+            errors.append(
+                "invalid status value "
+                f"'{value}' (allowed: {', '.join(ALLOWED_STATUS_VALUES)})"
+            )
     return errors
 
 
@@ -55,6 +60,11 @@ def parse_status_from_content(content: str) -> Tuple[Optional[str], Optional[str
         return None, "Status line missing value"
     if len(canonical_values) > 1:
         return value, "Multiple Status lines found"
+    if value not in ALLOWED_STATUS_VALUES:
+        return value, (
+            f"Invalid status value '{value}' "
+            f"(allowed: {', '.join(ALLOWED_STATUS_VALUES)})"
+        )
     return value, None
 
 
@@ -67,4 +77,4 @@ def parse_status_from_file(path: Path) -> Tuple[Optional[str], Optional[str]]:
 def is_completed_status(status: Optional[str]) -> bool:
     if not status:
         return False
-    return bool(COMPLETED_STATUS_PATTERN.search(status.strip()))
+    return status.strip() == COMPLETED_STATUS_VALUE

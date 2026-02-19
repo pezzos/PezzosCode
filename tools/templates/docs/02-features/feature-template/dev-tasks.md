@@ -12,7 +12,7 @@
 
 **Feature:** [Feature Name]
 
-Status: [Not Started | In Progress | Complete]
+Status: Not Started
 
 **Last Updated:** [YYYY-MM-DD]
 
@@ -442,7 +442,7 @@ Work Item IDs increment per feature; the sequence continues across dates.
 
 - **Not Started:** [count]
 - **In Progress:** [count]
-- **Complete:** [count]
+- **Done:** [count]
 - **Blocked:** [count]
 
 ### By Category

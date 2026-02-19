@@ -32,7 +32,7 @@
 4. **Review Features (`make review-features`)**
    - Runs `Security Expert → Product Manager` over generated feature folders.
    - Review role outputs are prompt-driven (`prompts/security-review-features.md`, `prompts/product-manager-review-features.md`) and run in dedicated profile sessions by default.
-   - Skips features already marked `Done/Complete/Completed/Shipped` by default (use `INCLUDE_COMPLETED=1` only for explicit audit runs).
+   - Skips features already marked `Status: Done` by default (use `INCLUDE_COMPLETED=1` only for explicit audit runs).
    - Writes actionable checklist tasks only in `dev-tasks.md` (`Action` + `Acceptance`); `feature-spec.md` receives constraint summaries only.
    - Persists aggregated findings to `docs/03-logs/review-features-report.json`.
 5. **Audit Feature Status (feature-status-audit)**
@@ -124,6 +124,7 @@ Context docs + expected features → write-prd report/state + PRD → design/ux/
 - **make prepare-features:** never delete feature folders; skip features marked `Status: Done` in `dev-tasks.md`.
 - **make review-features:** update machine-managed findings sections in `feature-spec.md` and `dev-tasks.md` only.
 - **make review-features:** write aggregated findings report to `docs/03-logs/review-features-report.json`.
+- **Feature status source of truth:** `dev-tasks.md` (`Status: Not Started | In Progress | Done`); do not track feature status in `feature-spec.md`.
 - **make release-readiness:** write `docs/03-logs/release-readiness-report.json`.
 - **make release-readiness:** update only the machine-managed release-readiness block inside `docs/00-context/expected-features.md`.
 - **feature-status-audit:** update task `status` fields for the current feature.

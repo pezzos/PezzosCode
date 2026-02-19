@@ -8,8 +8,6 @@
 
 **Feature ID:** `F-16`
 
-**Status:** Draft
-
 **Owner:** Developer/PO
 
 **Last Updated:** 2026-02-08

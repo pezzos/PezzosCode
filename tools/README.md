@@ -34,7 +34,7 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 - `pc-prepare-features` writes `docs/03-logs/prepare-features-pm-todo.md` (owner-scoped PM feedback lifecycle).
 - `pc-prepare-features` writes `docs/01-product/security.md` (project-scoped security baseline for implementation/review).
 - `pc-prepare-features --snapshot-runs` writes per-run snapshots to `docs/03-logs/prepare-features-runs/<run-id>/`.
-- `pc-review-features` writes `docs/03-logs/review-features-report.json` (per-feature canonical findings + totals; completed features are skipped by default).
+- `pc-review-features` writes `docs/03-logs/review-features-report.json` (per-feature canonical findings + totals; features with `Status: Done` are skipped by default).
 - `pc-release-readiness` writes `docs/03-logs/release-readiness-report.json` (PM release-go/no-go + follow-up tasks).
 - `pc-release-readiness` updates a machine-managed block in `docs/00-context/expected-features.md` for actionable follow-up features.
 

@@ -104,6 +104,29 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-080] - Single feature status enum in `dev-tasks.md` and no status field in `feature-spec.md`
+
+**Date:** 2026-02-19
+
+**Status:** Implemented
+
+**Decision:**
+Enforce a single feature-level status model with one source of truth:
+
+1. Feature status is tracked only in `dev-tasks.md`.
+2. Allowed status values are exactly: `Not Started`, `In Progress`, `Done`.
+3. `feature-spec.md` no longer carries a status field.
+
+**Rationale:**
+Parallel status fields (`feature-spec.md` + `dev-tasks.md`) created drift and conflicting state. A single enum in one document removes ambiguity and keeps automation decisions deterministic.
+
+**Implications:**
+
+- `pc-devtasks-schema-check` now rejects non-enum values and legacy status formats.
+- Tooling completion checks now treat only `Status: Done` as completed.
+- Existing feature `dev-tasks.md` values were normalized (`Complete`/`Completed` -> `Done`).
+- Feature spec templates and generated feature specs no longer include `**Status:**` blocks.
+
 ### [DEC-079] - Canonical dev-tasks status format + ordered review scope
 
 **Date:** 2026-02-19

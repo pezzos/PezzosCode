@@ -27,6 +27,22 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-19 - Strict feature status enum + feature-spec status removal validation
+
+- `python3 -m py_compile lib/devtasks_status.py tools/pc-review-features tools/pc-release-readiness tools/prd-to-features tools/pc-devtasks-schema-check tests/test_devtasks_status.py tests/test_pc_devtasks_schema_check.py tests/test_pc_review_features.py tests/test_pc_release_readiness.py tests/test_prd_to_features.py` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest tests.test_devtasks_status tests.test_pc_devtasks_schema_check tests.test_pc_review_features tests.test_pc_release_readiness tests.test_prd_to_features` (PASS: 50 tests; offload id `de47b82ae529f08cc7f1cab0d25ee565a9b50ea87f8e31246966022b5a42e704`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 24 tests; offload id `84a7ab403af2322bcfe6ed0618c774e421b8a5f5727f8ebb8e27ca6605d61cd1`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"` (PASS: 14 tests; offload id `ac6e9da8bd627c0143d4f0935a2191f667799eff6766b01790f29565bc679b61`)
+- `tools/offload-proxy/pp make lint` (RUN1 FAIL: template used status placeholder value outside strict enum; offload id `0302301a9830b2f6ff8306d5b6607a8da00d8a1d454048ca1a4b3d7cae3a7a5a`; RUN2 PASS after template status default updated)
+- `tools/offload-proxy/pp make test` (PASS; offload id `ce4c63a3b7c044a9716daf5c8a606b4f2d1611c895118d54e7ac5c798d9470b8`)
+
+Verified:
+
+- Feature status enum is now strictly enforced as `Not Started | In Progress | Done`.
+- Completion-sensitive tooling treats only `Status: Done` as completed.
+- `feature-spec.md` status field is removed from templates and generated content.
+- Existing feature docs were normalized so status semantics are deterministic across commands.
+
 ### 2026-02-19 - Canonical status enforcement + ordered review scope validation
 
 - `python3 -m py_compile lib/devtasks_status.py tools/pc-review-features tools/pc-release-readiness tools/prd-to-features tools/pc-devtasks-schema-check tests/test_devtasks_status.py tests/test_pc_review_features.py tests/test_pc_release_readiness.py tests/test_prd_to_features.py tests/test_pc_devtasks_schema_check.py` (PASS)

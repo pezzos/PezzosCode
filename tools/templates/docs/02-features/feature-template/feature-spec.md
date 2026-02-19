@@ -8,8 +8,6 @@
 
 **Feature ID:** `[unique-id]`
 
-**Status:** [Draft | In Review | Approved | In Development | Shipped]
-
 **Owner:** [Team/Person]
 
 **Last Updated:** [YYYY-MM-DD]

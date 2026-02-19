@@ -27,6 +27,55 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-19 - Enforce `Not Started | In Progress | Done` and remove `feature-spec.md` status field
+
+**Feature/Bug:** Feature status values drifted (`Done`/`Complete`/`Completed`) and `feature-spec.md` status could conflict with `dev-tasks.md`.
+
+**Changed Files:**
+
+- `lib/devtasks_status.py`
+- `tools/pc-devtasks-schema-check`
+- `tools/pc-review-features`
+- `tools/pc-release-readiness`
+- `tools/prd-to-features`
+- `docs/02-features/*/dev-tasks.md` (status normalization)
+- `docs/02-features/*/feature-spec.md` (status field removed)
+- `docs/02-features/feature-template/dev-tasks.md`
+- `docs/02-features/feature-template/feature-spec.md`
+- `tools/templates/docs/02-features/feature-template/dev-tasks.md`
+- `tools/templates/docs/02-features/feature-template/feature-spec.md`
+- `docs/README.md`
+- `tools/templates/docs/README.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `tools/README.md`
+- `tests/test_devtasks_status.py`
+- `tests/test_pc_devtasks_schema_check.py`
+- `tests/test_pc_release_readiness.py`
+
+**What Changed:**
+
+- Tightened status validation contract to exact enum values:
+  - `Status: Not Started`
+  - `Status: In Progress`
+  - `Status: Done`
+- Updated shared helper (`lib/devtasks_status.py`) so:
+  - non-enum values are flagged,
+  - only `Done` is considered completed.
+- Schema check now fails on invalid status values (in addition to format errors).
+- Runtime completion logic for review/release/prepare feature flows now relies on strict `Done` semantics via shared helper.
+- Removed status field from feature spec templates and generated feature spec output.
+- Migrated repository feature docs:
+  - `dev-tasks.md` status values normalized to enum (`Complete`/`Completed` -> `Done`),
+  - `feature-spec.md` status lines removed.
+- Updated process/docs wording to explicitly state status source of truth is `dev-tasks.md` only.
+
+**Why:**
+
+- One status source avoids contradictory states between feature documents.
+- Strict enum enforcement prevents silent semantic drift in automation decisions.
+- Removing `feature-spec.md` status eliminates duplicate lifecycle tracking fields.
+
 ### 2026-02-19 - Canonical `Status:` enforcement and ordered default scope for `make review-features`
 
 **Feature/Bug:** `make review-features` continued touching legacy/completed feature folders due broad folder selection and status format drift.

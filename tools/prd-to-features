@@ -459,7 +459,6 @@ def render_feature_spec(
         "---\n\n"
         "## Overview\n\n"
         f"**Feature ID:** `F-{feature.index:02d}`\n\n"
-        "**Status:** Draft\n\n"
         "**Owner:** Developer/PO\n\n"
         f"**Last Updated:** {updated_on}\n\n"
         "### Summary\n\n"

@@ -159,6 +159,22 @@ class TestPcDevtasksSchemaCheck(unittest.TestCase):
                 )
             )
 
+    def test_invalid_status_value_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self._seed_template(root, self._valid_template_content())
+            self._seed_feature(
+                root,
+                "01-sample",
+                "Status: Completed\n\n## Execution Log\n",
+            )
+
+            errors = self.checker.run_check(root)
+
+            self.assertTrue(
+                any("invalid status value" in item.lower() for item in errors)
+            )
+
     def test_missing_template_execution_log_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

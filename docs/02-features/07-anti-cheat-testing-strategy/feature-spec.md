@@ -8,8 +8,6 @@
 
 **Feature ID:** `F-07`
 
-**Status:** Shipped
-
 **Owner:** Developer/PO
 
 **Last Updated:** 2026-02-05

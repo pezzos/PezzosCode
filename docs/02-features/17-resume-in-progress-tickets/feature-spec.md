@@ -8,8 +8,6 @@
 
 **Feature ID:** `F-17`
 
-**Status:** Completed
-
 **Owner:** Developer/PO
 
 **Last Updated:** 2026-02-12
