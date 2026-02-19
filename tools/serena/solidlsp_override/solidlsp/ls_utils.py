@@ -265,15 +265,17 @@ class FileUtils:
                 os.makedirs(target_path, exist_ok=True)
                 tmp_file_name_ungzipped = tmp_file_name + ".zip"
                 tmp_files.append(tmp_file_name_ungzipped)
-                with gzip.open(tmp_file_name, "rb") as f_in, open(
-                    tmp_file_name_ungzipped, "wb"
-                ) as f_out:
+                with (
+                    gzip.open(tmp_file_name, "rb") as f_in,
+                    open(tmp_file_name_ungzipped, "wb") as f_out,
+                ):
                     shutil.copyfileobj(f_in, f_out)
                 shutil.unpack_archive(tmp_file_name_ungzipped, target_path, "zip")
             elif archive_type == "gz":
-                with gzip.open(tmp_file_name, "rb") as f_in, open(
-                    target_path, "wb"
-                ) as f_out:
+                with (
+                    gzip.open(tmp_file_name, "rb") as f_in,
+                    open(target_path, "wb") as f_out,
+                ):
                     shutil.copyfileobj(f_in, f_out)
             elif archive_type == "binary":
                 # For single binary files, just move to target without extraction
