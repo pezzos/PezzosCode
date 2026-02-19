@@ -27,6 +27,32 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-19 - `prd-to-features` collision-safe append generation
+
+**Feature/Bug:** `make prepare-features` skipped generating new feature folders when PRD indexes drifted onto already-occupied feature indexes.
+
+**Changed Files:**
+
+- `tools/prd-to-features`
+- `tests/test_prd_to_features.py`
+
+**What Changed:**
+
+- Updated feature matching precedence in `tools/prd-to-features` to prefer slug matches over index matches.
+- Added append-only index collision handling:
+  - when the requested PRD index is already used by another slug, the tool now creates the new feature at the next free index instead of skipping.
+- Kept completed feature folders frozen:
+  - existing `Status: Done` folders are still skipped (not rewritten/reopened), even if PRD ordering drifts.
+- Added regression coverage for:
+  - index-collision append creation,
+  - append-creation idempotence on rerun,
+  - done-feature freeze behavior under index drift.
+
+**Why:**
+
+- Release-readiness and PRD rewrites can reorder rows without renaming existing feature folders.
+- Append-only collision handling preserves idempotence while ensuring newly expected features are still materialized.
+
 ### 2026-02-19 - Batch A review-features hardening (scope, canonical tasks, simplified task contract)
 
 **Feature/Bug:** Review findings were too broad/noisy, duplicated actionable details across docs, and continued to generate tasks for already completed features.

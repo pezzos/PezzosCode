@@ -202,6 +202,33 @@ class PrdToFeaturesTests(unittest.TestCase):
             any("Status: Done" in item.reason for item in summary["skipped"])
         )
 
+    def test_done_feature_slug_is_frozen_even_when_index_collides(self):
+        prd = """## Prioritized Feature List (Template)
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | X | Y |
+"""
+        write_prd(self.root, prd)
+        drift_dir = self.root / "docs/02-features/01-old-slug"
+        drift_dir.mkdir(parents=True)
+        (drift_dir / "dev-tasks.md").write_text(
+            "## Overview\n\nStatus: In Progress\n", encoding="utf-8"
+        )
+        done_dir = self.root / "docs/02-features/03-alpha-feature"
+        done_dir.mkdir(parents=True)
+        (done_dir / "dev-tasks.md").write_text(
+            "## Overview\n\nStatus: Done\n", encoding="utf-8"
+        )
+        summary = self.tool.apply_prd_to_features(self.root)
+        self.assertEqual(len(summary["created"]), 0)
+        self.assertTrue(
+            any(item.name == "03-alpha-feature" for item in summary["skipped"])
+        )
+        self.assertTrue(
+            any("Status: Done" in item.reason for item in summary["skipped"])
+        )
+
     def test_update_missing_files_for_existing_not_done(self):
         prd = """## Prioritized Feature List (Template)
 
@@ -293,7 +320,7 @@ class PrdToFeaturesTests(unittest.TestCase):
             or "hydrated" in summary["updated"][0].reason
         )
 
-    def test_slug_drift_by_index_skips_duplicate_creation(self):
+    def test_slug_drift_by_index_creates_next_free_feature(self):
         prd = """## Prioritized Feature List (Template)
 
 | Priority | Feature | Outcome | Notes |
@@ -308,13 +335,35 @@ class PrdToFeaturesTests(unittest.TestCase):
         )
         summary = self.tool.apply_prd_to_features(self.root)
         created = [item.name for item in summary["created"]]
-        self.assertNotIn("01-alpha-feature", created)
-        drift_reasons = [
-            item.reason for bucket in ("skipped", "updated") for item in summary[bucket]
-        ]
+        self.assertIn("02-alpha-feature", created)
+        drift_reasons = [item.reason for item in summary["created"]]
         self.assertTrue(
-            any("index 01 already mapped" in reason for reason in drift_reasons)
+            any("created at index 02" in reason for reason in drift_reasons)
         )
+
+    def test_slug_drift_append_creation_is_idempotent(self):
+        prd = """## Prioritized Feature List (Template)
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | X | Y |
+"""
+        write_prd(self.root, prd)
+        drift_dir = self.root / "docs/02-features/01-old-slug"
+        drift_dir.mkdir(parents=True)
+        (drift_dir / "dev-tasks.md").write_text(
+            "## Overview\n\nStatus: In Progress\n", encoding="utf-8"
+        )
+        first = self.tool.apply_prd_to_features(self.root)
+        self.assertEqual([item.name for item in first["created"]], ["02-alpha-feature"])
+        second = self.tool.apply_prd_to_features(self.root)
+        self.assertEqual(len(second["created"]), 0)
+        feature_dirs = sorted(
+            path.name
+            for path in (self.root / "docs/02-features").iterdir()
+            if path.is_dir() and "alpha-feature" in path.name
+        )
+        self.assertEqual(feature_dirs, ["02-alpha-feature"])
 
     def test_skip_features_marked_deferred_in_logs(self):
         prd = """## Prioritized Feature List

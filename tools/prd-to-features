@@ -350,6 +350,13 @@ def status_is_done(status: Optional[str]) -> bool:
     return bool(re.match(r"^(done|completed|shipped)\b", status.strip(), re.IGNORECASE))
 
 
+def next_free_index(by_index: Dict[int, ExistingFeature], start: int) -> int:
+    index = max(1, start)
+    while index in by_index:
+        index += 1
+    return index
+
+
 def feature_matches_line(feature: FeatureRecord, line: str) -> bool:
     normalized = line.lower()
     if feature.title.lower() in normalized:
@@ -818,14 +825,8 @@ def apply_prd_to_features(
         desired_name = f"{desired_index:02d}-{desired_slug}"
         existing_feature = None
         drift_reason = None
-        if desired_index in by_index:
-            existing_feature = by_index[desired_index]
-            if existing_feature.slug != desired_slug:
-                drift_reason = (
-                    f"index {desired_index:02d} already mapped to "
-                    f"{existing_feature.path.name}; not renaming"
-                )
-        elif desired_slug in by_slug:
+        index_feature = by_index.get(desired_index)
+        if desired_slug in by_slug:
             existing_feature = by_slug[desired_slug]
             if (
                 existing_feature.index is not None
@@ -834,6 +835,8 @@ def apply_prd_to_features(
                 drift_reason = (
                     f"slug exists at index {existing_feature.index:02d}; not reindexing"
                 )
+        elif index_feature and index_feature.slug == desired_slug:
+            existing_feature = index_feature
         if feature.slug in log_skip_reasons:
             reason_parts = [log_skip_reasons[feature.slug]]
             if drift_reason:
@@ -909,7 +912,16 @@ def apply_prd_to_features(
                     )
                 )
             continue
-        target_dir = features_root / desired_name
+        target_index = desired_index
+        creation_drift_reason = drift_reason
+        if index_feature and index_feature.slug != desired_slug:
+            target_index = next_free_index(by_index, desired_index)
+            creation_drift_reason = (
+                f"index {desired_index:02d} already mapped to "
+                f"{index_feature.path.name}; created at index {target_index:02d}"
+            )
+        target_name = f"{target_index:02d}-{desired_slug}"
+        target_dir = features_root / target_name
         created, _ = create_feature_folder(target_dir, template_dir)
         hydrated = hydrate_core_documents(target_dir, feature, surfaces, force=True)
         repaired_exec_log = ensure_execution_log_section(target_dir / "dev-tasks.md")
@@ -919,18 +931,20 @@ def apply_prd_to_features(
         reason_parts = [f"missing feature folder from PRD ({feature.priority})"]
         if hydrated:
             reason_parts.append("hydrated core docs")
+        if creation_drift_reason:
+            reason_parts.append(creation_drift_reason)
         summary["created"].append(
             ActionResult(
-                name=desired_name,
+                name=target_name,
                 action="created",
                 reason="; ".join(reason_parts),
                 details=details,
             )
         )
         new_feature = ExistingFeature(
-            path=target_dir, index=desired_index, slug=desired_slug
+            path=target_dir, index=target_index, slug=desired_slug
         )
-        by_index.setdefault(desired_index, new_feature)
+        by_index.setdefault(target_index, new_feature)
         by_slug.setdefault(desired_slug, new_feature)
     return summary
 
