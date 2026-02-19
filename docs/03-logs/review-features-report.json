@@ -1,15 +1,574 @@
 {
   "features": [
     {
-      "feature_id": "07-anti-cheat-testing-strategy",
-      "feature_status": "Complete",
+      "dev_tasks_path": "docs/02-features/22-bootstrap-safe-template-reapply/dev-tasks.md",
+      "feature_id": "22-bootstrap-safe-template-reapply",
+      "feature_status": "Not Started",
+      "feature_title": "Bootstrap + safe template reapply",
       "human_validation_requests": [],
-      "product_findings": [],
-      "security_findings": [],
-      "status": "skipped-completed"
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-22-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-22-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-22-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-22-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-22-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/22-bootstrap-safe-template-reapply/feature-spec.md",
+      "status": "reviewed"
+    },
+    {
+      "dev_tasks_path": "docs/02-features/23-output-offload-token-budget-guardrails-structured-logs-shared-runner/dev-tasks.md",
+      "feature_id": "23-output-offload-token-budget-guardrails-structured-logs-shared-runner",
+      "feature_status": "Not Started",
+      "feature_title": "Output offload + token budget guardrails + structured logs + shared runner",
+      "human_validation_requests": [],
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-23-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-23-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-23-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-23-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-23-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/23-output-offload-token-budget-guardrails-structured-logs-shared-runner/feature-spec.md",
+      "status": "reviewed"
+    },
+    {
+      "dev_tasks_path": "docs/02-features/25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults/dev-tasks.md",
+      "feature_id": "25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults",
+      "feature_status": "Not Started",
+      "feature_title": "Deterministic work-item execution with explicit gates + zero-input defaults",
+      "human_validation_requests": [],
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-25-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-25-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-25-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-25-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-25-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/25-deterministic-work-item-execution-with-explicit-gates-zero-input-defaults/feature-spec.md",
+      "status": "reviewed"
+    },
+    {
+      "dev_tasks_path": "docs/02-features/26-single-worktree-orchestration-template-drift-hardening/dev-tasks.md",
+      "feature_id": "26-single-worktree-orchestration-template-drift-hardening",
+      "feature_status": "Not Started",
+      "feature_title": "Single-worktree orchestration + template-drift hardening",
+      "human_validation_requests": [],
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-26-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-26-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-26-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-26-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-26-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/26-single-worktree-orchestration-template-drift-hardening/feature-spec.md",
+      "status": "reviewed"
+    },
+    {
+      "dev_tasks_path": "docs/02-features/27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate/dev-tasks.md",
+      "feature_id": "27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate",
+      "feature_status": "Not Started",
+      "feature_title": "Resume safety + deterministic auto-recovery + fail-closed commit gate",
+      "human_validation_requests": [],
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-27-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-27-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-27-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-27-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-27-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/27-resume-safety-deterministic-auto-recovery-fail-closed-commit-gate/feature-spec.md",
+      "status": "reviewed"
+    },
+    {
+      "dev_tasks_path": "docs/02-features/28-orchestrator-roles-plan-reviewer-gate-role-specific-prompts/dev-tasks.md",
+      "feature_id": "28-orchestrator-roles-plan-reviewer-gate-role-specific-prompts",
+      "feature_status": "Not Started",
+      "feature_title": "Orchestrator roles + Plan Reviewer gate + role-specific prompts",
+      "human_validation_requests": [],
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-28-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-28-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-28-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-28-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-28-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/28-orchestrator-roles-plan-reviewer-gate-role-specific-prompts/feature-spec.md",
+      "status": "reviewed"
+    },
+    {
+      "dev_tasks_path": "docs/02-features/29-anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature/dev-tasks.md",
+      "feature_id": "29-anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature",
+      "feature_status": "Not Started",
+      "feature_title": "Anti-hardcode test policy + synthetic end-to-end smoke feature",
+      "human_validation_requests": [],
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-29-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-29-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-29-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-29-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-29-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/29-anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature/feature-spec.md",
+      "status": "reviewed"
+    },
+    {
+      "dev_tasks_path": "docs/02-features/30-incremental-prd-to-features-post-run-learning-loop/dev-tasks.md",
+      "feature_id": "30-incremental-prd-to-features-post-run-learning-loop",
+      "feature_status": "Not Started",
+      "feature_title": "Incremental PRD-to-features + post-run learning loop",
+      "human_validation_requests": [],
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-30-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-30-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-30-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-30-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-30-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/30-incremental-prd-to-features-post-run-learning-loop/feature-spec.md",
+      "status": "reviewed"
+    },
+    {
+      "dev_tasks_path": "docs/02-features/31-workflow-complexity-reduction-skill-inventory-pruning/dev-tasks.md",
+      "feature_id": "31-workflow-complexity-reduction-skill-inventory-pruning",
+      "feature_status": "Not Started",
+      "feature_title": "Workflow complexity reduction + skill inventory pruning",
+      "human_validation_requests": [],
+      "product_findings": [
+        {
+          "acceptance": "Feature spec includes a concrete journey with deterministic completion and error-state expectations.",
+          "action": "Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).",
+          "blocking": true,
+          "canonical_key": "PROD-USER-JOURNEY",
+          "finding_id": "PROD-31-002",
+          "severity": "Medium",
+          "spec_guidance": "Describe the user journey for this feature including entry point, completion state, and error path expectation.",
+          "title": "User journey details are missing"
+        },
+        {
+          "acceptance": "Acceptance criteria include measurable checks that can be validated without subjective interpretation.",
+          "action": "Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.",
+          "blocking": false,
+          "canonical_key": "PROD-MEASURABLE-ACCEPTANCE",
+          "finding_id": "PROD-31-005",
+          "severity": "Medium",
+          "spec_guidance": "Define measurable acceptance outcomes for this feature so completion can be verified objectively.",
+          "title": "Acceptance criteria are not measurable"
+        }
+      ],
+      "security_findings": [
+        {
+          "acceptance": "Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.",
+          "action": "Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.",
+          "blocking": true,
+          "canonical_key": "SEC-ACCESS-CONTROL",
+          "finding_id": "SEC-31-002",
+          "severity": "High",
+          "spec_guidance": "Document required authorization expectations and denied-path behavior for feature actions that can change protected state.",
+          "title": "Access-control expectations are missing for feature scope"
+        },
+        {
+          "acceptance": "Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.",
+          "action": "Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.",
+          "blocking": true,
+          "canonical_key": "SEC-LOG-REDACTION",
+          "finding_id": "SEC-31-003",
+          "severity": "Medium",
+          "spec_guidance": "If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.",
+          "title": "Sensitive-data redaction is undefined for feature logging/output"
+        },
+        {
+          "acceptance": "Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.",
+          "action": "Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.",
+          "blocking": true,
+          "canonical_key": "SEC-PATH-SAFETY",
+          "finding_id": "SEC-31-004",
+          "severity": "High",
+          "spec_guidance": "Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.",
+          "title": "Path-safety constraints are missing for feature file operations"
+        }
+      ],
+      "spec_path": "docs/02-features/31-workflow-complexity-reduction-skill-inventory-pruning/feature-spec.md",
+      "status": "reviewed"
     }
   ],
-  "generated_at": "2026-02-19T17:21:14Z",
+  "generated_at": "2026-02-19T18:32:59Z",
   "include_completed": false,
   "notes": [
     "Machine-managed by tools/pc-review-features.",
@@ -17,19 +576,19 @@
     "feature-spec.md contains constraint summaries only (no duplicate actionable checklist).",
     "Completed features are skipped by default unless --include-completed is set."
   ],
-  "role_mode": "deterministic",
-  "selector": "07",
+  "role_mode": "codex",
+  "selector": "all",
   "totals": {
-    "blocking_findings": 0,
-    "features_reviewed": 0,
-    "features_selected": 1,
-    "features_skipped": 1,
-    "features_skipped_completed": 1,
-    "features_updated": 0,
-    "features_with_findings": 0,
+    "blocking_findings": 36,
+    "features_reviewed": 9,
+    "features_selected": 9,
+    "features_skipped": 0,
+    "features_skipped_completed": 0,
+    "features_updated": 9,
+    "features_with_findings": 9,
     "human_validation_requests": 0,
-    "product_findings": 0,
-    "security_findings": 0
+    "product_findings": 18,
+    "security_findings": 27
   },
   "version": 3
 }

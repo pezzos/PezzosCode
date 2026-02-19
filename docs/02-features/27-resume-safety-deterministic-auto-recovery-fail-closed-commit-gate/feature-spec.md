@@ -101,3 +101,30 @@ Interrupted runs resume safely; common deterministic failures self-heal safely.
 
 - Source notes: Active-WIP preserve by default; strict commit gate
 - Ambiguous acceptance criteria can cause rework if not clarified during planning.
+
+## Automated Review Summary
+
+<!-- review-findings:start -->
+
+### Security Constraints
+
+- `SEC-27-002` Access-control expectations are missing for feature scope
+  - Specification constraint: Document required authorization expectations and denied-path behavior for feature actions that can change protected state.
+  - Blocking: Yes
+- `SEC-27-003` Sensitive-data redaction is undefined for feature logging/output
+  - Specification constraint: If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.
+  - Blocking: Yes
+- `SEC-27-004` Path-safety constraints are missing for feature file operations
+  - Specification constraint: Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.
+  - Blocking: Yes
+
+### Product Constraints
+
+- `PROD-27-002` User journey details are missing
+  - Specification constraint: Describe the user journey for this feature including entry point, completion state, and error path expectation.
+  - Blocking: Yes
+- `PROD-27-005` Acceptance criteria are not measurable
+  - Specification constraint: Define measurable acceptance outcomes for this feature so completion can be verified objectively.
+  - Blocking: No
+
+<!-- review-findings:end -->
