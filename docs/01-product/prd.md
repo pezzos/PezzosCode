@@ -8,9 +8,9 @@
 
 **Product Name:** PezzosCode
 
-**Version:** 0.6
+**Version:** 0.7
 
-**Last Updated:** 2026-02-13
+**Last Updated:** 2026-02-19
 
 **Status:** Draft
 
@@ -122,22 +122,26 @@ Execution stays local (macOS CLI), with explicit human gates for HIGH-risk work 
 
 <!-- Ordered list of features tied to the PRD scope -->
 
-| Priority | Feature                                                         | Outcome                                                           | Notes                                               | Dependencies |
-| -------- | --------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------- | ------------ |
-| P0       | Bootstrap + safe template reapply                               | New/existing repos become execution-ready with idempotent reruns  | Conflict handling: overwrite/merge/skip             | -            |
-| P0       | Deterministic work-item execution with explicit gates           | Plan → Patch → Test → Report runs predictably and is auditable    | Command authority remains with the human PO/user    | -            |
-| P0       | Output offload + structured logs + shared runner                | Noisy output stays token-efficient and every step is traceable    | `pp` pointers + `logs/<WI>/<step>.log` + metadata   | -            |
-| P0       | Resume safety + fail-closed commit gate + scoped autofix        | Interrupted runs resume safely; commits require complete evidence | Active-WIP preserve by default; strict commit gate  | -            |
-| P0       | Single-worktree orchestration + template-drift hardening        | Reliable role collaboration without worktree tracking-file drift  | No `feature-worktrees.json`; deterministic recovery | -            |
-| P1       | Orchestrator roles + Plan Reviewer gate + role-specific prompts | Cleaner separation of responsibilities and better plan quality    | Dedicated planner/reviewer/patcher/tester/reporter  | -            |
-| P1       | Anti-hardcode test policy + synthetic end-to-end smoke feature  | Better regression resistance and early workflow break detection   | Fixtures + seeds + invariants + boundary contracts  | -            |
-| P1       | Incremental PRD-to-features + post-run learning loop            | Feature docs evolve safely and repeated failures are reduced      | Add-missing only; human-gated improvements          | -            |
-| P2       | Offload audit + compacted logs + workflow quality nudges        | Better long-run maintainability and signal-to-noise               | Index lifecycle, compact logs, precommit warnings   | -            |
+| Priority | Feature                                                                     | Outcome                                                                           | Notes                                                                     | Dependencies |
+| -------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------ |
+| P0       | Bootstrap + safe template reapply                                           | New/existing repos become execution-ready with idempotent reruns                  | Conflict handling: overwrite/merge/skip                                   | -            |
+| P0       | Deterministic work-item execution with explicit gates + zero-input defaults | Plan → Patch → Test → Report runs predictably with minimal workflow interruptions | Prompt only for ambiguity, missing intent, or required HIGH-risk approval | -            |
+| P0       | Output offload + token budget guardrails + structured logs + shared runner  | Noisy output stays token-efficient and every step is traceable                    | `pp` pointers + compact summaries + `logs/<WI>/<step>.log` metadata       | -            |
+| P0       | Resume safety + deterministic auto-recovery + fail-closed commit gate       | Interrupted runs resume safely; common deterministic failures self-heal safely    | Active-WIP preserve by default; strict commit gate                        | -            |
+| P0       | Single-worktree orchestration + template-drift hardening                    | Reliable role collaboration without worktree tracking-file drift                  | No `feature-worktrees.json`; deterministic recovery                       | -            |
+| P1       | Orchestrator roles + Plan Reviewer gate + role-specific prompts             | Cleaner separation of responsibilities and better plan quality                    | Dedicated planner/reviewer/patcher/tester/reporter                        | -            |
+| P1       | Anti-hardcode test policy + synthetic end-to-end smoke feature              | Better regression resistance and early workflow break detection                   | Fixtures + seeds + invariants + boundary contracts                        | -            |
+| P1       | Incremental PRD-to-features + post-run learning loop                        | Feature docs evolve safely and repeated failures are reduced                      | Add-missing only; human-gated improvements                                | -            |
+| P1       | Workflow complexity reduction + skill inventory pruning                     | Lower maintenance overhead with fewer fragile execution paths                     | Remove/archive low-value skills and redundant script/config paths         | -            |
+| P2       | Offload audit + compacted logs + workflow quality nudges                    | Better long-run maintainability and signal-to-noise                               | Index lifecycle, compact logs, precommit warnings                         | -            |
 
 ## Process Features
 
+- [ ] Zero-input execution defaults (P0): Run without manual prompts unless ambiguity, missing intent, or HIGH-risk approval requires explicit user input.
+- [ ] Token budget guardrails (P0): Per-step prompt/output budgets with compact summaries; overflow content must be offloaded.
 - [ ] Output offload enforcement (P0): Noisy outputs stored in `.offload/` and referenced by id.
-- [ ] Resume in-progress tickets (P0): Existing worklog resumes automatically; completed steps are skipped while tests/CI re-run.
+- [ ] Resume in-progress tickets (P0): Existing worklog resumes automatically; completed steps are skipped while tests/CI re-run, with retry-safe reruns preserved.
+- [ ] Deterministic auto-fix and auto-recovery expansion (P0): Self-heal sync/formatting/staging/retry-safe failure classes with fail-closed safeguards.
 - [ ] Commit gated by completed ticket docs (P0): Commit is blocked unless execution log and required report/test fields are complete.
 - [ ] Shared runner library (P0): Standardized Codex/Serena execution with metadata + logging helpers.
 - [ ] Structured logs for CI/tests/precommit/feature runs (P0): `logs/<WI>/<step>.log` with prefixes and timestamps.
@@ -150,12 +154,12 @@ Execution stays local (macOS CLI), with explicit human gates for HIGH-risk work 
 - [ ] Incremental prd-to-features (P1): Add missing only; never delete; skip Done.
 - [ ] Learning loop proposals (P1): Post-run improvement proposals with human gate.
 - [ ] Worktree policy + naming convention (P1): Clean isolation for parallel roles.
+- [ ] Skill inventory pruning + workflow complexity reduction (P1): Remove/archive low-value skills and redundant execution paths while preserving required workflows.
 - [ ] Anti-cheat testing strategy (P1): Multiple fixtures, seeded randomness, invariants, contract tests.
 - [ ] End-to-end workflow smoke test with a synthetic feature (P1): Validate orchestrator gates and resume/log behavior before real feature runs.
 - [ ] Offload audit + upgrade plan (P2): Index + list/get/purge with retention.
 - [ ] Compact log skills (P2): Compact decision/implementation logs without data loss.
 - [ ] Feature gating in precommit (P2): Soft warning when earlier features incomplete.
-- [ ] Skill mining from repeated prompts (P2): Propose reusable skills from recurring patterns.
 
 ## Requirements
 
@@ -223,6 +227,18 @@ Execution stays local (macOS CLI), with explicit human gates for HIGH-risk work 
   - **Rationale:** Prevent unauthorized or unsafe autonomous execution.
   - **Acceptance Criteria:** Only the human PO/user runs `make feature` / `pc-feature` unless explicitly approved in-run; HIGH-risk work stops after preflight with `Awaiting PO Approval` until explicit approval is granted.
 
+- [ ] **FR-016:** Default to zero-input execution outside required policy gates.
+  - **Rationale:** Reduce avoidable human interruptions and preserve workflow flow.
+  - **Acceptance Criteria:** Workflow does not prompt the user except for ambiguity, missing intent, or required HIGH-risk approval.
+
+- [ ] **FR-017:** Enforce token budget guardrails with compact summaries.
+  - **Rationale:** Keep token usage predictable across long or noisy runs.
+  - **Acceptance Criteria:** Each role step records concise summaries, offloads overflow output, and reports deterministic remediation when budget guardrails are exceeded.
+
+- [ ] **FR-018:** Expand deterministic auto-fix and auto-recovery for common failure classes.
+  - **Rationale:** Reduce manual intervention for repeatable failures while preserving safety.
+  - **Acceptance Criteria:** Sync/formatting/staging/retry-safe rerun failures attempt scoped deterministic repair first; unresolved cases fail closed with explicit remediation.
+
 #### Should Have (P1)
 
 - [ ] **FR-101:** Reapply templates to existing repos safely.
@@ -236,6 +252,14 @@ Execution stays local (macOS CLI), with explicit human gates for HIGH-risk work 
 - [ ] **FR-103:** Enforce anti-hardcode testing coverage.
   - **Rationale:** Prevent brittle implementations that only pass shallow examples.
   - **Acceptance Criteria:** Plan/TDD states fixture count (>=2 critical-path fixtures), deterministic seed strategy, invariant assertions, and boundary contract tests.
+
+- [ ] **FR-104:** Prune low-value skill inventory regularly.
+  - **Rationale:** Reduce maintenance debt and prompt-time confusion from unused/overlapping skills.
+  - **Acceptance Criteria:** Workflow includes periodic review to remove/archive unused or redundant skills while preserving required execution capabilities.
+
+- [ ] **FR-105:** Reduce redundant execution paths and configuration complexity.
+  - **Rationale:** Fewer script/config branches reduce fragility and support burden.
+  - **Acceptance Criteria:** Equivalent behavior is maintained while consolidating redundant paths; removed paths are documented with rollback notes.
 
 #### Nice to Have (P2)
 
@@ -277,9 +301,9 @@ Execution stays local (macOS CLI), with explicit human gates for HIGH-risk work 
 
 #### Token Efficiency
 
-- [ ] **NFR-501:** Avoid large outputs in prompts.
-  - **Metric:** Offload ids used for noisy outputs.
-  - **Target:** No large outputs pasted into prompts.
+- [ ] **NFR-501:** Keep prompt/output usage within token budget guardrails.
+  - **Metric:** Budget compliance rate plus offload ids for noisy outputs.
+  - **Target:** No large outputs pasted into prompts; budget overruns are rare and explicitly surfaced.
 
 #### Observability
 
@@ -299,13 +323,17 @@ Execution stays local (macOS CLI), with explicit human gates for HIGH-risk work 
 - Plan Reviewer validates plans before patching (no code edits) and reviewer/tester/reporter failures loop back to Planner until resolved.
 - Planner provides Allowed Tests; Tester may run only those commands. `make ci`, `make feature`, and `pc-feature` are forbidden as test commands.
 - Anti-hardcode testing policy is enforced: >=2 fixtures per critical path, deterministic seeds, invariant checks, and boundary contract coverage.
+- Default execution is zero-input; prompts occur only for ambiguity, missing intent, or required HIGH-risk approval.
 - Deterministic steps are delegated to scripts through a shared runner with standard metadata (`work_item_id`, `agent_name`, `run_id`).
+- Token budget guardrails are enforced with compact per-step summaries and mandatory offload for overflow output.
 - Output offload is mandatory for noisy commands; references use `.offload/<id>.txt` pointers and indexed metadata.
 - CI/tests/precommit/feature runs write structured logs to `logs/<WI>/<step>.log` using `[WI-...][agent][step]` prefix + timestamps.
 - Resume behavior preserves active feature-worktree WIP by default, supports explicit fresh reset, and always re-runs tests/CI.
+- Deterministic auto-fix/auto-recovery attempts scoped repairs for sync/formatting/staging/resume failures before human escalation.
 - Worktree policy: one feature worktree by default, role ownership boundaries enforced, and no `feature-worktrees.json`.
 - `prd-to-features` is incremental: add missing only, never delete existing, and skip `Status: Done`.
 - Post-run workflow improvements are proposed by roles and written by orchestrator to `docs/possible-improvements.md` with human approval required for application.
+- Post-MVP hardening includes periodic skill inventory pruning and redundant-path removal without scope expansion.
 - Final gate runs `make ci` only after role-loop success, with at most two attempts (initial + single autofix rerun).
 - Commit gate is fail-closed, enforces complete work-item evidence, and follows `type(scope): summary` via `tools/pc-commit`.
 - Precommit-only autofix must remain staged-file-scoped and must not modify `docs/03-logs/*` or feature execution logs.
@@ -410,13 +438,15 @@ Bootstrap → Context/PRD → Features → Tickets → Execute → Repeat
 | --------------------------------------------------- | ------ | ----------- | ---------------------------------------------------------- |
 | Tooling is not idempotent and re-runs corrupt state | High   | Medium      | Replace-in-place updates; tests for idempotency            |
 | Template updates are hard to propagate              | High   | Medium      | Safe reapply with skip/merge                               |
-| AI workflow burns tokens on repeatable steps        | High   | Medium      | Keep prompts minimal; skip completed work                  |
+| AI workflow burns tokens on repeatable steps        | High   | Medium      | Enforce token guardrails, compact summaries, and offload   |
 | Missing dependencies cause failures                 | Med    | Medium      | Preflight checks and clear errors                          |
 | Process drift (skipped gates/logs)                  | Med    | Medium      | Enforce Plan → Patch → Test → Report in docs and templates |
+| Skill sprawl and redundant paths raise fragility    | Med    | Medium      | Periodic pruning/consolidation with rollback-safe changes  |
 
 ## Open Questions
 
-- None currently. Dependencies are assumed to exist locally (git, codex, make), and HIGH-risk approvals are handled via a prompt with optional `approval: "granted"` in ticket frontmatter.
+- Define default token budget thresholds per work item/role and escalation behavior when thresholds are exceeded.
+- Define pruning cadence and objective keep/remove criteria for skill inventory cleanup.
 
 ## Appendix
 
@@ -437,11 +467,12 @@ Bootstrap → Context/PRD → Features → Tickets → Execute → Repeat
 
 ### Change Log
 
-| Date       | Version | Changes                                                                                                         | Author       |
-| ---------- | ------- | --------------------------------------------------------------------------------------------------------------- | ------------ |
-| 2026-01-30 | 0.1     | Draft PRD from context docs                                                                                     | Primary user |
-| 2026-02-02 | 0.2     | Add workflow/process requirements and offload policy                                                            | Primary user |
-| 2026-02-02 | 0.3     | Add process features and expected-features mapping                                                              | Primary user |
-| 2026-02-05 | 0.4     | Add observability, runner, incremental features, role prompts                                                   | Primary user |
-| 2026-02-11 | 0.5     | Sync expected-features + protocol details (resume, gates, hardening, smoke test)                                | Primary user |
-| 2026-02-13 | 0.6     | Reconcile PRD with context/process docs: authority gates, anti-hardcode policy, and prioritized feature mapping | Codex        |
+| Date       | Version | Changes                                                                                                                   | Author       |
+| ---------- | ------- | ------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| 2026-01-30 | 0.1     | Draft PRD from context docs                                                                                               | Primary user |
+| 2026-02-02 | 0.2     | Add workflow/process requirements and offload policy                                                                      | Primary user |
+| 2026-02-02 | 0.3     | Add process features and expected-features mapping                                                                        | Primary user |
+| 2026-02-05 | 0.4     | Add observability, runner, incremental features, role prompts                                                             | Primary user |
+| 2026-02-11 | 0.5     | Sync expected-features + protocol details (resume, gates, hardening, smoke test)                                          | Primary user |
+| 2026-02-13 | 0.6     | Reconcile PRD with context/process docs: authority gates, anti-hardcode policy, and prioritized feature mapping           | Codex        |
+| 2026-02-19 | 0.7     | Add zero-input and token-budget guardrails, expand deterministic auto-recovery, and prioritize skill/complexity hardening | Codex        |
