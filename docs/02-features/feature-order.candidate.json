@@ -127,7 +127,7 @@
       "deterministic-work-item-execution-with-explicit-gates"
     ]
   },
-  "generated_at": "2026-02-18T20:18:52Z",
+  "generated_at": "2026-02-19T10:50:43Z",
   "notes": [
     "This file is machine-managed by tools/pc-prepare-features.",
     "tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order."

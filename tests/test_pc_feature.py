@@ -2117,6 +2117,32 @@ class TestPcFeature(unittest.TestCase):
         finally:
             self.pc_feature.datetime = original_datetime
 
+    def test_parse_human_validation_requests_extracts_action_and_acceptance(self):
+        content = "\n".join(
+            [
+                "# Dev Tasks",
+                "",
+                "### Human Validation Requests (Product Owner / end-user)",
+                "",
+                "- [ ] `PROD-01-010` Confirm CLI remediation wording is clear",
+                "  - Action: Run the workflow and verify failed-state guidance is understandable.",
+                "  - Acceptance: Guidance names next command and required context.",
+                "",
+                "- [ ] `SEC-01-011` Validate secret handling checklist",
+                "  - Action: Confirm no secrets are exposed in logs.",
+                "",
+                "## Execution Log",
+            ]
+        )
+
+        requests = self.pc_feature.parse_human_validation_requests(content)
+        self.assertEqual(len(requests), 2)
+        self.assertEqual(requests[0]["task_id"], "PROD-01-010")
+        self.assertIn("failed-state guidance", requests[0]["action"])
+        self.assertIn("next command", requests[0]["acceptance"])
+        self.assertEqual(requests[1]["task_id"], "SEC-01-011")
+        self.assertEqual(requests[1]["acceptance"], "")
+
     def test_select_resume_work_item_id_resumes_newest_non_completed(self):
         newest = "WI-20260206-03"
         middle = "WI-20260206-02"
@@ -4114,6 +4140,26 @@ class TestPcFeature(unittest.TestCase):
                 f"`make feature-status WI={work_item_id} HISTORY=1 LIMIT=30`",
                 output,
             )
+
+    def test_build_human_validation_summary_includes_reporting_instructions(self):
+        summary = self.pc_feature.build_human_validation_summary(
+            feature_id="01",
+            work_item_id="WI-20260212-16",
+            requests=[
+                {
+                    "task_id": "PROD-01-099",
+                    "summary": "Validate final UX copy in failure output",
+                    "action": "Trigger a failure and check remediation wording clarity.",
+                    "acceptance": "Message includes exact next command.",
+                }
+            ],
+        )
+
+        self.assertIn("pc-feature: Human Validation Requests (1)", summary)
+        self.assertIn("PROD-01-099", summary)
+        self.assertIn("Feature: 01", summary)
+        self.assertIn("Work item: WI-20260212-16", summary)
+        self.assertIn("If all requests pass, continue to the next feature.", summary)
 
     def test_main_resumes_newest_in_progress_work_item(self):
         class StopMain(RuntimeError):

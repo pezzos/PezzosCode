@@ -355,20 +355,70 @@ Commit message: Document WI-20260204-01 execution entry in worktree policy log
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-06-004` Injection defenses are not explicit
+- [ ] `SEC-06-001` Unsanitized worktree/branch input can enable command or ref-name injection
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-06-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce a strict allowlist (for example `^[a-z0-9-]+$`) for feature/agent tokens, reject anything else, and execute git commands with fully quoted arguments and `--` separators (no eval/string-built command execution).
+- [ ] `SEC-06-002` Worktree path traversal/symlink escape not fail-closed
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Before create/reuse/remove, canonicalize paths, require they stay under the approved parent directory, reject symlinks, and verify target is a valid git worktree owned by this repo.
+- [ ] `SEC-06-003` Manifest-driven auto-collection/cleanup lacks integrity validation
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Parse manifest with strict schema, verify each entry against `git worktree list --porcelain`, ignore/reject out-of-policy entries, and store manifest with restrictive permissions.
+- [ ] `SEC-06-004` Security gate can fail open when CI/pre-commit errors occur
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
-
-### Product Manager Tasks
-
-- [ ] `PROD-06-003` Global UX blueprint does not reference this feature
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Enforce fail-closed completion: block feature completion on any non-zero `make ci`/pre-commit result and require a clean rerun before completion status can advance.
+- [ ] `SEC-06-005` Missing abuse-case tests for naming/conflict/symlink scenarios
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Worktree policy + naming convention' journey and workflow.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add negative tests that assert hard failure for invalid names, path escapes, symlink reuse, and manifest mismatch; make these tests mandatory in `make test`/`make ci`.
+- [ ] `PROD-06-001` Acceptance criteria are not verifiable for end-user outcomes
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Define measurable acceptance checks for default worktree count, naming convention, branch names, and required CLI success/summary output so users can verify outcomes deterministically.
+- [ ] `PROD-06-002` Failure recovery UX is underspecified for real user retries
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Specify exact error text and immediate recovery actions for existing worktree, branch conflict, and missing preconditions, including explicit rerun-safety messaging.
+- [ ] `PROD-06-003` Validation gate behavior is ambiguous from a user perspective
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Enforce and test fail-closed workflow status/output on any non-zero `make ci` or pre-commit result, aligned with SEC-06-004 and SEC-06-005.
+- [ ] `PROD-06-004` Readiness signals are inconsistent across feature artifacts
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Reconcile task status, remove unresolved placeholder WI entries from active tracking, and provide one authoritative readiness summary for feature review.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `PROD-06-005` Human usability sign-off is missing for CLI prompts and stage clarity
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: human-validation
+  - Action: Require explicit human validation sign-off for prompt clarity, handoff/stage wording, and recovery instructions before feature completion.
 
 <!-- review-backlog:end -->
 

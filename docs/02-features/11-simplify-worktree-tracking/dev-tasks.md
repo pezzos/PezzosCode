@@ -42,28 +42,63 @@
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-11-001` Input validation controls are not explicit
+- [ ] `SEC-11-001` Single-worktree invariant is not fail-closed
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-11-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement deterministic worktree resolution that hard-fails when match count is 0 or >1, with explicit remediation output before any patch/test step proceeds.
+- [ ] `SEC-11-002` Path-boundary controls are missing after metadata removal
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-11-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Canonicalize with `realpath`, reject symlinks/untrusted paths, and enforce allowed root-prefix checks before any read/write or command execution against a resolved worktree path.
+- [ ] `SEC-11-003` Legacy `feature-worktrees.json` is an unneutralized trust input
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Remove all runtime reads/writes of `feature-worktrees.json`, add explicit deprecated-file handling (ignore + warning), and fail CI if executable code references the file.
+- [ ] `SEC-11-004` No negative security regression tests for ambiguous worktree states
+  - Reviewer: Security Expert
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated negative tests for: multiple matching worktrees, zero matching worktrees, legacy file present, and symlinked candidate path; require non-zero exit and no file mutation.
+- [ ] `PROD-11-001` Fail-closed worktree selection is not an explicit user acceptance condition
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add explicit acceptance and implementation behavior to hard-fail when match count is 0 or >1, with deterministic remediation text and guaranteed no mutation before resolution.
+- [ ] `PROD-11-002` Legacy `feature-worktrees.json` deprecation UX is undefined
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Define and implement consistent deprecated-file handling in docs and CLI output: ignore legacy file, warn clearly, and provide the next action.
+- [ ] `PROD-11-003` Recovery behavior is not acceptance-tested from the user perspective
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated negative tests that assert non-zero exit, no file mutation, and actionable remediation messaging for zero/multiple worktrees, symlink path rejection, and legacy file presence.
+- [ ] `PROD-11-004` Migration path for existing repositories is under-specified
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add a migration section to process docs covering detection of extra worktrees, canonical selection/remediation, legacy cleanup expectations, and rerun-safe verification.
 
-### Product Manager Tasks
+### Human Validation Requests (Product Owner / end-user)
 
-- [ ] `PROD-11-002` User journey details are missing in feature docs
+- [ ] `PROD-11-005` No required human validation of workflow clarity after migration
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-11-003` Global UX blueprint does not reference this feature
-  - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Simplify worktree tracking' journey and workflow.
-- [ ] `PROD-11-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: human-validation
+  - Action: Require PO/end-user sign-off in human validation using at least one legacy scenario (legacy file present and multiple worktrees) to confirm instructions are understandable and actionable.
 
 <!-- review-backlog:end -->

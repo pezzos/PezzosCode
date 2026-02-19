@@ -27,6 +27,22 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-19 - Batch A review-features scope + canonical task contract validation
+
+- `python3 -m py_compile tools/pc-review-features` (PASS)
+- `python3 -m py_compile tests/test_pc_review_features.py` (PASS)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_review_features.py"` (PASS: 6 tests; offload id `76a627dc0c83de80f402ea8c61f5b96b63e1ce8f974c5281be26653fef5c77c6`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (RUN1 FAIL: docs README line removed explicit `review-features-report.json` path; offload id `0741737833f30747e0504d8f48247c1bc212d8d0b260115460b9e10abd4f8262`; RUN2 PASS: 24 tests; offload id `5ff0e141575529018c47d4110194351a8373646850427f96c761e6ef3f435544`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"` (PASS: 14 tests; offload id `ac6e9da8bd627c0143d4f0935a2191f667799eff6766b01790f29565bc679b61`)
+- `tools/offload-proxy/pp pre-commit run --files Makefile docs/04-process/human-orchestration-workflow.md docs/README.md prompts/product-manager-review-features.md prompts/security-review-features.md tests/test_pc_review_features.py tools/README.md tools/pc-review-features tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/docs/README.md tools/templates/prompts/product-manager-review-features.md tools/templates/prompts/security-review-features.md tools/templates/root/Makefile` (RUN1 FAIL: `black` auto-formatted Python files; offload id `4a9b196a2082c19d99b71a179c219568b0311a3200a93ac83516b1b91a9b50bc`; RUN2 PASS; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`)
+
+Verified:
+
+- Completed features are skipped by default in `pc-review-features` and only included with explicit opt-in.
+- Findings now use deterministic canonical keys/titles/actions/acceptance and evidence-gated role selection.
+- `dev-tasks.md` review backlog now uses actionable `Action` + `Acceptance` only.
+- `feature-spec.md` review block now provides constraint summary (no duplicate actionable checklist).
+
 ### 2026-02-18 - Role-driven review-features validation (Security Expert + Product Manager)
 
 - `python3 -m py_compile tools/pc-review-features` (PASS)
@@ -2444,3 +2460,30 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Blocked/aborted loops preserve canonical prepare artifacts.
   - Dependency payload normalization keeps typed/consistent arrays across decisions/dependencies/ordered_features.
   - Dependency autofix hook is invoked for raw order payload consistency mismatches.
+
+## 2026-02-19 - Validate Batch B (prepare security role + human validation summary)
+
+- Command: `python3 -m py_compile tools/pc-feature`
+- Result: PASS.
+- Command: `python3 -m py_compile tools/pc-prepare-features`
+- Result: PASS.
+- Command: `python3 -m py_compile tests/test_pc_feature.py tests/test_pc_prepare_features.py tests/test_docs_logs.py`
+- Result: PASS.
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_prepare_features`
+- Result: PASS (`33` tests; offload id `6492b84707f9810ffec0665186be7cb0eddb5a9b4361377b70b307b8c8389e47`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_docs_logs`
+- Result: PASS (`24` tests; offload id `5ff0e141575529018c47d4110194351a8373646850427f96c761e6ef3f435544`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_parse_human_validation_requests_extracts_action_and_acceptance tests.test_pc_feature.TestPcFeature.test_build_human_validation_summary_includes_reporting_instructions`
+- Result: PASS (`2` tests; offload id `dec5673ee7ead0e86a249ea046dba60aab31a8206a43fedeb035ab8449b4e26d`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_feature.TestPcFeature.test_prompt_templates_match_prompt_inventory`
+- Result: PASS (`1` test; offload id `a626407facf1102b512cc38f00f6e7d889aa6280a5c03d1722ac6d1c4eb08dc5`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_bootstrap_into`
+- Result: PASS (`20` tests; offload id `efde7e76d0147422b6cb0442b792bc98e64701337cd3d9a0546ed30ee9518ccc`).
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-feature tools/pc-prepare-features tests/test_pc_feature.py tests/test_pc_prepare_features.py tests/test_docs_logs.py docs/04-process/human-orchestration-workflow.md tools/templates/docs/04-process/human-orchestration-workflow.md docs/README.md tools/templates/docs/README.md tools/README.md docs/01-product/AGENTS.md tools/templates/docs/01-product/AGENTS.md docs/01-product/security.md tools/templates/docs/01-product/security.md prompts/security-prepare.md tools/templates/prompts/security-prepare.md docs/03-logs/implementation-log.md docs/03-logs/decision-log.md docs/03-logs/validation-log.md`
+- Result: PASS (after formatter pass; offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests.test_pc_prepare_features tests.test_docs_logs tests.test_pc_feature.TestPcFeature.test_parse_human_validation_requests_extracts_action_and_acceptance tests.test_pc_feature.TestPcFeature.test_build_human_validation_summary_includes_reporting_instructions tests.test_pc_feature.TestPcFeature.test_prompt_templates_match_prompt_inventory tests.test_bootstrap_into`
+- Result: PASS (`80` tests; offload id `ac043e0b97a0c56f47ea99cc883e568bac04d2a7af174959af3cc16eefb1128e`).
+- Verification notes:
+  - Added Security Expert prepare step generates/promotes `docs/01-product/security.md` and `security.candidate.md`.
+  - `pc-feature` now renders deterministic human validation instructions at completion when `### Human Validation Requests` exists.
+  - Prompt/template inventory remains synchronized after adding `security-prepare.md`.

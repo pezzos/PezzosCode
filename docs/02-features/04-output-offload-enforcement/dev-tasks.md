@@ -22,26 +22,70 @@
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-04-001` Input validation controls are not explicit
+- [ ] `SEC-04-001` Fail-open pointer-missing path exposes raw command output
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-04-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Change pointer-missing handling to fail-closed for offload-eligible commands (non-zero exit), emit only minimal remediation metadata, and require explicit opt-in for any stdout fallback.
+- [ ] `SEC-04-002` Offload artifacts lack confidentiality controls
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-04-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce secure permissions (`0700` dirs, `0600` files), verify `.offload/` and sensitive logs are ignored by git templates, and add deterministic cleanup/retention handling.
+- [ ] `SEC-04-003` Pointer ID and path safety requirements are missing
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
-
-### Product Manager Tasks
-
-- [ ] `PROD-04-003` Global UX blueprint does not reference this feature
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Generate IDs internally, validate against a strict allowlist, canonicalize target paths under `.offload`, reject symlinks/non-regular files, and use exclusive file creation.
+- [ ] `SEC-04-004` Security regression tests are not required by current task plan
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Output offload enforcement' journey and workflow.
-- [ ] `PROD-04-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests for pointer-missing failure mode, missing-offload-dir recovery, path traversal/symlink attempts, and no-large-output-to-stdout guarantees; gate completion on these tests.
+- [ ] `PROD-04-001` Fail-open pointer handling breaks user trust in offload enforcement
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Update spec and implementation to fail-closed by default when pointer generation fails, show concise remediation guidance, and allow stdout fallback only via explicit opt-in.
+- [ ] `PROD-04-002` No deterministic definition of "noisy output" creates inconsistent UX
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Define and enforce explicit offload eligibility rules (e.g., size/line thresholds and command classes), document them in feature docs, and surface them in CLI preflight/status text.
+- [ ] `PROD-04-003` Recovery-path UX is underspecified and may stall users
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Standardize blocking error messages to include immediate remediation and rerun-safety status; add tests that assert this copy is emitted for failure scenarios.
+- [ ] `PROD-04-004` Test plan does not guarantee end-user outcomes
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Expand TASK-401 coverage to include pointer-missing failure mode, missing offload directory recovery, below-threshold behavior, and explicit no-large-output-to-stdout assertions.
+- [ ] `PROD-04-005` Acceptance quality is not measurable
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Replace placeholder success metric with concrete measurable targets and pass/fail thresholds tied to logs and automated checks.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `PROD-04-006` Human usability sign-off is required for pointer-first debugging flow
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: human-validation
+  - Action: Run human validation on one happy path and two failure paths to confirm pointer discoverability, clarity of next actions, and acceptable debug speed; record explicit PO sign-off.
 
 <!-- review-backlog:end -->
 

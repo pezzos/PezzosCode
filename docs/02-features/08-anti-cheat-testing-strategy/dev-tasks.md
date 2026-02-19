@@ -380,20 +380,75 @@ Record each execution round here. Link any related logs in `docs/03-logs/`.
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-08-004` Injection defenses are not explicit
+- [ ] `SEC-08-001` Final fail-closed CI gate was skipped
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-08-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Require `make ci` evidence before feature completion and fail closed when the command is missing or failing.
+- [ ] `SEC-08-002` Restored `pc-ticket` stub creates potential gate-bypass path
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Make `pc-ticket` either hard-fail with migration guidance or delegate to the exact same validated gate path with explicit proof output.
+- [ ] `SEC-08-003` Current anti-cheat spec can still be beaten by fixture memorization
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
-
-### Product Manager Tasks
-
-- [ ] `PROD-08-003` Global UX blueprint does not reference this feature
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add invariant/metamorphic or generated-fixture tests for each critical path and require at least one non-static fixture source in CI.
+- [ ] `SEC-08-004` Local-only security claim is not enforced by tests
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Anti-cheat testing strategy' journey and workflow.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests that block/monitor outbound network access during anti-cheat workflows and fail on any egress.
+- [ ] `PROD-08-001` Completion can be marked without final CI proof
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Enforce a fail-closed completion gate: require recorded `make ci` pass evidence before status can be set to Complete.
+- [ ] `PROD-08-002` `pc-ticket` restoration creates user path ambiguity
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Either hard-fail `pc-ticket` with migration guidance or force strict delegation to the exact validated gate path with equivalent evidence output.
+- [ ] `PROD-08-003` Current anti-cheat acceptance can still be gamed
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add generated or mutated fixture coverage plus metamorphic/invariant checks per critical path and require them in CI.
+- [ ] `PROD-08-004` Local-only promise is not enforced in automated checks
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated anti-egress checks for anti-cheat workflows and fail tests on any outbound network attempt.
+- [ ] `PROD-08-006` Success metrics are partially non-actionable
+  - Reviewer: Product Manager
+  - Severity: Low
+  - Phase: patch
+  - Blocking: No
+  - Action: Replace placeholders with explicit measurable outcomes and map each to a concrete validation artifact.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `SEC-08-005` Human security review gate is incomplete
+  - Reviewer: Security Expert
+  - Severity: Low
+  - Phase: human-validation
+  - Action: Require explicit human security/PO validation of anti-cheat gate behavior before marking feature complete.
+- [ ] `PROD-08-005` Human sign-off gate is incomplete
+  - Reviewer: Product Manager
+  - Severity: Low
+  - Phase: human-validation
+  - Action: Route final PO/security review through human validation and require explicit sign-off before completion status is retained.
 
 <!-- review-backlog:end -->
 

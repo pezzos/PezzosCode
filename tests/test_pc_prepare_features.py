@@ -157,11 +157,13 @@ def parse_prd_features(_text: str):
 
             design_path = root / "docs/01-product/design.md"
             ux_path = root / "docs/01-product/ux-ui.md"
+            security_path = root / "docs/01-product/security.md"
             order_path = root / "docs/02-features/feature-order.json"
             state_path = root / "docs/03-logs/prepare-features-state.json"
             pm_todo_path = root / "docs/03-logs/prepare-features-pm-todo.md"
             self.assertTrue(design_path.exists())
             self.assertTrue(ux_path.exists())
+            self.assertTrue(security_path.exists())
             self.assertTrue(order_path.exists())
             self.assertTrue(state_path.exists())
             self.assertTrue(pm_todo_path.exists())
@@ -199,6 +201,10 @@ def parse_prd_features(_text: str):
                 ("docs/01-product/design.md", "docs/01-product/design.candidate.md"),
                 ("docs/01-product/ux-ui.md", "docs/01-product/ux-ui.candidate.md"),
                 (
+                    "docs/01-product/security.md",
+                    "docs/01-product/security.candidate.md",
+                ),
+                (
                     "docs/02-features/feature-order.json",
                     "docs/02-features/feature-order.candidate.json",
                 ),
@@ -234,6 +240,9 @@ def parse_prd_features(_text: str):
             canonical_ux = (
                 "## User journeys\nCanonical ux baseline.\n## Workflows\nX.\n"
             )
+            canonical_security = (
+                "## Security scope boundaries\nCanonical security baseline.\n"
+            )
             canonical_order = {
                 "ordered_feature_slugs": ["alpha-feature", "beta-feature"],
                 "decisions": [],
@@ -268,6 +277,9 @@ def parse_prd_features(_text: str):
             )
             (root / "docs/01-product/ux-ui.md").write_text(
                 canonical_ux, encoding="utf-8"
+            )
+            (root / "docs/01-product/security.md").write_text(
+                canonical_security, encoding="utf-8"
             )
             (root / "docs/02-features/feature-order.json").write_text(
                 json.dumps(
@@ -327,6 +339,10 @@ def parse_prd_features(_text: str):
                 canonical_ux,
             )
             self.assertEqual(
+                (root / "docs/01-product/security.md").read_text(encoding="utf-8"),
+                canonical_security,
+            )
+            self.assertEqual(
                 (root / "docs/03-logs/prepare-features-pm-todo.md").read_text(
                     encoding="utf-8"
                 ),
@@ -342,6 +358,7 @@ def parse_prd_features(_text: str):
             )
             self.assertTrue((root / "docs/01-product/design.candidate.md").exists())
             self.assertTrue((root / "docs/01-product/ux-ui.candidate.md").exists())
+            self.assertTrue((root / "docs/01-product/security.candidate.md").exists())
             self.assertTrue(
                 (root / "docs/03-logs/prepare-features-state.candidate.json").exists()
             )
@@ -509,6 +526,22 @@ def parse_prd_features(_text: str):
                     "- Keep deterministic.",
                 ]
             )
+            security_md = "\n".join(
+                [
+                    "## Security scope boundaries",
+                    "Project-specific boundaries.",
+                    "## Threat model and attack surface",
+                    "Threat model text.",
+                    "## Feature security focus map",
+                    "Focus text.",
+                    "## Security controls for this project",
+                    "Controls text.",
+                    "## Verification and evidence",
+                    "Verification text.",
+                    "## Alignment anchors",
+                    "Anchor text.",
+                ]
+            )
             inconsistent_order_payload = {
                 "ordered_feature_slugs": ["alpha-feature", "beta-feature"],
                 "decisions": [
@@ -548,6 +581,10 @@ def parse_prd_features(_text: str):
                 self.tool,
                 "run_ux_role",
                 return_value=(ux_md, []),
+            ), mock.patch.object(
+                self.tool,
+                "run_security_role",
+                return_value=(security_md, []),
             ), mock.patch.object(
                 self.tool,
                 "run_orderer_role",
@@ -703,6 +740,19 @@ def parse_prd_features(_text: str):
         }
         self.assertEqual(normalized, {"dependency-planner"})
 
+    def test_normalize_prepare_step_aliases_security_terms(self):
+        samples = [
+            "security",
+            "security-expert",
+            "security-review",
+            "security.md baseline",
+        ]
+        normalized = {
+            self.tool.normalize_prepare_step(sample, default="product-manager")
+            for sample in samples
+        }
+        self.assertEqual(normalized, {"security"})
+
     def test_product_manager_review_blocks_generic_markers(self):
         features = [
             self.tool.Feature(
@@ -853,10 +903,12 @@ def parse_prd_features(_text: str):
         template_paths = [
             Path("prompts/architect-prepare.md"),
             Path("prompts/ux-prepare.md"),
+            Path("prompts/security-prepare.md"),
             Path("prompts/orderer-prepare.md"),
             Path("prompts/product-manager-prepare-gate.md"),
             Path("tools/templates/prompts/architect-prepare.md"),
             Path("tools/templates/prompts/ux-prepare.md"),
+            Path("tools/templates/prompts/security-prepare.md"),
             Path("tools/templates/prompts/orderer-prepare.md"),
             Path("tools/templates/prompts/product-manager-prepare-gate.md"),
         ]
@@ -876,6 +928,20 @@ def parse_prd_features(_text: str):
                                 indent=2,
                                 sort_keys=True,
                             ),
+                        }
+                    )
+                if template_path.name == "security-prepare.md":
+                    values.update(
+                        {
+                            "design_markdown": "## System architecture\nAlpha design.",
+                            "ux_markdown": "## User journeys\nAlpha journey.",
+                            "order_payload_json": json.dumps(
+                                {"ordered_feature_slugs": ordered_slugs},
+                                ensure_ascii=True,
+                                indent=2,
+                                sort_keys=True,
+                            ),
+                            "previous_security_markdown": "## Security scope boundaries\nPREV SECURITY MARKER",
                         }
                     )
                 if template_path.name == "orderer-prepare.md":
@@ -900,6 +966,9 @@ def parse_prd_features(_text: str):
                     self.assertIn("PREV DESIGN MARKER", rendered)
                     self.assertIn("PREV UX MARKER", rendered)
                     self.assertIn("Address PM issue marker.", rendered)
+                if template_name == "security-prepare.md":
+                    self.assertIn("PREV SECURITY MARKER", rendered)
+                    self.assertIn("Address PM issue marker.", rendered)
 
     def test_prompt_values_include_retry_context_payload(self):
         values = self.tool.prompt_values(
@@ -912,6 +981,7 @@ def parse_prd_features(_text: str):
             prepare_iteration=3,
             previous_design_markdown="design retry baseline",
             previous_ux_markdown="ux retry baseline",
+            previous_security_markdown="security retry baseline",
             pm_feedback=[
                 {
                     "issue_id": "PM-009",
@@ -926,12 +996,16 @@ def parse_prd_features(_text: str):
         self.assertEqual(values["prepare_iteration"], "3")
         self.assertEqual(values["previous_design_markdown"], "design retry baseline")
         self.assertEqual(values["previous_ux_markdown"], "ux retry baseline")
+        self.assertEqual(
+            values["previous_security_markdown"], "security retry baseline"
+        )
         feedback_payload = json.loads(values["pm_feedback_json"])
         self.assertEqual(feedback_payload[0]["issue_id"], "PM-009")
         self.assertEqual(feedback_payload[0]["step"], "ux")
         self.assertIn("pm_todos_json", values)
         self.assertIn("architect_open_todos_json", values)
         self.assertIn("ux_open_todos_json", values)
+        self.assertIn("security_open_todos_json", values)
         self.assertIn("orderer_open_todos_json", values)
         self.assertIn("previous_order_payload_json", values)
         self.assertIn("previous_loop_change_summary", values)
@@ -1686,6 +1760,55 @@ def parse_prd_features(_text: str):
                 )
 
         self.assertEqual(captured["profile"], "ProductManager")
+
+    def test_run_security_role_uses_security_expert_profile_by_default(self):
+        features = [
+            self.tool.Feature(
+                title="Alpha Feature",
+                priority="P0",
+                slug="alpha-feature",
+                dependencies=tuple(),
+            )
+        ]
+        captured = {"profile": None}
+
+        def fake_codex_exec_json(**kwargs):
+            captured["profile"] = kwargs.get("profile")
+            return {
+                "decision": "APPROVE",
+                "security_markdown": (
+                    "## Security scope boundaries\n"
+                    "## Threat model and attack surface\n"
+                    "## Feature security focus map\n"
+                    "## Security controls for this project\n"
+                    "## Verification and evidence\n"
+                    "## Alignment anchors\n"
+                ),
+                "issues": [],
+            }
+
+        with mock.patch.dict(self.tool.os.environ, {}, clear=False):
+            self.tool.os.environ.pop("PREPARE_SECURITY_PROFILE", None)
+            with mock.patch.object(
+                self.tool,
+                "codex_exec_json",
+                side_effect=fake_codex_exec_json,
+            ):
+                self.tool.run_security_role(
+                    root=ROOT,
+                    role_mode=self.tool.ROLE_MODE_CODEX,
+                    prd_text="PRD",
+                    context_boundaries="Context boundaries",
+                    design_text="## System architecture\nAlpha design.",
+                    ux_text="## User journeys\nAlpha journey.\n## Workflows\nAlpha flow.",
+                    order_payload={"ordered_feature_slugs": ["alpha-feature"]},
+                    features=features,
+                    ordered_slugs=["alpha-feature"],
+                    graph={"alpha-feature": set()},
+                    dependency_decisions=[],
+                )
+
+        self.assertEqual(captured["profile"], "SecurityExpert")
 
 
 if __name__ == "__main__":

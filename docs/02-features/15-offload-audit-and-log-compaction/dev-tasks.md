@@ -16,29 +16,70 @@
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-15-001` Input validation controls are not explicit
+- [ ] `SEC-15-001` Unredacted command capture in offload index
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-15-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement deterministic command scrubbing before index write (secret-pattern masking, sensitive-flag masking, length caps), scrub existing index entries, and add regression tests proving secret-like inputs are never persisted in cleartext.
+- [ ] `SEC-15-002` Purge can delete evidence referenced by active work items
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-15-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add reference-aware purge protection that blocks deletion of referenced IDs by default, require explicit override for destructive purge, and emit immutable audit log entries for overrides.
+- [ ] `SEC-15-003` Security-critical invariants are not enforced by current allowed test gate
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
-
-### Product Manager Tasks
-
-- [ ] `PROD-15-002` User journey details are missing in feature docs
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Reinstate and enforce automated suites covering `tests/test_offload_index.py`, `tests/test_offload_retention.py`, and `tests/test_log_compaction.py`; fail workflow if these suites are omitted or skipped.
+- [ ] `SEC-15-004` Compaction destination integrity is not fail-closed
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-15-003` Global UX blueprint does not reference this feature
-  - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Offload audit + useful log compaction' journey and workflow.
-- [ ] `PROD-15-005` PO validation checkpoint is missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce strict output-path validation (only `docs/03-logs/compacted/` allowed), fail execution on path drift, and add tests asserting destination invariants.
+- [ ] `PROD-15-001` Compaction output path is not reliable for users
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce fail-closed destination validation to `docs/03-logs/compacted/` only, fail execution on drift, and regenerate/migrate compact outputs to the required path.
+- [ ] `PROD-15-002` Acceptance quality is unproven by current test gate
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Reinstate and enforce automated suites for offload index, retention, and log compaction as mandatory completion gates.
+- [ ] `PROD-15-003` Retention flow can delete actively referenced evidence
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add reference-aware purge protection by default, require explicit destructive override, and log override actions immutably.
+- [ ] `PROD-15-004` Raw command capture risks exposing sensitive inputs
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement deterministic command scrubbing/masking before index write, scrub existing indexed entries, and add regression tests.
+- [ ] `PROD-15-006` Recovery guidance for stale/missing compact references is unclear
+  - Reviewer: Product Manager
   - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: patch
+  - Blocking: No
+  - Action: Add deterministic user-facing remediation guidance (refresh/rebuild flow) for stale reference and missing artifact cases.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `PROD-15-005` Compacted-log usefulness lacks explicit PO validation
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: human-validation
+  - Action: Run human review on sampled compacted entries across decision/implementation/validation logs and record explicit sign-off against acceptance criteria.
 
 <!-- review-backlog:end -->
 

@@ -214,28 +214,67 @@ Commit message: chore(wi-20260213-01): apply work item updates
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-19-003` Secrets handling is not documented
-  - Severity: Medium
-  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
-- [ ] `SEC-19-004` Injection defenses are not explicit
+- [ ] `SEC-19-001` Scoped autofix boundary is not explicitly hardened against path escape
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-
-### Product Manager Tasks
-
-- [ ] `PROD-19-001` Functional scope is under-specified
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement fail-closed path controls in the autofix path selection/restage flow: resolve real paths, enforce repo-root + approved-scope prefix checks, reject boundary-crossing symlinks, and emit explicit remediation.
+- [ ] `SEC-19-002` Security-negative drift tests are not explicitly required by current test contract
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Expand functional requirements to cover primary and edge behaviors with acceptance criteria.
-- [ ] `PROD-19-002` User journey details are missing in feature docs
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add explicit automated tests for ../ traversal, absolute-path injection, symlink escape, and path-delimiter edge cases; assert non-zero exit, explicit diagnostics, and zero out-of-scope index/worktree changes.
+- [ ] `SEC-19-003` Fail-closed behavior lacks explicit transactional rollback semantics
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-19-003` Global UX blueprint does not reference this feature
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Make autofix transactional: classify all drift first, stage only after full validation, and rollback touched scoped files/index on any error or ambiguity before returning failure.
+- [ ] `PROD-19-001` Scoped autofix can still violate user expectations without explicit fail-safe boundaries
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce canonical repo-root path checks and symlink boundary rejection, and make autofix transactional with rollback before any restage; on failure, explicitly confirm that no out-of-scope or partial changes remain staged.
+- [ ] `PROD-19-002` Current test contract does not prove guardrails against adversarial drift inputs
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add explicit negative fixtures for `../` traversal, absolute-path injection, symlink escape, and delimiter edge cases; assert non-zero exit, explicit remediation text, and zero out-of-scope index/worktree changes.
+- [ ] `PROD-19-003` Local precommit and CI autofix parity is not explicitly acceptance-tested
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Template drift hardening + autofix recovery' journey and workflow.
-- [ ] `PROD-19-005` PO validation checkpoint is missing
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add parity tests that run identical drift fixtures through precommit and CI/autofix paths and assert identical classification, exit codes, and user-facing remediation output.
+- [ ] `PROD-19-005` Blocked-state UX lacks a deterministic recovery guidance contract
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Standardize blocked/recovered CLI messaging to include exact files, reason classification, safe rerun command, and stage status; lock this with automated output-contract tests.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `SEC-19-004` Manual-only drift categories remain undefined
+  - Reviewer: Security Expert
+  - Severity: Medium
+  - Phase: human-validation
+  - Action: Define and approve a manual-only denylist in feature docs, then enforce it in code/tests (minimum: bi-directional conflicts, template+living concurrent edits, multi-file semantic conflicts) with hard block and human remediation steps.
+- [ ] `PROD-19-004` Manual-review drift categories are not finalized for human sign-off
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: human-validation
+  - Action: PO/end-user must approve manual-only categories (minimum: bi-directional conflicts, concurrent template+living edits, semantic multi-file conflicts) and required remediation steps before completion.
+- [ ] `PROD-19-006` Post-release user value measurement is underspecified
+  - Reviewer: Product Manager
   - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: human-validation
+  - Action: Define baseline and target thresholds for drift-related failures/manual interventions and review in human validation after initial rollout.
 
 <!-- review-backlog:end -->

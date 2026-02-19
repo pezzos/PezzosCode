@@ -161,34 +161,61 @@ Commit message: chore(wi-20260213-01): complete work item updates
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-20-001` Input validation controls are not explicit
+- [ ] `SEC-20-001` Unsanitized work-item identifiers can escape log/offload directories
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-20-003` Secrets handling is not documented
-  - Severity: Medium
-  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
-- [ ] `SEC-20-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: In `tools/pc-feature`, enforce a strict ID format, canonicalize resolved paths, and fail closed if any path is outside approved roots. Add tests for `../`, absolute paths, and symlink-hop attempts.
+- [ ] `SEC-20-002` Allowed Tests policy can be bypassed without shell-safe command validation
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-20-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Execute tests without shell, compare normalized argv against a structured allowlist, and reject metacharacters/multi-command forms. Add negative tests for `;`, `&&`, `|`, and `$()` bypass attempts.
+- [ ] `SEC-20-003` No secret-redaction control for evidence pointers and structured logs
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement log/summarization redaction for common secret patterns and sensitive keys, then add fixture tests with seeded fake secrets to verify masking in both logs and pass/fail output.
+- [ ] `SEC-20-004` Resume-path security is untested against tampered state/artifacts
+  - Reviewer: Security Expert
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests that alter resume/state/evidence artifacts and assert fail-closed behavior (no stage skip, no completion) until integrity checks pass.
+- [ ] `PROD-20-002` Failure summary contract is not strict enough for fast recovery
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Implement a required summary schema with `stage`, `failed_invariant`, `evidence_pointer_or_log_path`, and `next_action`; add automated tests that assert schema presence for baseline-fail and gate-violation scenarios.
+- [ ] `PROD-20-004` Runtime bound lacks measurable threshold
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: No
+  - Action: Define concrete runtime budgets for local and CI runs and enforce/report them in automated tests.
 
-### Product Manager Tasks
+### Human Validation Requests (Product Owner / end-user)
 
-- [ ] `PROD-20-001` Functional scope is under-specified
+- [ ] `PROD-20-001` Smoke-test trigger policy is unresolved
+  - Reviewer: Product Manager
   - Severity: High
-  - Action: Expand functional requirements to cover primary and edge behaviors with acceptance criteria.
-- [ ] `PROD-20-002` User journey details are missing in feature docs
+  - Phase: human-validation
+  - Action: PO must choose and document the default trigger matrix (before each `make feature`, PR CI behavior, and override rules) and approve it in feature docs.
+- [ ] `PROD-20-003` Product DoD does not explicitly gate on security blocker closure
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: human-validation
+  - Action: Add explicit release-gate text in feature docs requiring closure evidence for SEC-20-001 through SEC-20-004 before marking this feature complete.
+- [ ] `PROD-20-005` Human readability of resume/skip/repair states is not explicitly validated
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-20-003` Global UX blueprint does not reference this feature
-  - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Synthetic feature workflow smoke test' journey and workflow.
-- [ ] `PROD-20-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: human-validation
+  - Action: Run a human-validation checklist on one resumed and one fresh run to confirm status wording is unambiguous and evidence pointers are easy to follow.
 
 <!-- review-backlog:end -->

@@ -27,6 +27,49 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-19 - Batch A review-features hardening (scope, canonical tasks, simplified task contract)
+
+**Feature/Bug:** Review findings were too broad/noisy, duplicated actionable details across docs, and continued to generate tasks for already completed features.
+
+**Changed Files:**
+
+- `tools/pc-review-features`
+- `tests/test_pc_review_features.py`
+- `prompts/security-review-features.md`
+- `prompts/product-manager-review-features.md`
+- `tools/templates/prompts/security-review-features.md`
+- `tools/templates/prompts/product-manager-review-features.md`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/README.md`
+- `tools/templates/docs/README.md`
+- `tools/README.md`
+
+**What Changed:**
+
+- Added completed-feature scope control in review runtime:
+  - `pc-review-features` now skips features marked `Done/Complete/Completed/Shipped` by default.
+  - New opt-in flag `--include-completed` to review completed features explicitly.
+  - Added Makefile passthrough `INCLUDE_COMPLETED=1`.
+- Switched role prompt contract from free-form findings to canonical key selection:
+  - review roles now return `selected_keys` + per-key verbatim evidence snippets.
+  - runtime validates evidence exists in feature docs before accepting role-selected findings.
+- Made finding titles/actions deterministic by mapping canonical keys to fixed templates in `pc-review-features`.
+- Simplified review rendering contract:
+  - `dev-tasks.md` now contains actionable tasks with only `Action` + `Acceptance`.
+  - `feature-spec.md` now contains constraint summaries only (`spec_guidance`) to avoid checklist duplication.
+- Reduced report metadata shape:
+  - removed reviewer/owner/phase fields from finding payloads.
+  - retained deterministic ids + `severity` + `blocking` and moved report schema to `version: 3`.
+
+**Why:**
+
+- Prior output created high finding volume on completed work and mixed global hardening guidance with feature-local execution tasks.
+- Actionable checklist duplication between feature docs reduced clarity of source of truth.
+- Deterministic canonical findings reduce drift and duplicate/noisy phrasing across reruns.
+
 ### 2026-02-18 - Role-driven `review-features` with Security Expert + PM routing
 
 **Feature/Bug:** Upgrade `make review-features` to use dedicated Security Expert and Product Manager sessions (matching prepare-features role model) and route findings to patcher vs human validation.
@@ -8101,3 +8144,45 @@ with `pc-feature: missing section Patch in entry ...`.
 **Why:**
 
 - Keeps PRD->feature documentation flow deterministic and incremental (add/update missing only, no destructive overwrite) while ensuring review-derived findings stay current.
+
+### 2026-02-19 - Implement Batch B: human validation handoff + prepare security blueprint
+
+**Feature/Bug:** Batch B follow-up from workflow hardening feedback.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tools/pc-prepare-features`
+- `prompts/security-prepare.md`
+- `tools/templates/prompts/security-prepare.md`
+- `docs/01-product/security.md`
+- `tools/templates/docs/01-product/security.md`
+- `docs/01-product/AGENTS.md`
+- `tools/templates/docs/01-product/AGENTS.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/README.md`
+- `tools/templates/docs/README.md`
+- `tools/README.md`
+- `tests/test_pc_feature.py`
+- `tests/test_pc_prepare_features.py`
+- `tests/test_docs_logs.py`
+
+**What Changed:**
+
+- Added deterministic parsing of `### Human Validation Requests` in `tools/pc-feature` and end-of-run summary rendering with explicit instructions for how the human reports failed checks back to Codex.
+- Added a new prepare role `Security Expert` in `tools/pc-prepare-features`:
+  - new prompt contract `security-prepare.md`,
+  - profile default `SecurityExpert`,
+  - generated artifact `docs/01-product/security.md`,
+  - candidate/promotion support via `security.candidate.md`.
+- Updated prepare workflow docs/template docs/readmes to include security artifact generation and prompt inventory.
+- Added/updated tests for:
+  - `pc-feature` human validation parsing + summary messaging contract,
+  - `pc-prepare-features` security artifact generation and profile wiring,
+  - docs assertions that include security prepare outputs.
+
+**Why:**
+
+- Human validation requests now have a deterministic command-line handoff at the end of execution instead of being buried in markdown.
+- Project-level security direction is now generated during prepare and kept separate from per-feature review-task noise, aligning security guidance with project scope before feature execution starts.

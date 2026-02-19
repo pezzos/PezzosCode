@@ -794,26 +794,64 @@ Work Item ID: WI-20260211-01
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-17-004` Injection defenses are not explicit
+- [ ] `SEC-17-001` Required resume safety tests are not consistently enforced
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-
-### Product Manager Tasks
-
-- [ ] `PROD-17-001` Functional scope is under-specified
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Make both Allowed Tests mandatory for resumed and non-resumed paths; hard-fail execution when either test is missing or non-zero, and add a regression asserting resume cannot advance after docs-log contract failure.
+- [ ] `SEC-17-002` `prompt` mode is security-ambiguous in non-interactive runs
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Expand functional requirements to cover primary and edge behaviors with acceptance criteria.
-- [ ] `PROD-17-002` User journey details are missing in feature docs
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Define and implement deterministic non-interactive behavior now (recommended: `prompt` fails closed unless explicit override flag is provided) and cover TTY/non-TTY cases in tests.
+- [ ] `SEC-17-003` Contradictory artifact handling lacks completed proof of enforcement
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Centralize resume-state validation before any role routing; reject contradictory/malformed/missing-critical artifact combinations with explicit remediation and add deterministic negative tests for each contradiction class.
+- [ ] `SEC-17-004` Resume audit trail completeness is not guaranteed
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-17-003` Global UX blueprint does not reference this feature
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Enforce required resume checkpoint/evidence fields in writer logic and docs-log tests, and block completion when any required field is missing.
+- [ ] `PROD-17-001` Resume path can pass with incomplete quality gates
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Require both Allowed Tests on every resumed and non-resumed run; hard-stop progression when either test is missing or non-zero; add regression proving resume cannot advance after docs-log test failure.
+- [ ] `PROD-17-002` Non-interactive `prompt` behavior is ambiguous
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement deterministic non-interactive policy (fail closed unless explicit override), with TTY/non-TTY tests and explicit CLI messaging.
+- [ ] `PROD-17-003` Contradictory artifact handling is not proven fail-closed
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Centralize resume-state validation before routing; reject contradictory/malformed/missing-critical artifacts with clear remediation; add deterministic negative tests per contradiction class.
+- [ ] `PROD-17-004` Resume audit trail completeness is inconsistent
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Resume in-progress tickets' journey and workflow.
-- [ ] `PROD-17-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Enforce required resume checkpoint fields in writer logic and docs-log tests, and block completion when required evidence is missing.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `PROD-17-005` Risky resume-choice UX needs human sign-off
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: human-validation
+  - Action: Run PO/end-user validation of resume prompts and summaries on interrupted-run scenarios; approve wording/defaults before release.
 
 <!-- review-backlog:end -->
 

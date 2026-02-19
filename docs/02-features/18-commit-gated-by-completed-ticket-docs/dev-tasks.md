@@ -858,29 +858,63 @@ Commit status:
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-18-003` Secrets handling is not documented
-  - Severity: Medium
-  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
-- [ ] `SEC-18-004` Injection defenses are not explicit
+- [ ] `SEC-18-002` Auto-filled command metadata can leak secrets into git history
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-
-### Product Manager Tasks
-
-- [ ] `PROD-18-001` Functional scope is under-specified
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add mandatory redaction and fail-closed checks for secret patterns and high-entropy credential-like values before writing metadata; add automated fixtures with injected secrets to verify masking/blocking.
+- [ ] `SEC-18-003` Gate validates section presence but not evidence authenticity
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Expand functional requirements to cover primary and edge behaviors with acceptance criteria.
-- [ ] `PROD-18-002` User journey details are missing in feature docs
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Require machine-verifiable evidence links (existing offload/log pointers with success exit code) for required sections; block on missing, stale, or mismatched artifacts; add negative tests for forged pointers.
+- [ ] `SEC-18-004` Out-of-scope file guard lacks explicit canonical path/symlink controls
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-18-003` Global UX blueprint does not reference this feature
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce `realpath`-based repo-root allowlisting, reject symlinks and `..` escapes, and add regression tests for traversal/symlink scenarios.
+- [ ] `PROD-18-002` Gate checks presence of sections but not authenticity of evidence
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Require machine-verifiable evidence (offload/log pointer + success status), block stale/forged pointers, and add negative automated tests for spoofed evidence.
+- [ ] `PROD-18-003` Auto-filled command metadata can leak secrets
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add mandatory redaction and fail-closed secret detection before metadata write; include fixtures with injected secrets to prove masking/blocking.
+- [ ] `PROD-18-004` Out-of-scope guard lacks canonical path and symlink safety
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Commit gated by completed ticket docs' journey and workflow.
-- [ ] `PROD-18-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce realpath-based repo-root allowlisting, reject symlink/.. escapes, and add regression tests for traversal and symlink scenarios.
+- [ ] `PROD-18-005` Remediation UX quality is not contract-tested
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: No
+  - Action: Add CLI contract tests asserting deterministic remediation output includes missing field, expected location, and exact next step per failure mode.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `SEC-18-001` Commit-gate override policy is unresolved
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: human-validation
+  - Action: Fail closed by default in code and protocol: disallow overrides unless a PO-approved override model is explicitly documented. If approved later, require explicit override flag, approval artifact ID, reason, and audit logging; add tests proving no silent bypass exists.
+- [ ] `PROD-18-001` Override policy is unresolved for real incident workflows
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: human-validation
+  - Action: PO must choose and document a single policy (fail-closed only, or controlled override with approval artifact ID, reason, and audit logging) and update acceptance criteria before release.
 
 <!-- review-backlog:end -->
 

@@ -173,34 +173,69 @@ Commit message: logs: record WI-20260206-01 execution and validation
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-10-001` Input validation controls are not explicit
+- [ ] `SEC-10-001` Unscoped `git add -u` can stage unrelated tracked changes
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-10-002` Authentication/authorization expectations are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: In the unified autofix script, snapshot the pre-hook staged path set (`git diff --cached --name-only -z`), restage only that set (or its autofix-touched subset), and hard-fail if autofix changed tracked files outside scope.
+- [ ] `SEC-10-002` Vanilla Codex mode is required but not fail-closed
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Specify authN/authZ requirements, denied-path behavior, and least-privilege checks.
-- [ ] `SEC-10-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Hard-pin vanilla config/env in `tools/pc-precommit` and fail immediately if vanilla mode cannot be applied; add a regression check that rejects Serena-enabled execution.
+- [ ] `SEC-10-003` Autofix failure path is not explicitly commit-blocking
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-10-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Propagate non-zero exit codes from unified autofix through precommit and CI, and add a negative-path automated test that injects autofix failure and asserts commit/CI is blocked.
+- [ ] `SEC-10-004` Filename/path parsing safety is unspecified
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+  - Phase: patch
+  - Blocking: No
+  - Action: Use NUL-delimited git output (`-z`) and strict quoted/array-safe shell handling, plus a regression test with problematic filenames.
+- [ ] `PROD-10-001` Restaging scope can include unrelated user work
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Snapshot the pre-hook staged set (`git diff --cached --name-only -z`), restage only that set (or its autofix-touched subset), and fail if out-of-scope tracked files changed.
+- [ ] `PROD-10-002` Vanilla precommit mode is not fail-closed
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Hard-pin vanilla Codex config/env in precommit and exit non-zero if vanilla mode cannot be enforced; add a regression check that rejects Serena-enabled execution.
+- [ ] `PROD-10-003` Autofix failure path may fail open
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Propagate non-zero exit codes end-to-end and add negative-path automated tests that inject autofix failure and assert commit/CI is blocked.
+- [ ] `PROD-10-004` No-staged-files behavior is under-specified for users
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Define and test a deterministic no-staged-files outcome (clear message, no staging changes, correct exit code).
+- [ ] `PROD-10-005` Filename parsing robustness is not guaranteed
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: No
+  - Action: Use NUL-delimited git output and array-safe shell handling; add regression tests with problematic filenames.
 
-### Product Manager Tasks
+### Human Validation Requests (Product Owner / end-user)
 
-- [ ] `PROD-10-002` User journey details are missing in feature docs
-  - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-10-003` Global UX blueprint does not reference this feature
-  - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Unified autofix for CI + precommit' journey and workflow.
-- [ ] `PROD-10-004` Workflow definition is incomplete
-  - Severity: Medium
-  - Action: Define end-to-end workflow states, system responses, and handoff boundaries.
-- [ ] `PROD-10-005` PO validation checkpoint is missing
+- [ ] `PROD-10-006` Human validation of CLI workflow clarity is missing
+  - Reviewer: Product Manager
   - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: human-validation
+  - Action: Run PO validation on success/failure/no-op scenarios and record explicit sign-off for message clarity and remediation guidance.
 
 <!-- review-backlog:end -->

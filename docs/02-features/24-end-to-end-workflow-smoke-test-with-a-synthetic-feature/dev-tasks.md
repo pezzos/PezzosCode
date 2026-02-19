@@ -42,32 +42,70 @@ When execution starts, add a new work-item entry using
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-24-001` Input validation controls are not explicit
+- [ ] `SEC-24-001` No secret-redaction control for offloaded and structured logs
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-24-002` Authentication/authorization expectations are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add a centralized sanitizer before any log/offload write (mask common secret patterns and sensitive env keys), and add regression tests that inject synthetic secrets and verify masked output in both destinations.
+- [ ] `SEC-24-002` Path traversal risk in log/offload file generation
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Specify authN/authZ requirements, denied-path behavior, and least-privilege checks.
-- [ ] `SEC-24-003` Secrets handling is not documented
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce strict allowlist validation for path segments, canonicalize and verify base-directory containment, reject invalid/absolute/traversal inputs, and add tests for `../`, absolute paths, and symlink escape attempts.
+- [ ] `SEC-24-003` Fail-closed gate behavior is specified but not security-tested
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated smoke tests that prove fail-closed behavior: blocked status (`Awaiting PO Approval` where applicable), non-zero exit, and no patch/test/commit stage execution until required approvals/evidence exist.
+- [ ] `SEC-24-004` Resume-state tampering can bypass required checks
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Harden resume metadata with integrity validation (state/evidence binding), fail closed on mismatch, and force re-run of guarded stages when validation fails.
+- [ ] `SEC-24-005` Synthetic smoke run lacks explicit isolation guardrails
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
-- [ ] `SEC-24-004` Injection defenses are not explicit
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Constrain synthetic execution to an isolated temp worktree and enforce an allowlisted command/file-write scope; add validation that reruns only touch expected artifacts.
+- [ ] `PROD-24-001` Missing deterministic user-facing pass criteria
+  - Reviewer: Product Manager
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-24-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Define and implement a strict output contract for success/failure that includes stage status, resume state (resumed/skipped/repaired/new), and required evidence pointers.
+- [ ] `PROD-24-002` Idempotent rerun and resume behavior is not acceptance-tested
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests for first run vs rerun vs interrupted-resume that assert deterministic outcomes, no duplicate stage effects, and stable evidence references.
+- [ ] `PROD-24-003` Smoke coverage omits critical user workflow branches
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Define a mandatory scenario matrix and automate it: happy path plus at least one negative/loop case for each critical gate and handoff.
+- [ ] `PROD-24-004` PO clarification path is underspecified
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add an explicit clarification gate with fail-closed status, owner routing, and required log evidence before execution can continue.
 
-### Product Manager Tasks
+### Human Validation Requests (Product Owner / end-user)
 
-- [ ] `PROD-24-002` User journey details are missing in feature docs
+- [ ] `PROD-24-005` No required human sign-off for workflow clarity
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-24-003` Global UX blueprint does not reference this feature
-  - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'End-to-end workflow smoke test with a synthetic feature' journey and workflow.
+  - Phase: human-validation
+  - Action: Run and record a human-validation checklist covering gate prompts, blocked labels, remediation text, and final run summary readability before approval.
 
 <!-- review-backlog:end -->
 

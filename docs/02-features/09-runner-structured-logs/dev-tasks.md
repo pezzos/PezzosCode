@@ -260,28 +260,68 @@
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-09-004` Injection defenses are not explicit
+- [ ] `SEC-09-001` Path traversal risk in `logs/<WI>/<step>.log` construction
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-09-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: In the runner/log helper, validate `work_item_id`, `agent_name`, `step`, and `run_id` against a strict allowlist (e.g., `[A-Za-z0-9._-]+`), resolve canonical paths, and hard-fail if the target is outside `logs/`.
+- [ ] `SEC-09-002` Log forging/injection via unescaped metadata fields
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Escape or reject control characters in all metadata fields and enforce one-event-per-line output (prefer JSONL with encoded fields). Add tests that inject newline/tab/ANSI characters and verify safe output.
+- [ ] `SEC-09-003` Sensitive data exposure in structured command logs
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement output redaction before write (token/header/password patterns), add regression tests with synthetic secrets, and document a denylist/allowlist policy for logged fields.
+- [ ] `SEC-09-004` Fail-open behavior for unwritable log directory is not enforced
+  - Reviewer: Security Expert
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Require non-zero exit when required step logs cannot be created/appended, and add automated tests for missing/unwritable `logs/<WI>` paths.
+- [ ] `PROD-09-002` Traceability can fail open when logs are unavailable
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce fail-closed behavior for missing/unwritable log paths and emit clear remediation plus rerun-safety messaging.
+- [ ] `PROD-09-003` Structured log trust can be broken by unsafe metadata handling
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Validate metadata with a strict allowlist, enforce canonical paths under logs/, reject/escape control characters, and add negative tests.
+- [ ] `PROD-09-004` Sensitive output redaction is not guaranteed
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement redaction for sensitive patterns, add regression tests with synthetic secrets, and document the redaction policy/limits.
+- [ ] `PROD-09-005` Acceptance evidence is incomplete across all required run surfaces
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated validation covering all required run types and record concrete log-path/prefix evidence in feature validation logs.
 
-### Product Manager Tasks
+### Human Validation Requests (Product Owner / end-user)
 
-- [ ] `PROD-09-002` User journey details are missing in feature docs
+- [ ] `SEC-09-005` Security gate evidence incomplete before feature completion
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-09-003` Global UX blueprint does not reference this feature
-  - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Runner library + structured logs' journey and workflow.
-- [ ] `PROD-09-004` Workflow definition is incomplete
-  - Severity: Medium
-  - Action: Define end-to-end workflow states, system responses, and handoff boundaries.
-- [ ] `PROD-09-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: human-validation
+  - Action: Resolve the permission issue and rerun full `make ci`; do not finalize feature status until the gate passes with evidence recorded in validation logs.
+- [ ] `PROD-09-001` Feature marked Done without full gate evidence
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: human-validation
+  - Action: Resolve the permission blocker, rerun full make ci, and record passing evidence in validation logs before keeping status Done.
 
 <!-- review-backlog:end -->

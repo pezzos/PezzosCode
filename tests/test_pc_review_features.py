@@ -26,10 +26,13 @@ class TestPcReviewFeatures(unittest.TestCase):
     def setUp(self):
         self.tool = load_tool_module()
 
-    def test_build_security_findings_reports_missing_controls(self):
-        findings = self.tool.build_security_findings("01", "bare feature content")
-        self.assertEqual(len(findings), 5)
-        self.assertTrue(all(item.finding_id.startswith("SEC-01-") for item in findings))
+    def test_deterministic_security_keys_are_stable(self):
+        keys = self.tool.deterministic_security_keys(
+            "Feature accepts input parameter and writes logs to offload path."
+        )
+        self.assertIn("SEC-INPUT-VALIDATION", keys)
+        self.assertIn("SEC-LOG-REDACTION", keys)
+        self.assertTrue(all(item.startswith("SEC-") for item in keys))
 
     def test_review_command_injects_machine_managed_sections(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -42,11 +45,20 @@ class TestPcReviewFeatures(unittest.TestCase):
                 "# Global UX / UI Blueprint\n\n## User journeys\n\n", encoding="utf-8"
             )
             (feature_dir / "feature-spec.md").write_text(
-                "# Feature Specification: Alpha Feature\n\n## Functional Requirements\n\n- Minimal\n",
+                (
+                    "# Feature Specification: Alpha Feature\n\n"
+                    "## Functional Requirements\n\n"
+                    "- Input parameter drives output path behavior.\n"
+                ),
                 encoding="utf-8",
             )
             (feature_dir / "dev-tasks.md").write_text(
-                "# Development Tasks: Alpha Feature\n\n## Execution Log\n\n- No runs yet.\n\n## Task Breakdown\n\n- [ ] placeholder\n",
+                (
+                    "# Development Tasks: Alpha Feature\n\n"
+                    "**Status:** Not Started\n\n"
+                    "## Execution Log\n\n- No runs yet.\n\n"
+                    "## Task Breakdown\n\n- [ ] placeholder\n"
+                ),
                 encoding="utf-8",
             )
 
@@ -78,12 +90,13 @@ class TestPcReviewFeatures(unittest.TestCase):
                 )
             )
 
-            self.assertIn("## Automated Review Findings", spec_content)
+            self.assertIn("## Automated Review Summary", spec_content)
             self.assertIn("<!-- review-findings:start -->", spec_content)
-            self.assertIn("### Security Expert", spec_content)
-            self.assertIn("### Product Manager (End-User Feedback)", spec_content)
+            self.assertIn("### Security Constraints", spec_content)
+            self.assertIn("### Product Constraints", spec_content)
             self.assertIn("SEC-01-", spec_content)
             self.assertIn("PROD-01-", spec_content)
+            self.assertNotIn("Action:", spec_content)
 
             self.assertIn("## Review Findings Backlog", dev_tasks_content)
             self.assertIn("<!-- review-backlog:start -->", dev_tasks_content)
@@ -91,14 +104,22 @@ class TestPcReviewFeatures(unittest.TestCase):
             self.assertIn("### Human Validation Requests", dev_tasks_content)
             self.assertIn("SEC-01-", dev_tasks_content)
             self.assertIn("PROD-01-", dev_tasks_content)
-            self.assertEqual(report_payload["version"], 2)
+            self.assertIn("Action:", dev_tasks_content)
+            self.assertIn("Acceptance:", dev_tasks_content)
+            self.assertNotIn("Reviewer:", dev_tasks_content)
+            self.assertEqual(report_payload["version"], 3)
             self.assertEqual(report_payload["totals"]["features_reviewed"], 1)
             self.assertGreater(report_payload["totals"]["security_findings"], 0)
             self.assertGreater(report_payload["totals"]["product_findings"], 0)
-            self.assertGreater(report_payload["totals"]["patcher_findings"], 0)
+            self.assertIn("human_validation_requests", report_payload["totals"])
             self.assertEqual(
                 report_payload["features"][0]["feature_id"], "01-alpha-feature"
             )
+            first_security = report_payload["features"][0]["security_findings"][0]
+            self.assertIn("blocking", first_security)
+            self.assertNotIn("owner", first_security)
+            self.assertNotIn("phase", first_security)
+            self.assertNotIn("reviewer", first_security)
 
     def test_review_command_is_idempotent_for_markers(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -111,11 +132,20 @@ class TestPcReviewFeatures(unittest.TestCase):
                 "# Global UX / UI Blueprint\n\n## User journeys\n\n", encoding="utf-8"
             )
             (feature_dir / "feature-spec.md").write_text(
-                "# Feature Specification: Alpha Feature\n\n## Functional Requirements\n\n- Minimal\n",
+                (
+                    "# Feature Specification: Alpha Feature\n\n"
+                    "## Functional Requirements\n\n"
+                    "- Input parameter drives output path behavior.\n"
+                ),
                 encoding="utf-8",
             )
             (feature_dir / "dev-tasks.md").write_text(
-                "# Development Tasks: Alpha Feature\n\n## Execution Log\n\n- No runs yet.\n\n## Task Breakdown\n\n- [ ] placeholder\n",
+                (
+                    "# Development Tasks: Alpha Feature\n\n"
+                    "**Status:** Not Started\n\n"
+                    "## Execution Log\n\n- No runs yet.\n\n"
+                    "## Task Breakdown\n\n- [ ] placeholder\n"
+                ),
                 encoding="utf-8",
             )
 
@@ -155,12 +185,74 @@ class TestPcReviewFeatures(unittest.TestCase):
                 dev_tasks_content.count("<!-- review-backlog:start -->"), 1
             )
 
+    def test_review_command_skips_completed_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            feature_dir = root / "docs/02-features/01-alpha-feature"
+            feature_dir.mkdir(parents=True, exist_ok=True)
+            (root / "docs/01-product").mkdir(parents=True, exist_ok=True)
+
+            original_spec = (
+                "# Feature Specification: Alpha Feature\n\n"
+                "## Functional Requirements\n\n- Input parameter drives output path behavior.\n"
+            )
+            original_tasks = (
+                "# Development Tasks: Alpha Feature\n\n"
+                "**Status:** Done\n\n"
+                "## Execution Log\n\n- No runs yet.\n\n"
+                "## Task Breakdown\n\n- [ ] placeholder\n"
+            )
+            (root / "docs/01-product/ux-ui.md").write_text(
+                "# Global UX / UI Blueprint\n\n## User journeys\n\n", encoding="utf-8"
+            )
+            (feature_dir / "feature-spec.md").write_text(
+                original_spec, encoding="utf-8"
+            )
+            (feature_dir / "dev-tasks.md").write_text(original_tasks, encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(TOOL_PATH),
+                    f"--root={root}",
+                    "--role-mode=deterministic",
+                    "--skip-schema-check",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if result.returncode != 0:
+                self.fail(
+                    f"pc-review-features failed: {result.stderr}\n{result.stdout}"
+                )
+
+            self.assertEqual(
+                (feature_dir / "feature-spec.md").read_text(encoding="utf-8"),
+                original_spec,
+            )
+            self.assertEqual(
+                (feature_dir / "dev-tasks.md").read_text(encoding="utf-8"),
+                original_tasks,
+            )
+            report_payload = json.loads(
+                (root / "docs/03-logs/review-features-report.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                report_payload["features"][0]["status"], "skipped-completed"
+            )
+            self.assertEqual(report_payload["totals"]["features_reviewed"], 0)
+            self.assertEqual(report_payload["totals"]["features_skipped_completed"], 1)
+
     def test_run_security_role_uses_security_expert_profile_by_default(self):
         captured = {"profile": None}
 
         def fake_codex_exec_json(**kwargs):
             captured["profile"] = kwargs.get("profile")
-            return {"decision": "APPROVE", "findings": [], "issues": []}
+            return {"decision": "APPROVE", "selected_keys": [], "evidence": {}}
 
         with mock.patch.dict(self.tool.os.environ, {}, clear=False):
             self.tool.os.environ.pop("REVIEW_SECURITY_PROFILE", None)
@@ -188,7 +280,7 @@ class TestPcReviewFeatures(unittest.TestCase):
 
         def fake_codex_exec_json(**kwargs):
             captured["profile"] = kwargs.get("profile")
-            return {"decision": "APPROVE", "findings": [], "issues": []}
+            return {"decision": "APPROVE", "selected_keys": [], "evidence": {}}
 
         with mock.patch.dict(self.tool.os.environ, {}, clear=False):
             self.tool.os.environ.pop("REVIEW_PM_PROFILE", None)

@@ -3,9 +3,9 @@
 > Machine-managed by `tools/pc-prepare-features`.
 
 - Run mode: `rerun`
-- Loop iteration: `3`
+- Loop iteration: `4`
 - PM final decision: `approve`
-- PM blocks: `1`
+- PM blocks: `2`
 - Feature generation status: `completed`
 - Schema check status: `completed`
 
@@ -13,6 +13,7 @@
 
 - `docs/01-product/design.candidate.md`
 - `docs/01-product/ux-ui.candidate.md`
+- `docs/01-product/security.candidate.md`
 - `docs/02-features/feature-order.candidate.json`
 - `docs/02-features/feature-order.candidate.md`
 - `docs/03-logs/prepare-features-state.candidate.json`

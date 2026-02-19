@@ -16,29 +16,63 @@
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-12-001` Input validation controls are not explicit
+- [ ] `SEC-12-001` PRD-derived folder names are not constrained to a safe write root
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-12-003` Secrets handling is not documented
-  - Severity: Medium
-  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
-- [ ] `SEC-12-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce strict slug allowlist, reject path separators/dot segments/control chars, resolve realpath for every target, and hard-fail if target is not under docs/02-features before any read/write.
+- [ ] `SEC-12-002` In-place update flow lacks symlink boundary protection
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-12-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Use lstat-based symlink detection on feature directories and managed files, refuse symlink targets, and fail-closed with explicit reporting; do not follow symlinks during update operations.
+- [ ] `SEC-12-003` Malformed or missing Status parsing can fail open
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
-
-### Product Manager Tasks
-
-- [ ] `PROD-12-002` User journey details are missing in feature docs
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement strict status parsing and fail-closed behavior for missing/invalid Status (skip + explicit reason) unless an explicit human override path is invoked.
+- [ ] `SEC-12-004` Security boundary tests are missing from required validation set
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-12-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests for traversal attempts, absolute-path inputs, symlinked feature paths/files, and malformed-status fail-closed behavior; require these tests to pass before feature completion.
+- [ ] `PROD-12-001` Acceptance contract is marked Done without validation evidence
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Complete and record automated validation for idempotent reruns, no-delete guarantees, duplicate prevention, done-skip determinism, and update-only-missing-sections; attach results in validation/report logs before completion.
+- [ ] `PROD-12-002` Run summary does not yet prove recovery-grade workflow clarity
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement and test deterministic per-feature reason codes for created/updated/skipped plus recovery-safe messaging (resumed/skipped/repaired/newly executed and immediate remediation when blocked).
+- [ ] `PROD-12-005` ‘Update only missing/incomplete sections’ is not acceptance-testable yet
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: No
+  - Action: Define concrete section-level invariants and add automated diff-based tests showing what must remain unchanged vs what may be filled in.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `PROD-12-003` Slug/index drift lacks explicit human decision gate
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: human-validation
+  - Action: Require human confirmation for drift cases with an explicit mapping table and selected target before proceeding.
+- [ ] `PROD-12-004` Malformed/missing Status handling needs human override governance
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: human-validation
+  - Action: Route any override of malformed/missing Status to explicit PO sign-off and log the approval rationale before any update is allowed.
 
 <!-- review-backlog:end -->
 

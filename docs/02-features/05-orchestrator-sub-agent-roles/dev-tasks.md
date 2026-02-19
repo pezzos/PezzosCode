@@ -22,26 +22,70 @@
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-05-001` Input validation controls are not explicit
+- [ ] `SEC-05-001` Gate artifacts are not integrity-protected
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-05-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add a per-run artifact manifest (run_id, role, timestamp, SHA-256 for each artifact) and verify it at every gate transition; fail closed on any mismatch.
+- [ ] `SEC-05-002` Role boundaries are defined but not enforceably sandboxed
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-05-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce role-based path allowlists/denylists in the orchestrator runner and reject out-of-scope writes with explicit errors.
+- [ ] `SEC-05-003` HIGH-risk approval gate can be bypassed in non-interactive flows
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Require interactive TTY for HIGH-risk approval, bind approval to current run_id, and persist an approval audit record before unblocking.
+- [ ] `SEC-05-004` Offload/log pipeline lacks secret redaction requirements
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Implement output scrubbing before write (credential/token patterns and configured secret keys), and add regression tests that fail when known secret fixtures appear in offload/log files.
+- [ ] `SEC-05-005` Artifact file permissions are unspecified
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
-
-### Product Manager Tasks
-
-- [ ] `PROD-05-003` Global UX blueprint does not reference this feature
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Create artifact directories/files with least-privilege permissions (`0700` dirs, `0600` files) and add automated checks for permission mode on creation.
+- [ ] `PROD-05-001` Gate UX contract is underspecified for end users
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Define and implement a strict CLI message contract for each Plan/Patch/Test/Report transition and failure state, including role, stage, artifact pointer, and explicit remediation; add output assertions.
+- [ ] `PROD-05-002` Acceptance tests do not cover critical workflow failure loops
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests for conflicting-role outputs, skipped-gate fail-safe behavior, loopback-to-planner routing, and interrupted-run resume semantics with pass/fail expectations.
+- [ ] `PROD-05-004` Blocked-state recovery guidance is too vague
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Orchestrator + sub-agent roles' journey and workflow.
-- [ ] `PROD-05-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Update blocked/error UX to include missing prerequisite slugs, next valid command/action, and rerun-safety guidance; verify in tests.
+- [ ] `PROD-05-005` Success metrics are not measurable
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: No
+  - Action: Replace placeholder metrics with measurable thresholds and evidence sources in feature docs and validation logs.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `PROD-05-003` Human decision points are not explicitly captured as sign-off artifacts
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: human-validation
+  - Action: Require human validation artifacts for PO decisions (run_id, decision, rationale, timestamp) and make completion contingent on that record.
 
 <!-- review-backlog:end -->
 

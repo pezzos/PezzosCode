@@ -1181,23 +1181,64 @@ Work Item ID: WI-20260204-03
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-07-001` Input validation controls are not explicit
+- [ ] `SEC-07-001` Required security-relevant gates are failing
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-07-004` Injection defenses are not explicit
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Fix the branch-gate execution path and the `.codex/skills/readme-sync/SKILL.md` permission error, then rerun `make feature F=07` and `make ci` and record PASS evidence in validation logs before completion.
+- [ ] `SEC-07-002` Anti-cheat control is currently phrase-based, not behavior-verified
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-07-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add executable anti-cheat tests that assert real behavior: multiple fixture-driven assertions per critical path, invariant checks across fixture variation, and failure on hardcoded outputs independent of wording.
+- [ ] `SEC-07-003` Seeded-randomness requirement lacks runtime determinism proof
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
-
-### Product Manager Tasks
-
-- [ ] `PROD-07-003` Global UX blueprint does not reference this feature
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add deterministic test cases that run the same seed multiple times and assert identical outcomes; add a negative test that unseeded paths fail with explicit retry guidance.
+- [ ] `SEC-07-004` Local-only/no-remote-transfer security requirement is undocumented in validation evidence
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Anti-cheat testing strategy' journey and workflow.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add a test or execution guard for F-07 workflow paths that asserts no network egress is required/used, and log the validation result in `docs/03-logs/validation-log.md`.
+- [ ] `PROD-07-001` Required release gates are failing, so user-facing quality is unproven
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Fix the branch-gate path and `.codex/skills/readme-sync/SKILL.md` permission failure, rerun `make feature F=07` and `make ci`, and record PASS evidence in validation logs before marking complete.
+- [ ] `PROD-07-002` Anti-cheat acceptance is phrase-based instead of behavior-based
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add executable behavior tests using multiple fixture variations per critical path, invariant assertions across variants, and explicit failure when outputs are hardcoded regardless of wording.
+- [ ] `PROD-07-003` Determinism promise is not validated at runtime
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add tests that run identical seeds multiple times and assert identical outcomes, plus a negative test where unseeded paths fail with explicit retry guidance.
+- [ ] `PROD-07-004` Local-only operation claim lacks validation evidence
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add a guard/test for no network egress on F-07 workflow paths and log validation evidence in `docs/03-logs/validation-log.md`.
+
+### Human Validation Requests (Product Owner / end-user)
+
+- [ ] `PROD-07-005` Acceptance authority is ambiguous because F-07 is marked shipped but superseded by F-08
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: human-validation
+  - Action: PO must explicitly decide whether F-07 is archival-only or still acceptance-active, map evidence to the authoritative feature, and record sign-off decision.
 
 <!-- review-backlog:end -->
 

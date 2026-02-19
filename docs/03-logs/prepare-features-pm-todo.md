@@ -72,8 +72,12 @@
 | PM-TODO-060 | ux                 | 3            | PM-002       | Closed: `ux-ui.md` now adds dependency-gate behavior in Journey 5/Workflow E and UX constraints, so the UX artifact is no longer unchanged relative to PM feedback.                                                                                                          |
 | PM-TODO-061 | dependency-planner | 3            | PM-003       | Closed: `feature-order.json` prerequisite arrays are semantically aligned with `design.md` `## Feature alignment map` across all listed slugs.                                                                                                                               |
 | PM-TODO-062 | dependency-planner | 3            | PM-004       | Closed: PM semantic criterion `dependency_alignment` now passes with consistent prerequisites across `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`.                                                                                      |
+| PM-TODO-063 | security           | 3            | PM-001       | Security changed artifact content without actionable PM TODO/feedback in this iteration.                                                                                                                                                                                     |
+| PM-TODO-064 | security           | 3            | PM-002       | Security reported changed_sections despite no actionable PM TODO/feedback.                                                                                                                                                                                                   |
+| PM-TODO-065 | security           | 4            | PM-001       | Security returned unchanged artifact despite actionable PM TODO/feedback.                                                                                                                                                                                                    |
 
 ## PM Loop History (summary)
 
-- loop=2 gate=PM-BLOCK-001 decision=retry pm_role_decision=BLOCK issues=4
-- loop=3 gate=PM-REVIEW-003 decision=approve pm_role_decision=APPROVE issues=0
+- loop=2 gate=PM-BLOCK-001 decision=retry pm_role_decision=APPROVE issues=2
+- loop=3 gate=PM-BLOCK-002 decision=retry pm_role_decision=APPROVE issues=1
+- loop=4 gate=PM-REVIEW-004 decision=approve pm_role_decision=APPROVE issues=0

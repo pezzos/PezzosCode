@@ -102,7 +102,7 @@
     "schema_check_status": "completed",
     "skip_generation": false
   },
-  "generated_at": "2026-02-18T20:19:47Z",
+  "generated_at": "2026-02-19T10:52:50Z",
   "notes": [
     "Machine-managed by tools/pc-prepare-features.",
     "Captures PM-gate outcomes and execution status for deterministic reruns."
@@ -176,177 +176,87 @@
     }
   ],
   "pm_gate": {
-    "blocked_count": 1,
+    "blocked_count": 2,
     "final_decision": "approve",
     "history": [
       {
         "decision": "retry",
         "gate_id": "PM-BLOCK-001",
-        "issue_count": 4,
+        "issue_count": 2,
         "issues": [
           {
             "issue_id": "PM-001",
-            "remediation": "Apply targeted updates for architect owner TODOs and PM feedback, then return updated artifact content.",
-            "risk": "PM blockers may persist across retries without concrete progress.",
-            "step": "architect",
-            "summary": "Architect returned unchanged artifact despite actionable PM TODO/feedback."
+            "remediation": "Return previous security artifact unchanged when no owner-scoped open/carry TODOs or relevant PM feedback exist.",
+            "risk": "Unnecessary rewrites increase diff noise and can hide real fixes.",
+            "step": "security",
+            "summary": "Security changed artifact content without actionable PM TODO/feedback in this iteration."
           },
           {
             "issue_id": "PM-002",
-            "remediation": "Apply targeted updates for ux owner TODOs and PM feedback, then return updated artifact content.",
-            "risk": "PM blockers may persist across retries without concrete progress.",
-            "step": "ux",
-            "summary": "UX returned unchanged artifact despite actionable PM TODO/feedback."
-          },
-          {
-            "issue_id": "PM-003",
-            "remediation": "Edit `feature-order.json` sections `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: for every feature slug, arrays exactly match the prerequisite contract in `design.md` under `## Feature alignment map`, all three representations are identical per slug, `bootstrap-safe-template-reapply` is the only empty-root dependency, and every prerequisite references an earlier `ordered_feature_slugs` entry.",
-            "risk": "Prepare-features can enforce and validate the wrong execution order, creating gate regressions and non-deterministic dependency behavior.",
-            "step": "dependency-planner",
-            "summary": "`feature-order.json` prerequisite sets are not semantically aligned with `design.md` `## Feature alignment map` for multiple slugs (including `single-worktree-orchestration-template-drift-hardening`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`, `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`, and `incremental-prd-to-features-post-run-learning-loop`)."
-          },
-          {
-            "issue_id": "PM-004",
-            "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
-            "risk": "Feature generation order may violate prerequisites.",
-            "step": "dependency-planner",
-            "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+            "remediation": "Set changed_sections to [] and keep artifact content unchanged when no actionable owner-scoped work exists.",
+            "risk": "Change metadata becomes unreliable for review and rerun diagnostics.",
+            "step": "security",
+            "summary": "Security reported changed_sections despite no actionable PM TODO/feedback."
           }
         ],
         "iteration": 2,
         "pm_feedback": {
           "criteria": {
-            "dependency_alignment": "fail",
+            "dependency_alignment": "pass",
             "feature_specificity": "pass",
             "journey_specificity": "pass"
           },
-          "loop_change_summary": "## design.md diff\n--- previous/design.md\n+++ current/design.md\n@@ -71,7 +71,9 @@\n \n Dependency-alignment acceptance condition for downstream ordering artifacts: `bootstrap-safe-template-reapply` is the only root feature and every other feature must declare at least one prerequisite from an earlier phase.\n \n-Release sequencing is reliability-first because dependency decisions are currently empty; ordering follows risk reduction and MVP hardening goals rather than new product surface area. If dependency artifacts diverge from this contract, build readiness is blocked until prerequisite arrays are corrected.\n+Release sequencing is reliability-first and anchored to explicit prerequisite arrays in the alignment map; ordering follows risk reduction and MVP hardening goals rather than new product surface area. If dependency artifacts diverge from this contract, build readiness is blocked until prerequisite arrays are corrected.\n+\n+PM feedback resolution: architect-owned prerequisite arrays are now explicit in the Feature alignment map for prepare-features consumption.\n \n ## Feature alignment map\n \n@@ -79,13 +81,13 @@\n \n UX alignment anchor from `ux-ui.md`: Journey 1 maps to feature 1, Journey 2 maps to features 2/6/7, Journey 3 maps to feature 3, Journey 4 maps to features 4/5, and Journey 5 maps to feature 8.\n \n-| Feature                                                                                                                         | Outcome and notes                                                                                        | Architectural alignment                                                                                     |\n-| ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |\n-| Bootstrap + safe template reapply (`bootstrap-safe-template-reapply`)                                                           | Execution-ready repos with idempotent reruns; conflict handling overwrite/merge/skip                     | Template manager with deterministic merge policy and non-destructive reapply semantics                      |\n-| Deterministic work-item execution with explicit gates (`deterministic-work-item-execution-with-explicit-gates`)                 | Predictable, auditable Plan -> Patch -> Test -> Report; command authority remains with human PO/user     | Workflow orchestrator state machine, risk gate, and authority enforcement for protected commands            |\n-| Output offload + structured logs + shared runner (`output-offload-structured-logs-shared-runner`)                               | Token-efficient noisy output handling and full traceability via `pp` pointers and `logs/<WI>/<step>.log` | Shared runner adapter + offload service + structured observability store                                    |\n-| Resume safety + fail-closed commit gate + scoped autofix (`resume-safety-fail-closed-commit-gate-scoped-autofix`)               | Safe interruption recovery and strict evidence-based commit decisions; active WIP preserved by default   | Resume manager, scoped autofix, and commit gate validator tied to required work-item artifacts              |\n-| Single-worktree orchestration + template-drift hardening (`single-worktree-orchestration-template-drift-hardening`)             | Reliable role collaboration without worktree tracking drift; deterministic recovery                      | Single-worktree controller and drift hardening module with scoped repair + fail-closed remediation          |\n-| Orchestrator roles + Plan Reviewer gate + role-specific prompts (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) | Better plan quality and cleaner responsibility split across planner/reviewer/patcher/tester/reporter     | Role boundary enforcer + role prompt registry + mandatory plan-review gate                                  |\n-| Anti-hardcode test policy + synthetic end-to-end smoke feature (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) | Higher regression resistance using fixtures, seeds, invariants, and boundary contracts                   | Test policy validator and synthetic feature harness integrated into validation stage                        |\n-| Incremental PRD-to-features + post-run learning loop (`incremental-prd-to-features-post-run-learning-loop`)                     | Safe docs evolution and reduced repeated failures through add-missing updates and human-gated proposals  | Incremental feature reconciler and improvement proposal pipeline writing to `docs/possible-improvements.md` |\n+| Feature                                                                                                                         | Outcome and notes                                                                                        | Architectural alignment                                                                                     | Prerequisites                                                                                                                          |\n+| ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |\n+| Bootstrap + safe template reapply (`bootstrap-safe-template-reapply`)                                                           | Execution-ready repos with idempotent reruns; conflict handling overwrite/merge/skip                     | Template manager with deterministic merge policy and non-destructive reapply semantics                      | `[]`                                                                                                                                   |\n+| Output offload + structured logs + shared runner (`output-offload-structured-logs-shared-runner`)                               | Token-efficient noisy output handling and full traceability via `pp` pointers and `logs/<WI>/<step>.log` | Shared runner adapter + offload service + structured observability store                                    | [`bootstrap-safe-template-reapply`]                                                                                                    |\n+| Deterministic work-item execution with explicit gates (`deterministic-work-item-execution-with-explicit-gates`)                 | Predictable, auditable Plan -> Patch -> Test -> Report; command authority remains with human PO/user     | Workflow orchestrator state machine, risk gate, and authority enforcement for protected commands            | [`bootstrap-safe-template-reapply`, `output-offload-structured-logs-shared-runner`]                                                   |\n+| Single-worktree orchestration + template-drift hardening (`single-worktree-orchestration-template-drift-hardening`)             | Reliable role collaboration without worktree tracking drift; deterministic recovery                      | Single-worktree controller and drift hardening module with scoped repair + fail-closed remediation          | [`bootstrap-safe-template-reapply`, `output-offload-structured-logs-shared-runner`, `deterministic-work-item-execution-with-explicit-gates`] |\n+| Resume safety + fail-closed commit gate + scoped autofix (`resume-safety-fail-closed-commit-gate-scoped-autofix`)               | Safe interruption recovery and strict evidence-based commit decisions; active WIP preserved by default   | Resume manager, scoped autofix, and commit gate validator tied to required work-item artifacts              | [`output-offload-structured-logs-shared-runner`, `deterministic-work-item-execution-with-explicit-gates`, `single-worktree-orchestration-template-drift-hardening`] |\n+| Orchestrator roles + Plan Reviewer gate + role-specific prompts (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) | Better plan quality and cleaner responsibility split across planner/reviewer/patcher/tester/reporter     | Role boundary enforcer + role prompt registry + mandatory plan-review gate                                  | [`deterministic-work-item-execution-with-explicit-gates`]                                                                              |\n+| Anti-hardcode test policy + synthetic end-to-end smoke feature (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) | Higher regression resistance using fixtures, seeds, invariants, and boundary contracts                   | Test policy validator and synthetic feature harness integrated into validation stage                        | [`deterministic-work-item-execution-with-explicit-gates`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`]             |\n+| Incremental PRD-to-features + post-run learning loop (`incremental-prd-to-features-post-run-learning-loop`)                     | Safe docs evolution and reduced repeated failures through add-missing updates and human-gated proposals  | Incremental feature reconciler and improvement proposal pipeline writing to `docs/possible-improvements.md` | [`bootstrap-safe-template-reapply`, `single-worktree-orchestration-template-drift-hardening`, `resume-safety-fail-closed-commit-gate-scoped-autofix`] |\n\n## ux-ui.md diff\n--- previous/ux-ui.md\n+++ current/ux-ui.md\n@@ -14,7 +14,7 @@\n - **Outcomes covered:** **Deterministic work-item execution with explicit gates** (`deterministic-work-item-execution-with-explicit-gates`) -> Plan -> Patch -> Test -> Report is predictable and auditable; **Orchestrator roles + Plan Reviewer gate + role-specific prompts** (`orchestrator-roles-plan-reviewer-gate-role-specific-prompts`) -> cleaner role separation and plan quality; **Anti-hardcode test policy + synthetic end-to-end smoke feature** (`anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`) -> better regression resistance via policy/smoke checks.\n - Human PO/user starts execution; system emits preflight (scope, risk, files-to-change, TDD plan, DoD).\n - HIGH risk halts at `Awaiting PO Approval` until explicit approval.\n-- Planner -> Plan Reviewer -> Patcher -> Tester -> Reporter handoffs are explicit; failed review/test/report loops return to Planner.\n+- Planner -> Plan Reviewer -> Patcher -> Tester -> Reporter handoffs are explicit; failed review/test/report loops return to Planner with owner-scoped PM TODO ids.\n \n ### Journey 3: Keep traceability high and prompt noise low\n \n@@ -48,11 +48,11 @@\n ### Workflow B: Deterministic work-item execution with explicit gates\n \n 1. Human PO/user starts execution command.\n-2. System emits preflight report with risk classification and work-item DoD.\n+2. System emits preflight report with risk classification, work-item DoD, and open/carry PM TODO ids for owner routing.\n 3. HIGH risk stops at `Awaiting PO Approval` until explicit approval is granted.\n 4. Planner produces plan; Plan Reviewer must approve before any patch.\n 5. Patcher implements; Tester runs only Allowed Tests, including anti-hardcode policy checks from **Anti-hardcode test policy + synthetic end-to-end smoke feature**.\n-6. Reporter records outcomes; review/test/report failures loop to Planner.\n+6. Reporter records outcomes; review/test/report failures loop to Planner with unresolved PM TODOs carried forward.\n 7. Final `make ci` gate runs only after role-loop success, aligned with **Orchestrator roles + Plan Reviewer gate + role-specific prompts** handoff rules.\n \n ### Workflow C: Output offload + structured logs + shared runner\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -1,82 +1,157 @@\n {\n   \"decisions\": [\n     {\n-      \"depends_on\": \"[]\",\n+      \"depends_on\": [],\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n-      \"order_index\": \"1\",\n-      \"pm_feedback_resolution\": \"{'target_artifact': 'feature-order.json', 'target_sections': ['decisions[*].depends_on', 'dependencies', 'ordered_features[*].dependencies', 'ordered_feature_slugs'], 'acceptance_conditions': ['depends_on values are real JSON arrays of slug strings (not stringified arrays)', 'bootstrap-safe-template-reapply is the only empty-array root', 'every non-root feature has at least one prerequisite', 'all prerequisites reference only earlier ordered_feature_slugs entries', 'dependency arrays are identical across decisions/dependencies/ordered_features representations'], 'addresses_pm_issue_ids': ['PM-011', 'PM-012', 'PM-013', 'PM-014', 'PM-015'], 'addresses_todo_ids': ['PM-TODO-049', 'PM-TODO-050', 'PM-TODO-051', 'PM-TODO-052']}\",\n-      \"rationale\": \"Establishes the idempotent template/tooling baseline all downstream workflow hardening depends on.\",\n-      \"reason_codes\": \"['FOUNDATION', 'ROOT_ONLY', 'IDEMPOTENT_ENTRYPOINT']\"\n-    },\n-    {\n-      \"depends_on\": \"['bootstrap-safe-template-reapply']\",\n+      \"order_index\": 1,\n+      \"rationale\": \"Establishes the idempotent bootstrap/template baseline; this is the only root feature.\",\n+      \"reason_codes\": [\n+        \"FOUNDATION\",\n+        \"ROOT_ONLY\",\n+        \"IDEMPOTENT_ENTRYPOINT\"\n+      ]\n+    },\n+    {\n+      \"depends_on\": [\n+        \"bootstrap-safe-template-reapply\"\n+      ],\n       \"feature_slug\": \"output-offload-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n-      \"order_index\": \"2\",\n-      \"rationale\": \"Introduces shared runner metadata, structured logs, and output-offload primitives required by orchestration and validation stages.\",\n-      \"reason_codes\": \"['SHARED_INFRA', 'OBSERVABILITY', 'TOKEN_EFFICIENCY']\"\n-    },\n-    {\n-      \"depends_on\": \"['bootstrap-safe-template-reapply', 'output-offload-structured-logs-shared-runner']\",\n+      \"order_index\": 2,\n+      \"rationale\": \"Introduces shared runner metadata, output offload, and structured observability used by downstream gates and validation.\",\n+      \"reason_codes\": [\n... (truncated)",
-          "raw_issues": [
-            {
-              "remediation": "Edit `feature-order.json` sections `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: for every feature slug, arrays exactly match the prerequisite contract in `design.md` under `## Feature alignment map`, all three representations are identical per slug, `bootstrap-safe-template-reapply` is the only empty-root dependency, and every prerequisite references an earlier `ordered_feature_slugs` entry.",
-              "risk": "Prepare-features can enforce and validate the wrong execution order, creating gate regressions and non-deterministic dependency behavior.",
-              "step": "dependency-planner",
-              "summary": "`feature-order.json` prerequisite sets are not semantically aligned with `design.md` `## Feature alignment map` for multiple slugs (including `single-worktree-orchestration-template-drift-hardening`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`, `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`, and `incremental-prd-to-features-post-run-learning-loop`)."
-            }
-          ],
+          "loop_change_summary": "## design.md diff\ndesign.md: no changes.\n\n## ux-ui.md diff\nux-ui.md: no changes.\n\n## security.md diff\n--- previous/security.md\n+++ current/security.md\n@@ -1,28 +1,67 @@\n-# Global Security Blueprint\n+# PezzosCode Security Baseline\n \n-> Machine-managed by `tools/pc-prepare-features`. Edit PRD/context and rerun instead of hand-editing this file.\n+> Machine-managed by `tools/pc-prepare-features`. Update context/PRD/process docs and rerun `make prepare-features` instead of hand-editing.\n \n ## Security scope boundaries\n \n-- Run `make prepare-features` to generate/update this project-scoped security baseline.\n-- Keep this document focused on repository-specific risks, controls, and evidence expectations.\n+- Local-first, macOS CLI only, single Developer/PO user; no cloud services, daemons, or multi-user trust model.\n+- In-scope assets: repository files, templates, workflow docs, `.offload/` payloads, `logs/<WI>/<step>.log`, work-item evidence under `docs/02-features/*`, durable logs in `docs/03-logs/*`, and commit gate metadata.\n+- In-scope trust boundaries: human PO command authority, role-owned file boundaries, feature worktree boundary, and script execution through shared runner metadata (`work_item_id`, `agent_name`, `run_id`).\n+- Out of scope: remote IAM, network perimeter controls, SaaS tenancy, and Windows-specific hardening.\n+- Non-negotiable boundary controls: no remote data transfer (NFR-101), idempotent/recoverable reruns (NFR-301), deterministic stage order (NFR-401), and token-safe offload behavior (NFR-501).\n \n ## Threat model and attack surface\n \n-- Initial baseline placeholder. Run `make prepare-features` to populate project-specific details.\n+| Attack surface | Project-specific threat | Impact | Required mitigation |\n+| --- | --- | --- | --- |\n+| Protected orchestration commands (`make feature`, `pc-feature`) | AI/role executes protected commands without explicit PO approval | Unauthorized high-impact changes | Enforce FR-015 command authority and explicit HIGH-risk approval gate with `Awaiting PO Approval` stop state |\n+| Stage transition logic | Bypass of Plan Reviewer, tester, or reporter gates | Unreviewed code and missing evidence reaches commit | State machine enforces Plan -> Patch -> Test -> Report and loops failures back to Planner |\n+| Template reapply and drift repair | Overbroad writes, path misuse, or destructive overwrite of non-scoped files | Repo corruption and loss of audit trail | Scoped overwrite/merge/skip policies, deterministic drift repair, fail-closed unresolved drift remediation (FR-014) |\n+| Resume logic | Tampered/incomplete state causes unsafe stage skipping | False success and broken idempotency | Resume only from valid evidence, always re-run tests/CI, preserve active WIP by default (FR-012) |\n+| Offload/log surfaces (`.offload`, `logs`) | Secrets/noisy output leaked into prompts or missing traceability | Data exposure and poor forensics | Mandatory `tools/offload-proxy/pp`, pointer IDs instead of inline dumps, timestamped structured logs (FR-004, FR-006) |\n+| Role-scoped artifacts | Cross-role writes to planner/tester/reporter owned files | Gate evidence spoofing | Role ownership boundaries and protected log/write rules from ticket-execution protocol |\n+| Commit gate | Commit occurs with missing DoD/test/report evidence | Non-auditable insecure merge | Fail-closed commit gate requires complete planner/tester/reporter artifacts (FR-013) |\n+| Toolchain/runtime dependencies | Local dependency drift breaks deterministic controls | Silent control regression | Preflight dependency checks plus shared runner/script-first deterministic execution |\n \n ## Feature security focus map\n \n-- Initial baseline placeholder. Run `make prepare-features` to populate project-specific details.\n+| Feature slug | Security objective | Primary threats addressed | Required security evidence |\n+| --- | --- | --- | --- |\n+| `bootstrap-safe-template-reapply` | Safe, idempotent bootstrap/update | Destructive overwrite, path misuse | Conflict decisions recorded; rerun does not duplicate or delete completed artifacts |\n+| `output-offload-structured-logs-shared-runner` | Confidentiality + traceability for noisy steps | Prompt leakage, missing audit chain | `.offload` pointer IDs, metadata index, and `logs/<WI>/<step>.log` prefixes/timestamps |\n... (truncated)\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -149,7 +149,7 @@\n       \"deterministic-work-item-execution-with-explicit-gates\"\n     ]\n   },\n-  \"generated_at\": \"2026-02-18T20:18:52Z\",\n+  \"generated_at\": \"2026-02-19T10:31:59Z\",\n   \"notes\": [\n     \"This file is machine-managed by tools/pc-prepare-features.\",\n     \"tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order.\"",
+          "raw_issues": [],
           "review_issues": [
             {
               "issue_id": "PM-001",
-              "remediation": "Apply targeted updates for architect owner TODOs and PM feedback, then return updated artifact content.",
-              "risk": "PM blockers may persist across retries without concrete progress.",
-              "step": "architect",
-              "summary": "Architect returned unchanged artifact despite actionable PM TODO/feedback."
+              "remediation": "Return previous security artifact unchanged when no owner-scoped open/carry TODOs or relevant PM feedback exist.",
+              "risk": "Unnecessary rewrites increase diff noise and can hide real fixes.",
+              "step": "security",
+              "summary": "Security changed artifact content without actionable PM TODO/feedback in this iteration."
             },
             {
               "issue_id": "PM-002",
-              "remediation": "Apply targeted updates for ux owner TODOs and PM feedback, then return updated artifact content.",
-              "risk": "PM blockers may persist across retries without concrete progress.",
-              "step": "ux",
-              "summary": "UX returned unchanged artifact despite actionable PM TODO/feedback."
-            },
-            {
-              "issue_id": "PM-003",
-              "remediation": "Edit `feature-order.json` sections `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`; acceptance condition: for every feature slug, arrays exactly match the prerequisite contract in `design.md` under `## Feature alignment map`, all three representations are identical per slug, `bootstrap-safe-template-reapply` is the only empty-root dependency, and every prerequisite references an earlier `ordered_feature_slugs` entry.",
-              "risk": "Prepare-features can enforce and validate the wrong execution order, creating gate regressions and non-deterministic dependency behavior.",
-              "step": "dependency-planner",
-              "summary": "`feature-order.json` prerequisite sets are not semantically aligned with `design.md` `## Feature alignment map` for multiple slugs (including `single-worktree-orchestration-template-drift-hardening`, `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`, `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`, and `incremental-prd-to-features-post-run-learning-loop`)."
-            },
-            {
-              "issue_id": "PM-004",
-              "remediation": "Update `feature-order.json` dependencies and ordered_feature_slugs; acceptance: every feature appears once and dependency order has no violations.",
-              "risk": "Feature generation order may violate prerequisites.",
-              "step": "dependency-planner",
-              "summary": "PM semantic criterion 'dependency_alignment' failed for dependency ordering."
+              "remediation": "Set changed_sections to [] and keep artifact content unchanged when no actionable owner-scoped work exists.",
+              "risk": "Change metadata becomes unreliable for review and rerun diagnostics.",
+              "step": "security",
+              "summary": "Security reported changed_sections despite no actionable PM TODO/feedback."
             }
           ],
-          "role_decision": "BLOCK",
+          "role_decision": "APPROVE",
           "todo_updates": [
             {
-              "action": "update",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-003",
-              "status": "done",
-              "task_id": "PM-TODO-055"
-            },
-            {
-              "action": "update",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-004",
-              "status": "done",
-              "task_id": "PM-TODO-056"
-            },
-            {
-              "action": "update",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-005",
-              "status": "done",
-              "task_id": "PM-TODO-057"
-            },
-            {
-              "action": "update",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-006",
-              "status": "carry",
-              "task_id": "PM-TODO-058"
-            },
-            {
               "action": "auto_create",
-              "owner": "architect",
+              "owner": "security",
               "source_issue_id": "PM-001",
               "status": "open",
-              "task_id": "PM-TODO-059"
+              "task_id": "PM-TODO-063"
             },
             {
               "action": "auto_create",
-              "owner": "ux",
+              "owner": "security",
               "source_issue_id": "PM-002",
               "status": "open",
-              "task_id": "PM-TODO-060"
-            },
-            {
-              "action": "auto_create",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-003",
-              "status": "open",
-              "task_id": "PM-TODO-061"
-            },
-            {
-              "action": "auto_create",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-004",
-              "status": "open",
-              "task_id": "PM-TODO-062"
-            },
-            {
-              "action": "auto_done_resolved",
-              "owner": "architect",
-              "source_issue_id": "PM-001",
-              "status": "done",
-              "task_id": "PM-TODO-053"
-            },
-            {
-              "action": "auto_done_resolved",
-              "owner": "ux",
-              "source_issue_id": "PM-002",
-              "status": "done",
-              "task_id": "PM-TODO-054"
-            },
-            {
-              "action": "auto_done_resolved",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-006",
-              "status": "done",
-              "task_id": "PM-TODO-058"
+              "task_id": "PM-TODO-064"
             }
           ]
         },
-        "pm_role_decision": "BLOCK"
+        "pm_role_decision": "APPROVE"
       },
       {
-        "decision": "approve",
-        "gate_id": "PM-REVIEW-003",
-        "issue_count": 0,
-        "issues": [],
+        "decision": "retry",
+        "gate_id": "PM-BLOCK-002",
+        "issue_count": 1,
+        "issues": [
+          {
+            "issue_id": "PM-001",
+            "remediation": "Apply targeted updates for security owner TODOs and PM feedback, then return updated artifact content.",
+            "risk": "PM blockers may persist across retries without concrete progress.",
+            "step": "security",
+            "summary": "Security returned unchanged artifact despite actionable PM TODO/feedback."
+          }
+        ],
         "iteration": 3,
         "pm_feedback": {
           "criteria": {
@@ -354,38 +264,67 @@
             "feature_specificity": "pass",
             "journey_specificity": "pass"
           },
-          "loop_change_summary": "## design.md diff\n--- previous/design.md\n+++ current/design.md\n@@ -75,11 +75,15 @@\n \n PM feedback resolution: architect-owned prerequisite arrays are now explicit in the Feature alignment map for prepare-features consumption.\n \n+Canonical handoff rule for dependency artifacts: each feature row prerequisite array is normative and must be copied unchanged into `feature-order.json` across `decisions[*].depends_on`, `dependencies`, and `ordered_features[*].dependencies`.\n+\n ## Feature alignment map\n \n Dependency-intent acceptance condition: bootstrap is the only zero-prerequisite row and every other row depends on modules established by earlier features in this map.\n \n UX alignment anchor from `ux-ui.md`: Journey 1 maps to feature 1, Journey 2 maps to features 2/6/7, Journey 3 maps to feature 3, Journey 4 maps to features 4/5, and Journey 5 maps to feature 8.\n+\n+PM-TODO-059 resolution contract: prerequisite arrays in this table are the architect canonical source for downstream dependency-planner outputs.\n \n | Feature                                                                                                                         | Outcome and notes                                                                                        | Architectural alignment                                                                                     | Prerequisites                                                                                                                          |\n | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |\n\n## ux-ui.md diff\n--- previous/ux-ui.md\n+++ current/ux-ui.md\n@@ -33,6 +33,7 @@\n \n - **Outcomes covered:** **Incremental PRD-to-features + post-run learning loop** (`incremental-prd-to-features-post-run-learning-loop`) -> feature docs evolve safely and repeated failures are reduced.\n - PRD-to-features adds only missing items and skips `Status: Done`.\n+- If a selected feature is out of order, CLI blocks with missing prerequisite slugs and the next eligible feature so the user can continue without guessing.\n - Failures can produce improvement proposals for human approval (not auto-applied).\n \n ## Workflows\n@@ -72,8 +73,9 @@\n ### Workflow E: Incremental PRD-to-features + post-run learning loop\n \n 1. Incremental PRD-to-features updates add missing feature docs only; existing/done features are preserved.\n-2. Post-run failures are transformed into proposed improvements in the learning loop.\n-3. Human approves or rejects proposals before any process change is applied.\n+2. System validates prerequisite dependencies before generation/execution ordering; out-of-order selection is blocked with missing prerequisite slugs and next valid target.\n+3. Post-run failures are transformed into proposed improvements in the learning loop.\n+4. Human approves or rejects proposals before any process change is applied.\n \n ## UX constraints\n \n@@ -86,5 +88,6 @@\n - Token-efficiency rule: never paste large command output inline when offload is applicable.\n - Observability rule: each critical step must emit a stable log path and machine-searchable prefix.\n - Recovery-first errors: every blocking error message must include immediate remediation action and whether rerun is safe.\n+- Dependency-gate clarity: blocked ordering states must list missing prerequisite feature slugs and the next eligible feature/action.\n - Scope guardrails in UX copy: do not introduce UI/cloud/multi-user/Windows language in prompts or docs.\n - Role-boundary clarity: user-facing status must identify current role/stage so handoff failures are diagnosable.\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -5,7 +5,7 @@\n       \"feature_slug\": \"bootstrap-safe-template-reapply\",\n       \"id\": \"order-001\",\n       \"order_index\": 1,\n-      \"rationale\": \"Establishes the idempotent bootstrap/template baseline; this is the only root feature.\",\n+      \"rationale\": \"Establishes the idempotent bootstrap/template baseline and remains the only root prerequisite.\",\n       \"reason_codes\": [\n         \"FOUNDATION\",\n         \"ROOT_ONLY\",\n@@ -19,7 +19,7 @@\n       \"feature_slug\": \"output-offload-structured-logs-shared-runner\",\n       \"id\": \"order-002\",\n       \"order_index\": 2,\n-      \"rationale\": \"Introduces shared runner metadata, output offload, and structured observability used by downstream gates and validation.\",\n+      \"rationale\": \"Adds shared runner metadata, offload pointers, and structured logs immediately after bootstrap so downstream gates inherit observability.\",\n       \"reason_codes\": [\n         \"SHARED_INFRA\",\n         \"OBSERVABILITY\",\n@@ -34,7 +34,7 @@\n       \"feature_slug\": \"deterministic-work-item-execution-with-explicit-gates\",\n       \"id\": \"order-003\",\n       \"order_index\": 3,\n-      \"rationale\": \"Builds Plan\\u2192Patch\\u2192Test\\u2192Report orchestration and authority/risk gates on top of baseline templates and evidence infrastructure.\",\n+      \"rationale\": \"Builds deterministic Plan->Patch->Test->Report and authority/risk gates on top of baseline templates and telemetry infra.\",\n       \"reason_codes\": [\n         \"EXECUTION_CORE\",\n         \"GATE_ENFORCEMENT\"\n@@ -43,15 +43,17 @@\n     {\n       \"depends_on\": [\n         \"bootstrap-safe-template-reapply\",\n+        \"output-offload-structured-logs-shared-runner\",\n         \"deterministic-work-item-execution-with-explicit-gates\"\n       ],\n       \"feature_slug\": \"single-worktree-orchestration-template-drift-hardening\",\n       \"id\": \"order-004\",\n       \"order_index\": 4,\n-      \"rationale\": \"Applies single-worktree policy and template-drift recovery after deterministic orchestration behavior is established.\",\n... (truncated)",
+          "loop_change_summary": "## design.md diff\ndesign.md: no changes.\n\n## ux-ui.md diff\nux-ui.md: no changes.\n\n## security.md diff\nsecurity.md: no changes.\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -149,7 +149,7 @@\n       \"deterministic-work-item-execution-with-explicit-gates\"\n     ]\n   },\n-  \"generated_at\": \"2026-02-19T10:31:59Z\",\n+  \"generated_at\": \"2026-02-19T10:38:14Z\",\n   \"notes\": [\n     \"This file is machine-managed by tools/pc-prepare-features.\",\n     \"tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order.\"",
+          "raw_issues": [],
+          "review_issues": [
+            {
+              "issue_id": "PM-001",
+              "remediation": "Apply targeted updates for security owner TODOs and PM feedback, then return updated artifact content.",
+              "risk": "PM blockers may persist across retries without concrete progress.",
+              "step": "security",
+              "summary": "Security returned unchanged artifact despite actionable PM TODO/feedback."
+            }
+          ],
+          "role_decision": "APPROVE",
+          "todo_updates": [
+            {
+              "action": "auto_create",
+              "owner": "security",
+              "source_issue_id": "PM-001",
+              "status": "open",
+              "task_id": "PM-TODO-065"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "security",
+              "source_issue_id": "PM-001",
+              "status": "done",
+              "task_id": "PM-TODO-063"
+            },
+            {
+              "action": "auto_done_resolved",
+              "owner": "security",
+              "source_issue_id": "PM-002",
+              "status": "done",
+              "task_id": "PM-TODO-064"
+            }
+          ]
+        },
+        "pm_role_decision": "APPROVE"
+      },
+      {
+        "decision": "approve",
+        "gate_id": "PM-REVIEW-004",
+        "issue_count": 0,
+        "issues": [],
+        "iteration": 4,
+        "pm_feedback": {
+          "criteria": {
+            "dependency_alignment": "pass",
+            "feature_specificity": "pass",
+            "journey_specificity": "pass"
+          },
+          "loop_change_summary": "## design.md diff\ndesign.md: no changes.\n\n## ux-ui.md diff\nux-ui.md: no changes.\n\n## security.md diff\n--- previous/security.md\n+++ current/security.md\n@@ -21,6 +21,7 @@\n | Offload/log surfaces (`.offload`, `logs`) | Secrets/noisy output leaked into prompts or missing traceability | Data exposure and poor forensics | Mandatory `tools/offload-proxy/pp`, pointer IDs instead of inline dumps, timestamped structured logs (FR-004, FR-006) |\n | Role-scoped artifacts | Cross-role writes to planner/tester/reporter owned files | Gate evidence spoofing | Role ownership boundaries and protected log/write rules from ticket-execution protocol |\n | Commit gate | Commit occurs with missing DoD/test/report evidence | Non-auditable insecure merge | Fail-closed commit gate requires complete planner/tester/reporter artifacts (FR-013) |\n+| Prepare-features retry governance | Security artifact remains unchanged while open PM/security TODO items exist | Known blockers persist across loops and security acceptance becomes non-auditable | On retry iterations, require targeted section deltas linked to PM issue ids and security TODO ids; unchanged output is allowed only when actionable lists are empty |\n | Toolchain/runtime dependencies | Local dependency drift breaks deterministic controls | Silent control regression | Preflight dependency checks plus shared runner/script-first deterministic execution |\n \n ## Feature security focus map\n@@ -45,6 +46,7 @@\n - Write-scope and recovery controls: single feature worktree default, role-owned file boundaries, scoped deterministic drift repair/autofix, and fail-closed behavior on unresolved drift.\n - Protected-log control: precommit autofix cannot mutate `docs/03-logs/*` or feature execution logs.\n - Commit integrity controls: commit gate blocks when planner/tester/reporter artifacts or ticket DoD evidence are incomplete; final `make ci` gate runs after role-loop success with at most one autofix rerun.\n+- Retry-loop accountability control: when `pm_feedback_json` or `security_open_todos_json` contains open security-assigned action items, the next security iteration must include targeted section updates plus explicit issue/TODO id mapping in rationale.\n \n ## Verification and evidence\n \n@@ -56,6 +58,8 @@\n   - Offload/log requirements stay present in PRD, design, and UX artifacts.\n   - Dependency ordering does not bypass gate-establishing features.\n   - Resume and commit controls remain fail-closed.\n+- Retry-loop evidence rule: when PM feedback/TODO items target security, `changed_sections` must be non-empty and `change_rationale` must map updates to PM issue and TODO ids.\n+- Loop-4 closure evidence: PM-001 and PM-TODO-065 are resolved by targeted updates in threat, control, verification, and alignment sections while preserving prior valid controls.\n \n ## Alignment anchors\n \n@@ -64,4 +68,4 @@\n - Process anchors: `docs/04-process/ticket-execution-protocol.md`, `docs/04-process/output-offload.md`, `docs/04-process/definition-of-done.md`, `docs/04-process/human-orchestration-workflow.md`.\n - Ordering anchor: `docs/01-product/feature-order.json` dependency arrays and PM-TODO-059 dependency-contract consistency.\n - UX/design anchors: deterministic gate wording in `ux-ui.md` and gated state-machine ownership in `design.md`.\n-- Iteration anchor: `pm_feedback_json` and `security_open_todos_json` are empty in this loop; placeholders were replaced with project-scoped security content without scope expansion.\n+- PM issue anchor: PM-001 and PM-TODO-065 (security owner) are addressed in prepare iteration 4 by required section-level security updates, without reverting previously resolved baseline controls.\n\n## feature-order.json diff\n--- previous/feature-order.json\n+++ current/feature-order.json\n@@ -149,7 +149,7 @@\n       \"deterministic-work-item-execution-with-explicit-gates\"\n     ]\n   },\n-  \"generated_at\": \"2026-02-19T10:38:14Z\",\n+  \"generated_at\": \"2026-02-19T10:50:43Z\",\n   \"notes\": [\n     \"This file is machine-managed by tools/pc-prepare-features.\",\n     \"tools/prd-to-features consumes ordered_feature_slugs to preserve dependency order.\"",
           "raw_issues": [],
           "review_issues": [],
           "role_decision": "APPROVE",
           "todo_updates": [
             {
-              "action": "update",
-              "owner": "architect",
+              "action": "auto_done",
+              "owner": "security",
               "source_issue_id": "PM-001",
               "status": "done",
-              "task_id": "PM-TODO-059"
-            },
-            {
-              "action": "update",
-              "owner": "ux",
-              "source_issue_id": "PM-002",
-              "status": "done",
-              "task_id": "PM-TODO-060"
-            },
-            {
-              "action": "update",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-003",
-              "status": "done",
-              "task_id": "PM-TODO-061"
-            },
-            {
-              "action": "update",
-              "owner": "dependency-planner",
-              "source_issue_id": "PM-004",
-              "status": "done",
-              "task_id": "PM-TODO-062"
+              "task_id": "PM-TODO-065"
             }
           ]
         },
@@ -394,7 +333,7 @@
     ]
   },
   "pm_todos": {
-    "done_count": 62,
+    "done_count": 65,
     "items": [
       {
         "created_loop": 1,
@@ -953,6 +892,33 @@
         "status": "done",
         "task_id": "PM-TODO-062",
         "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Security changed artifact content without actionable PM TODO/feedback in this iteration.",
+        "owner": "security",
+        "source_issue_id": "PM-001",
+        "status": "done",
+        "task_id": "PM-TODO-063",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 2,
+        "description": "Security reported changed_sections despite no actionable PM TODO/feedback.",
+        "owner": "security",
+        "source_issue_id": "PM-002",
+        "status": "done",
+        "task_id": "PM-TODO-064",
+        "updated_loop": 3
+      },
+      {
+        "created_loop": 3,
+        "description": "Security returned unchanged artifact despite actionable PM TODO/feedback.",
+        "owner": "security",
+        "source_issue_id": "PM-001",
+        "status": "done",
+        "task_id": "PM-TODO-065",
+        "updated_loop": 4
       }
     ],
     "open_count": 0

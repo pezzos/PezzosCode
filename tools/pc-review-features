@@ -34,28 +34,277 @@ SEVERITY_HIGH = "High"
 SEVERITY_MEDIUM = "Medium"
 SEVERITY_LOW = "Low"
 VALID_SEVERITIES = {SEVERITY_HIGH, SEVERITY_MEDIUM, SEVERITY_LOW}
-OWNER_PATCHER = "patcher"
-OWNER_HUMAN = "human"
-VALID_OWNERS = {OWNER_PATCHER, OWNER_HUMAN}
-PHASE_PATCH = "patch"
-PHASE_AUTOMATED_TEST = "automated-test"
-PHASE_HUMAN_VALIDATION = "human-validation"
-VALID_PHASES = {PHASE_PATCH, PHASE_AUTOMATED_TEST, PHASE_HUMAN_VALIDATION}
-REVIEWER_SECURITY = "security-expert"
-REVIEWER_PM = "product-manager"
+TARGET_PATCHER = "patcher"
+TARGET_HUMAN = "human"
+MAX_SECURITY_FINDINGS = 3
+MAX_PRODUCT_FINDINGS = 5
+
+
+@dataclass(frozen=True)
+class FindingTemplate:
+    canonical_key: str
+    title: str
+    spec_guidance: str
+    action: str
+    acceptance: str
+    severity: str
+    blocking: bool
+    target: str
+    applies_when: Sequence[str]
+    satisfied_when: Sequence[str]
 
 
 @dataclass(frozen=True)
 class Finding:
     finding_id: str
+    canonical_key: str
     severity: str
     title: str
-    risk: str
+    spec_guidance: str
     action: str
-    owner: str
-    phase: str
+    acceptance: str
     blocking: bool
-    reviewer: str
+    target: str
+
+
+SECURITY_TEMPLATES: List[FindingTemplate] = [
+    FindingTemplate(
+        canonical_key="SEC-INPUT-VALIDATION",
+        title="Feature input-validation contract is missing",
+        spec_guidance=(
+            "Specify validation and fail-closed behavior for feature-scoped inputs "
+            "that can alter execution outcomes."
+        ),
+        action=(
+            "Define explicit validation rules for this feature's input surfaces and "
+            "document fail-closed behavior for invalid values."
+        ),
+        acceptance=(
+            "Feature docs and tests demonstrate that invalid inputs are rejected with "
+            "deterministic, fail-closed behavior."
+        ),
+        severity=SEVERITY_HIGH,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=(
+            "input",
+            "argument",
+            "parameter",
+            "payload",
+            "identifier",
+            "path",
+            "flag",
+        ),
+        satisfied_when=(
+            "validation",
+            "validate",
+            "allowlist",
+            "schema",
+            "sanitize",
+        ),
+    ),
+    FindingTemplate(
+        canonical_key="SEC-ACCESS-CONTROL",
+        title="Access-control expectations are missing for feature scope",
+        spec_guidance=(
+            "Document required authorization expectations and denied-path behavior for "
+            "feature actions that can change protected state."
+        ),
+        action=(
+            "Add explicit authN/authZ requirements and denied-path behavior for this "
+            "feature where privileged actions are possible."
+        ),
+        acceptance=(
+            "Feature docs and tests include at least one denied-path scenario proving "
+            "unauthorized access is blocked."
+        ),
+        severity=SEVERITY_HIGH,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=(
+            "permission",
+            "access",
+            "role",
+            "user",
+            "auth",
+            "approval",
+        ),
+        satisfied_when=(
+            "authorization",
+            "authentication",
+            "least privilege",
+            "denied",
+            "forbidden",
+        ),
+    ),
+    FindingTemplate(
+        canonical_key="SEC-LOG-REDACTION",
+        title="Sensitive-data redaction is undefined for feature logging/output",
+        spec_guidance=(
+            "If this feature writes logs/offload/output artifacts, define redaction "
+            "rules for secrets and sensitive tokens."
+        ),
+        action=(
+            "Define and enforce redaction/masking rules before feature-owned log or "
+            "offload writes, and add regression coverage with synthetic secret values."
+        ),
+        acceptance=(
+            "Validation evidence proves sensitive tokens are masked in feature-generated "
+            "logs/offload artifacts."
+        ),
+        severity=SEVERITY_MEDIUM,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=("log", "offload", "output", "trace", "artifact"),
+        satisfied_when=("redact", "mask", "sensitive", "secret", "token hygiene"),
+    ),
+    FindingTemplate(
+        canonical_key="SEC-PATH-SAFETY",
+        title="Path-safety constraints are missing for feature file operations",
+        spec_guidance=(
+            "Where feature behavior constructs file paths, define canonicalization, "
+            "containment checks, and traversal rejection."
+        ),
+        action=(
+            "Add explicit path-safety rules (allowlist + canonical containment checks) "
+            "for feature file paths and cover traversal attempts in tests."
+        ),
+        acceptance=(
+            "Tests include traversal/absolute-path attempts and verify the feature fails "
+            "closed without writing outside allowed roots."
+        ),
+        severity=SEVERITY_HIGH,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=("path", "file", "directory", "offload", "log"),
+        satisfied_when=(
+            "canonical",
+            "containment",
+            "traversal",
+            "allowlist path",
+            "path safety",
+        ),
+    ),
+]
+
+
+PRODUCT_TEMPLATES: List[FindingTemplate] = [
+    FindingTemplate(
+        canonical_key="PROD-FUNCTIONAL-SCOPE",
+        title="Functional scope is under-specified",
+        spec_guidance=(
+            "Define enough concrete functional requirements to implement the primary "
+            "and edge behaviors of this feature."
+        ),
+        action=(
+            "Expand functional requirements for this feature to cover primary behavior "
+            "and at least one edge scenario."
+        ),
+        acceptance=(
+            "Feature spec includes at least two concrete functional requirements with "
+            "observable system outcomes."
+        ),
+        severity=SEVERITY_HIGH,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=(),
+        satisfied_when=(),
+    ),
+    FindingTemplate(
+        canonical_key="PROD-USER-JOURNEY",
+        title="User journey details are missing",
+        spec_guidance=(
+            "Describe the user journey for this feature including entry point, "
+            "completion state, and error path expectation."
+        ),
+        action=(
+            "Add explicit user journey steps for this feature (entry, critical action, "
+            "completion, and failure behavior)."
+        ),
+        acceptance=(
+            "Feature spec includes a concrete journey with deterministic completion and "
+            "error-state expectations."
+        ),
+        severity=SEVERITY_MEDIUM,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=(),
+        satisfied_when=(),
+    ),
+    FindingTemplate(
+        canonical_key="PROD-WORKFLOW",
+        title="Workflow definition is incomplete",
+        spec_guidance=(
+            "Define workflow/handoff behavior for this feature so implementation and "
+            "validation order are unambiguous."
+        ),
+        action=(
+            "Document end-to-end workflow states for this feature, including system "
+            "responses at each critical transition."
+        ),
+        acceptance=(
+            "Feature docs include an explicit workflow covering expected state "
+            "transitions and handoffs."
+        ),
+        severity=SEVERITY_MEDIUM,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=(),
+        satisfied_when=(),
+    ),
+    FindingTemplate(
+        canonical_key="PROD-PO-VALIDATION-CHECKPOINT",
+        title="Human validation checkpoint is missing",
+        spec_guidance=(
+            "Identify what the Product Owner/end user must validate manually before "
+            "considering this feature ready."
+        ),
+        action=(
+            "Add a Product Owner / end-user validation checkpoint in dev-tasks with "
+            "clear expected outcome statements."
+        ),
+        acceptance=(
+            "Dev-tasks includes at least one explicit human validation checkpoint with "
+            "expected pass/fail criteria."
+        ),
+        severity=SEVERITY_LOW,
+        blocking=False,
+        target=TARGET_HUMAN,
+        applies_when=(),
+        satisfied_when=(),
+    ),
+    FindingTemplate(
+        canonical_key="PROD-MEASURABLE-ACCEPTANCE",
+        title="Acceptance criteria are not measurable",
+        spec_guidance=(
+            "Define measurable acceptance outcomes for this feature so completion can "
+            "be verified objectively."
+        ),
+        action=(
+            "Add measurable acceptance criteria for this feature with deterministic "
+            "observable outputs/evidence."
+        ),
+        acceptance=(
+            "Acceptance criteria include measurable checks that can be validated without "
+            "subjective interpretation."
+        ),
+        severity=SEVERITY_MEDIUM,
+        blocking=False,
+        target=TARGET_PATCHER,
+        applies_when=(),
+        satisfied_when=(),
+    ),
+]
+
+
+SECURITY_TEMPLATE_BY_KEY = {item.canonical_key: item for item in SECURITY_TEMPLATES}
+PRODUCT_TEMPLATE_BY_KEY = {item.canonical_key: item for item in PRODUCT_TEMPLATES}
+SECURITY_TEMPLATE_INDEX = {
+    item.canonical_key: idx for idx, item in enumerate(SECURITY_TEMPLATES, start=1)
+}
+PRODUCT_TEMPLATE_INDEX = {
+    item.canonical_key: idx for idx, item in enumerate(PRODUCT_TEMPLATES, start=1)
+}
 
 
 def die(message: str) -> None:
@@ -95,6 +344,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
             "Role execution mode for Security Expert/Product Manager review steps. "
             "'codex' runs prompt-driven role execution; "
             "'deterministic' uses local fallback heuristics."
+        ),
+    )
+    parser.add_argument(
+        "--include-completed",
+        action="store_true",
+        help=(
+            "Include features already marked Done/Complete/Completed/Shipped in "
+            "dev-tasks.md."
         ),
     )
     parser.add_argument(
@@ -152,54 +409,6 @@ def count_functional_requirements(feature_spec: str) -> int:
     for pattern in patterns:
         total += len(re.findall(pattern, feature_spec, re.MULTILINE | re.IGNORECASE))
     return total
-
-
-def normalize_severity(raw: Any, default: str = SEVERITY_MEDIUM) -> str:
-    token = str(raw).strip().lower()
-    if token in {"high", "sev1", "critical", "blocker"}:
-        return SEVERITY_HIGH
-    if token in {"low", "sev3"}:
-        return SEVERITY_LOW
-    if token in {"medium", "med", "sev2"}:
-        return SEVERITY_MEDIUM
-    return default
-
-
-def normalize_owner(raw: Any, default: str = OWNER_PATCHER) -> str:
-    token = str(raw).strip().lower()
-    if token in {OWNER_HUMAN, "product-owner", "po", "manual", "end-user"}:
-        return OWNER_HUMAN
-    if token in {OWNER_PATCHER, "developer", "engineer", "codex"}:
-        return OWNER_PATCHER
-    return default
-
-
-def normalize_phase(raw: Any, default: str = PHASE_PATCH) -> str:
-    token = str(raw).strip().lower()
-    if token in {PHASE_PATCH, "implementation", "develop", "development"}:
-        return PHASE_PATCH
-    if token in {
-        PHASE_AUTOMATED_TEST,
-        "automated",
-        "tests",
-        "test",
-        "tester",
-    }:
-        return PHASE_AUTOMATED_TEST
-    if token in {PHASE_HUMAN_VALIDATION, "human", "manual", "acceptance"}:
-        return PHASE_HUMAN_VALIDATION
-    return default
-
-
-def normalize_blocking(raw: Any, default: bool = False) -> bool:
-    if isinstance(raw, bool):
-        return raw
-    token = str(raw).strip().lower()
-    if token in {"true", "yes", "y", "1", "block", "blocking"}:
-        return True
-    if token in {"false", "no", "n", "0", "non-blocking"}:
-        return False
-    return default
 
 
 def extract_json_payload(raw: str) -> str:
@@ -273,229 +482,179 @@ def codex_exec_json(
     return data
 
 
-def build_security_findings(feature_key: str, content: str) -> List[Finding]:
-    checks = [
-        (
-            "001",
-            SEVERITY_HIGH,
-            "Input validation controls are not explicit",
-            "Unvalidated input can trigger data corruption or unsafe behavior.",
-            "Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.",
-            ("input validation", "sanitize", "schema validation", "validated"),
-            OWNER_PATCHER,
-            PHASE_PATCH,
-            True,
-        ),
-        (
-            "002",
-            SEVERITY_HIGH,
-            "Authentication/authorization expectations are missing",
-            "Access controls may be implemented inconsistently or omitted.",
-            "Specify authN/authZ requirements, denied-path behavior, and least-privilege checks.",
-            ("authentication", "authorization", "auth", "permission"),
-            OWNER_PATCHER,
-            PHASE_PATCH,
-            True,
-        ),
-        (
-            "003",
-            SEVERITY_MEDIUM,
-            "Secrets handling is not documented",
-            "Credentials or tokens may leak into code, logs, or config.",
-            "Document secret sources, redaction strategy, and prohibited storage locations.",
-            ("secret", "credential", "token", "redact"),
-            OWNER_PATCHER,
-            PHASE_AUTOMATED_TEST,
-            True,
-        ),
-        (
-            "004",
-            SEVERITY_HIGH,
-            "Injection defenses are not explicit",
-            "Missing injection controls can expose command, SQL, or script injection paths.",
-            "Define escaping/parameterization requirements and add dedicated injection test scenarios.",
-            ("injection", "xss", "sql", "escape", "parameterized"),
-            OWNER_PATCHER,
-            PHASE_PATCH,
-            True,
-        ),
-        (
-            "005",
-            SEVERITY_MEDIUM,
-            "Infrastructure misconfiguration guardrails are missing",
-            "Unsafe defaults can bypass intended runtime protections.",
-            "Capture required config defaults, permission boundaries, and misconfiguration failure behavior.",
-            ("misconfiguration", "configuration", "fail-close", "least privilege"),
-            OWNER_PATCHER,
-            PHASE_PATCH,
-            False,
-        ),
-    ]
+def feature_status_from_dev_tasks(content: str) -> str:
+    match = re.search(r"^\*\*Status:\*\*\s*(.+)$", content, flags=re.MULTILINE)
+    if not match:
+        return ""
+    return match.group(1).strip()
 
+
+def is_completed_status(status: str) -> bool:
+    token = status.strip().lower()
+    if not token:
+        return False
+    return bool(re.search(r"\b(done|complete|completed|shipped)\b", token))
+
+
+def has_measurable_acceptance(feature_spec_content: str) -> bool:
+    match = re.search(
+        r"^##\s+Acceptance Criteria\s*$",
+        feature_spec_content,
+        flags=re.MULTILINE | re.IGNORECASE,
+    )
+    if not match:
+        return False
+    section_start = match.end()
+    next_heading = re.search(
+        r"^##\s+", feature_spec_content[section_start:], re.MULTILINE
+    )
+    section_end = (
+        section_start + next_heading.start()
+        if next_heading
+        else len(feature_spec_content)
+    )
+    section = feature_spec_content[section_start:section_end]
+    if re.search(r"\b\d+\b", section):
+        return True
+    if "target" in section.lower() and "metric" in section.lower():
+        return True
+    return False
+
+
+def build_finding_from_template(
+    *,
+    feature_key: str,
+    template: FindingTemplate,
+    index: int,
+    prefix: str,
+) -> Finding:
+    finding_id = f"{prefix}-{feature_key}-{index:03d}"
+    return Finding(
+        finding_id=finding_id,
+        canonical_key=template.canonical_key,
+        severity=template.severity,
+        title=template.title,
+        spec_guidance=template.spec_guidance,
+        action=template.action,
+        acceptance=template.acceptance,
+        blocking=bool(template.blocking),
+        target=template.target,
+    )
+
+
+def findings_from_keys(
+    *,
+    feature_key: str,
+    selected_keys: Sequence[str],
+    templates: Sequence[FindingTemplate],
+    template_index: Dict[str, int],
+    template_by_key: Dict[str, FindingTemplate],
+    prefix: str,
+) -> List[Finding]:
+    selected_set = {item for item in selected_keys if item in template_by_key}
     findings: List[Finding] = []
-    for (
-        suffix,
-        severity,
-        title,
-        risk,
-        action,
-        keywords,
-        owner,
-        phase,
-        blocking,
-    ) in checks:
-        if contains_any(content, keywords):
+    for template in templates:
+        if template.canonical_key not in selected_set:
             continue
         findings.append(
-            Finding(
-                finding_id=f"SEC-{feature_key}-{suffix}",
-                severity=severity,
-                title=title,
-                risk=risk,
-                action=action,
-                owner=owner,
-                phase=phase,
-                blocking=blocking,
-                reviewer=REVIEWER_SECURITY,
+            build_finding_from_template(
+                feature_key=feature_key,
+                template=template,
+                index=template_index[template.canonical_key],
+                prefix=prefix,
             )
         )
     return findings
 
 
-def build_product_findings(
-    feature_key: str,
-    feature_title: str,
+def deterministic_security_keys(content: str) -> List[str]:
+    selected: List[str] = []
+    for template in SECURITY_TEMPLATES:
+        if template.applies_when and not contains_any(content, template.applies_when):
+            continue
+        if template.satisfied_when and contains_any(content, template.satisfied_when):
+            continue
+        selected.append(template.canonical_key)
+        if len(selected) >= MAX_SECURITY_FINDINGS:
+            break
+    return selected
+
+
+def deterministic_product_keys(
+    *,
     feature_spec_content: str,
     dev_tasks_content: str,
-    ux_content: str,
-) -> List[Finding]:
-    findings: List[Finding] = []
+) -> List[str]:
+    selected: List[str] = []
 
-    requirements_count = count_functional_requirements(feature_spec_content)
-    if requirements_count < 2:
-        findings.append(
-            Finding(
-                finding_id=f"PROD-{feature_key}-001",
-                severity=SEVERITY_HIGH,
-                title="Functional scope is under-specified",
-                risk="Key product capabilities may be missed during implementation.",
-                action="Expand functional requirements to cover primary and edge behaviors with acceptance criteria.",
-                owner=OWNER_PATCHER,
-                phase=PHASE_PATCH,
-                blocking=True,
-                reviewer=REVIEWER_PM,
-            )
-        )
+    if count_functional_requirements(feature_spec_content) < 2:
+        selected.append("PROD-FUNCTIONAL-SCOPE")
 
     if not contains_any(
         feature_spec_content, ("user flow", "detailed steps", "journey")
     ):
-        findings.append(
-            Finding(
-                finding_id=f"PROD-{feature_key}-002",
-                severity=SEVERITY_MEDIUM,
-                title="User journey details are missing in feature docs",
-                risk="Implementation may diverge from intended user path and onboarding flow.",
-                action="Add explicit user journey steps, entry points, and completion states.",
-                owner=OWNER_PATCHER,
-                phase=PHASE_PATCH,
-                blocking=True,
-                reviewer=REVIEWER_PM,
-            )
-        )
-
-    if feature_title.lower() not in ux_content.lower():
-        findings.append(
-            Finding(
-                finding_id=f"PROD-{feature_key}-003",
-                severity=SEVERITY_MEDIUM,
-                title="Global UX blueprint does not reference this feature",
-                risk="Cross-feature workflow alignment may be inconsistent for end users.",
-                action=f"Ask the Product Owner to validate and update `docs/01-product/ux-ui.md` with '{feature_title}' journey/workflow coverage before final sign-off.",
-                owner=OWNER_HUMAN,
-                phase=PHASE_HUMAN_VALIDATION,
-                blocking=False,
-                reviewer=REVIEWER_PM,
-            )
-        )
+        selected.append("PROD-USER-JOURNEY")
 
     if not contains_any(feature_spec_content, ("workflow", "flow")):
-        findings.append(
-            Finding(
-                finding_id=f"PROD-{feature_key}-004",
-                severity=SEVERITY_MEDIUM,
-                title="Workflow definition is incomplete",
-                risk="Execution order and handoff expectations may be unclear for delivery.",
-                action="Define end-to-end workflow states, system responses, and handoff boundaries.",
-                owner=OWNER_PATCHER,
-                phase=PHASE_PATCH,
-                blocking=True,
-                reviewer=REVIEWER_PM,
-            )
-        )
+        selected.append("PROD-WORKFLOW")
 
     if (
         "product owner" not in dev_tasks_content.lower()
         and "po test" not in dev_tasks_content.lower()
     ):
-        findings.append(
-            Finding(
-                finding_id=f"PROD-{feature_key}-005",
-                severity=SEVERITY_LOW,
-                title="PO validation checkpoint is missing",
-                risk="End-user acceptance timing may be unclear before completion.",
-                action="Add a Product Owner end-user validation checkpoint task in dev-tasks before completion.",
-                owner=OWNER_HUMAN,
-                phase=PHASE_HUMAN_VALIDATION,
-                blocking=False,
-                reviewer=REVIEWER_PM,
-            )
-        )
+        selected.append("PROD-PO-VALIDATION-CHECKPOINT")
 
-    return findings
+    if not has_measurable_acceptance(feature_spec_content):
+        selected.append("PROD-MEASURABLE-ACCEPTANCE")
 
-
-def normalize_role_findings(
-    *,
-    raw_findings: Any,
-    prefix: str,
-    feature_key: str,
-    reviewer: str,
-    default_owner: str,
-    default_phase: str,
-) -> Optional[List[Finding]]:
-    if not isinstance(raw_findings, list):
-        return None
-
-    normalized: List[Finding] = []
-    for idx, item in enumerate(raw_findings, start=1):
-        if not isinstance(item, dict):
+    ordered: List[str] = []
+    for template in PRODUCT_TEMPLATES:
+        if template.canonical_key not in selected:
             continue
-        finding_id = str(item.get("finding_id", "")).strip()
-        if not finding_id:
-            finding_id = f"{prefix}-{feature_key}-{idx:03d}"
-        severity = normalize_severity(item.get("severity"), default=SEVERITY_MEDIUM)
-        title = str(item.get("title", "")).strip() or "Untitled finding"
-        risk = str(item.get("risk", "")).strip() or "Risk not specified."
-        action = str(item.get("action", "")).strip() or "Action not specified."
-        owner = normalize_owner(item.get("owner"), default=default_owner)
-        phase = normalize_phase(item.get("phase"), default=default_phase)
-        blocking_default = severity == SEVERITY_HIGH
-        blocking = normalize_blocking(item.get("blocking"), default=blocking_default)
-        normalized.append(
-            Finding(
-                finding_id=finding_id,
-                severity=severity,
-                title=title,
-                risk=risk,
-                action=action,
-                owner=owner,
-                phase=phase,
-                blocking=blocking,
-                reviewer=reviewer,
-            )
-        )
-    return normalized
+        ordered.append(template.canonical_key)
+        if len(ordered) >= MAX_PRODUCT_FINDINGS:
+            break
+    return ordered
+
+
+def normalize_selected_keys(
+    raw_keys: Any, templates: Sequence[FindingTemplate]
+) -> Optional[List[str]]:
+    if not isinstance(raw_keys, list):
+        return None
+    allowed = {item.canonical_key for item in templates}
+    raw_normalized = []
+    for item in raw_keys:
+        token = str(item).strip().upper()
+        if not token:
+            continue
+        if token in allowed and token not in raw_normalized:
+            raw_normalized.append(token)
+
+    ordered: List[str] = []
+    for template in templates:
+        if template.canonical_key in raw_normalized:
+            ordered.append(template.canonical_key)
+    return ordered
+
+
+def filter_keys_by_evidence(
+    *,
+    selected_keys: Sequence[str],
+    evidence_payload: Any,
+    content: str,
+) -> List[str]:
+    if not isinstance(evidence_payload, dict):
+        return []
+    accepted: List[str] = []
+    lowered_content = content.lower()
+    for key in selected_keys:
+        evidence = str(evidence_payload.get(key, "")).strip()
+        if not evidence:
+            continue
+        if evidence.lower() in lowered_content:
+            accepted.append(key)
+    return accepted
 
 
 def run_security_role(
@@ -509,9 +668,15 @@ def run_security_role(
     dev_tasks_content: str,
     ux_content: str,
 ) -> List[Finding]:
-    fallback = build_security_findings(
-        feature_key,
-        feature_spec_content + "\n" + dev_tasks_content,
+    feature_text = f"{feature_spec_content}\n{dev_tasks_content}"
+    fallback_keys = deterministic_security_keys(feature_text)
+    fallback = findings_from_keys(
+        feature_key=feature_key,
+        selected_keys=fallback_keys,
+        templates=SECURITY_TEMPLATES,
+        template_index=SECURITY_TEMPLATE_INDEX,
+        template_by_key=SECURITY_TEMPLATE_BY_KEY,
+        prefix="SEC",
     )
     if role_mode == ROLE_MODE_DETERMINISTIC:
         return fallback
@@ -526,8 +691,14 @@ def run_security_role(
             "feature_spec_markdown": feature_spec_content,
             "dev_tasks_markdown": dev_tasks_content,
             "ux_blueprint_markdown": ux_content,
+            "allowed_keys_json": json.dumps(
+                [item.canonical_key for item in SECURITY_TEMPLATES],
+                ensure_ascii=True,
+                sort_keys=True,
+            ),
         },
     )
+
     try:
         payload = codex_exec_json(
             root=root,
@@ -550,27 +721,33 @@ def run_security_role(
         )
         return fallback
 
-    normalized = normalize_role_findings(
-        raw_findings=payload.get("findings"),
-        prefix="SEC",
-        feature_key=feature_key,
-        reviewer=REVIEWER_SECURITY,
-        default_owner=OWNER_PATCHER,
-        default_phase=PHASE_PATCH,
+    normalized_keys = normalize_selected_keys(
+        payload.get("selected_keys"), SECURITY_TEMPLATES
     )
-    if normalized is None:
+    if normalized_keys is None:
         print(
-            "pc-review-features: warning: Security Expert findings payload invalid "
+            "pc-review-features: warning: Security Expert selected_keys payload invalid "
             f"for {feature_id}; using deterministic findings"
         )
         return fallback
-    if decision == "BLOCK" and not normalized:
-        print(
-            "pc-review-features: warning: Security Expert returned BLOCK without "
-            f"findings for {feature_id}; using deterministic findings"
-        )
+
+    evidence_keys = filter_keys_by_evidence(
+        selected_keys=normalized_keys,
+        evidence_payload=payload.get("evidence"),
+        content=feature_text,
+    )
+
+    if decision == "BLOCK" and not evidence_keys:
         return fallback
-    return normalized
+
+    return findings_from_keys(
+        feature_key=feature_key,
+        selected_keys=evidence_keys,
+        templates=SECURITY_TEMPLATES,
+        template_index=SECURITY_TEMPLATE_INDEX,
+        template_by_key=SECURITY_TEMPLATE_BY_KEY,
+        prefix="SEC",
+    )
 
 
 def run_product_role(
@@ -585,12 +762,17 @@ def run_product_role(
     ux_content: str,
     security_findings: Sequence[Finding],
 ) -> List[Finding]:
-    fallback = build_product_findings(
-        feature_key,
-        feature_title,
-        feature_spec_content,
-        dev_tasks_content,
-        ux_content,
+    fallback_keys = deterministic_product_keys(
+        feature_spec_content=feature_spec_content,
+        dev_tasks_content=dev_tasks_content,
+    )
+    fallback = findings_from_keys(
+        feature_key=feature_key,
+        selected_keys=fallback_keys,
+        templates=PRODUCT_TEMPLATES,
+        template_index=PRODUCT_TEMPLATE_INDEX,
+        template_by_key=PRODUCT_TEMPLATE_BY_KEY,
+        prefix="PROD",
     )
     if role_mode == ROLE_MODE_DETERMINISTIC:
         return fallback
@@ -611,8 +793,14 @@ def run_product_role(
                 indent=2,
                 sort_keys=True,
             ),
+            "allowed_keys_json": json.dumps(
+                [item.canonical_key for item in PRODUCT_TEMPLATES],
+                ensure_ascii=True,
+                sort_keys=True,
+            ),
         },
     )
+
     try:
         payload = codex_exec_json(
             root=root,
@@ -635,67 +823,58 @@ def run_product_role(
         )
         return fallback
 
-    normalized = normalize_role_findings(
-        raw_findings=payload.get("findings"),
-        prefix="PROD",
-        feature_key=feature_key,
-        reviewer=REVIEWER_PM,
-        default_owner=OWNER_PATCHER,
-        default_phase=PHASE_PATCH,
+    normalized_keys = normalize_selected_keys(
+        payload.get("selected_keys"), PRODUCT_TEMPLATES
     )
-    if normalized is None:
+    if normalized_keys is None:
         print(
-            "pc-review-features: warning: Product Manager findings payload invalid "
+            "pc-review-features: warning: Product Manager selected_keys payload invalid "
             f"for {feature_id}; using deterministic findings"
         )
         return fallback
-    if decision == "BLOCK" and not normalized:
-        print(
-            "pc-review-features: warning: Product Manager returned BLOCK without "
-            f"findings for {feature_id}; using deterministic findings"
-        )
+
+    evidence_keys = filter_keys_by_evidence(
+        selected_keys=normalized_keys,
+        evidence_payload=payload.get("evidence"),
+        content=feature_spec_content + "\n" + dev_tasks_content,
+    )
+
+    if decision == "BLOCK" and not evidence_keys:
         return fallback
-    return normalized
 
-
-def reviewer_label(reviewer: str) -> str:
-    if reviewer == REVIEWER_SECURITY:
-        return "Security Expert"
-    if reviewer == REVIEWER_PM:
-        return "Product Manager"
-    return reviewer
+    return findings_from_keys(
+        feature_key=feature_key,
+        selected_keys=evidence_keys,
+        templates=PRODUCT_TEMPLATES,
+        template_index=PRODUCT_TEMPLATE_INDEX,
+        template_by_key=PRODUCT_TEMPLATE_BY_KEY,
+        prefix="PROD",
+    )
 
 
 def finding_payload(finding: Finding) -> Dict[str, Any]:
     return {
         "finding_id": finding.finding_id,
+        "canonical_key": finding.canonical_key,
         "severity": finding.severity,
         "title": finding.title,
-        "risk": finding.risk,
+        "spec_guidance": finding.spec_guidance,
         "action": finding.action,
-        "owner": finding.owner,
-        "phase": finding.phase,
+        "acceptance": finding.acceptance,
         "blocking": finding.blocking,
-        "reviewer": finding.reviewer,
     }
 
 
-def render_findings_table(findings: Sequence[Finding]) -> List[str]:
+def render_constraint_list(findings: Sequence[Finding], empty_label: str) -> List[str]:
     if not findings:
-        return ["- No findings."]
-    rows = [
-        "| ID | Severity | Owner | Phase | Blocking | Title | Risk | Action |",
-        "| -- | -------- | ----- | ----- | -------- | ----- | ---- | ------ |",
-    ]
+        return [f"- {empty_label}"]
+
+    lines: List[str] = []
     for finding in findings:
-        blocking = "Yes" if finding.blocking else "No"
-        rows.append(
-            "| "
-            + f"{finding.finding_id} | {finding.severity} | {finding.owner} | "
-            + f"{finding.phase} | {blocking} | {finding.title} | "
-            + f"{finding.risk} | {finding.action} |"
-        )
-    return rows
+        lines.append(f"- `{finding.finding_id}` {finding.title}")
+        lines.append(f"  - Specification constraint: {finding.spec_guidance}")
+        lines.append(f"  - Blocking: {'Yes' if finding.blocking else 'No'}")
+    return lines
 
 
 def render_feature_spec_block(
@@ -703,17 +882,19 @@ def render_feature_spec_block(
     product_findings: Sequence[Finding],
 ) -> str:
     lines: List[str] = [
-        "## Automated Review Findings",
+        "## Automated Review Summary",
         "",
         SPEC_MARKER_START,
         "",
-        "### Security Expert",
+        "### Security Constraints",
         "",
-        *render_findings_table(security_findings),
+        *render_constraint_list(
+            security_findings, "No security constraints identified."
+        ),
         "",
-        "### Product Manager (End-User Feedback)",
+        "### Product Constraints",
         "",
-        *render_findings_table(product_findings),
+        *render_constraint_list(product_findings, "No product constraints identified."),
         "",
         SPEC_MARKER_END,
         "",
@@ -721,21 +902,15 @@ def render_feature_spec_block(
     return "\n".join(lines)
 
 
-def render_finding_checklist(
-    findings: Sequence[Finding], empty_label: str, *, include_blocking: bool = True
-) -> List[str]:
+def render_task_list(findings: Sequence[Finding], empty_label: str) -> List[str]:
     if not findings:
         return [f"- [ ] {empty_label}", ""]
 
     lines: List[str] = []
     for finding in findings:
         lines.append(f"- [ ] `{finding.finding_id}` {finding.title}")
-        lines.append(f"  - Reviewer: {reviewer_label(finding.reviewer)}")
-        lines.append(f"  - Severity: {finding.severity}")
-        lines.append(f"  - Phase: {finding.phase}")
-        if include_blocking:
-            lines.append(f"  - Blocking: {'Yes' if finding.blocking else 'No'}")
         lines.append(f"  - Action: {finding.action}")
+        lines.append(f"  - Acceptance: {finding.acceptance}")
     lines.append("")
     return lines
 
@@ -744,28 +919,21 @@ def render_dev_tasks_block(
     security_findings: Sequence[Finding],
     product_findings: Sequence[Finding],
 ) -> str:
-    all_findings = list(security_findings) + list(product_findings)
-    patcher_findings = [item for item in all_findings if item.owner == OWNER_PATCHER]
-    human_findings = [item for item in all_findings if item.owner == OWNER_HUMAN]
+    all_findings = [*security_findings, *product_findings]
+    patcher_findings = [item for item in all_findings if item.target == TARGET_PATCHER]
+    human_findings = [item for item in all_findings if item.target == TARGET_HUMAN]
 
     lines = [
         "## Review Findings Backlog",
         "",
         TASK_MARKER_START,
         "",
-        "### Patcher Tasks (must be handled during patch/test steps)",
+        "### Patcher Tasks",
         "",
-        *render_finding_checklist(
-            patcher_findings,
-            "No patcher-target findings.",
-        ),
+        *render_task_list(patcher_findings, "No patcher-target findings."),
         "### Human Validation Requests (Product Owner / end-user)",
         "",
-        *render_finding_checklist(
-            human_findings,
-            "No human-validation requests.",
-            include_blocking=False,
-        ),
+        *render_task_list(human_findings, "No human-validation requests."),
         TASK_MARKER_END,
         "",
     ]
@@ -866,17 +1034,18 @@ def run_review(args: argparse.Namespace) -> int:
     if not ux_content.strip():
         print(
             "pc-review-features: warning: docs/01-product/ux-ui.md missing or empty; "
-            "product alignment checks will emit findings"
+            "product alignment checks may emit findings"
         )
 
     updated = 0
     total_security = 0
     total_product = 0
-    total_patcher = 0
-    total_human = 0
+    total_human_requests = 0
+    total_blocking = 0
     features_with_findings = 0
     reviewed = 0
     skipped = 0
+    skipped_completed = 0
     report_features: List[Dict[str, Any]] = []
 
     for feature_dir in selected:
@@ -894,12 +1063,32 @@ def run_review(args: argparse.Namespace) -> int:
                     "status": "skipped-missing-docs",
                     "security_findings": [],
                     "product_findings": [],
+                    "human_validation_requests": [],
                 }
             )
             continue
 
         spec_content = read_text(spec_path)
         dev_tasks_content = read_text(dev_tasks_path)
+        feature_status = feature_status_from_dev_tasks(dev_tasks_content)
+        if not args.include_completed and is_completed_status(feature_status):
+            skipped += 1
+            skipped_completed += 1
+            print(
+                f"pc-review-features: skipping {feature_dir.name} "
+                f"(completed status: {feature_status or 'unknown'})"
+            )
+            report_features.append(
+                {
+                    "feature_id": feature_dir.name,
+                    "status": "skipped-completed",
+                    "feature_status": feature_status,
+                    "security_findings": [],
+                    "product_findings": [],
+                    "human_validation_requests": [],
+                }
+            )
+            continue
 
         analysis_spec = strip_managed_block(
             spec_content, SPEC_MARKER_START, SPEC_MARKER_END
@@ -935,13 +1124,12 @@ def run_review(args: argparse.Namespace) -> int:
         )
 
         all_findings = [*security_findings, *product_findings]
+        human_requests = [item for item in all_findings if item.target == TARGET_HUMAN]
         reviewed += 1
         total_security += len(security_findings)
         total_product += len(product_findings)
-        total_patcher += len(
-            [item for item in all_findings if item.owner == OWNER_PATCHER]
-        )
-        total_human += len([item for item in all_findings if item.owner == OWNER_HUMAN])
+        total_human_requests += len(human_requests)
+        total_blocking += len([item for item in all_findings if item.blocking])
         if all_findings:
             features_with_findings += 1
 
@@ -963,6 +1151,7 @@ def run_review(args: argparse.Namespace) -> int:
             {
                 "feature_id": feature_dir.name,
                 "status": "reviewed",
+                "feature_status": feature_status,
                 "feature_title": feature_title,
                 "spec_path": str(spec_path.relative_to(root)),
                 "dev_tasks_path": str(dev_tasks_path.relative_to(root)),
@@ -972,30 +1161,36 @@ def run_review(args: argparse.Namespace) -> int:
                 "product_findings": [
                     finding_payload(item) for item in product_findings
                 ],
+                "human_validation_requests": [
+                    finding_payload(item) for item in human_requests
+                ],
             }
         )
 
     report_payload = {
-        "version": 2,
+        "version": 3,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "selector": args.feature.strip() or "all",
         "role_mode": args.role_mode,
+        "include_completed": bool(args.include_completed),
         "totals": {
             "features_selected": len(selected),
             "features_reviewed": reviewed,
             "features_updated": updated,
             "features_skipped": skipped,
+            "features_skipped_completed": skipped_completed,
             "features_with_findings": features_with_findings,
             "security_findings": total_security,
             "product_findings": total_product,
-            "patcher_findings": total_patcher,
-            "human_findings": total_human,
+            "human_validation_requests": total_human_requests,
+            "blocking_findings": total_blocking,
         },
         "features": report_features,
         "notes": [
             "Machine-managed by tools/pc-review-features.",
-            "Actionable findings are mirrored into feature-spec.md and dev-tasks.md.",
-            "Review order is Security Expert first, then Product Manager.",
+            "Actionable tasks are canonical in dev-tasks.md Review Findings Backlog.",
+            "feature-spec.md contains constraint summaries only (no duplicate actionable checklist).",
+            "Completed features are skipped by default unless --include-completed is set.",
         ],
     }
     write_text(
@@ -1007,8 +1202,8 @@ def run_review(args: argparse.Namespace) -> int:
     print(
         "pc-review-features: complete "
         f"(features_updated={updated}, security_findings={total_security}, "
-        f"product_findings={total_product}, patcher_findings={total_patcher}, "
-        f"human_findings={total_human})"
+        f"product_findings={total_product}, human_validation_requests={total_human_requests}, "
+        f"skipped_completed={skipped_completed})"
     )
 
     if not args.skip_schema_check:

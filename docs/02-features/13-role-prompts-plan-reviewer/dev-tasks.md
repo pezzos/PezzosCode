@@ -16,32 +16,64 @@
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-13-001` Input validation controls are not explicit
+- [ ] `SEC-13-001` Prompt loader path confinement is not explicitly enforced
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-13-003` Secrets handling is not documented
-  - Severity: Medium
-  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
-- [ ] `SEC-13-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: In `tools/pc-feature`, map role/task identifiers to a fixed allowlist of filenames, canonicalize resolved paths, enforce they stay under the prompt root, and fail closed on unknown identifiers with remediation text.
+- [ ] `SEC-13-002` Plan Reviewer conflict handling is not guaranteed to fail-closed
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-13-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement explicit conflict behavior that sets `Awaiting PO Approval` and blocks downstream patch/test stages until a recorded human approval is present.
+- [ ] `SEC-13-003` Prompt/template drift control is not enforced by a mandatory automated parity test
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests that enforce one-to-one inventory and content parity between `prompts/` and `tools/templates/prompts/`; fail test on any mismatch.
+- [ ] `SEC-13-004` Security-critical gate tests are not evidenced as completed
+  - Reviewer: Security Expert
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Run and record the gate-focused tests for approve, block/retry, policy conflict, and missing prompt handling before feature completion; update validation logs with concrete pass/fail evidence.
+- [ ] `PROD-13-001` Prompt loader can select unintended files
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Implement fixed role/task filename allowlists, canonicalize resolved paths, enforce prompt-root confinement, and fail closed on unknown identifiers with clear remediation text.
+- [ ] `PROD-13-002` HIGH-risk conflict path is not proven fail-closed
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce explicit `Awaiting PO Approval` state and block all downstream stages until recorded human approval is present.
+- [ ] `PROD-13-003` Prompt/template drift is not gated by mandatory parity tests
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated one-to-one inventory and content parity tests between `prompts/` and `tools/templates/prompts/`, failing on any mismatch.
+- [ ] `PROD-13-004` Acceptance-critical gate behavior lacks test evidence
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Run and record the gate-focused tests for all required paths and update validation logs with concrete pass/fail evidence.
 
-### Product Manager Tasks
+### Human Validation Requests (Product Owner / end-user)
 
-- [ ] `PROD-13-002` User journey details are missing in feature docs
+- [ ] `PROD-13-005` User-facing gate and remediation wording lacks explicit PO sign-off
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-13-003` Global UX blueprint does not reference this feature
-  - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Role prompts + Plan Reviewer' journey and workflow.
-- [ ] `PROD-13-005` PO validation checkpoint is missing
-  - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: human-validation
+  - Action: Route to PO human-validation with a scripted walkthrough of approve, block/retry, conflict, and missing-prompt scenarios; require explicit sign-off or requested copy fixes.
 
 <!-- review-backlog:end -->
 

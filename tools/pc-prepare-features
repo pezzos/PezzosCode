@@ -23,8 +23,10 @@ ROOT = Path(__file__).resolve().parents[1]
 PRD_PATH = Path("docs/01-product/prd.md")
 DESIGN_PATH = Path("docs/01-product/design.md")
 UX_PATH = Path("docs/01-product/ux-ui.md")
+SECURITY_PATH = Path("docs/01-product/security.md")
 DESIGN_CANDIDATE_PATH = Path("docs/01-product/design.candidate.md")
 UX_CANDIDATE_PATH = Path("docs/01-product/ux-ui.candidate.md")
+SECURITY_CANDIDATE_PATH = Path("docs/01-product/security.candidate.md")
 CONTEXT_BOUNDARIES_PATH = Path("docs/00-context/context-boundaries-operating-model.md")
 ORDER_JSON_PATH = Path("docs/02-features/feature-order.json")
 ORDER_MD_PATH = Path("docs/02-features/feature-order.md")
@@ -46,6 +48,7 @@ PRD_TOOL_PATH = Path("tools/prd-to-features")
 PROMPTS_DIR = Path("prompts")
 ARCHITECT_PROMPT_PATH = PROMPTS_DIR / "architect-prepare.md"
 UX_PROMPT_PATH = PROMPTS_DIR / "ux-prepare.md"
+SECURITY_PROMPT_PATH = PROMPTS_DIR / "security-prepare.md"
 ORDERER_PROMPT_PATH = PROMPTS_DIR / "orderer-prepare.md"
 PM_PROMPT_PATH = PROMPTS_DIR / "product-manager-prepare-gate.md"
 ROLE_MODE_CODEX = "codex"
@@ -53,19 +56,23 @@ ROLE_MODE_DETERMINISTIC = "deterministic"
 MAX_PM_BLOCKS = 6
 STEP_ARCHITECT = "architect"
 STEP_UX = "ux"
+STEP_SECURITY = "security"
 STEP_DEPENDENCY_PLANNER = "dependency-planner"
 STEP_PRODUCT_MANAGER = "product-manager"
 TODO_OWNER_ARCHITECT = "architect"
 TODO_OWNER_UX = "ux"
+TODO_OWNER_SECURITY = "security"
 TODO_OWNER_DEPENDENCY_PLANNER = "dependency-planner"
 TODO_OWNERS = (
     TODO_OWNER_ARCHITECT,
     TODO_OWNER_UX,
+    TODO_OWNER_SECURITY,
     TODO_OWNER_DEPENDENCY_PLANNER,
 )
 CANONICAL_PREPARE_STEPS = (
     STEP_ARCHITECT,
     STEP_UX,
+    STEP_SECURITY,
     STEP_DEPENDENCY_PLANNER,
     STEP_PRODUCT_MANAGER,
 )
@@ -118,8 +125,8 @@ def die(message: str) -> None:
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run global prepare workflow: Architect -> UX -> dependency planner "
-            "-> Orderer -> Product Manager gate -> feature generation."
+            "Run global prepare workflow: Architect -> UX -> Security -> dependency "
+            "planner -> Orderer -> Product Manager gate -> feature generation."
         )
     )
     parser.add_argument(
@@ -825,6 +832,11 @@ def normalize_prepare_step_with_known(
         "orderer": STEP_DEPENDENCY_PLANNER,
         "ordering": STEP_DEPENDENCY_PLANNER,
         "order": STEP_DEPENDENCY_PLANNER,
+        "security": STEP_SECURITY,
+        "security-expert": STEP_SECURITY,
+        "security-review": STEP_SECURITY,
+        "security-blueprint": STEP_SECURITY,
+        "security-md": STEP_SECURITY,
         "product-manager": STEP_PRODUCT_MANAGER,
         "product-manager-gate": STEP_PRODUCT_MANAGER,
         "product_manager": STEP_PRODUCT_MANAGER,
@@ -838,6 +850,8 @@ def normalize_prepare_step_with_known(
         return STEP_DEPENDENCY_PLANNER, True
     if "dependency" in token and "order" in token:
         return STEP_DEPENDENCY_PLANNER, True
+    if "security" in token:
+        return STEP_SECURITY, True
     if "architect" in token or "architecture" in token:
         return STEP_ARCHITECT, True
     if token in {"uxui", "ux-ui"} or token.startswith("ux-"):
@@ -882,6 +896,22 @@ def infer_issue_owner(
         marker in text for marker in {"ux", "ui", "journey", "workflows", "workflow"}
     ):
         return TODO_OWNER_UX
+    if any(
+        marker in text
+        for marker in {
+            "security",
+            "threat",
+            "redaction",
+            "secret",
+            "credential",
+            "authorization",
+            "authn",
+            "authz",
+            "path traversal",
+            "least privilege",
+        }
+    ):
+        return TODO_OWNER_SECURITY
     if any(
         marker in text
         for marker in {"architect", "architecture", "design.md", "module", "infra"}
@@ -959,6 +989,8 @@ def build_loop_change_summary(
     current_design_markdown: str,
     previous_ux_markdown: str,
     current_ux_markdown: str,
+    previous_security_markdown: str = "",
+    current_security_markdown: str = "",
     previous_order_payload: Optional[Dict[str, Any]] = None,
     current_order_payload: Optional[Dict[str, Any]] = None,
 ) -> str:
@@ -987,6 +1019,13 @@ def build_loop_change_summary(
             label="ux-ui.md",
         ),
         "",
+        "## security.md diff",
+        summarize_markdown_diff(
+            previous_text=previous_security_markdown,
+            current_text=current_security_markdown,
+            label="security.md",
+        ),
+        "",
         "## feature-order.json diff",
         summarize_markdown_diff(
             previous_text=previous_order_json,
@@ -1008,6 +1047,7 @@ def prompt_values(
     prepare_iteration: int = 1,
     previous_design_markdown: str = "",
     previous_ux_markdown: str = "",
+    previous_security_markdown: str = "",
     previous_order_payload: Optional[Dict[str, Any]] = None,
     pm_feedback: Sequence[Dict[str, str]] = (),
     pm_todos: Sequence[Dict[str, Any]] = (),
@@ -1021,6 +1061,7 @@ def prompt_values(
         pm_todo_payload, owner=TODO_OWNER_ARCHITECT
     )
     ux_todos = owner_actionable_todos(pm_todo_payload, owner=TODO_OWNER_UX)
+    security_todos = owner_actionable_todos(pm_todo_payload, owner=TODO_OWNER_SECURITY)
     orderer_todos = owner_actionable_todos(
         pm_todo_payload, owner=TODO_OWNER_DEPENDENCY_PLANNER
     )
@@ -1036,6 +1077,7 @@ def prompt_values(
         "prepare_iteration": str(prepare_iteration),
         "previous_design_markdown": previous_design_markdown,
         "previous_ux_markdown": previous_ux_markdown,
+        "previous_security_markdown": previous_security_markdown,
         "previous_order_payload_json": json.dumps(
             previous_order_payload or {}, ensure_ascii=True, indent=2, sort_keys=True
         ),
@@ -1050,6 +1092,9 @@ def prompt_values(
         ),
         "ux_open_todos_json": json.dumps(
             ux_todos, ensure_ascii=True, indent=2, sort_keys=True
+        ),
+        "security_open_todos_json": json.dumps(
+            security_todos, ensure_ascii=True, indent=2, sort_keys=True
         ),
         "orderer_open_todos_json": json.dumps(
             orderer_todos, ensure_ascii=True, indent=2, sort_keys=True
@@ -1311,6 +1356,7 @@ def validate_pm_issue_actionability(raw_issues: Any) -> List[Dict[str, str]]:
     artifact_tokens = {
         "design.md",
         "ux-ui.md",
+        "security.md",
         "feature-order.json",
         "feature-order.md",
     }
@@ -1329,6 +1375,12 @@ def validate_pm_issue_actionability(raw_issues: Any) -> List[Dict[str, str]]:
         "ordered_feature_slugs",
         "dependencies",
         "decisions",
+        "security scope boundaries",
+        "threat model",
+        "attack surface",
+        "feature security focus map",
+        "security controls",
+        "verification and evidence",
     }
     acceptance_tokens = {"must", "acceptance", "verify", "should", "passes", "contains"}
     for item in raw_issues:
@@ -1409,8 +1461,8 @@ def validate_pm_issue_step_names(raw_issues: Any) -> List[Dict[str, str]]:
                 ),
                 "risk": "Unknown PM step ownership can route feedback to the wrong role.",
                 "remediation": (
-                    "Normalize PM issue steps to architect, ux, dependency-planner, "
-                    "or product-manager."
+                    "Normalize PM issue steps to architect, ux, security, "
+                    "dependency-planner, or product-manager."
                 ),
             }
         )
@@ -1438,6 +1490,21 @@ def retry_owner_scope_from_issues(issues: Sequence[ReviewIssue]) -> Set[str]:
             matched = True
         if any(token in text for token in {"ux", "ui", "journey", "workflow"}):
             owners.add(TODO_OWNER_UX)
+            matched = True
+        if any(
+            token in text
+            for token in {
+                "security",
+                "threat",
+                "redaction",
+                "secret",
+                "credential",
+                "authorization",
+                "authn",
+                "authz",
+            }
+        ):
+            owners.add(TODO_OWNER_SECURITY)
             matched = True
         if any(
             token in text
@@ -1693,6 +1760,160 @@ def run_ux_role(
                 "summary": "UX output missing ux_markdown body.",
                 "risk": "PM gate cannot validate user journeys without complete UX artifact.",
                 "remediation": "Return full UX markdown in ux_markdown JSON field.",
+            }
+        )
+        return fallback, issues
+    return markdown, issues
+
+
+def run_security_role(
+    *,
+    root: Path,
+    role_mode: str,
+    prd_text: str,
+    context_boundaries: str,
+    design_text: str,
+    ux_text: str,
+    order_payload: Dict[str, Any],
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    dependency_decisions: Sequence[Dict[str, Any]],
+    prepare_iteration: int = 1,
+    previous_security_markdown: str = "",
+    pm_feedback: Sequence[Dict[str, str]] = (),
+    pm_todos: Sequence[Dict[str, Any]] = (),
+    previous_loop_change_summary: str = "",
+) -> Tuple[str, List[Dict[str, str]]]:
+    if role_mode == ROLE_MODE_DETERMINISTIC:
+        return (
+            security_markdown(
+                features=features,
+                ordered_slugs=ordered_slugs,
+                graph=graph,
+                context_boundaries=context_boundaries,
+                design_markdown_text=design_text,
+                ux_markdown_text=ux_text,
+                order_payload=order_payload,
+            ),
+            [],
+        )
+
+    template = load_prompt_template(root, SECURITY_PROMPT_PATH)
+    values = prompt_values(
+        features=features,
+        ordered_slugs=ordered_slugs,
+        graph=graph,
+        prd_text=prd_text,
+        context_boundaries=context_boundaries,
+        dependency_decisions=dependency_decisions,
+        prepare_iteration=prepare_iteration,
+        previous_design_markdown=design_text,
+        previous_ux_markdown=ux_text,
+        previous_security_markdown=previous_security_markdown,
+        pm_feedback=pm_feedback,
+        pm_todos=pm_todos,
+        previous_loop_change_summary=previous_loop_change_summary,
+    )
+    values.update(
+        {
+            "design_markdown": design_text,
+            "ux_markdown": ux_text,
+            "order_payload_json": json.dumps(
+                order_payload, ensure_ascii=True, indent=2, sort_keys=True
+            ),
+        }
+    )
+    prompt = render_prompt_template(template, values)
+    try:
+        payload = codex_exec_json(
+            root=root,
+            prompt=prompt,
+            profile=os.environ.get("PREPARE_SECURITY_PROFILE", "SecurityExpert"),
+            label="security",
+        )
+    except RuntimeError as exc:
+        fallback = security_markdown(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            context_boundaries=context_boundaries,
+            design_markdown_text=design_text,
+            ux_markdown_text=ux_text,
+            order_payload=order_payload,
+        )
+        return (
+            fallback,
+            [
+                {
+                    "step": STEP_SECURITY,
+                    "summary": f"Security role execution failed: {exc}",
+                    "risk": "Global project security blueprint may miss project-specific risks.",
+                    "remediation": (
+                        "Fix security prompt execution and rerun prepare before feature "
+                        "generation."
+                    ),
+                }
+            ],
+        )
+
+    markdown = str(payload.get("security_markdown", "")).strip()
+    issues = normalize_role_issues(
+        raw_issues=payload.get("issues"),
+        default_step=STEP_SECURITY,
+        source="security",
+    )
+    decision = str(payload.get("decision", "APPROVE")).strip().upper()
+    if decision not in {"APPROVE", "BLOCK"}:
+        issues.append(
+            {
+                "step": STEP_SECURITY,
+                "summary": "Security decision is invalid (expected APPROVE/BLOCK).",
+                "risk": "Malformed security output can bypass prepare validation.",
+                "remediation": "Return security decision as APPROVE or BLOCK in JSON output.",
+            }
+        )
+    if decision == "BLOCK" and not issues:
+        issues.append(
+            {
+                "step": STEP_SECURITY,
+                "summary": "Security returned BLOCK without actionable issues.",
+                "risk": "Prepare loop cannot resolve security blockers deterministically.",
+                "remediation": "Return security issues with summary, risk, and remediation.",
+            }
+        )
+
+    issues.extend(
+        role_change_contract_issues(
+            role_step=STEP_SECURITY,
+            role_label="Security",
+            prepare_iteration=prepare_iteration,
+            previous_markdown=previous_security_markdown,
+            current_markdown=markdown,
+            pm_feedback=pm_feedback,
+            pm_todos=pm_todos,
+            changed_sections_payload=payload.get("changed_sections"),
+            change_rationale=str(payload.get("change_rationale", "")),
+        )
+    )
+    if not markdown:
+        fallback = security_markdown(
+            features=features,
+            ordered_slugs=ordered_slugs,
+            graph=graph,
+            context_boundaries=context_boundaries,
+            design_markdown_text=design_text,
+            ux_markdown_text=ux_text,
+            order_payload=order_payload,
+        )
+        issues.append(
+            {
+                "step": STEP_SECURITY,
+                "summary": "Security output missing security_markdown body.",
+                "risk": "Prepare workflow lacks a project-scoped security baseline.",
+                "remediation": (
+                    "Return full security markdown in security_markdown JSON field."
+                ),
             }
         )
         return fallback, issues
@@ -1961,6 +2182,148 @@ def feature_semantic_tokens(feature: Feature) -> List[str]:
     return ordered
 
 
+def feature_security_focus(feature: Feature) -> str:
+    text = f"{feature.title} {feature.outcome} {feature.notes}".lower()
+    if any(token in text for token in {"offload", "log", "artifact", "trace"}):
+        return (
+            "Protect offloaded/log artifacts: redact sensitive values and enforce "
+            "allowed output paths."
+        )
+    if any(token in text for token in {"commit", "gate", "evidence"}):
+        return (
+            "Harden commit and evidence gates: require machine-verifiable evidence "
+            "and block bypass paths."
+        )
+    if any(token in text for token in {"template", "bootstrap", "reapply", "update"}):
+        return (
+            "Constrain file writes: prevent traversal/symlink escapes and preserve "
+            "protected paths during reapply flows."
+        )
+    if any(token in text for token in {"workflow", "orchestrator", "role", "agent"}):
+        return (
+            "Preserve role boundaries: enforce scoped writes and deterministic handoff "
+            "artifacts between roles."
+        )
+    return (
+        "Map feature behavior to least-privilege execution, deterministic output, and "
+        "explicit failure handling."
+    )
+
+
+def security_markdown(
+    *,
+    features: Sequence[Feature],
+    ordered_slugs: Sequence[str],
+    graph: Dict[str, Set[str]],
+    context_boundaries: str,
+    design_markdown_text: str,
+    ux_markdown_text: str,
+    order_payload: Dict[str, Any],
+) -> str:
+    generated_on = datetime.now().strftime("%Y-%m-%d")
+    scope_boundaries = extract_section_bullets(context_boundaries, "Scope Boundaries")
+    non_goals = extract_section_bullets(context_boundaries, "Non-Goals")
+    by_slug = {feature.slug: feature for feature in features}
+    ordered_features = [by_slug[slug] for slug in ordered_slugs if slug in by_slug]
+
+    if not scope_boundaries:
+        scope_boundaries = [
+            "Local CLI-only execution with explicit human command authority.",
+            "No cloud runtime and no background service assumptions.",
+        ]
+
+    security_scope_lines = [f"- {item}" for item in scope_boundaries[:6]]
+    if non_goals:
+        security_scope_lines.extend(
+            [f"- Non-goal: {item}" for item in non_goals[:4] if item.strip()]
+        )
+
+    attack_surface_rows = [
+        "| Surface | Project-specific risk | Control direction |",
+        "| ------- | --------------------- | ----------------- |",
+        "| `make prepare-features` artifacts | Global docs can drift from project constraints across reruns. | Keep machine-managed artifacts deterministic and rerun-safe. |",
+        "| `make review-features` findings | Review findings can create noisy or duplicate remediation work. | Keep findings scoped to active feature deltas and canonical task format. |",
+        "| `make feature` execution loop | Role outputs and logs can leak sensitive data or bypass gates. | Enforce scoped writes, explicit gates, and auditable evidence pointers. |",
+    ]
+
+    feature_rows = [
+        "| Ordered # | Feature | Dependencies | Security focus for implementation |",
+        "| --------- | ------- | ------------ | --------------------------------- |",
+    ]
+    for idx, feature in enumerate(ordered_features, start=1):
+        deps = sorted(graph.get(feature.slug, set()))
+        deps_value = ", ".join(deps) if deps else "(none)"
+        feature_rows.append(
+            "| {idx:02d} | `{slug}` | {deps} | {focus} |".format(
+                idx=idx,
+                slug=feature.slug,
+                deps=deps_value,
+                focus=feature_security_focus(feature),
+            )
+        )
+
+    ordered_in_payload = order_payload.get("ordered_feature_slugs", [])
+    order_note = (
+        ", ".join(str(item) for item in ordered_in_payload[:6])
+        if isinstance(ordered_in_payload, list) and ordered_in_payload
+        else "(none)"
+    )
+    design_marker = (
+        "present" if "## System architecture" in design_markdown_text else "missing"
+    )
+    ux_marker = "present" if "## User journeys" in ux_markdown_text else "missing"
+
+    controls_lines = [
+        "- Keep command authority explicit: only human PO triggers orchestrator commands.",
+        "- Fail closed on malformed role payloads and missing required artifacts.",
+        "- Preserve deterministic reruns: avoid rewrite noise when no actionable feedback exists.",
+        "- Keep security findings project-scoped: document cross-feature risks in `docs/01-product/security.md` instead of duplicating per-feature blocking tasks.",
+    ]
+
+    verification_lines = [
+        "- Validate prompt/template parity between `prompts/` and `tools/templates/prompts/`.",
+        "- Keep `tools/pc-devtasks-schema-check` in prepare/review workflow to enforce task schema.",
+        "- Record security-impact decisions in `docs/03-logs/decision-log.md` and validation evidence in `docs/03-logs/validation-log.md`.",
+    ]
+
+    return "\n".join(
+        [
+            "# Global Security Blueprint",
+            "",
+            "> Machine-managed by `tools/pc-prepare-features`. Project-scoped security direction only.",
+            "",
+            f"**Last Updated:** {generated_on}",
+            "",
+            "## Security scope boundaries",
+            "",
+            *security_scope_lines,
+            "",
+            "## Threat model and attack surface",
+            "",
+            *attack_surface_rows,
+            "",
+            "## Feature security focus map",
+            "",
+            *feature_rows,
+            "",
+            "## Security controls for this project",
+            "",
+            *controls_lines,
+            "",
+            "## Verification and evidence",
+            "",
+            *verification_lines,
+            "",
+            "## Alignment anchors",
+            "",
+            f"- `design.md` required architecture section: {design_marker}.",
+            f"- `ux-ui.md` required journeys section: {ux_marker}.",
+            f"- `feature-order.json` first slugs snapshot: {order_note}.",
+            "",
+        ]
+    )
+
+
 def design_markdown(
     *,
     features: Sequence[Feature],
@@ -1982,6 +2345,7 @@ def design_markdown(
         "  -> make prepare-features",
         "     -> docs/01-product/design.md (Architect)",
         "     -> docs/01-product/ux-ui.md (UX)",
+        "     -> docs/01-product/security.md (Security Expert)",
         "     -> docs/02-features/feature-order.json (Dependency Planner)",
         "     -> tools/prd-to-features (Feature Generation)",
         "  -> make review-features (Security + Product review)",
@@ -1993,7 +2357,7 @@ def design_markdown(
         "| Module | Responsibility | Boundaries |",
         "| ------ | -------------- | ---------- |",
         "| docs/00-context | Product context and operating limits | Input-only for preparation, not regenerated by tooling |",
-        "| docs/01-product | PRD + architecture/UX blueprints | Global product blueprint consumed by generation and reviews |",
+        "| docs/01-product | PRD + architecture/UX/security blueprints | Global product blueprint consumed by generation and reviews |",
         "| docs/02-features | Feature-level implementation specs/tasks/tests | Generated/updated in dependency order, never delete existing folders |",
         "| tools/prd-to-features | Feature docs hydrator | Consumes PRD + ordered plan and updates in place |",
         "| tools/pc-feature | Work-item execution runtime | Unchanged by prepare/review workflows |",
@@ -3513,6 +3877,7 @@ def build_candidate_summary_markdown(
         "",
         f"- `{DESIGN_CANDIDATE_PATH}`",
         f"- `{UX_CANDIDATE_PATH}`",
+        f"- `{SECURITY_CANDIDATE_PATH}`",
         f"- `{ORDER_JSON_CANDIDATE_PATH}`",
         f"- `{ORDER_MD_CANDIDATE_PATH}`",
         f"- `{PREPARE_STATE_CANDIDATE_PATH}`",
@@ -3566,6 +3931,7 @@ def run_prepare(args: argparse.Namespace) -> int:
 
     existing_design_doc = read_text_if_exists(root / DESIGN_PATH)
     existing_ux_doc = read_text_if_exists(root / UX_PATH)
+    existing_security_doc = read_text_if_exists(root / SECURITY_PATH)
     existing_order_payload = read_json_object_if_exists(root / ORDER_JSON_PATH)
     has_existing_order_payload = bool(
         isinstance(existing_order_payload, dict)
@@ -3575,6 +3941,7 @@ def run_prepare(args: argparse.Namespace) -> int:
         existing_state_payload
         and existing_design_doc.strip()
         and existing_ux_doc.strip()
+        and existing_security_doc.strip()
         and has_existing_order_payload
     )
     run_mode = "first-run" if is_first_run else "rerun"
@@ -3589,6 +3956,7 @@ def run_prepare(args: argparse.Namespace) -> int:
     pm_final_decision = "pending"
     previous_design_doc = existing_design_doc.strip()
     previous_ux_doc = existing_ux_doc.strip()
+    previous_security_doc = existing_security_doc.strip()
     previous_order_payload: Dict[str, object] = (
         dict(existing_order_payload) if has_existing_order_payload else {}
     )
@@ -3604,6 +3972,7 @@ def run_prepare(args: argparse.Namespace) -> int:
             previous_loop_change_summary = f"Previous PM finding: {feedback_summary}"
     design_doc = previous_design_doc
     ux_doc = previous_ux_doc
+    security_doc = previous_security_doc
     order_payload: Dict[str, Any] = dict(previous_order_payload)
     loop_iteration_for_persist = 0
     in_loop_feature_generation_status = "skipped" if args.skip_generation else "pending"
@@ -3657,6 +4026,10 @@ def run_prepare(args: argparse.Namespace) -> int:
             ux_doc,
         )
         write_text(
+            root / SECURITY_CANDIDATE_PATH,
+            security_doc,
+        )
+        write_text(
             root / ORDER_JSON_CANDIDATE_PATH,
             json.dumps(order_payload, ensure_ascii=True, indent=2, sort_keys=True),
         )
@@ -3679,12 +4052,14 @@ def run_prepare(args: argparse.Namespace) -> int:
         )
         print(
             "pc-prepare-features: wrote candidate artifacts -> "
-            f"{DESIGN_CANDIDATE_PATH}, {UX_CANDIDATE_PATH}, {ORDER_JSON_CANDIDATE_PATH}, "
+            f"{DESIGN_CANDIDATE_PATH}, {UX_CANDIDATE_PATH}, {SECURITY_CANDIDATE_PATH}, "
+            f"{ORDER_JSON_CANDIDATE_PATH}, "
             f"{PREPARE_STATE_CANDIDATE_PATH}, {PREPARE_PM_TODO_CANDIDATE_PATH}"
         )
         if promote:
             write_text(root / DESIGN_PATH, design_doc)
             write_text(root / UX_PATH, ux_doc)
+            write_text(root / SECURITY_PATH, security_doc)
             write_text(
                 root / ORDER_JSON_PATH,
                 json.dumps(order_payload, ensure_ascii=True, indent=2, sort_keys=True),
@@ -3700,7 +4075,8 @@ def run_prepare(args: argparse.Namespace) -> int:
             )
             print(
                 "pc-prepare-features: promoted candidate artifacts -> "
-                f"{DESIGN_PATH}, {UX_PATH}, {ORDER_JSON_PATH}, {PREPARE_STATE_PATH}, {PREPARE_PM_TODO_PATH}"
+                f"{DESIGN_PATH}, {UX_PATH}, {SECURITY_PATH}, {ORDER_JSON_PATH}, "
+                f"{PREPARE_STATE_PATH}, {PREPARE_PM_TODO_PATH}"
             )
 
         if snapshot_root is None:
@@ -3747,6 +4123,7 @@ def run_prepare(args: argparse.Namespace) -> int:
         loop_iteration_for_persist = loop_iteration
         run_architect = retry_owner_scope is None or STEP_ARCHITECT in retry_owner_scope
         run_ux = retry_owner_scope is None or STEP_UX in retry_owner_scope
+        run_security = retry_owner_scope is None or STEP_SECURITY in retry_owner_scope
         run_orderer = (
             retry_owner_scope is None or STEP_DEPENDENCY_PLANNER in retry_owner_scope
         )
@@ -3919,11 +4296,48 @@ def run_prepare(args: argparse.Namespace) -> int:
             dict(item) for item in pm_dependency_decisions if isinstance(item, dict)
         ]
 
+        security_doc = previous_security_doc
+        security_seed_issues: List[Dict[str, str]] = []
+        if run_security:
+            print(
+                "pc-prepare-features: security step -> generating docs/01-product/security.md"
+            )
+            security_doc, security_seed_issues = run_security_role(
+                root=root,
+                role_mode=args.role_mode,
+                prd_text=prd_text,
+                context_boundaries=context_boundaries,
+                design_text=design_doc,
+                ux_text=ux_doc,
+                order_payload=order_payload,
+                features=features,
+                ordered_slugs=ordered_slugs,
+                graph=graph,
+                dependency_decisions=dependency_decisions,
+                prepare_iteration=loop_iteration,
+                previous_security_markdown=previous_security_doc,
+                pm_feedback=previous_pm_feedback,
+                pm_todos=pm_todos,
+                previous_loop_change_summary=previous_loop_change_summary,
+            )
+        elif not security_doc:
+            security_doc = security_markdown(
+                features=features,
+                ordered_slugs=ordered_slugs,
+                graph=graph,
+                context_boundaries=context_boundaries,
+                design_markdown_text=design_doc,
+                ux_markdown_text=ux_doc,
+                order_payload=order_payload,
+            )
+
         current_loop_change_summary = build_loop_change_summary(
             previous_design_markdown=previous_design_doc,
             current_design_markdown=design_doc,
             previous_ux_markdown=previous_ux_doc,
             current_ux_markdown=ux_doc,
+            previous_security_markdown=previous_security_doc,
+            current_security_markdown=security_doc,
             previous_order_payload=previous_order_payload,
             current_order_payload=order_payload,
         )
@@ -3957,7 +4371,12 @@ def run_prepare(args: argparse.Namespace) -> int:
             ux_text=ux_doc,
             order_payload=order_payload,
             pm_role_payload=pm_role_payload,
-            seed_issues=[*architect_seed_issues, *ux_seed_issues, *orderer_seed_issues],
+            seed_issues=[
+                *architect_seed_issues,
+                *ux_seed_issues,
+                *security_seed_issues,
+                *orderer_seed_issues,
+            ],
             enforce_semantic_gate=args.role_mode != ROLE_MODE_DETERMINISTIC,
         )
 
@@ -4001,6 +4420,8 @@ def run_prepare(args: argparse.Namespace) -> int:
                     current_design_markdown=design_doc,
                     previous_ux_markdown=previous_ux_doc,
                     current_ux_markdown=ux_doc,
+                    previous_security_markdown=previous_security_doc,
+                    current_security_markdown=security_doc,
                     previous_order_payload=previous_order_payload,
                     current_order_payload=order_payload,
                 )
@@ -4037,6 +4458,7 @@ def run_prepare(args: argparse.Namespace) -> int:
                     seed_issues=[
                         *architect_seed_issues,
                         *ux_seed_issues,
+                        *security_seed_issues,
                         *orderer_seed_issues,
                     ],
                     enforce_semantic_gate=args.role_mode != ROLE_MODE_DETERMINISTIC,
@@ -4139,6 +4561,7 @@ def run_prepare(args: argparse.Namespace) -> int:
         if choice.key == "retry":
             previous_design_doc = design_doc
             previous_ux_doc = ux_doc
+            previous_security_doc = security_doc
             previous_order_payload = dict(order_payload)
             previous_pm_feedback = [review_issue_payload(issue) for issue in issues]
             previous_loop_change_summary = current_loop_change_summary

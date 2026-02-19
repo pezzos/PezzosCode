@@ -103,6 +103,7 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
         self.assertIn("make review-features", content)
         self.assertIn("docs/01-product/design.md", content)
         self.assertIn("docs/01-product/ux-ui.md", content)
+        self.assertIn("docs/01-product/security.md", content)
         self.assertIn("docs/03-logs/prepare-features-state.json", content)
         self.assertIn("docs/03-logs/prepare-features-pm-todo.md", content)
         self.assertIn("docs/03-logs/review-features-report.json", content)
@@ -123,11 +124,13 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
         path = ROOT / "tools" / "README.md"
         content = path.read_text(encoding="utf-8")
         self.assertIn("docs/03-logs/prepare-features-pm-todo.md", content)
+        self.assertIn("docs/01-product/security.md", content)
         self.assertIn("--snapshot-runs", content)
 
     def test_docs_readme_mentions_prepare_and_review_artifacts(self):
         path = ROOT / "docs" / "README.md"
         content = path.read_text(encoding="utf-8")
+        self.assertIn("security.md", content)
         self.assertIn("docs/03-logs/prepare-features-state.json", content)
         self.assertIn("docs/03-logs/prepare-features-pm-todo.md", content)
         self.assertIn("SNAPSHOT_RUNS=1", content)
@@ -143,6 +146,7 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
             / "human-orchestration-workflow.md"
         )
         content = path.read_text(encoding="utf-8")
+        self.assertIn("docs/01-product/security.md", content)
         self.assertIn("docs/03-logs/prepare-features-state.json", content)
         self.assertIn("docs/03-logs/prepare-features-pm-todo.md", content)
         self.assertIn("docs/03-logs/review-features-report.json", content)
@@ -150,6 +154,7 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
     def test_template_docs_readme_mentions_prepare_pm_todo_artifact(self):
         path = ROOT / "tools" / "templates" / "docs" / "README.md"
         content = path.read_text(encoding="utf-8")
+        self.assertIn("security.md", content)
         self.assertIn("docs/03-logs/prepare-features-state.json", content)
         self.assertIn("docs/03-logs/prepare-features-pm-todo.md", content)
         self.assertIn("SNAPSHOT_RUNS=1", content)

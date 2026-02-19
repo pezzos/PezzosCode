@@ -16,32 +16,69 @@
 
 <!-- review-backlog:start -->
 
-### Security Reviewer Tasks
+### Patcher Tasks (must be handled during patch/test steps)
 
-- [ ] `SEC-14-001` Input validation controls are not explicit
+- [ ] `SEC-14-001` Failure summaries are persisted without secret redaction controls
+  - Reviewer: Security Expert
   - Severity: High
-  - Action: Add explicit validation rules, error paths, and anti-bypass tests in feature-spec and dev-tasks.
-- [ ] `SEC-14-003` Secrets handling is not documented
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add a mandatory redaction pass before proposal write (credential/secret patterns + high-entropy token heuristics), replace matches with `[REDACTED]`, and fail-closed if redaction cannot safely process payload.
+- [ ] `SEC-14-002` Untrusted log content is not constrained before markdown insertion
+  - Reviewer: Security Expert
   - Severity: Medium
-  - Action: Document secret sources, redaction strategy, and prohibited storage locations.
-- [ ] `SEC-14-004` Injection defenses are not explicit
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Normalize proposal fields to safe plaintext (strip control/ANSI chars, escape markdown-sensitive characters where needed), enforce maximum field lengths, and append a truncated note with log pointer.
+- [ ] `SEC-14-003` Dedup signature is collision-prone for incident integrity
+  - Reviewer: Security Expert
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Harden dedup with canonical hashing of raw summary + normalized key, and require collision-safe behavior (append separate evidence/collision note instead of silent skip when raw payloads differ).
+- [ ] `SEC-14-004` Security abuse cases are missing from automated tests
+  - Reviewer: Security Expert
+  - Severity: Medium
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests with malicious fixtures: secret-bearing summaries, control-character/markdown payloads, and near-collision dedup inputs; gate completion on these passing.
+- [ ] `PROD-14-001` Proposal content safety is not enforced before writing to user-facing docs
+  - Reviewer: Product Manager
   - Severity: High
-  - Action: Define escaping/parameterization requirements and add dedicated injection test scenarios.
-- [ ] `SEC-14-005` Infrastructure misconfiguration guardrails are missing
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Add mandatory pre-write redaction, sanitization, and length limiting with fail-closed behavior if safety processing cannot complete.
+- [ ] `PROD-14-002` Dedup logic can suppress distinct user-impacting failures
+  - Reviewer: Product Manager
+  - Severity: High
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Harden dedup with collision-safe matching (canonical hash + raw-evidence comparison) and record explicit collision rationale instead of silent skip/merge.
+- [ ] `PROD-14-003` Acceptance quality lacks adversarial test coverage
+  - Reviewer: Product Manager
   - Severity: Medium
-  - Action: Capture required config defaults, permission boundaries, and misconfiguration failure behavior.
+  - Phase: automated-test
+  - Blocking: Yes
+  - Action: Add automated tests for secret-bearing summaries, markdown/control-character payloads, and dedup near-collision cases; make these tests required for completion.
+- [ ] `PROD-14-004` Workflow evidence appears internally inconsistent
+  - Reviewer: Product Manager
+  - Severity: Medium
+  - Phase: patch
+  - Blocking: Yes
+  - Action: Enforce deterministic status consistency checks across feature logs/reports and update generated artifacts so completion evidence is unambiguous.
 
-### Product Manager Tasks
+### Human Validation Requests (Product Owner / end-user)
 
-- [ ] `PROD-14-002` User journey details are missing in feature docs
-  - Severity: Medium
-  - Action: Add explicit user journey steps, entry points, and completion states.
-- [ ] `PROD-14-003` Global UX blueprint does not reference this feature
-  - Severity: Medium
-  - Action: Update `docs/01-product/ux-ui.md` to include 'Learning loop improvement proposals' journey and workflow.
-- [ ] `PROD-14-005` PO validation checkpoint is missing
+- [ ] `SEC-14-005` Human gate lacks explicit security review criteria
+  - Reviewer: Security Expert
   - Severity: Low
-  - Action: Add a `Product Owner test checkpoint` task in dev-tasks before first make feature execution.
+  - Phase: human-validation
+  - Action: Add a human-validation checklist item requiring verification that proposal entries contain no secrets and no unsafe execution instructions before `Approved`.
+- [ ] `PROD-14-005` Human approval criteria are not explicit enough for proposal quality
+  - Reviewer: Product Manager
+  - Severity: Low
+  - Phase: human-validation
+  - Action: Add a human validation checklist for proposal approval covering usefulness, clarity, duplicate rationale, and safety review before status changes from `Proposed`.
 
 <!-- review-backlog:end -->
 

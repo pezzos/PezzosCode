@@ -104,6 +104,31 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-078] - Batch A scope/contract hardening for `make review-features`
+
+**Date:** 2026-02-19
+
+**Status:** Implemented
+
+**Decision:**
+Harden `tools/pc-review-features` with three contract changes:
+
+1. Skip completed features by default (explicit audit opt-in only).
+2. Make findings deterministic via canonical keys + fixed templates.
+3. Keep actionable tasks canonical in `dev-tasks.md` only; keep `feature-spec.md` as constraint summary only.
+
+Also simplify finding payload shape by removing reviewer/owner/phase fields from report output while preserving `severity` and `blocking`.
+
+**Rationale:**
+The previous role-driven review pass generated noisy/non-local findings, including on already completed features, and duplicated actionable checklists between `feature-spec.md` and `dev-tasks.md`, which weakened source-of-truth clarity for execution.
+
+**Implications:**
+
+- `make review-features` now defaults to open/in-progress features; `INCLUDE_COMPLETED=1` is required for completed-feature audits.
+- Security/Product role prompts now return canonical `selected_keys` with feature-local evidence snippets.
+- Patcher backlog entries now require explicit `Action` and `Acceptance` and remove non-executable metadata lines.
+- `review-features-report.json` schema updated to `version: 3`.
+
 ### [DEC-077] - Make `review-features` role-driven and owner-routed
 
 **Date:** 2026-02-18
@@ -2853,6 +2878,19 @@ When a decision is reversed or replaced, document it here:
   - Normalize dependency payload representations to keep decisions/dependencies/ordered_features machine-consistent and typed.
   - Prefer auto-fix sessions over fail-fast for dependency payload mismatches by invoking a dedicated Codex autofix hook when inconsistencies are detected.
 - **Consequences:**
-  - PM-blocked loops no longer overwrite canonical prepare artifacts.
-  - Operators can inspect candidate progress files during blocked loops without losing baseline docs.
-  - Dependency-alignment drift is reduced through typed normalization and non-blocking autofix attempts.
+- PM-blocked loops no longer overwrite canonical prepare artifacts.
+- Operators can inspect candidate progress files during blocked loops without losing baseline docs.
+- Dependency-alignment drift is reduced through typed normalization and non-blocking autofix attempts.
+
+### DEC-078 - Add project-scoped Security prepare artifact and explicit human-validation handoff
+
+- **Date:** 2026-02-19
+- **Status:** Accepted
+- **Context:** Review feedback identified two gaps: (1) security guidance was only injected as per-feature findings and could become noisy/out-of-scope for already-completed work; (2) human validation tasks in feature docs had no deterministic end-of-run handoff in `make feature`.
+- **Decision:**
+  - Extend `make prepare-features` with a dedicated Security Expert role (`prompts/security-prepare.md`) that generates `docs/01-product/security.md` as a project-scoped security baseline.
+  - Keep `security.md` focused on repository/project risks, controls, and verification anchors (not generic security advice).
+  - Extend `tools/pc-feature` to parse `### Human Validation Requests` and print a deterministic completion summary with clear reporting instructions (`feature`, `work item`, request ids, observed vs expected behavior).
+- **Consequences:**
+  - Security direction is available before feature execution, reducing per-feature review noise and avoiding duplicated blocking tasks for global concerns.
+  - Human PO/end-user validation now has an explicit terminal handoff protocol, improving feedback loop reliability.

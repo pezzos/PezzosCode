@@ -57,6 +57,7 @@ review-features:
 		args=""; \
 		if [ -n "$(F)" ]; then args="$$args --feature $(F)"; fi; \
 		if [ -n "$(REVIEW_ROLE_MODE)" ]; then args="$$args --role-mode $(REVIEW_ROLE_MODE)"; fi; \
+		if [ "$(INCLUDE_COMPLETED)" = "1" ] || [ "$(INCLUDE_COMPLETED)" = "true" ]; then args="$$args --include-completed"; fi; \
 		if [ "$(SKIP_SCHEMA_CHECK)" = "1" ] || [ "$(SKIP_SCHEMA_CHECK)" = "true" ]; then args="$$args --skip-schema-check"; fi; \
 		tools/pc-review-features $$args; \
 	fi
