@@ -2632,3 +2632,18 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - `.serena/memories/*` is now blocked by branch-scope contamination checks and ignored for startup checkpoint staging.
   - Preflight branch-scope enforcement runs before role loop execution.
   - Reporter retry-cap now applies deterministic closeout metadata repair only when failure reason is metadata drift; scope-gap failures fail directly without metadata normalization.
+
+## 2026-02-20 - Validate conditional unittest discovery contract for no-tests consumer repos
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests_extra.test_bootstrap_into_extra.BootstrapIntoLogTests.test_make_test_skips_unittest_discovery_when_tests_directory_missing`
+- Result: PASS (`1` test; offload id `9f56a731d3d00d9c5552eec2cde4f6544fc2c13933cd1782bb30340f5e5e7704`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`27` tests; offload id `4f7945573bd09cb43b94c359dda3eaf22e669bf64a2236b2eb76718b891f8155`).
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `8a859b98e1117d940ed54955f28f750ebf91a825bd2a004743180c6897b44f5e`).
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload id `5b4d1f7b0e443b40fe97f62beffea2e8724a93eac53febdec1a0b33c4bdfa374`).
+- Verification notes:
+  - Live/template `make test` now skip Python unittest discovery when local `tests/` is absent and print explicit skip output.
+  - Bootstrap consumer regression confirms absence of environment import leakage markers (`site-packages/tests`, `ImportError`, `CUDA_DEVICE_COUNT`) during `make test` execution.
+  - Live/template root `AGENTS.md` test-contract wording is asserted by docs tests to prevent drift from Makefile behavior.

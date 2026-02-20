@@ -171,6 +171,33 @@ class BootstrapIntoLogTests(unittest.TestCase):
                 "bootstrap should not ship tools/templates into target repos",
             )
 
+    def test_make_test_skips_unittest_discovery_when_tests_directory_missing(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            init_git_repo(tmp_dir)
+            result = run_bootstrap_into([tmp_dir])
+            self.assertEqual(result.returncode, 0)
+
+            self.assertFalse(
+                (Path(tmp_dir) / "tests").exists(),
+                "bootstrap fixture should not include a local tests/ directory",
+            )
+
+            make_result = subprocess.run(
+                ["make", "test"],
+                cwd=tmp_dir,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            combined_output = (make_result.stdout or "") + (make_result.stderr or "")
+            self.assertIn(
+                "test: skipping python unittest discovery (no local tests/ directory)",
+                combined_output,
+            )
+            self.assertNotIn("site-packages/tests", combined_output)
+            self.assertNotIn("ImportError", combined_output)
+            self.assertNotIn("CUDA_DEVICE_COUNT", combined_output)
+
     def test_logs_keep_headers(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)

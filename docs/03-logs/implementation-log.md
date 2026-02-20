@@ -8514,3 +8514,36 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Prevents Serena memory artifacts from entering branch scope through startup checkpoint commits.
 - Keeps retry-cap behavior semantically correct by reserving metadata closeout repair for metadata-only drift and leaving actionable scope failures fail-closed.
+
+### 2026-02-20 - Make `test` deterministic when local `tests/` is absent in consumer repos
+
+**Feature/Bug:** Prevent final CI gate failures in bootstrapped consumers where `make test` discovers third-party `site-packages/tests` because no local `tests/` directory exists.
+
+**Changed Files:**
+
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `tests_extra/test_bootstrap_into_extra.py`
+- `tests/test_docs_logs.py`
+- `AGENTS.md`
+- `tools/templates/root/AGENTS.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/bug-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Updated live and template `test` targets to:
+  - run `python -m unittest discover -s tests -p "test_*.py"` only when local `tests/` exists,
+  - print explicit deterministic skip output otherwise: `test: skipping python unittest discovery (no local tests/ directory)`,
+  - continue running `skills-check`, `skills-metadata-check`, and `docs-check`.
+- Added regression coverage in `tests_extra/test_bootstrap_into_extra.py` that bootstraps a consumer-style repo, verifies no local `tests/` folder, and asserts `make test` passes with the skip message.
+- Added docs contract assertions in `tests/test_docs_logs.py` to ensure live/template root `AGENTS.md` explicitly document conditional unittest discovery behavior.
+- Aligned live/template root `AGENTS.md` test-contract wording with Makefile behavior to prevent policy drift.
+
+**Why:**
+
+- Consumer repos generated from tooling templates may intentionally omit local Python tests.
+- Unconditional unittest discovery is non-deterministic in those repos because Python can resolve unrelated `tests` modules from environment `site-packages`.
+- Conditional local-folder gating preserves fail-closed behavior for real local tests while avoiding false failures from external packages.

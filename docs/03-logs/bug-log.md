@@ -1285,3 +1285,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** PM feedback could emit non-canonical `step` values (for example `feature-order.json ordering`, `dependency decision records`) while prepare had no dedicated orderer producer role; TODO ownership defaulted to architect and retries reran broader steps than necessary.
 - **Fix:** Added canonical step normalization/validation, introduced dedicated Orderer role with prompt/profile, expanded TODO ownership to `dependency-planner`, and implemented owner-scoped retry routing.
 - **Validation:** `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"` (PASS; offload id `a9d51ac5375792f16ef28c92068076381bf922a8f3f9a58652028dd07ab885de`); `tools/offload-proxy/pp pre-commit run --files .codex.toml docs/04-process/human-orchestration-workflow.md prompts/product-manager-prepare-gate.md prompts/orderer-prepare.md tests/test_pc_prepare_features.py tools/pc-prepare-features tools/templates/docs/04-process/human-orchestration-workflow.md tools/templates/prompts/product-manager-prepare-gate.md tools/templates/prompts/orderer-prepare.md tools/templates/root/.codex.toml` (PASS; offload id `74098591df15bb6c06957984480d81ab3daec62d2c60b825d8aacffe30764d99`).
+
+## 2026-02-20 - Consumer `make test` false-fail from missing local `tests/` contract mismatch
+
+- **ID:** BUG-20260220-01
+- **Status:** Fixed
+- **Source:** User report (`make feature F=01` final `make ci` gate in consumer repo/worktree)
+- **Summary:** Live/template `Makefile` used unconditional `python -m unittest discover -s tests -p "test_*.py"` even when consumer repo had no local `tests/`, causing discovery/import of unrelated `site-packages/tests` modules and deterministic CI failure.
+- **Fix:** Added local-directory guard in live/template `Makefile` test target so unittest discovery runs only when `tests/` exists; otherwise prints explicit intentional skip message and continues docs/skills checks. Added bootstrap-based regression for no-tests consumer repos and AGENTS/docs contract assertions to prevent drift.
+- **Validation:** See `docs/03-logs/validation-log.md` entry dated 2026-02-20 for command evidence and offload ids.

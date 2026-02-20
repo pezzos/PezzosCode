@@ -3013,5 +3013,20 @@ When a decision is reversed or replaced, document it here:
   - Gate retry-cap deterministic closeout metadata repair behind `classify_reporter_failure_reason(...) == metadata_drift_only`; for `scope_gap`, fail directly without metadata normalization rerun.
 - **Consequences:**
   - Memory artifacts are prevented from entering work-item branch scope through startup checkpoint flow.
-  - Scope-gap reporter failures remain explicitly fail-closed and actionable.
-  - Retry-cap metadata reconciliation remains available for metadata-only contradictions while avoiding misleading normalization for real scope gaps.
+- Scope-gap reporter failures remain explicitly fail-closed and actionable.
+- Retry-cap metadata reconciliation remains available for metadata-only contradictions while avoiding misleading normalization for real scope gaps.
+
+### DEC-083 - Gate unittest discovery on local `tests/` presence in `make test`
+
+- **Date:** 2026-02-20
+- **Status:** Accepted
+- **Context:** Consumer repositories can validly have no local `tests/` directory. Unconditional `python -m unittest discover -s tests -p "test_*.py"` in live/template Makefiles then resolves to unrelated environment `site-packages/tests`, causing deterministic false CI failures.
+- **Decision:**
+  - Update live and template `Makefile` `test` targets to run unittest discovery only when local `tests/` exists.
+  - Emit explicit skip output when absent: `test: skipping python unittest discovery (no local tests/ directory)`.
+  - Keep downstream checks (`skills-check`, `skills-metadata-check`, `docs-check`) mandatory regardless of Python test discovery skip.
+  - Align live/template root `AGENTS.md` test-contract language and add regression tests that assert this behavior in bootstrapped consumer-style repos.
+- **Consequences:**
+  - `make test` remains deterministic across tooling and consumer repos with/without local Python tests.
+  - Environment-dependent import leakage from third-party `tests` packages no longer blocks final `make ci` gates.
+  - Policy/docs and runtime behavior remain synchronized via explicit docs assertions.

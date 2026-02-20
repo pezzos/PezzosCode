@@ -181,6 +181,22 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
         self.assertIn("SNAPSHOT_RUNS=1", content)
         self.assertIn("docs/03-logs/release-readiness-report.json", content)
 
+    def test_root_agents_mentions_conditional_unittest_discovery(self):
+        path = ROOT / "AGENTS.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "run Python unittest discovery only when a local `tests/` directory exists",
+            content,
+        )
+
+    def test_template_root_agents_mentions_conditional_unittest_discovery(self):
+        path = ROOT / "tools" / "templates" / "root" / "AGENTS.md"
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(
+            "run Python unittest discovery only when a local `tests/` directory exists",
+            content,
+        )
+
     def test_decision_log_records_offload_enforcement_choice(self):
         path = ROOT / "docs" / "03-logs" / "decision-log.md"
         content = path.read_text(encoding="utf-8")

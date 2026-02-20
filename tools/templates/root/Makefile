@@ -13,7 +13,12 @@ lint-verbose:
 	@tools/pc-hooks-run --hook-stage pre-commit --retry-on-autofix --all-files --verbose
 
 test:
-	@python -m unittest discover -s tests -p "test_*.py"
+	@bash -euo pipefail -c '\
+		if [[ -d tests ]]; then \
+			python -m unittest discover -s tests -p "test_*.py"; \
+		else \
+			echo "test: skipping python unittest discovery (no local tests/ directory)"; \
+		fi'
 	@$(MAKE) skills-check
 	@$(MAKE) skills-metadata-check
 	@$(MAKE) docs-check
