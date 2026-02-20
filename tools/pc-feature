@@ -15,7 +15,12 @@ ROOT = Path(__file__).resolve().parents[1]
 PROMPTS_DIR = ROOT / "prompts"
 sys.path.insert(0, str(ROOT))
 
-from lib import commit_evidence_gate, log_compaction, pc_runner  # noqa: E402
+from lib import (  # noqa: E402
+    commit_evidence_gate,
+    devtasks_status,
+    log_compaction,
+    pc_runner,
+)
 
 EXEC_LOG_HEADER = "## Execution Log"
 ENTRY_HEADER_PREFIX = "### "
@@ -635,6 +640,13 @@ def update_entry_field(content: str, work_item_id: str, field: str, value: str) 
     if not updated:
         die(f"pc-feature: field '{field}' not found in entry {work_item_id}")
     return "\n".join(lines[:start] + entry_lines + lines[end:]) + "\n"
+
+
+def update_feature_status(content: str, status: str) -> Tuple[str, bool]:
+    try:
+        return devtasks_status.set_status_in_content(content, status)
+    except ValueError as exc:
+        die(f"pc-feature: failed to update feature status to '{status}': {exc}")
 
 
 def parse_human_validation_requests(content: str) -> List[Dict[str, str]]:
@@ -6611,6 +6623,7 @@ def main() -> None:
     ensure_compacted_policy_bootstrap_ready()
     content = read_file(dev_tasks_path)
     content = ensure_allowed_tests_section(content, work_item_id)
+    content, _ = update_feature_status(content, "In Progress")
     resume_start_step = "planner"
     force_planner_on_resume = False
     resume_contradiction_policy = parse_resume_contradiction_policy()
@@ -9201,14 +9214,22 @@ def main() -> None:
             + ", ".join(commit_repair_updates)
             + ".",
         )
-    commit_gate_issues = commit_evidence_gate_issues(content, work_item_id)
+    candidate_commit_content = update_entry_field(
+        content, work_item_id, "Outcome", "completed"
+    )
+    candidate_commit_content, _ = update_feature_status(
+        candidate_commit_content, "Done"
+    )
+    commit_gate_issues = commit_evidence_gate_issues(
+        candidate_commit_content, work_item_id
+    )
     if commit_gate_issues:
         issue_summary = "; ".join(commit_gate_issues)
         die(
             "pc-feature: commit evidence gate failed: "
             f"{issue_summary}; {COMMIT_EVIDENCE_REMEDIATION}"
         )
-    content = update_entry_field(content, work_item_id, "Outcome", "completed")
+    content = candidate_commit_content
     write_file(dev_tasks_path, content)
 
     if not commit_already_done:

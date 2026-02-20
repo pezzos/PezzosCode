@@ -4,6 +4,7 @@ from lib.devtasks_status import (
     ALLOWED_STATUS_VALUES,
     is_completed_status,
     parse_status_from_content,
+    set_status_in_content,
     status_format_errors,
 )
 
@@ -35,6 +36,27 @@ class TestDevtasksStatus(unittest.TestCase):
 
     def test_allowed_values_constant(self):
         self.assertEqual(ALLOWED_STATUS_VALUES, ("Not Started", "In Progress", "Done"))
+
+    def test_set_status_in_content_updates_canonical_line(self):
+        updated, changed = set_status_in_content(
+            "Status: Not Started\n\n## Execution Log\n",
+            "In Progress",
+        )
+        self.assertTrue(changed)
+        self.assertIn("Status: In Progress", updated)
+
+    def test_set_status_in_content_noop_when_value_unchanged(self):
+        updated, changed = set_status_in_content("Status: Done\n", "Done")
+        self.assertFalse(changed)
+        self.assertEqual(updated, "Status: Done\n")
+
+    def test_set_status_in_content_rejects_invalid_target_value(self):
+        with self.assertRaisesRegex(ValueError, "Invalid status value"):
+            set_status_in_content("Status: Not Started\n", "Completed")
+
+    def test_set_status_in_content_rejects_noncanonical_source(self):
+        with self.assertRaisesRegex(ValueError, "cannot update status"):
+            set_status_in_content("**Status:** Not Started\n", "In Progress")
 
 
 if __name__ == "__main__":

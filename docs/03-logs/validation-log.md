@@ -27,6 +27,22 @@ This helps with:
 
 ## Recent Validations
 
+### 2026-02-19 - Commit gate requires feature `Status: Done` validation
+
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_devtasks_status.py"` (PASS: 10 tests; offload id `a60e0d2d66e445b0734c0563e528ca7eae6f1b838b35a48522a62ef5a010522e`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_commit.py"` (PASS: 9 tests; offload id `56099795f1258da6ffe8ea7399f34206908a4e605d50afdf61ff4049ced11445`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"` (PASS: 111 tests; offload id `50415d8726b1e1398e9107ad2b503113d82701bf6be2bd87d9baca0ffe62e16c`)
+- `tools/offload-proxy/pp make lint` (PASS)
+- `tools/offload-proxy/pp make test` (PASS; offload id `8b0740c5bfe24f6bccf5f7b4e1d660097120b8964594e5c6ec1d6df9cc87be2b`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"` (PASS: 24 tests; offload id `b83727e4d931e3c56dcc5227e11bdffb9126d443423a6099353a7b5662ca78e1`)
+- `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_orchestrator_workflow_docs.py"` (PASS: 14 tests; offload id `ac6e9da8bd627c0143d4f0935a2191f667799eff6766b01790f29565bc679b61`)
+
+Verified:
+
+- Commit evidence gating now fails closed when feature status is not `Status: Done`.
+- `pc-feature` now writes `Status: In Progress` for active execution and finalizes to `Status: Done` only when commit evidence passes.
+- Runtime behavior and ticket execution protocol commit-gate wording are aligned.
+
 ### 2026-02-19 - Strict feature status enum + feature-spec status removal validation
 
 - `python3 -m py_compile lib/devtasks_status.py tools/pc-review-features tools/pc-release-readiness tools/prd-to-features tools/pc-devtasks-schema-check tests/test_devtasks_status.py tests/test_pc_devtasks_schema_check.py tests/test_pc_review_features.py tests/test_pc_release_readiness.py tests/test_prd_to_features.py` (PASS)

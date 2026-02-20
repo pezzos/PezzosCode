@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Set, Tuple
 
+from lib.devtasks_status import COMPLETED_STATUS_VALUE, parse_status_from_content
+
 REQUIRED_SECTIONS = ("Test Results", "Commit", "Final Report")
 REQUIRED_FINAL_REPORT_FIELDS = (
     "What changed (files)",
@@ -155,4 +157,15 @@ def commit_evidence_gate_issues(
         return selected_id, [selection_issue]
     if not block:
         return selected_id, [MISSING_ENTRY_HEADER_ISSUE]
-    return selected_id, commit_evidence_gate_issues_for_block(block)
+
+    issues: List[str] = []
+    feature_status, feature_status_note = parse_status_from_content(content)
+    if feature_status_note:
+        issues.append(f"invalid feature status: {feature_status_note}")
+    elif feature_status != COMPLETED_STATUS_VALUE:
+        issues.append(
+            "feature status is not completed: "
+            f"Status={feature_status or '(empty)'} (expected {COMPLETED_STATUS_VALUE})"
+        )
+    issues.extend(commit_evidence_gate_issues_for_block(block))
+    return selected_id, issues

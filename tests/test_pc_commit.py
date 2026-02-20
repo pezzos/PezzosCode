@@ -91,9 +91,10 @@ Commit message: chore(test): complete ticket docs
 -
 """
 
-    def _build_dev_tasks(self, entries: List[str]) -> str:
+    def _build_dev_tasks(self, entries: List[str], *, status: str = "Done") -> str:
         return (
             "# Development Tasks\n\n"
+            f"Status: {status}\n\n"
             "## Execution Log\n\n" + "\n\n".join(entries).rstrip() + "\n"
         )
 
@@ -376,6 +377,37 @@ Commit message: chore(test): complete ticket docs
             self.assertNotEqual(commit.returncode, 0)
             self.assertIn(
                 "active ticket status is not completed: Outcome=pass",
+                commit.stderr,
+            )
+
+    def test_commit_evidence_gate_rejects_feature_status_not_done(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            repo = Path(tmp_dir)
+            env = self._init_repo_with_fake_make(repo)
+            rel_path = self._stage_dev_tasks(
+                repo,
+                self._build_dev_tasks(
+                    [self._completed_work_item_entry("WI-20260212-10")],
+                    status="In Progress",
+                ),
+            )
+
+            commit = self._run(
+                [
+                    str(PC_COMMIT_PATH),
+                    "--yes",
+                    "--message",
+                    "chore(test): reject non-completed feature status",
+                    "--allow",
+                    rel_path,
+                ],
+                cwd=repo,
+                env=env,
+            )
+
+            self.assertNotEqual(commit.returncode, 0)
+            self.assertIn(
+                "feature status is not completed: Status=In Progress (expected Done)",
                 commit.stderr,
             )
 

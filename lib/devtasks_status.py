@@ -74,6 +74,25 @@ def parse_status_from_file(path: Path) -> Tuple[Optional[str], Optional[str]]:
     return parse_status_from_content(path.read_text(encoding="utf-8"))
 
 
+def set_status_in_content(content: str, status: str) -> Tuple[str, bool]:
+    if status not in ALLOWED_STATUS_VALUES:
+        raise ValueError(
+            f"Invalid status value '{status}' "
+            f"(allowed: {', '.join(ALLOWED_STATUS_VALUES)})"
+        )
+
+    current_status, note = parse_status_from_content(content)
+    if note:
+        raise ValueError(f"cannot update status: {note}")
+    if current_status == status:
+        return content, False
+
+    updated = CANONICAL_STATUS_PATTERN.sub(f"Status: {status}", content, count=1)
+    if updated == content:
+        raise ValueError("cannot update status: canonical 'Status:' line not found")
+    return updated, True
+
+
 def is_completed_status(status: Optional[str]) -> bool:
     if not status:
         return False

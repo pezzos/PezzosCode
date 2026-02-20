@@ -27,6 +27,41 @@ This helps with:
 
 ## Log Entries
 
+### 2026-02-19 - Enforce feature `Status: Done` at commit gate and auto-sync status in `pc-feature`
+
+**Feature/Bug:** `make feature` could produce a successful commit while leaving top-level `Status:` stale in `dev-tasks.md`.
+
+**Changed Files:**
+
+- `lib/devtasks_status.py`
+- `lib/commit_evidence_gate.py`
+- `tools/pc-feature`
+- `tests/test_devtasks_status.py`
+- `tests/test_pc_commit.py`
+- `tests/test_pc_feature.py`
+- `docs/04-process/ticket-execution-protocol.md`
+- `tools/templates/docs/04-process/ticket-execution-protocol.md`
+
+**What Changed:**
+
+- Added a shared status mutation helper (`set_status_in_content`) in `lib/devtasks_status.py`.
+- Updated `pc-feature` orchestration state updates:
+  - force feature `Status: In Progress` when executing/resuming an active work item,
+  - evaluate final commit gate against a candidate content snapshot with `Outcome: completed` + `Status: Done`,
+  - persist that candidate only when commit evidence gate passes.
+- Extended commit evidence gate to fail closed when feature status is not `Status: Done`.
+- Added regression coverage for:
+  - status mutation helper behavior,
+  - `pc-commit` rejection when feature status is not done,
+  - `pc-feature` final flow writing `Status: Done`,
+  - commit gate issue reporting for non-done feature status.
+- Updated ticket execution protocol docs (live + template copy) so commit gate requirements include feature `Status: Done`.
+
+**Why:**
+
+- Feature status is the documented source of truth, and completion-sensitive tooling relies on deterministic `Done` semantics.
+- Enforcing and auto-syncing status at the same gate that enforces work-item completion prevents stale state from being committed.
+
 ### 2026-02-19 - Enforce `Not Started | In Progress | Done` and remove `feature-spec.md` status field
 
 **Feature/Bug:** Feature status values drifted (`Done`/`Complete`/`Completed`) and `feature-spec.md` status could conflict with `dev-tasks.md`.

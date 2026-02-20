@@ -182,7 +182,7 @@
 - Follow commit rules in `docs/04-process/git-workflow.md`.
 - Use `tools/pc-commit` to enforce convention and checks.
 - Before commit, ensure the planner-owned dev-tasks execution log is complete and role logs contain tester/reporter output.
-- Commit gate is fail-closed: the latest work-item entry must contain non-empty `Tests run` evidence, `Outcome: completed` (normalized), plus completed `Test Results`, `Commit`, and `Final Report` sections; malformed/duplicate required headings block commit.
+- Commit gate is fail-closed: the latest work-item entry must contain non-empty `Tests run` evidence, `Outcome: completed` (normalized), feature `Status: Done`, plus completed `Test Results`, `Commit`, and `Final Report` sections; malformed/duplicate required headings block commit.
 - Commit auto-repair reconciles stale `Test Results`/`Reporter Review` outcomes from latest role artifacts before final gate evaluation; unresolved contradictions still fail closed.
 - On commit-gate failure, tooling must print deterministic remediation text: `Remediation: complete required "Test Results", "Commit", and "Final Report" evidence before commit.`
 

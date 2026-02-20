@@ -53,8 +53,9 @@ class TestPcFeature(unittest.TestCase):
         outcome: str = "needs replan",
         commit_message: str = "",
     ) -> str:
-        content = "## Execution Log\n\n" + self.pc_feature.build_execution_entry(
-            work_item_id
+        content = (
+            "Status: In Progress\n\n"
+            "## Execution Log\n\n" + self.pc_feature.build_execution_entry(work_item_id)
         )
         content = self.pc_feature.update_entry_field(
             content, work_item_id, "Outcome", outcome
@@ -113,6 +114,7 @@ class TestPcFeature(unittest.TestCase):
         content = self.pc_feature.update_entry_field(
             content, work_item_id, "Outcome", "completed"
         )
+        content, _ = self.pc_feature.update_feature_status(content, "Done")
         tests_run_cmd = "`python3 -m unittest tests.test_pc_feature.TestPcFeature`"
         content = self.pc_feature.replace_entry_section(
             content,
@@ -6998,6 +7000,16 @@ class TestPcFeature(unittest.TestCase):
         issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
         self.assertIn("missing top execution field: Outcome", issues)
 
+    def test_commit_evidence_gate_fails_when_feature_status_not_done(self):
+        work_item_id = "WI-20260212-52"
+        content = self._build_commit_gate_ready_content(work_item_id)
+        content, _ = self.pc_feature.update_feature_status(content, "In Progress")
+        issues = self.pc_feature.commit_evidence_gate_issues(content, work_item_id)
+        self.assertIn(
+            "feature status is not completed: Status=In Progress (expected Done)",
+            issues,
+        )
+
     def test_commit_evidence_gate_fails_when_final_report_fields_missing(self):
         work_item_id = "WI-20260212-42"
         content = self._build_commit_gate_ready_content(work_item_id)
@@ -7517,6 +7529,10 @@ class TestPcFeature(unittest.TestCase):
             self.assertIn("--work-item-id", pc_commit_cmds[0])
             wi_idx = pc_commit_cmds[0].index("--work-item-id")
             self.assertEqual(pc_commit_cmds[0][wi_idx + 1], work_item_id)
+            dev_tasks_after = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("Status: Done", dev_tasks_after)
 
     def test_main_commit_failure_surfaces_pc_commit_detail(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -104,6 +104,28 @@ We chose **Option [X]: [Name]**
 
 ## Decisions
 
+### [DEC-081] - Commit gate requires feature `Status: Done` and `pc-feature` must sync status transitions
+
+**Date:** 2026-02-19
+
+**Status:** Implemented
+
+**Decision:**
+Align feature-level and work-item-level completion semantics at final commit:
+
+1. Final commit evidence gate must require feature `Status: Done`.
+2. `pc-feature` must set feature status to `In Progress` when executing/resuming an active work item.
+3. `pc-feature` must evaluate final commit gating against candidate content that already contains `Outcome: completed` and `Status: Done`, then persist only on gate pass.
+
+**Rationale:**
+`dev-tasks.md` status is the documented feature lifecycle source of truth, but commit gating previously validated only work-item evidence. This allowed stale feature status after successful commit. Enforcing `Status: Done` at commit gate closes that gap.
+
+**Implications:**
+
+- `tools/pc-commit` now fails when staged `dev-tasks.md` content does not resolve to feature `Status: Done`.
+- `tools/pc-feature` status transitions are deterministic (`In Progress` during active execution, `Done` only at successful finalization).
+- Ticket execution protocol commit-gate wording now matches runtime behavior.
+
 ### [DEC-080] - Single feature status enum in `dev-tasks.md` and no status field in `feature-spec.md`
 
 **Date:** 2026-02-19
