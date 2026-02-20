@@ -2613,3 +2613,22 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verification notes:
   - RR follow-up output now renders in deterministic RR-id order.
   - Report `generated_at` is now freshness-correct when report payload changes even if expected-features block continuity is preserved.
+
+## 2026-02-20 - Validate `.serena/memories` scope hygiene + retry-cap reason gating
+
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_feature.py"`
+- Result: PASS (offload id `22c3751a89059831c3c3f456f2c8f6b074b14df49b53cf3b659d8b1d567acee1`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+- Result: PASS (`25` tests; offload id `ed179141ca6d22c53745f642b3e4de6edccbb4e4cd1ca9439174096fc5e2a7f2`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"`
+- Result: PASS (`6` tests; offload id `3181ee49e1b91e211bcb3e35d7d73762717e4731c928c7e11c0700d3052c3872`).
+- Command: `tools/offload-proxy/pp make lint`
+- Result: PASS.
+- Command: `tools/offload-proxy/pp make test`
+- Result: PASS (offload id `1aa042f512e49434c065c4bfcb0a58a5bcaffeadb2b1f624d98b5eb3a2c33613`).
+- Command: `tools/offload-proxy/pp make ci`
+- Result: PASS (offload id `b178e8963b71a0b5ce5ff29d3017ff083243a3ca4b851026b022c10e3bb937e5`).
+- Verification notes:
+  - `.serena/memories/*` is now blocked by branch-scope contamination checks and ignored for startup checkpoint staging.
+  - Preflight branch-scope enforcement runs before role loop execution.
+  - Reporter retry-cap now applies deterministic closeout metadata repair only when failure reason is metadata drift; scope-gap failures fail directly without metadata normalization.

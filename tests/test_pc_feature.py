@@ -3,6 +3,7 @@ import importlib.machinery
 import importlib.util
 import io
 import json
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime
@@ -3897,6 +3898,10 @@ class TestPcFeature(unittest.TestCase):
                     "A",
                     ".codex_subagent/custom/runtime-dump.txt",
                 ),
+                (
+                    "A",
+                    ".serena/memories/WI-20260220-01.json",
+                ),
                 ("A", ".codex_subagent/config.toml"),
             ],
         ):
@@ -3927,6 +3932,7 @@ class TestPcFeature(unittest.TestCase):
             ".codex_subagent/custom/runtime-dump.txt",
             message,
         )
+        self.assertIn(".serena/memories/wi-20260220-01.json", message)
         self.assertNotIn(".codex_subagent/config.toml", message)
 
     def test_runtime_artifact_branch_diff_status_dedupes_and_classifies(self):
@@ -3964,6 +3970,29 @@ class TestPcFeature(unittest.TestCase):
             grouped["tracked-unallowlisted"],
             [".codex_subagent/custom/runtime-dump.txt"],
         )
+
+    def test_runtime_artifact_branch_diff_status_blocks_serena_memories(self):
+        grouped = self.pc_feature.runtime_artifact_branch_diff_status(
+            [
+                ("A", ".serena/memories/WI-20260220-01.json"),
+                ("D", ".serena/memories/WI-20260220-00.json"),
+                ("M", ".serena/memories/latest.md"),
+                ("A", ".serena/project.yml"),
+            ]
+        )
+        self.assertEqual(
+            grouped["tracked-added"],
+            [".serena/memories/wi-20260220-01.json"],
+        )
+        self.assertEqual(
+            grouped["tracked-deleted"],
+            [".serena/memories/wi-20260220-00.json"],
+        )
+        self.assertEqual(
+            grouped["tracked-other"],
+            [".serena/memories/latest.md"],
+        )
+        self.assertEqual(grouped["tracked-unallowlisted"], [])
 
     def test_runtime_artifact_branch_diff_status_allows_allowlisted_paths(self):
         grouped = self.pc_feature.runtime_artifact_branch_diff_status(
@@ -4354,6 +4383,87 @@ class TestPcFeature(unittest.TestCase):
                 str(patcher_path),
                 None,
                 feature_slug="01-workflow-hardening",
+            )
+
+    def test_checkpoint_resume_state_ignores_serena_memories_dirty_paths(self):
+        add_result = subprocess.CompletedProcess(args=["git"], returncode=0)
+        commit_result = subprocess.CompletedProcess(args=["git"], returncode=0)
+        with mock.patch.object(
+            self.pc_feature,
+            "get_status_paths",
+            return_value=[
+                ".serena/memories/WI-20260220-01.json",
+                "README.md",
+            ],
+        ), mock.patch.object(
+            self.pc_feature.subprocess,
+            "run",
+            side_effect=[add_result, commit_result],
+        ) as run_mock:
+            checkpointed = self.pc_feature.checkpoint_resume_state(
+                "/tmp/worktree",
+                "WI-20260220-01",
+                feature_slug="01-workflow-hardening",
+            )
+
+        self.assertEqual(checkpointed, ["README.md"])
+        run_mock.assert_any_call(
+            ["git", "add", "--", "README.md"],
+            check=False,
+            stdout=self.pc_feature.subprocess.PIPE,
+            stderr=self.pc_feature.subprocess.PIPE,
+            text=True,
+            cwd="/tmp/worktree",
+        )
+
+    def test_main_enforces_preflight_branch_scope_before_role_loop(self):
+        class StopMain(RuntimeError):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260220-01"
+            content = self._build_entry_content(work_item_id)
+            feature_dir = self._write_feature_workspace(root, content)
+            preflight_scope_mock = mock.Mock()
+
+            def stop_after_precheck(content: str, work_item_id: str) -> str:
+                raise StopMain()
+
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "is_git_worktree",
+                        return_value=True,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "enforce_runtime_artifact_scope_clean",
+                        preflight_scope_mock,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "ensure_allowed_tests_section",
+                        side_effect=stop_after_precheck,
+                    )
+                )
+                with self.assertRaises(StopMain):
+                    self.pc_feature.main()
+
+            preflight_scope_mock.assert_called_once_with(
+                str(root),
+                "refs/heads/main",
+                "patcher-branch",
+                gate_name="preflight",
             )
 
     def test_main_dirty_existing_worktree_auto_resume_preserves_state(self):
@@ -10146,7 +10256,9 @@ class TestPcFeature(unittest.TestCase):
             )
             self.assertIn("patcher feedback role-scope violation", dev_tasks)
 
-    def test_reporter_retry_cap_auto_repair_reruns_once_without_decision_options(self):
+    def test_reporter_retry_cap_metadata_drift_auto_repair_reruns_once_without_decision_options(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             patcher_path = root / "patcher"
@@ -10172,6 +10284,175 @@ class TestPcFeature(unittest.TestCase):
             workflow_history_path = (
                 patcher_path / "logs" / work_item_id / "workflow-history.ndjson"
             )
+
+            def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
+                if section in {"Preflight Report", "Plan", "Patch"}:
+                    return True
+                return original_entry_complete(content, wi_id, section)
+
+            def fake_codex_exec(prompt: str, **kwargs) -> str:
+                if "You are the Plan Reviewer agent." in prompt:
+                    return "Decision: Approve\nReasons:\n- clear"
+                if "Review changes for scope and completeness" in prompt:
+                    reporter_calls["count"] += 1
+                    return (
+                        "Outcome: FAIL\n"
+                        "Docs/logs updated: reporter-log.md\n"
+                        "Check: Reporter handoff completeness.\n"
+                        "Evidence: Reporter Review is still pending.\n"
+                        "Expected fix: populate Reporter Review section.\n"
+                    )
+                if (
+                    "Re-evaluate the current plan using tester/reporter failure feedback"
+                    in prompt
+                ):
+                    planner_feedback_calls["count"] += 1
+                    return (
+                        "Decision: PLAN_STILL_VALID\n"
+                        "Rationale: unresolved reporter handoff gap remains.\n"
+                    )
+                if (
+                    "Apply the smallest possible patch based on failure feedback"
+                    in prompt
+                ):
+                    return "No patch updates required."
+                return "ok"
+
+            classify_calls = {"count": 0}
+
+            def fake_classify_reporter_failure_reason(feedback: str) -> str:
+                classify_calls["count"] += 1
+                if classify_calls["count"] == 2:
+                    return self.pc_feature.REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY
+                return self.pc_feature.REPORTER_FAILURE_REASON_SCOPE_GAP
+
+            stderr_capture = io.StringIO()
+            with contextlib.ExitStack() as stack:
+                for patcher in self._patch_main_base(root, feature_dir, patcher_path):
+                    stack.enter_context(patcher)
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "entry_section_complete",
+                        side_effect=fake_entry_complete,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "parse_allowed_tests",
+                        return_value=[
+                            "python -m unittest discover -s tests -p test_pc_feature.py"
+                        ],
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(self.pc_feature, "run_command", return_value=0)
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "run_command_with_step_log_capture",
+                        return_value=(0, "OK"),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "MAX_LOOPS",
+                        1,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "codex_exec",
+                        side_effect=fake_codex_exec,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature,
+                        "classify_reporter_failure_reason",
+                        side_effect=fake_classify_reporter_failure_reason,
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        self.pc_feature.pc_runner,
+                        "build_metadata",
+                        return_value=SimpleNamespace(
+                            work_item_id=work_item_id,
+                            agent_name="pc-feature",
+                            run_id="run-retry-cap-01",
+                        ),
+                    )
+                )
+                with self.assertRaises(SystemExit):
+                    with contextlib.redirect_stderr(stderr_capture):
+                        self.pc_feature.main()
+
+            self.assertGreaterEqual(reporter_calls["count"], 2)
+            self.assertGreaterEqual(planner_feedback_calls["count"], 2)
+            stderr_text = stderr_capture.getvalue().lower()
+            self.assertIn("max reporter retry attempts reached;", stderr_text)
+            self.assertIn(
+                "reason: scope_gap (metadata-only deterministic closeout repair is disabled)",
+                stderr_text,
+            )
+            self.assertNotIn("decision options", stderr_text)
+            dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "reporter retry cap triggered deterministic closeout metadata repair (option a)",
+                dev_tasks.lower(),
+            )
+            self.assertNotIn("Decision options:", dev_tasks)
+            status_payload = json.loads(
+                workflow_status_path.read_text(encoding="utf-8")
+            )
+            self.assertEqual(status_payload.get("state"), "FAILED")
+            self.assertNotIn("planner-feedback", status_payload.get("open_steps", {}))
+            planner_feedback_state = status_payload.get("steps", {}).get(
+                "planner-feedback", {}
+            )
+            self.assertEqual(planner_feedback_state.get("last_event"), "FAIL")
+            workflow_events = [
+                json.loads(line)
+                for line in workflow_history_path.read_text(
+                    encoding="utf-8"
+                ).splitlines()
+                if line.strip()
+            ]
+            self.assertTrue(
+                any(
+                    event.get("step") == "planner-feedback"
+                    and event.get("event") == "FAIL"
+                    for event in workflow_events
+                )
+            )
+
+    def test_reporter_retry_cap_scope_gap_fails_without_metadata_auto_repair(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            patcher_path = root / "patcher"
+            patcher_path.mkdir(parents=True, exist_ok=True)
+            work_item_id = "WI-20260220-02"
+            content = self._build_entry_content(work_item_id)
+            content = self.pc_feature.replace_entry_section(
+                content, work_item_id, "Plan", "- initial plan"
+            )
+            content = self.pc_feature.replace_entry_section(
+                content,
+                work_item_id,
+                "Allowed Tests",
+                "- python -m unittest discover -s tests -p test_pc_feature.py",
+            )
+            feature_dir = self._write_feature_workspace(root, content)
+            original_entry_complete = self.pc_feature.entry_section_complete
+            reporter_calls = {"count": 0}
+            planner_feedback_calls = {"count": 0}
 
             def fake_entry_complete(content: str, wi_id: str, section: str) -> bool:
                 if section in {"Preflight Report", "Plan", "Patch"}:
@@ -10257,7 +10538,7 @@ class TestPcFeature(unittest.TestCase):
                         return_value=SimpleNamespace(
                             work_item_id=work_item_id,
                             agent_name="pc-feature",
-                            run_id="run-retry-cap-01",
+                            run_id="run-retry-cap-02",
                         ),
                     )
                 )
@@ -10265,45 +10546,22 @@ class TestPcFeature(unittest.TestCase):
                     with contextlib.redirect_stderr(stderr_capture):
                         self.pc_feature.main()
 
-            self.assertGreaterEqual(reporter_calls["count"], 2)
-            self.assertGreaterEqual(planner_feedback_calls["count"], 2)
+            self.assertEqual(reporter_calls["count"], 1)
+            self.assertEqual(planner_feedback_calls["count"], 1)
             stderr_text = stderr_capture.getvalue().lower()
+            self.assertIn("max reporter retry attempts reached;", stderr_text)
             self.assertIn(
-                "max reporter retry attempts reached after deterministic closeout metadata repair rerun",
+                "reason: scope_gap (metadata-only deterministic closeout repair is disabled)",
                 stderr_text,
             )
-            self.assertNotIn("decision options", stderr_text)
             dev_tasks = self._worktree_dev_tasks(patcher_path).read_text(
                 encoding="utf-8"
             )
-            self.assertIn(
+            self.assertNotIn(
                 "reporter retry cap triggered deterministic closeout metadata repair (option a)",
                 dev_tasks.lower(),
             )
-            self.assertNotIn("Decision options:", dev_tasks)
-            status_payload = json.loads(
-                workflow_status_path.read_text(encoding="utf-8")
-            )
-            self.assertEqual(status_payload.get("state"), "FAILED")
-            self.assertNotIn("planner-feedback", status_payload.get("open_steps", {}))
-            planner_feedback_state = status_payload.get("steps", {}).get(
-                "planner-feedback", {}
-            )
-            self.assertEqual(planner_feedback_state.get("last_event"), "FAIL")
-            workflow_events = [
-                json.loads(line)
-                for line in workflow_history_path.read_text(
-                    encoding="utf-8"
-                ).splitlines()
-                if line.strip()
-            ]
-            self.assertTrue(
-                any(
-                    event.get("step") == "planner-feedback"
-                    and event.get("event") == "FAIL"
-                    for event in workflow_events
-                )
-            )
+            self.assertIn("Failure reason: scope_gap", dev_tasks)
 
 
 class ProposalGenerationTests(unittest.TestCase):

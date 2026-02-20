@@ -90,6 +90,7 @@ IGNORED_PATH_PREFIXES = (
     ".tmp/",
     ".codex_subagent/",
     ".offload/",
+    ".serena/memories/",
     "logs/",
 )
 RUNTIME_ARTIFACT_PREFIX = ".codex_subagent/"
@@ -97,6 +98,11 @@ RUNTIME_ARTIFACT_BLOCKED_PREFIXES = (
     ".codex_subagent/shell_snapshots/",
     ".codex_subagent/sessions/",
     ".codex_subagent/tmp/",
+)
+SERENA_MEMORY_ARTIFACT_PREFIX = ".serena/memories/"
+BRANCH_SCOPE_BLOCKED_PREFIXES = (
+    *RUNTIME_ARTIFACT_BLOCKED_PREFIXES,
+    SERENA_MEMORY_ARTIFACT_PREFIX,
 )
 IGNORED_PATH_FILES = {
     ".codex_subagent/config.toml",
@@ -2387,13 +2393,10 @@ def runtime_artifact_branch_diff_status(
     }
     for status, path in status_entries:
         normalized = normalize_repo_path(path)
-        if not normalized.startswith(RUNTIME_ARTIFACT_PREFIX):
-            continue
         if normalized in RUNTIME_ARTIFACT_ALLOWLIST:
             continue
         if any(
-            normalized.startswith(prefix)
-            for prefix in RUNTIME_ARTIFACT_BLOCKED_PREFIXES
+            normalized.startswith(prefix) for prefix in BRANCH_SCOPE_BLOCKED_PREFIXES
         ):
             if status == "A":
                 grouped["tracked-added"].add(normalized)
@@ -2402,11 +2405,14 @@ def runtime_artifact_branch_diff_status(
             else:
                 grouped["tracked-other"].add(normalized)
             continue
-        grouped["tracked-unallowlisted"].add(normalized)
+        if normalized.startswith(RUNTIME_ARTIFACT_PREFIX):
+            grouped["tracked-unallowlisted"].add(normalized)
     return {label: sorted(paths) for label, paths in grouped.items()}
 
 
-def runtime_artifact_remediation_recommendation(grouped: Dict[str, List[str]]) -> str:
+def runtime_artifact_remediation_recommendation(
+    grouped: Dict[str, List[str]], *, gate_name: str
+) -> str:
     remove_candidates = sorted(
         set(
             grouped.get("tracked-added", [])
@@ -2424,7 +2430,7 @@ def runtime_artifact_remediation_recommendation(grouped: Dict[str, List[str]]) -
         recommendations.append(
             "review tracked-deleted runtime paths and keep only intentional cleanup"
         )
-    recommendations.append("rerun the reporter gate once branch scope is clean")
+    recommendations.append(f"rerun the {gate_name} gate once branch scope is clean")
     return "; ".join(recommendations)
 
 
@@ -2450,7 +2456,10 @@ def enforce_runtime_artifact_scope_clean(
         paths = grouped[label]
         if paths:
             detail_parts.append(f"{label}: {', '.join(paths)}")
-    recommendation = runtime_artifact_remediation_recommendation(grouped)
+    recommendation = runtime_artifact_remediation_recommendation(
+        grouped,
+        gate_name=gate_name,
+    )
     die(
         "pc-feature: branch scope contains blocked runtime artifacts: "
         + "; ".join(detail_parts)
@@ -6613,6 +6622,13 @@ def main() -> None:
         entry = build_execution_entry(work_item_id)
         content = insert_execution_entry(content, entry)
         write_file(dev_tasks_path, content)
+    if is_git_worktree(root):
+        enforce_runtime_artifact_scope_clean(
+            root,
+            "refs/heads/main",
+            patcher_branch,
+            gate_name="preflight",
+        )
     print_runtime_scope(
         worktree_path=patcher_path,
         feature_dir=feature_dir,
@@ -8743,7 +8759,14 @@ def main() -> None:
                     + tester_decision_options
                 )
             if reporter_outcome == "FAIL" and reporter_failures >= MAX_LOOPS:
-                if not reporter_retry_auto_repair_consumed:
+                reporter_failure_reason = classify_reporter_failure_reason(
+                    reporter_feedback
+                )
+                if (
+                    reporter_failure_reason
+                    == REPORTER_FAILURE_REASON_METADATA_DRIFT_ONLY
+                    and not reporter_retry_auto_repair_consumed
+                ):
                     reporter_retry_auto_repair_consumed = True
                     normalized_reporter_feedback = (
                         build_metadata_drift_reporter_pass_feedback(
@@ -8809,6 +8832,9 @@ def main() -> None:
                     reporter_failures = max(0, MAX_LOOPS - 1)
                     continue
 
+                retry_reason = reporter_failure_reason
+                if reporter_failure_reason == REPORTER_FAILURE_REASON_SCOPE_GAP:
+                    retry_reason = "scope_gap (metadata-only deterministic closeout repair is disabled)"
                 content = update_entry_field(
                     content, work_item_id, "Outcome", "needs replan"
                 )
@@ -8816,7 +8842,8 @@ def main() -> None:
                     content,
                     work_item_id,
                     "Notes",
-                    "Reporter retry limit reached after deterministic closeout metadata repair rerun; unresolved reporting failure still remains and must be fixed before continuing.",
+                    "Reporter retry limit reached; unresolved reporting failure still remains and must be fixed before continuing. "
+                    + f"Failure reason: {retry_reason}.",
                 )
                 write_file(dev_tasks_path, content)
                 emit_workflow_event(
@@ -8824,17 +8851,13 @@ def main() -> None:
                     "FAIL",
                     attempt=attempt,
                     outcome="FAIL",
-                    reason=(
-                        "reporter retry limit reached after deterministic closeout metadata repair rerun"
-                    ),
+                    reason="reporter retry limit reached",
                     state="FAILED",
                 )
-                flush_pending_failure_proposals(
-                    "reporter retry limit reached after deterministic closeout metadata repair rerun"
-                )
+                flush_pending_failure_proposals("reporter retry limit reached")
                 die(
-                    "pc-feature: max reporter retry attempts reached after deterministic closeout metadata repair rerun; "
-                    "check reporter feedback for unresolved scope gaps"
+                    "pc-feature: max reporter retry attempts reached; "
+                    f"check reporter feedback for unresolved failures (reason: {retry_reason})"
                 )
             ensure_role_log(
                 os.path.join(planner_path, role_paths["planner"]), "planner"

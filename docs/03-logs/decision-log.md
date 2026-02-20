@@ -3000,3 +3000,18 @@ When a decision is reversed or replaced, document it here:
   - Pre-patch gating no longer blocks patcher flow due to missing future test targets.
   - Non-Python and docs/tooling-only repos can satisfy Allowed Tests contract checks without planner loop churn.
   - Tester gate remains strict and fail-closed for invalid/missing targets and non-zero command outcomes after patching.
+
+### DEC-082 - Treat `.serena/memories` as blocked scope artifacts and restrict retry-cap metadata repair to metadata-only failures
+
+- **Date:** 2026-02-20
+- **Status:** Accepted
+- **Context:** Consumer repos could track `.serena/memories/*` during startup checkpoint commits, causing reporter branch-scope failures late in the loop. Retry-cap handling also applied deterministic closeout metadata repair to non-metadata reporter failures, producing misleading PASS-like runtime normalization before final failure.
+- **Decision:**
+  - Add `.serena/memories/` to startup dirty-path ignore prefixes so checkpoint staging does not capture Serena memory artifacts.
+  - Extend branch-scope contamination checks to block `.serena/memories/*` in `refs/heads/main..HEAD`.
+  - Enforce branch-scope contamination at preflight startup (fail fast) before planner/patcher/tester/reporter loop execution.
+  - Gate retry-cap deterministic closeout metadata repair behind `classify_reporter_failure_reason(...) == metadata_drift_only`; for `scope_gap`, fail directly without metadata normalization rerun.
+- **Consequences:**
+  - Memory artifacts are prevented from entering work-item branch scope through startup checkpoint flow.
+  - Scope-gap reporter failures remain explicitly fail-closed and actionable.
+  - Retry-cap metadata reconciliation remains available for metadata-only contradictions while avoiding misleading normalization for real scope gaps.

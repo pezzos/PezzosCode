@@ -8486,3 +8486,31 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Removes non-semantic diff noise from task ordering and preserves predictable RR display order.
 - Prevents stale report timestamps from masking real report payload changes.
+
+### 2026-02-20 - Enforce `.serena/memories` scope hygiene and retry-cap reason gating
+
+**Feature/Bug:** Cross-repo `make feature F=01` runs could fail at reporter due tracked `.serena/memories/*`, and retry-cap closeout could apply metadata repair even when reporter failures were true scope gaps.
+
+**Changed Files:**
+
+- `tools/pc-feature`
+- `tests/test_pc_feature.py`
+- `tools/templates/root/.serena/.gitignore`
+
+**What Changed:**
+
+- Added `.serena/memories/` to ignored dirty-path prefixes so startup checkpoint staging and scoped final-stage filtering do not stage Serena memory artifacts.
+- Extended branch-scope contamination detection to classify `.serena/memories/*` as blocked runtime artifacts alongside existing `.codex_subagent/*` blocked prefixes.
+- Added a preflight branch-scope gate in `tools/pc-feature` to fail fast when blocked artifacts are present in `refs/heads/main..HEAD`, instead of waiting for reporter handoff.
+- Updated reporter retry-cap handling to classify failure reason and run deterministic closeout metadata repair only for `metadata_drift_only`; unresolved `scope_gap` failures now fail directly without PASS-like normalization.
+- Added regression coverage for:
+  - `.serena/memories/*` branch contamination blocking,
+  - startup checkpoint ignore behavior for `.serena/memories/*`,
+  - preflight scope enforcement call path,
+  - retry-cap metadata-repair path and scope-gap no-repair path.
+- Synced template root `.serena/.gitignore` to include `/memories`.
+
+**Why:**
+
+- Prevents Serena memory artifacts from entering branch scope through startup checkpoint commits.
+- Keeps retry-cap behavior semantically correct by reserving metadata closeout repair for metadata-only drift and leaving actionable scope failures fail-closed.

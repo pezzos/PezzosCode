@@ -14,6 +14,14 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
             content,
         )
 
+    def test_serena_gitignore_template_matches_live_memory_policy(self):
+        live = (ROOT / ".serena" / ".gitignore").read_text(encoding="utf-8")
+        template = (
+            ROOT / "tools" / "templates" / "root" / ".serena" / ".gitignore"
+        ).read_text(encoding="utf-8")
+        self.assertIn("/memories", live)
+        self.assertIn("/memories", template)
+
     def test_execution_protocol_excludes_runtime_shell_snapshots_from_scope(self):
         path = ROOT / "docs" / "04-process" / "ticket-execution-protocol.md"
         content = path.read_text(encoding="utf-8")
