@@ -741,7 +741,19 @@ def codex_exec_json(
     if shutil.which("codex") is None:
         raise RuntimeError("codex CLI not found in PATH")
 
-    cmd = ["codex", "-C", str(root), "--profile", profile, "exec", prompt]
+    cmd = [
+        "codex",
+        "-C",
+        str(root),
+        "--profile",
+        profile,
+        "--sandbox",
+        "read-only",
+        "--ask-for-approval",
+        "never",
+        "exec",
+        prompt,
+    ]
     result = subprocess.run(
         cmd,
         cwd=str(root),

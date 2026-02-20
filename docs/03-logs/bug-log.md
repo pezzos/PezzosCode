@@ -1303,3 +1303,21 @@ Bugs we've decided not to fix, and why:
 - **Summary:** `bootstrap-into` checked `-d "$target_repo/.git"` and failed on worktrees because worktree `.git` is a file pointer (`gitdir: ...`), not a directory.
 - **Fix:** Relaxed git-root check to `-e "$target_repo/.git"` so both repository layouts are accepted; added a regression test that provisions a real git worktree target and verifies bootstrap success.
 - **Validation:** See `docs/03-logs/validation-log.md` entry dated 2026-02-20 for command evidence and results.
+
+## 2026-02-20 - Context -> PRD -> feature generation quality loss (generic docs + feature-id drift)
+
+- **ID:** BUG-20260220-03
+- **Status:** Fixed
+- **Source:** User report with Agenda-Assistant artifacts (`feature-spec.md` in `12-*` showed `F-06`, and generated dev-tasks/spec content remained generic/template-like).
+- **Summary:** `tools/prd-to-features` preserved slug-drifted folder names but still rendered feature IDs from PRD order index, creating ID mismatches; generic boilerplate docs were not considered hydration candidates, so stale template-like content persisted across reruns.
+- **Fix:** Added stable folder-index feature-id assignment (`NN-*` -> `F-NN`), requirement-linked hydration from PRD `FR/NFR` entries, generic-boilerplate hydration detection, and expected-feature coverage checks for active priorities. Added `pc-context-check` preflight before PRD generation and review heuristics for ID/template leakage findings.
+- **Validation:** See `docs/03-logs/validation-log.md` entry dated 2026-02-20 for reproduction and full test/CI evidence.
+
+## 2026-02-20 - Writable nested role sessions caused unexpected cross-artifact mutations
+
+- **ID:** BUG-20260220-04
+- **Status:** Fixed
+- **Source:** User report (`make review-features` in consumer repo mutated unrelated docs and logs)
+- **Summary:** Role execution helpers called `codex exec` without explicit sandbox/approval flags, allowing writable nested sessions that could run side-effecting commands and mutate files outside the intended command scope.
+- **Fix:** Enforced `--sandbox read-only --ask-for-approval never` for nested role execution in `pc-review-features`, `pc-prepare-features`, `pc-write-prd`, and `pc-release-readiness`; changed `pc-review-features` default role mode to deterministic; added regression tests in `tests/test_codex_exec_sandbox.py`.
+- **Validation:** See `docs/03-logs/validation-log.md` entry dated 2026-02-20 for command evidence (`offload id 3d16ead04593101add5e4e7f81cea4ac8bae6076fb2f74cb3715896d3294452e` for initial failing invocation, then passing discovery rerun).

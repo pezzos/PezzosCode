@@ -47,6 +47,14 @@ TARGET_PATCHER = "patcher"
 TARGET_HUMAN = "human"
 MAX_SECURITY_FINDINGS = 3
 MAX_PRODUCT_FINDINGS = 5
+GENERIC_TEMPLATE_MARKERS = (
+    "[Feature Name]",
+    "[unique-id]",
+    "PRD intent exists, but feature-level execution details are missing.",
+    "Build minimum required behavior for surfaces:",
+    "Keep behavior deterministic and idempotent on reruns.",
+    "Feature folder content is specific to this PRD item, not template placeholders.",
+)
 
 
 @dataclass(frozen=True)
@@ -303,6 +311,48 @@ PRODUCT_TEMPLATES: List[FindingTemplate] = [
         applies_when=(),
         satisfied_when=(),
     ),
+    FindingTemplate(
+        canonical_key="PROD-FEATURE-ID-CORRECTNESS",
+        title="Feature ID is inconsistent with feature folder index",
+        spec_guidance=(
+            "Feature spec ID must match the numeric folder prefix so execution "
+            "traceability remains deterministic."
+        ),
+        action=(
+            "Update `feature-spec.md` Feature ID to match the folder prefix and add "
+            "a regression check that preserves this invariant on regeneration."
+        ),
+        acceptance=(
+            "Feature folder `<NN>-slug` contains `Feature ID: F-NN` in "
+            "`feature-spec.md`."
+        ),
+        severity=SEVERITY_HIGH,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=(),
+        satisfied_when=(),
+    ),
+    FindingTemplate(
+        canonical_key="PROD-TEMPLATE-LEAKAGE",
+        title="Template or generic boilerplate leaked into feature docs",
+        spec_guidance=(
+            "Feature docs must be project-specific and must not retain generic "
+            "template language."
+        ),
+        action=(
+            "Replace generic/template text in feature docs with project-specific "
+            "requirements, tasks, and acceptance evidence."
+        ),
+        acceptance=(
+            "No placeholder markers or known generic boilerplate remain in "
+            "`feature-spec.md`/`dev-tasks.md`."
+        ),
+        severity=SEVERITY_HIGH,
+        blocking=True,
+        target=TARGET_PATCHER,
+        applies_when=(),
+        satisfied_when=(),
+    ),
 ]
 
 
@@ -322,10 +372,10 @@ def die(message: str) -> None:
 
 
 def default_role_mode() -> str:
-    raw = os.environ.get("REVIEW_ROLE_MODE", ROLE_MODE_CODEX).strip().lower()
+    raw = os.environ.get("REVIEW_ROLE_MODE", ROLE_MODE_DETERMINISTIC).strip().lower()
     if raw in {ROLE_MODE_CODEX, ROLE_MODE_DETERMINISTIC}:
         return raw
-    return ROLE_MODE_CODEX
+    return ROLE_MODE_DETERMINISTIC
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -523,7 +573,19 @@ def codex_exec_json(
     if shutil.which("codex") is None:
         raise RuntimeError("codex CLI not found in PATH")
 
-    cmd = ["codex", "-C", str(root), "--profile", profile, "exec", prompt]
+    cmd = [
+        "codex",
+        "-C",
+        str(root),
+        "--profile",
+        profile,
+        "--sandbox",
+        "read-only",
+        "--ask-for-approval",
+        "never",
+        "exec",
+        prompt,
+    ]
     result = subprocess.run(
         cmd,
         cwd=str(root),
@@ -580,6 +642,27 @@ def has_measurable_acceptance(feature_spec_content: str) -> bool:
     if "target" in section.lower() and "metric" in section.lower():
         return True
     return False
+
+
+def feature_id_matches_folder(feature_id: str, feature_spec_content: str) -> bool:
+    folder_match = re.match(r"^(\d+)-", feature_id.strip())
+    if not folder_match:
+        return True
+    expected = int(folder_match.group(1))
+    spec_match = re.search(
+        r"\*\*Feature ID:\*\*\s*`F-(\d+)`",
+        feature_spec_content,
+        flags=re.IGNORECASE,
+    )
+    if not spec_match:
+        return False
+    actual = int(spec_match.group(1))
+    return actual == expected
+
+
+def has_template_leakage(*contents: str) -> bool:
+    merged = "\n".join(contents)
+    return any(marker in merged for marker in GENERIC_TEMPLATE_MARKERS)
 
 
 def build_finding_from_template(
@@ -643,10 +726,17 @@ def deterministic_security_keys(content: str) -> List[str]:
 
 def deterministic_product_keys(
     *,
+    feature_id: str,
     feature_spec_content: str,
     dev_tasks_content: str,
 ) -> List[str]:
     selected: List[str] = []
+
+    if not feature_id_matches_folder(feature_id, feature_spec_content):
+        selected.append("PROD-FEATURE-ID-CORRECTNESS")
+
+    if has_template_leakage(feature_spec_content, dev_tasks_content):
+        selected.append("PROD-TEMPLATE-LEAKAGE")
 
     if count_functional_requirements(feature_spec_content) < 2:
         selected.append("PROD-FUNCTIONAL-SCOPE")
@@ -824,6 +914,7 @@ def run_product_role(
     security_findings: Sequence[Finding],
 ) -> List[Finding]:
     fallback_keys = deterministic_product_keys(
+        feature_id=feature_id,
         feature_spec_content=feature_spec_content,
         dev_tasks_content=dev_tasks_content,
     )

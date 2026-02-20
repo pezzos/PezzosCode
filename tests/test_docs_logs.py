@@ -107,6 +107,8 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
     def test_human_orchestration_workflow_mentions_prepare_and_review_features(self):
         path = ROOT / "docs" / "04-process" / "human-orchestration-workflow.md"
         content = path.read_text(encoding="utf-8")
+        self.assertIn("make context-check", content)
+        self.assertIn("docs/03-logs/context-clarity-report.json", content)
         self.assertIn("make write-prd", content)
         self.assertIn("make prepare-features", content)
         self.assertIn("make review-features", content)
@@ -143,6 +145,8 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
     def test_docs_readme_mentions_prepare_and_review_artifacts(self):
         path = ROOT / "docs" / "README.md"
         content = path.read_text(encoding="utf-8")
+        self.assertIn("make context-check", content)
+        self.assertIn("docs/03-logs/context-clarity-report.json", content)
         self.assertIn("security.md", content)
         self.assertIn("docs/03-logs/write-prd-report.json", content)
         self.assertIn("docs/03-logs/write-prd-state.json", content)
@@ -162,6 +166,8 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
             / "human-orchestration-workflow.md"
         )
         content = path.read_text(encoding="utf-8")
+        self.assertIn("make context-check", content)
+        self.assertIn("docs/03-logs/context-clarity-report.json", content)
         self.assertIn("docs/03-logs/write-prd-report.json", content)
         self.assertIn("docs/03-logs/write-prd-state.json", content)
         self.assertIn("docs/01-product/security.md", content)
@@ -173,6 +179,8 @@ class TestExecuteWorkItemDocumentation(unittest.TestCase):
     def test_template_docs_readme_mentions_prepare_pm_todo_artifact(self):
         path = ROOT / "tools" / "templates" / "docs" / "README.md"
         content = path.read_text(encoding="utf-8")
+        self.assertIn("make context-check", content)
+        self.assertIn("docs/03-logs/context-clarity-report.json", content)
         self.assertIn("security.md", content)
         self.assertIn("docs/03-logs/write-prd-report.json", content)
         self.assertIn("docs/03-logs/write-prd-state.json", content)

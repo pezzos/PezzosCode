@@ -8569,3 +8569,83 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Worktree support is required for orchestrated patcher workflows that operate in linked worktrees.
 - The previous directory-only check rejected valid git worktree roots before any bootstrap logic could run.
+
+### 2026-02-20 - Harden Context -> PRD -> Features quality gates (context preflight, requirement-linked hydration, ID invariants)
+
+**Feature/Bug:** Feature generation quality could regress to generic/template-like docs and mismatched feature IDs (`F-06` inside `12-*` folders). PRD refresh also lacked a deterministic context-clarity preflight.
+
+**Changed Files:**
+
+- `tools/pc-context-check`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `tools/prd-to-features`
+- `tools/pc-review-features`
+- `tests/test_pc_context_check.py`
+- `tests/test_prd_to_features.py`
+- `tools/README.md`
+- `docs/README.md`
+- `docs/04-process/human-orchestration-workflow.md`
+- `tools/templates/docs/README.md`
+- `tools/templates/docs/04-process/human-orchestration-workflow.md`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Added `tools/pc-context-check` to validate required context docs, unresolved open-question checkboxes, ambiguous markers, and expected-feature completeness; writes `docs/03-logs/context-clarity-report.json`.
+- Added `make context-check` and wired `make write-prd` to run context preflight by default (opt-out with `SKIP_CONTEXT_CHECK=1`).
+- Refactored `tools/prd-to-features` to:
+  - parse PRD requirements (`FR-*`/`NFR-*`),
+  - map relevant requirements into generated `feature-spec.md`, `dev-tasks.md`, and `test-plan.md`,
+  - preserve stable feature IDs from existing folder indices during index drift,
+  - detect and rehydrate known generic boilerplate in core docs,
+  - enforce expected-feature coverage mapping for active priorities (`P0`/`P1`) before successful generation.
+- Extended deterministic product review in `tools/pc-review-features` with two new findings:
+  - `PROD-FEATURE-ID-CORRECTNESS`
+  - `PROD-TEMPLATE-LEAKAGE`
+- Added regression coverage for:
+  - context preflight pass/fail behavior,
+  - generic-doc hydration,
+  - requirement-linked hydration output,
+  - feature-ID drift correction,
+  - expected-feature coverage failure when unmapped.
+- Updated workflow documentation (live + template) and tools docs to include the new context-check gate and artifact.
+
+**Why:**
+
+- The pipeline needed deterministic, testable quality checks before and during generation to prevent semantic loss.
+- Feature identity must remain stable even when ordering changes across runs.
+- Requirement-linked hydration provides implementation-ready docs and reduces template boilerplate leakage.
+
+### 2026-02-20 - Harden nested role execution safety for review/prepare/write-prd/release-readiness
+
+**Feature/Bug:** Prevent unintended file mutations from nested role prompt execution during orchestration commands.
+
+**Changed Files:**
+
+- `tools/pc-review-features`
+- `tools/pc-prepare-features`
+- `tools/pc-write-prd`
+- `tools/pc-release-readiness`
+- `tests/test_codex_exec_sandbox.py`
+- `docs/03-logs/decision-log.md`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/validation-log.md`
+- `docs/03-logs/bug-log.md`
+
+**What Changed:**
+
+- Updated all four `codex_exec_json(...)` helpers to invoke Codex with:
+  - `--sandbox read-only`
+  - `--ask-for-approval never`
+- Updated `tools/pc-review-features` default role-mode fallback to `deterministic` when `REVIEW_ROLE_MODE` is unset/invalid.
+- Added regression tests (`tests/test_codex_exec_sandbox.py`) that:
+  - assert read-only sandbox and approval flags are always present in nested `codex exec` commands,
+  - assert `pc-review-features` defaults to deterministic mode while still honoring explicit `codex` override.
+
+**Why:**
+
+- Role prompts are analysis tasks; they should not have write capability.
+- Deterministic default for `review-features` reduces runtime variability and eliminates implicit writable nested sessions unless explicitly requested.

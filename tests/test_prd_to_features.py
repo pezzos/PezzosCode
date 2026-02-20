@@ -71,6 +71,30 @@ def write_order_plan(root: Path, ordered_feature_slugs: list[str]) -> None:
     )
 
 
+def write_expected_features(root: Path, entries: list[dict[str, str]]) -> None:
+    lines = [
+        "# Expected Features",
+        "",
+        "## Feature Candidates",
+        "",
+    ]
+    for entry in entries:
+        lines.extend(
+            [
+                f"- Feature: {entry.get('title', '').strip()}",
+                "  - Owner: Product Owner",
+                f"  - Problem: {entry.get('problem', '').strip() or 'Problem statement.'}",
+                f"  - Outcome: {entry.get('outcome', '').strip() or 'Outcome statement.'}",
+                f"  - Priority: {entry.get('priority', 'P1').strip()}",
+                f"  - Notes: {entry.get('notes', '').strip()}",
+                "",
+            ]
+        )
+    path = root / "docs/00-context/expected-features.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 class PrdToFeaturesTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -273,6 +297,125 @@ class PrdToFeaturesTests(unittest.TestCase):
         hydrated_spec = (feature_dir / "feature-spec.md").read_text(encoding="utf-8")
         self.assertIn("Feature Specification: Alpha Feature", hydrated_spec)
         self.assertNotIn("[Feature Name]", hydrated_spec)
+
+    def test_existing_generic_docs_are_hydrated(self):
+        prd = """## Prioritized Feature List
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | Deliver alpha workflow | Key path |
+"""
+        write_prd(self.root, prd)
+        feature_dir = self.root / "docs/02-features/01-alpha-feature"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "feature-spec.md").write_text(
+            (
+                "# Feature Specification: Alpha Feature\n\n"
+                "PRD intent exists, but feature-level execution details are missing.\n"
+                "Build minimum required behavior for surfaces: CLI.\n"
+            ),
+            encoding="utf-8",
+        )
+        (feature_dir / "dev-tasks.md").write_text(
+            "## Overview\n\nStatus: In Progress\n\n## Execution Log\n",
+            encoding="utf-8",
+        )
+
+        summary = self.tool.apply_prd_to_features(self.root)
+        self.assertEqual(len(summary["updated"]), 1)
+        self.assertIn("generic core docs", summary["updated"][0].reason)
+        hydrated_spec = (feature_dir / "feature-spec.md").read_text(encoding="utf-8")
+        self.assertNotIn(
+            "PRD intent exists, but feature-level execution details are missing.",
+            hydrated_spec,
+        )
+
+    def test_slug_drift_uses_existing_folder_index_for_feature_id(self):
+        prd = """## Prioritized Feature List
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | Deliver alpha workflow | Key path |
+"""
+        write_prd(self.root, prd)
+        feature_dir = self.root / "docs/02-features/03-alpha-feature"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "feature-spec.md").write_text(
+            "# Feature Specification: [Feature Name]\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "dev-tasks.md").write_text(
+            "## Overview\n\nStatus: In Progress\n\n## Execution Log\n",
+            encoding="utf-8",
+        )
+
+        summary = self.tool.apply_prd_to_features(self.root)
+        self.assertEqual(len(summary["updated"]), 1)
+        feature_spec = (feature_dir / "feature-spec.md").read_text(encoding="utf-8")
+        self.assertIn("**Feature ID:** `F-03`", feature_spec)
+        self.assertIn("slug exists at index 03", summary["updated"][0].reason)
+
+    def test_hydration_links_matching_prd_requirements(self):
+        prd = """## Prioritized Feature List
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P1       | Alpha Integration | Harden alpha connector behavior | Must enforce approval checks |
+
+## Requirements
+
+### Functional Requirements
+
+#### Should Have (P1)
+
+- [ ] **FR-101:** Harden alpha connector behavior for live execution.
+  - **Rationale:** avoid unstable integrations.
+  - **Acceptance Criteria:** connector behavior is deterministic and fails closed.
+
+- [ ] **FR-102:** Keep approval gate before mutable execution.
+  - **Rationale:** maintain review-first behavior.
+  - **Acceptance Criteria:** mutable execution is blocked until approval is explicit.
+"""
+        write_prd(self.root, prd)
+
+        summary = self.tool.apply_prd_to_features(self.root)
+        self.assertEqual(len(summary["created"]), 1)
+        feature_dir = self.root / "docs/02-features/01-alpha-integration"
+        feature_spec = (feature_dir / "feature-spec.md").read_text(encoding="utf-8")
+        dev_tasks = (feature_dir / "dev-tasks.md").read_text(encoding="utf-8")
+        test_plan = (feature_dir / "test-plan.md").read_text(encoding="utf-8")
+
+        self.assertIn("FR-101", feature_spec)
+        self.assertIn("FR-102", feature_spec)
+        self.assertIn("TASK-01-REQ-FR-101", dev_tasks)
+        self.assertIn("TC-RFR-101", test_plan)
+
+    def test_expected_feature_coverage_blocks_when_unmapped(self):
+        prd = """## Prioritized Feature List
+
+| Priority | Feature | Outcome | Notes |
+| -------- | ------- | ------- | ----- |
+| P0       | Alpha Feature | X | Y |
+"""
+        write_prd(self.root, prd)
+        write_expected_features(
+            self.root,
+            [
+                {
+                    "title": "Alpha Feature",
+                    "outcome": "Ship alpha behavior.",
+                    "priority": "P0",
+                },
+                {
+                    "title": "Missing Expected Feature",
+                    "outcome": "Ship missing behavior.",
+                    "priority": "P0",
+                },
+            ],
+        )
+
+        with self.assertRaises(RuntimeError):
+            self.tool.apply_prd_to_features(self.root)
 
     def test_missing_status_line_treated_as_not_done(self):
         prd = """## Prioritized Feature List (Template)

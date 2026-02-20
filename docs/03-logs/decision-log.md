@@ -3027,6 +3027,43 @@ When a decision is reversed or replaced, document it here:
   - Keep downstream checks (`skills-check`, `skills-metadata-check`, `docs-check`) mandatory regardless of Python test discovery skip.
   - Align live/template root `AGENTS.md` test-contract language and add regression tests that assert this behavior in bootstrapped consumer-style repos.
 - **Consequences:**
-  - `make test` remains deterministic across tooling and consumer repos with/without local Python tests.
-  - Environment-dependent import leakage from third-party `tests` packages no longer blocks final `make ci` gates.
-  - Policy/docs and runtime behavior remain synchronized via explicit docs assertions.
+- `make test` remains deterministic across tooling and consumer repos with/without local Python tests.
+- Environment-dependent import leakage from third-party `tests` packages no longer blocks final `make ci` gates.
+- Policy/docs and runtime behavior remain synchronized via explicit docs assertions.
+
+### DEC-084 - Add context-clarity preflight and strengthen PRD-to-feature hydration quality invariants
+
+- **Date:** 2026-02-20
+- **Status:** Accepted
+- **Context:** Context -> PRD -> feature generation quality regressed in consumer runs: feature docs retained generic boilerplate, feature-spec IDs drifted from folder IDs after index changes, and PRD refresh had no deterministic preflight for unresolved context ambiguity.
+- **Decision:**
+  - Introduce `tools/pc-context-check` + `make context-check` and run it automatically before `make write-prd` (unless explicitly skipped with `SKIP_CONTEXT_CHECK=1`).
+  - Keep write-prd blocked when context preflight reports missing/empty required context docs, unresolved open-question checkboxes, ambiguous markers, or incomplete expected-feature entries.
+  - Upgrade `tools/prd-to-features` hydration to:
+    - preserve stable Feature IDs from existing folder indices (`NN-*` -> `F-NN`) even when PRD ordering differs,
+    - treat known generic boilerplate as hydration-required content,
+    - generate richer feature docs from matched PRD requirement references (`FR-*`/`NFR-*`) instead of generic fallback prose.
+  - Add expected-feature coverage invariant for active priorities (`P0`/`P1`): expected feature entries must map to at least one generated PRD feature slug, otherwise generation fails.
+  - Extend review heuristics in `tools/pc-review-features` with deterministic product findings for feature-id mismatch and template/generic leakage.
+- **Consequences:**
+  - PRD generation now has a deterministic quality gate tied to context completeness.
+  - Feature docs become traceable to requirements and retain folder/feature identity invariants across reordering.
+  - Generic/template leakage is both auto-remediated during hydration and detectable during review.
+
+### DEC-085 - Sandbox nested role `codex exec` calls and default review mode to deterministic
+
+- **Date:** 2026-02-20
+- **Status:** Accepted
+- **Context:** Cross-repo `make review-features` runs could spawn nested role sessions in writable mode, allowing unintended repository mutations outside review-owned files.
+- **Decision:**
+  - Force nested role executions to run with `--sandbox read-only --ask-for-approval never` in:
+    - `tools/pc-review-features`
+    - `tools/pc-prepare-features`
+    - `tools/pc-write-prd`
+    - `tools/pc-release-readiness`
+  - Change `tools/pc-review-features` default role mode from `codex` to `deterministic` unless explicitly overridden.
+  - Add regression tests to assert the sandbox flags and deterministic default behavior.
+- **Consequences:**
+  - Role reviewers can no longer modify repository files during prompt-driven evaluation.
+  - `make review-features` is deterministic and side-effect safer by default.
+  - Unsafe command-construction regressions are now covered by automated tests.

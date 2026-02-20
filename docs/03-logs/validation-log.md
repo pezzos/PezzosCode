@@ -2661,3 +2661,50 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Verification notes:
   - Worktree `.git` file-pointer layout is accepted by bootstrap preflight.
   - Existing non-worktree behavior remains covered by prior bootstrap tests.
+
+## 2026-02-20 - Validate Context -> PRD -> Features hardening changes
+
+- Reproduction commands (Agenda-Assistant evidence repo):
+  - Command: `tools/offload-proxy/pp env WRITE_PRD_ROLE_MODE=deterministic make write-prd`
+  - Result: PASS (`decision=NO_CHANGE`).
+  - Command: `tools/offload-proxy/pp env PREPARE_ROLE_MODE=deterministic make prepare-features`
+  - Result: PASS (`prd-to-features` summary preserved slug/index drift notes for `12-*` and `13-*`).
+  - Command: `tools/offload-proxy/pp env REVIEW_ROLE_MODE=deterministic make review-features`
+  - Result: PASS (review report written; deterministic findings injected).
+- Regression/unit validation:
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_context_check.py"`
+  - Result: PASS (`3` tests; offload id `d86dc0975765fc9e2d47a84e5a4f07caed73b84e23a0a14846a31d46d2d176f4`).
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_prd_to_features.py"`
+  - Result: FAIL first run due requirement-parser regex mismatch (`offload id 12abe1373e5d2c4a47a59548981672ec41bd722e29bac3559c8c4cdaf78d37a2`), PASS after fix (`20` tests; offload id `4cc1356b73ff82d4739c3499b9c2ce5a502f015adafb343dba1e293608bc5224`).
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_review_features.py"`
+  - Result: PASS (`7` tests; offload id `c35e11a8296afb84f9a6284ec2e2e7996d0f5e6f55747b30d7cf6d9c2d2a7646`).
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_prepare_features.py"`
+  - Result: PASS (`33` tests; offload id `d22873ad3c71dbf9cc5579ba84581c88837cf7be28c859b9327c249b36a78f48`).
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_write_prd.py"`
+  - Result: PASS (`3` tests; offload id `ee45de252b74d70287cb0330ab7ac678c1e4399cac50b0d645ca1b5b197ab977`).
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_pc_template_sync.py"`
+  - Result: PASS (`6` tests; offload id `b591268d2720264c22b3d07ff3a895282257b9a5966535f67565f958b60d5635`).
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_docs_logs.py"`
+  - Result: PASS (`27` tests; offload id `a970274c2867bbefbf99df0fe70810bcab5a2ae5fa4a54e75fbbbbc82f0927c8`).
+- Full gates:
+  - Command: `tools/offload-proxy/pp make lint`
+  - Result: PASS.
+  - Command: `tools/offload-proxy/pp make test`
+  - Result: PASS (offload id `ef0bdfea0f8ce7b39fa1699185a6934385d736ab7fb9986e931c42b64a5d4e60`).
+  - Command: `tools/offload-proxy/pp make ci`
+  - Result: PASS (offload id `12706244e91ec17920cb698f76077002b479d1cb6adf070578cfdf8faa43a067`).
+
+## 2026-02-20 - Validate nested role sandbox hardening + deterministic review default
+
+- Command: `tools/offload-proxy/pp python -m unittest tests.test_codex_exec_sandbox tests.test_pc_review_features tests.test_pc_prepare_features tests.test_pc_write_prd tests.test_pc_release_readiness`
+- Result: FAIL (module import path issue with direct dotted names in this environment; offload id `3d16ead04593101add5e4e7f81cea4ac8bae6076fb2f74cb3715896d3294452e`).
+- Command: `tools/offload-proxy/pp bash -lc 'set -euo pipefail; python -m unittest discover -s tests -p "test_codex_exec_sandbox.py"; python -m unittest discover -s tests -p "test_pc_review_features.py"; python -m unittest discover -s tests -p "test_pc_prepare_features.py"; python -m unittest discover -s tests -p "test_pc_write_prd.py"; python -m unittest discover -s tests -p "test_pc_release_readiness.py"'`
+- Result: PASS (`5 + 7 + 33 + 3 + 6` tests; output stayed inline, no offload pointer emitted).
+- Verification notes:
+  - All nested role command builders now require read-only sandbox execution.
+  - `pc-review-features` default role mode is deterministic when `REVIEW_ROLE_MODE` is unset/invalid.
+  - Existing targeted tool tests remain green after the hardening patch.
+- Command: `tools/offload-proxy/pp pre-commit run --files tools/pc-review-features tools/pc-prepare-features tools/pc-write-prd tools/pc-release-readiness tests/test_codex_exec_sandbox.py docs/03-logs/decision-log.md docs/03-logs/implementation-log.md docs/03-logs/validation-log.md docs/03-logs/bug-log.md`
+- Result: PASS (offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`).
+- Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_codex_exec_sandbox.py"`
+- Result: PASS (`5` tests; offload id `464e0ee629edf74de09ef21e4232fbcedc26588ff7cc23c470f47fe2da88c255`).

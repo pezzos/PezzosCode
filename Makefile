@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check skills-metadata-check feature feature-help feature-status write-prd prepare-features review-features release-readiness ci
+.PHONY: fmt fmt-verbose lint lint-verbose test check docs-check skills-check skills-metadata-check feature feature-help feature-status context-check write-prd prepare-features review-features release-readiness ci
 
 fmt:
 	@tools/pc-hooks-run --hook-stage manual --all-files
@@ -50,8 +50,14 @@ write-prd:
 		args=""; \
 		if [ -n "$(WRITE_PRD_ROLE_MODE)" ]; then args="$$args --role-mode $(WRITE_PRD_ROLE_MODE)"; fi; \
 		if [ "$(FORCE)" = "1" ] || [ "$(FORCE)" = "true" ]; then args="$$args --force"; fi; \
+		if [ "$(SKIP_CONTEXT_CHECK)" != "1" ] && [ "$(SKIP_CONTEXT_CHECK)" != "true" ]; then \
+			tools/pc-context-check; \
+		fi; \
 		tools/pc-write-prd $$args; \
 	fi
+
+context-check:
+	@tools/pc-context-check
 
 prepare-features:
 	@if [[ "$(HELP)" == "1" || "$(HELP)" == "true" || "$(HELP)" == "yes" ]]; then \

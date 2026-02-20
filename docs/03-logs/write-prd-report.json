@@ -1,45 +1,33 @@
 {
-  "change_summary": "Updated PRD with focused deltas to reflect expected features: explicit zero-input execution defaults, token budget guardrails, deterministic auto-recovery expansion, and P1 skill inventory/complexity hardening priorities.",
-  "changed_sections": [
-    "## Overview",
-    "## Prioritized Feature List",
-    "## Process Features",
-    "## Requirements",
-    "## Workflow/Process Requirements",
-    "## Risks & Mitigations",
-    "## Open Questions",
-    "## Appendix"
-  ],
-  "decision": "UPDATE",
+  "change_summary": "No material changes required.",
+  "changed_sections": [],
+  "decision": "NO_CHANGE",
   "from_cache": false,
-  "generated_at": "2026-02-19T15:46:20Z",
+  "generated_at": "2026-02-20T13:36:09Z",
   "issues": [],
   "notes": [
     "Machine-managed by tools/pc-write-prd.",
     "Updates are in-place and idempotent when source + PRD hashes are unchanged."
   ],
-  "open_questions": [
-    "What default token budget thresholds should be set per work item/role, and what escalation behavior should trigger when thresholds are exceeded?",
-    "What review cadence and objective keep/remove criteria should govern skill inventory pruning?"
-  ],
+  "open_questions": [],
   "prd_path": "docs/01-product/prd.md",
-  "prd_updated": true,
-  "role_mode": "codex",
-  "source_hash": "68365aa9978e73d89d6dd77b88242bba48de91bf38ae452f1a3874aeb40bc4d0",
+  "prd_updated": false,
+  "role_mode": "deterministic",
+  "source_hash": "4ef99269dad4d6921fca775bfdc64fc29664f64965c9199dd0f4c12d322e1eee",
   "source_hashes": {
     "docs/00-context/assumptions.md": "ecb93c9ac10348fa48094a75fdd095c5909af3e4ac7bb99ebc22695788805984",
     "docs/00-context/context-boundaries-operating-model.md": "720b137954b1dde957c4f661d196fc6e4b8b7f8bbef9eb3f577e49195a9e0330",
-    "docs/00-context/expected-features.md": "27ba654657ca8cbc8f251a2cf26d870c097bd652f0e64483e8e89b6725606316",
+    "docs/00-context/expected-features.md": "8b57a87bbf994644fd0fd9f286edfb680e79219417986eaf7649f5066816b7ec",
     "docs/00-context/system-map.md": "72ae5660f3b0322bead0f7c97cdd804d4dcd68243d7ac4b8e5a44b72c16d0f56",
     "docs/00-context/users.md": "1477ad0104c10a58fd329530038dac9faea222093fc66a5d646513ed15608714",
     "docs/00-context/vision.md": "e183ddb8c12ed325139cba9340771c17a523c8ebd93fac080c060a974da7bb4b",
     "docs/04-process/definition-of-done.md": "9cc7dc0ad66d6a39a9cfa519eec85c057c8b199188ccdd2ebe1d937aa6729503",
     "docs/04-process/dev-workflow.md": "38fbab46dd9f7128106e6530cd78c49beaaaebca2684935965aeb58020709c57",
     "docs/04-process/git-workflow.md": "58e652739efc60f7440c15f6fa833951d3bf3aad882b15fb5d7a313129978893",
-    "docs/04-process/human-orchestration-workflow.md": "1aed39960d912ab6f24d9f57d1c46730c26e4e903a073a73a8405a064af35500",
+    "docs/04-process/human-orchestration-workflow.md": "5f7bdc441c4cd30c761e3d83d549dfd742ed2dadb0dc9a2ae7047a7c231c6575",
     "docs/04-process/output-offload.md": "0a9781c967726b253b1a3c4799a912d4d7775bda71b1e15add87043877a22ea9",
     "docs/04-process/testing-strategy.md": "9e2e2f6aa60f99c45fca6dd0aa5ce758ecfff970559c86bb96be3f946a2c02a6",
-    "docs/04-process/ticket-execution-protocol.md": "062fca310bed1839b9e1ea76e7196e5134a18b6fd461986aff9ae7249f5c8dc9"
+    "docs/04-process/ticket-execution-protocol.md": "0d6bc9d51d10ce75ff550955ceb9e291d85f6c6cda42acf8f87048473b14d177"
   },
   "version": 1
 }

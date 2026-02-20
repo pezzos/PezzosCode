@@ -7,6 +7,7 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 ## Structure / Map
 
 - `tools/bootstrap-into` - Seed a target repo with templates, docs, tools, and skills.
+- `tools/pc-context-check` - Validate context clarity and expected-feature completeness before PRD generation.
 - `tools/pc-write-prd` - Refresh PRD in place from context/process docs through Product Manager review.
 - `tools/pc-prepare-features` - Generate global design/UX/security/dependency-order artifacts and run feature generation.
 - `tools/pc-review-features` - Run Security Expert/Product Manager review over feature folders and inject canonical findings.
@@ -18,16 +19,18 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 ## Workflow
 
 1. Use `bootstrap-into` to initialize a target repo; use `bootstrap-into --reapply` to force-overwrite syncable template-managed files during refresh.
-2. Use `pc-write-prd` to update `docs/01-product/prd.md` in place (`WRITE_PRD_ROLE_MODE=deterministic` for local fallback mode).
-3. Use `pc-prepare-features` to refresh design/UX/security/order artifacts and generate feature docs (`--include-process-features` is opt-in).
-4. Use `pc-review-features` to inject pre-execution security/product findings (`REVIEW_ROLE_MODE=deterministic` for local fallback mode; `INCLUDE_COMPLETED=1` for explicit completed-feature audits).
-5. Use `pc-feature` to execute approved work items.
-6. Use `pc-release-readiness` for PM go/no-go and expected-feature follow-up planning (`RELEASE_READINESS_ROLE_MODE=deterministic` for local fallback mode).
-7. Use `pc-commit` to finalize scoped commits.
-8. Use `tools/offload-proxy/pp` for large-output read commands.
+2. Use `pc-context-check` to validate context clarity before PRD refresh (`make write-prd` also runs this preflight by default).
+3. Use `pc-write-prd` to update `docs/01-product/prd.md` in place (`WRITE_PRD_ROLE_MODE=deterministic` for local fallback mode).
+4. Use `pc-prepare-features` to refresh design/UX/security/order artifacts and generate feature docs (`--include-process-features` is opt-in).
+5. Use `pc-review-features` to inject pre-execution security/product findings (`REVIEW_ROLE_MODE=deterministic` for local fallback mode; `INCLUDE_COMPLETED=1` for explicit completed-feature audits).
+6. Use `pc-feature` to execute approved work items.
+7. Use `pc-release-readiness` for PM go/no-go and expected-feature follow-up planning (`RELEASE_READINESS_ROLE_MODE=deterministic` for local fallback mode).
+8. Use `pc-commit` to finalize scoped commits.
+9. Use `tools/offload-proxy/pp` for large-output read commands.
 
 ## Generated Artifacts
 
+- `pc-context-check` writes `docs/03-logs/context-clarity-report.json` (required context quality gate status before PRD updates).
 - `pc-write-prd` writes `docs/03-logs/write-prd-report.json` (PRD update decision + changed sections).
 - `pc-write-prd` writes `docs/03-logs/write-prd-state.json` (idempotency cache for unchanged source/PRD hashes).
 - `pc-prepare-features` writes `docs/03-logs/prepare-features-state.json` (PM gate decisions + runtime state).

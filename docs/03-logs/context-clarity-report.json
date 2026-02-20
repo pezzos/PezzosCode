@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "generated_at": "2026-02-20T13:36:09Z",
+  "decision": "PASS",
+  "summary": "Context clarity checks passed.",
+  "required_files": [
+    {
+      "path": "docs/00-context/vision.md",
+      "exists": true,
+      "non_empty": true
+    },
+    {
+      "path": "docs/00-context/users.md",
+      "exists": true,
+      "non_empty": true
+    },
+    {
+      "path": "docs/00-context/system-map.md",
+      "exists": true,
+      "non_empty": true
+    },
+    {
+      "path": "docs/00-context/assumptions.md",
+      "exists": true,
+      "non_empty": true
+    },
+    {
+      "path": "docs/00-context/context-boundaries-operating-model.md",
+      "exists": true,
+      "non_empty": true
+    },
+    {
+      "path": "docs/00-context/expected-features.md",
+      "exists": true,
+      "non_empty": true
+    }
+  ],
+  "expected_features_count": 7,
+  "issue_count": 0,
+  "issues": []
+}

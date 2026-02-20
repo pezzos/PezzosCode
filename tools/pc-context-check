@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+"""Validate context clarity before running PRD generation."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence
+
+ROOT = Path(__file__).resolve().parents[1]
+REPORT_PATH = Path("docs/03-logs/context-clarity-report.json")
+REQUIRED_CONTEXT_PATHS = (
+    Path("docs/00-context/vision.md"),
+    Path("docs/00-context/users.md"),
+    Path("docs/00-context/system-map.md"),
+    Path("docs/00-context/assumptions.md"),
+    Path("docs/00-context/context-boundaries-operating-model.md"),
+    Path("docs/00-context/expected-features.md"),
+)
+AMBIGUOUS_MARKERS = (
+    r"\[TBD\]",
+    r"\[TODO\]",
+    r"<TBD>",
+    r"\?\?\?",
+)
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Validate docs/00-context clarity and expected-features completeness "
+            "before PRD generation."
+        )
+    )
+    parser.add_argument(
+        "--root",
+        default=str(ROOT),
+        help="Repository root (defaults to detected root).",
+    )
+    return parser.parse_args(argv)
+
+
+def read_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", text.strip())
+
+
+def unresolved_open_question_lines(markdown: str) -> List[int]:
+    lines = markdown.splitlines()
+    unresolved: List[int] = []
+    in_section = False
+    for idx, raw_line in enumerate(lines, start=1):
+        line = raw_line.rstrip()
+        heading_match = re.match(r"^##\s+(.+?)\s*$", line.strip())
+        if heading_match:
+            in_section = (
+                heading_match.group(1).strip().lower().startswith("open questions")
+            )
+            continue
+        if not in_section:
+            continue
+        if re.match(r"^\s*-\s*\[\s\]\s+", line):
+            unresolved.append(idx)
+    return unresolved
+
+
+def parse_expected_features(markdown: str) -> List[Dict[str, str]]:
+    features: List[Dict[str, str]] = []
+    current: Dict[str, str] = {}
+    in_release_readiness = False
+
+    def flush_current() -> None:
+        nonlocal current
+        if not current:
+            return
+        title = current.get("title", "").strip()
+        outcome = current.get("outcome", "").strip()
+        priority = current.get("priority", "").strip().upper()
+        if priority not in {"P0", "P1", "P2"}:
+            current = {}
+            return
+        placeholder_title = normalize(title).lower() in {"", "feature"}
+        placeholder_outcome = normalize(outcome).lower() in {"", "outcome"}
+        if placeholder_title and placeholder_outcome:
+            current = {}
+            return
+        features.append(
+            {
+                "title": title,
+                "outcome": outcome,
+                "priority": priority,
+                "notes": current.get("notes", "").strip(),
+            }
+        )
+        current = {}
+
+    for raw_line in markdown.splitlines():
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        if stripped.startswith("<!-- release-readiness:start -->"):
+            in_release_readiness = True
+            continue
+        if stripped.startswith("<!-- release-readiness:end -->"):
+            in_release_readiness = False
+            continue
+        if in_release_readiness:
+            continue
+        feature_match = re.match(r"^\s*-\s*Feature\s*:\s*(.*?)\s*$", line)
+        if feature_match:
+            flush_current()
+            current = {"title": feature_match.group(1).strip()}
+            continue
+        if not current:
+            continue
+        outcome_match = re.match(r"^\s*-\s*Outcome\s*:\s*(.+?)\s*$", line)
+        if outcome_match:
+            current["outcome"] = outcome_match.group(1).strip()
+            continue
+        priority_match = re.match(r"^\s*-\s*Priority\s*:\s*(.+?)\s*$", line)
+        if priority_match:
+            current["priority"] = priority_match.group(1).split()[0].strip().upper()
+            continue
+        notes_match = re.match(r"^\s*-\s*Notes\s*:\s*(.+?)\s*$", line)
+        if notes_match:
+            current["notes"] = notes_match.group(1).strip()
+            continue
+    flush_current()
+    return features
+
+
+def check_context(root: Path) -> Dict[str, Any]:
+    issues: List[Dict[str, Any]] = []
+    required_files: List[Dict[str, Any]] = []
+
+    for rel_path in REQUIRED_CONTEXT_PATHS:
+        path = root / rel_path
+        content = read_text(path)
+        required_files.append(
+            {
+                "path": rel_path.as_posix(),
+                "exists": path.exists(),
+                "non_empty": bool(content.strip()),
+            }
+        )
+        if not path.exists():
+            issues.append(
+                {
+                    "check": "required-file-missing",
+                    "path": rel_path.as_posix(),
+                    "summary": "Required context file is missing.",
+                    "remediation": "Restore the file before running write-prd.",
+                }
+            )
+            continue
+        if not content.strip():
+            issues.append(
+                {
+                    "check": "required-file-empty",
+                    "path": rel_path.as_posix(),
+                    "summary": "Required context file is empty.",
+                    "remediation": "Add project-specific content before running write-prd.",
+                }
+            )
+            continue
+        for marker in AMBIGUOUS_MARKERS:
+            if re.search(marker, content):
+                issues.append(
+                    {
+                        "check": "ambiguous-marker",
+                        "path": rel_path.as_posix(),
+                        "summary": f"Ambiguous marker found: `{marker}`.",
+                        "remediation": "Resolve placeholder text before running write-prd.",
+                    }
+                )
+        unresolved = unresolved_open_question_lines(content)
+        for line_number in unresolved:
+            issues.append(
+                {
+                    "check": "open-question-unresolved",
+                    "path": rel_path.as_posix(),
+                    "line": line_number,
+                    "summary": "Unchecked item found under an Open Questions section.",
+                    "remediation": "Resolve or explicitly defer the question before write-prd.",
+                }
+            )
+
+    expected_features_path = root / "docs/00-context/expected-features.md"
+    expected_markdown = read_text(expected_features_path)
+    expected_features = parse_expected_features(expected_markdown)
+    if not expected_features:
+        issues.append(
+            {
+                "check": "expected-features-empty",
+                "path": "docs/00-context/expected-features.md",
+                "summary": "No concrete expected features were found.",
+                "remediation": "Add at least one Feature entry with Outcome and Priority.",
+            }
+        )
+    else:
+        for idx, feature in enumerate(expected_features, start=1):
+            if not feature.get("outcome", "").strip():
+                issues.append(
+                    {
+                        "check": "expected-feature-missing-outcome",
+                        "path": "docs/00-context/expected-features.md",
+                        "summary": f"Expected feature #{idx} is missing Outcome.",
+                        "remediation": "Set an Outcome line for each expected feature.",
+                    }
+                )
+            if not feature.get("priority", "").strip():
+                issues.append(
+                    {
+                        "check": "expected-feature-missing-priority",
+                        "path": "docs/00-context/expected-features.md",
+                        "summary": f"Expected feature #{idx} is missing Priority.",
+                        "remediation": "Set Priority as P0, P1, or P2 for each expected feature.",
+                    }
+                )
+
+    decision = "PASS" if not issues else "BLOCK"
+    summary = (
+        "Context clarity checks passed."
+        if decision == "PASS"
+        else "Context clarity checks failed; resolve issues before write-prd."
+    )
+    return {
+        "version": 1,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "decision": decision,
+        "summary": summary,
+        "required_files": required_files,
+        "expected_features_count": len(expected_features),
+        "issue_count": len(issues),
+        "issues": issues,
+    }
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv)
+    root = Path(args.root).resolve()
+    payload = check_context(root)
+    write_text(root / REPORT_PATH, json.dumps(payload, ensure_ascii=True, indent=2))
+    print(f"pc-context-check: wrote report artifact -> {REPORT_PATH}")
+    print(
+        "pc-context-check: complete "
+        f"(decision={payload['decision']}, issues={payload['issue_count']})"
+    )
+    return 0 if payload["decision"] == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
