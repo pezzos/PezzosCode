@@ -66,7 +66,7 @@ if [[ ! -d "$target_repo" ]]; then
   exit 1
 fi
 
-if [[ ! -d "$target_repo/.git" ]]; then
+if [[ ! -e "$target_repo/.git" ]]; then
   echo "bootstrap-into: target repo is not a git repository: $target_repo" >&2
   exit 1
 fi

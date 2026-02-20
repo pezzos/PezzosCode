@@ -8547,3 +8547,25 @@ with `pc-feature: missing section Patch in entry ...`.
 - Consumer repos generated from tooling templates may intentionally omit local Python tests.
 - Unconditional unittest discovery is non-deterministic in those repos because Python can resolve unrelated `tests` modules from environment `site-packages`.
 - Conditional local-folder gating preserves fail-closed behavior for real local tests while avoiding false failures from external packages.
+
+### 2026-02-20 - Allow `bootstrap-into` to target git worktrees
+
+**Feature/Bug:** `tools/bootstrap-into --reapply <worktree-path>` failed with `target repo is not a git repository` because worktrees expose `.git` as a file pointer, not a directory.
+
+**Changed Files:**
+
+- `tools/bootstrap-into`
+- `tests_extra/test_bootstrap_into_extra.py`
+- `docs/03-logs/implementation-log.md`
+- `docs/03-logs/bug-log.md`
+- `docs/03-logs/validation-log.md`
+
+**What Changed:**
+
+- Updated repository preflight check in `tools/bootstrap-into` from `[[ -d "$target_repo/.git" ]]` to `[[ -e "$target_repo/.git" ]]`, accepting both standard repositories (`.git/` directory) and git worktrees (`.git` file pointer).
+- Added regression test `test_accepts_worktree_target_repo` to create a real git worktree and assert bootstrap succeeds for that target path.
+
+**Why:**
+
+- Worktree support is required for orchestrated patcher workflows that operate in linked worktrees.
+- The previous directory-only check rejected valid git worktree roots before any bootstrap logic could run.

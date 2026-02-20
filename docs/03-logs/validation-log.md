@@ -2647,3 +2647,17 @@ Overall, this was a successful launch with clear areas for improvement. The core
   - Live/template `make test` now skip Python unittest discovery when local `tests/` is absent and print explicit skip output.
   - Bootstrap consumer regression confirms absence of environment import leakage markers (`site-packages/tests`, `ImportError`, `CUDA_DEVICE_COUNT`) during `make test` execution.
   - Live/template root `AGENTS.md` test-contract wording is asserted by docs tests to prevent drift from Makefile behavior.
+
+## 2026-02-20 - Validate `bootstrap-into` worktree target support
+
+- Command: `tools/offload-proxy/pp python3 -m unittest tests_extra.test_bootstrap_into_extra.BootstrapIntoLogTests.test_accepts_worktree_target_repo`
+- Result: PASS (`1` test; offload id `fcb5ffaa858e39895b5cd7a715de8b3a8c9a05423d082fbbb4dc3c4400188443`).
+- Command: `tools/offload-proxy/pp python3 -m unittest tests_extra.test_bootstrap_into_extra.BootstrapIntoLogTests.test_make_test_skips_unittest_discovery_when_tests_directory_missing`
+- Result: PASS (`1` test; offload id `654925636ecdb78d80b642aa923fd17afe0992be1bef664d7e86c1ab5d4a0706`).
+- Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests_extra -p "test_bootstrap_into_extra.py"`
+- Result: PASS (`10` tests; offload id `67445d8ee5c77a9ef4785365f74134c05551d0ee8c384b31ea50d0c1cb011dc7`).
+- Command: `tools/bootstrap-into --dry-run --reapply /Users/alexandrepezzotta/repos/pezzoscom-01-core-pages-home-profile-cv-offer-contact-patcher`
+- Result: PASS (no git-repository rejection; dry-run enumerated updates including `Makefile`, `AGENTS.md`, `tools/pc-allowed-tests-check`, `tools/pc-feature`).
+- Verification notes:
+  - Worktree `.git` file-pointer layout is accepted by bootstrap preflight.
+  - Existing non-worktree behavior remains covered by prior bootstrap tests.

@@ -35,6 +35,62 @@ def init_git_repo(path):
 
 
 class BootstrapIntoLogTests(unittest.TestCase):
+    def test_accepts_worktree_target_repo(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_repo = Path(tmp_dir) / "base-repo"
+            worktree_repo = Path(tmp_dir) / "consumer-worktree"
+
+            base_repo.mkdir(parents=True, exist_ok=True)
+            init_git_repo(base_repo)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=base_repo,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=base_repo,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            (base_repo / "README.md").write_text("seed\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "add", "README.md"],
+                cwd=base_repo,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", "seed"],
+                cwd=base_repo,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            subprocess.run(
+                ["git", "worktree", "add", "-b", "consumer-wt", str(worktree_repo)],
+                cwd=base_repo,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            self.assertTrue(
+                (worktree_repo / ".git").is_file(),
+                "worktree should use a .git file pointer",
+            )
+
+            result = run_bootstrap_into([str(worktree_repo)])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(
+                (worktree_repo / "docs" / "README.md").exists(),
+                "bootstrap should run successfully against worktree targets",
+            )
+
     def test_copies_docs_readme_and_reports_it(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)

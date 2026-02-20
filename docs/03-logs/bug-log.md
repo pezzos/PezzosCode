@@ -1294,3 +1294,12 @@ Bugs we've decided not to fix, and why:
 - **Summary:** Live/template `Makefile` used unconditional `python -m unittest discover -s tests -p "test_*.py"` even when consumer repo had no local `tests/`, causing discovery/import of unrelated `site-packages/tests` modules and deterministic CI failure.
 - **Fix:** Added local-directory guard in live/template `Makefile` test target so unittest discovery runs only when `tests/` exists; otherwise prints explicit intentional skip message and continues docs/skills checks. Added bootstrap-based regression for no-tests consumer repos and AGENTS/docs contract assertions to prevent drift.
 - **Validation:** See `docs/03-logs/validation-log.md` entry dated 2026-02-20 for command evidence and offload ids.
+
+## 2026-02-20 - `bootstrap-into` rejected valid git worktree targets
+
+- **ID:** BUG-20260220-02
+- **Status:** Fixed
+- **Source:** User report (`tools/bootstrap-into --reapply <worktree-path>`)
+- **Summary:** `bootstrap-into` checked `-d "$target_repo/.git"` and failed on worktrees because worktree `.git` is a file pointer (`gitdir: ...`), not a directory.
+- **Fix:** Relaxed git-root check to `-e "$target_repo/.git"` so both repository layouts are accepted; added a regression test that provisions a real git worktree target and verifies bootstrap success.
+- **Validation:** See `docs/03-logs/validation-log.md` entry dated 2026-02-20 for command evidence and results.
