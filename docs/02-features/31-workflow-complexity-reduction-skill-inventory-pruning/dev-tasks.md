@@ -12,7 +12,7 @@ Priority: P1
 
 Status: Not Started
 
-Last Updated: 2026-02-19
+Last Updated: 2026-02-20
 
 Product Surfaces: CLI
 
@@ -38,55 +38,40 @@ Record each execution round here. Link any related logs in `docs/03-logs/`.
 When execution starts, add a new work-item entry using
 `docs/02-features/feature-template/dev-tasks.md` format.
 
-## Review Findings Backlog
-
-<!-- review-backlog:start -->
-
-### Patcher Tasks
-
-- [ ] `SEC-31-002` Access-control expectations are missing for feature scope
-  - Action: Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.
-  - Acceptance: Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.
-- [ ] `SEC-31-003` Sensitive-data redaction is undefined for feature logging/output
-  - Action: Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.
-  - Acceptance: Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.
-- [ ] `SEC-31-004` Path-safety constraints are missing for feature file operations
-  - Action: Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.
-  - Acceptance: Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.
-- [ ] `PROD-31-002` User journey details are missing
-  - Action: Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).
-  - Acceptance: Feature spec includes a concrete journey with deterministic completion and error-state expectations.
-- [ ] `PROD-31-005` Acceptance criteria are not measurable
-  - Action: Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.
-  - Acceptance: Acceptance criteria include measurable checks that can be validated without subjective interpretation.
-
-### Human Validation Requests (Product Owner / end-user)
-
-- [ ] No human-validation requests.
-
-<!-- review-backlog:end -->
-
 ## Task Breakdown
 
 ### Discovery and Spec Sync
 
 - [ ] **TASK-001: Confirm requirements for `Workflow complexity reduction + skill inventory pruning`**
-  - Align acceptance criteria with PRD priority `P1`.
+  - Align acceptance criteria with PRD priority `P1` and requirements `FR-104, FR-105, FR-005`.
   - Document scope boundaries and non-goals before coding.
   - **Acceptance:** Scope and success criteria are explicit.
+
+### Requirement Mapping
+
+- [ ] **TASK-31-REQ-FR-104: map requirement to implementation**
+  - Requirement: Prune low-value skill inventory regularly.
+  - Acceptance evidence: Workflow includes periodic review to remove/archive unused or redundant skills while preserving required execution capabilities.
+- [ ] **TASK-31-REQ-FR-105: map requirement to implementation**
+  - Requirement: Reduce redundant execution paths and configuration complexity.
+  - Acceptance evidence: Equivalent behavior is maintained while consolidating redundant paths; removed paths are documented with rollback notes.
+- [ ] **TASK-31-REQ-FR-005: map requirement to implementation**
+  - Requirement: Provide a shared runner library for tool/script execution.
+  - Acceptance evidence: Tools can call a shared runner that injects `work_item_id`, `agent_name`, `run_id` and logging helpers.
 
 ### Implementation
 
 - [ ] **TASK-002: Implement `Workflow complexity reduction + skill inventory pruning` capability**
-  - Build minimum required behavior for surfaces: CLI.
+  - Implement PRD outcome: Lower maintenance overhead with fewer fragile execution paths.
+  - Target product surfaces: CLI.
   - Keep behavior deterministic and idempotent on reruns.
-  - **Acceptance:** Primary workflow works end-to-end.
+  - **Acceptance:** Primary workflow works end-to-end with documented constraints.
 
 ### Testing
 
 - [ ] **TASK-003: Add tests before patch completion**
   - Add failing tests first, then implement the smallest passing patch.
-  - Cover happy path and at least one edge condition.
+  - Cover requirement refs `FR-104, FR-105, FR-005` plus at least one edge condition.
   - **Acceptance:** Tests guard against regressions.
 
 ### Validation and Reporting

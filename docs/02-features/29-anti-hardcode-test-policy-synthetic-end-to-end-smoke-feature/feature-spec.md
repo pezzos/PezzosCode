@@ -6,11 +6,11 @@
 
 ## Overview
 
-**Feature ID:** `F-07`
+**Feature ID:** `F-29`
 
 **Owner:** Developer/PO
 
-**Last Updated:** 2026-02-19
+**Last Updated:** 2026-02-20
 
 ### Summary
 
@@ -21,22 +21,22 @@ Better regression resistance and early workflow break detection.
 ### Who is this for?
 
 - **Primary users:** Developer/PO
-- **User goals:** Deliver `Anti-hardcode test policy + synthetic end-to-end smoke feature` with deterministic behavior.
-- **Current pain:** PRD intent exists, but feature-level execution details are missing.
+- **User goals:** Deliver `Anti-hardcode test policy + synthetic end-to-end smoke feature` in line with PRD scope and constraints.
+- **Current pain:** Better regression resistance and early workflow break detection.
 
 ### Why do they need it?
 
-**As a** developer/PO
+**As a** Developer/PO
 
 **I want to** implement `Anti-hardcode test policy + synthetic end-to-end smoke feature`
 
-**So that** the prioritized PRD outcome is delivered reliably.
+**So that** better regression resistance and early workflow break detection.
 
 ### User Value
 
-- **Value proposition:** Converts PRD intent into executable feature scope.
+- **Priority:** P1
 - **Expected impact:** Better regression resistance and early workflow break detection.
-- **Priority:** P1.
+- **Source notes:** Fixtures + seeds + invariants + boundary contracts
 
 ## Feature Requirements
 
@@ -44,14 +44,18 @@ Better regression resistance and early workflow break detection.
 
 #### Core Functionality
 
-- **Requirement 1:** Implement `Anti-hardcode test policy + synthetic end-to-end smoke feature` according to PRD priority `P1`.
-- **Requirement 2:** Keep behavior deterministic and idempotent on reruns.
-- **Requirement 3:** Document boundaries, success criteria, and evidence paths.
+- [ ] **FR-102:** Provide a synthetic feature for end-to-end workflow smoke testing.
+  - **Acceptance link:** A lightweight synthetic feature can run full Plan → Patch → Test → Report, validate gates/resume/logs, and report pass/fail before real feature execution.
+- [ ] **FR-103:** Enforce anti-hardcode testing coverage.
+  - **Acceptance link:** Plan/TDD states fixture count (>=2 critical-path fixtures), deterministic seed strategy, invariant assertions, and boundary contract tests.
+- [ ] **FR-002:** Execute a ticket end-to-end with AI and minimal manual work.
+  - **Acceptance link:** Plan → Patch → Test → Report with orchestrator gates and feedback-loop restart rules; required role logs and execution evidence are updated.
 
 #### Edge Cases
 
 - Missing or ambiguous PRD details require explicit PO clarification.
 - Existing implementation artifacts must not be overwritten destructively.
+- Dependency preconditions must fail closed with actionable errors.
 
 ### Product Surfaces
 
@@ -64,10 +68,13 @@ Better regression resistance and early workflow break detection.
 
 ## Acceptance Criteria
 
-- Feature folder content is specific to this PRD item, not template placeholders.
-- Functional behavior and tests are defined before patching.
-- Scope boundaries and non-goals are explicit.
+- Generated docs contain no unresolved feature-template placeholders.
+- Feature requirements in this spec map to executable tasks and tests.
+- Dependencies and scope boundaries remain explicit and testable.
 - Validation evidence is captured in work-item logs.
+- `FR-102` acceptance satisfied: A lightweight synthetic feature can run full Plan → Patch → Test → Report, validate gates/resume/logs, and report pass/fail before real feature execution.
+- `FR-103` acceptance satisfied: Plan/TDD states fixture count (>=2 critical-path fixtures), deterministic seed strategy, invariant assertions, and boundary contract tests.
+- `FR-002` acceptance satisfied: Plan → Patch → Test → Report with orchestrator gates and feedback-loop restart rules; required role logs and execution evidence are updated.
 
 ## Scope
 
@@ -90,6 +97,7 @@ Better regression resistance and early workflow break detection.
 - `docs/01-product/prd.md`
 - `docs/02-features/AGENTS.md`
 - `docs/04-process/ticket-execution-protocol.md`
+- (none)
 
 ### Blocks
 
@@ -99,30 +107,3 @@ Better regression resistance and early workflow break detection.
 
 - Source notes: Fixtures + seeds + invariants + boundary contracts
 - Ambiguous acceptance criteria can cause rework if not clarified during planning.
-
-## Automated Review Summary
-
-<!-- review-findings:start -->
-
-### Security Constraints
-
-- `SEC-29-002` Access-control expectations are missing for feature scope
-  - Specification constraint: Document required authorization expectations and denied-path behavior for feature actions that can change protected state.
-  - Blocking: Yes
-- `SEC-29-003` Sensitive-data redaction is undefined for feature logging/output
-  - Specification constraint: If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.
-  - Blocking: Yes
-- `SEC-29-004` Path-safety constraints are missing for feature file operations
-  - Specification constraint: Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.
-  - Blocking: Yes
-
-### Product Constraints
-
-- `PROD-29-002` User journey details are missing
-  - Specification constraint: Describe the user journey for this feature including entry point, completion state, and error path expectation.
-  - Blocking: Yes
-- `PROD-29-005` Acceptance criteria are not measurable
-  - Specification constraint: Define measurable acceptance outcomes for this feature so completion can be verified objectively.
-  - Blocking: No
-
-<!-- review-findings:end -->

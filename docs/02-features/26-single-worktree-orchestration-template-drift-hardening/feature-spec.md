@@ -6,11 +6,11 @@
 
 ## Overview
 
-**Feature ID:** `F-04`
+**Feature ID:** `F-26`
 
 **Owner:** Developer/PO
 
-**Last Updated:** 2026-02-19
+**Last Updated:** 2026-02-20
 
 ### Summary
 
@@ -21,22 +21,22 @@ Reliable role collaboration without worktree tracking-file drift.
 ### Who is this for?
 
 - **Primary users:** Developer/PO
-- **User goals:** Deliver `Single-worktree orchestration + template-drift hardening` with deterministic behavior.
-- **Current pain:** PRD intent exists, but feature-level execution details are missing.
+- **User goals:** Deliver `Single-worktree orchestration + template-drift hardening` in line with PRD scope and constraints.
+- **Current pain:** Reliable role collaboration without worktree tracking-file drift.
 
 ### Why do they need it?
 
-**As a** developer/PO
+**As a** Developer/PO
 
 **I want to** implement `Single-worktree orchestration + template-drift hardening`
 
-**So that** the prioritized PRD outcome is delivered reliably.
+**So that** reliable role collaboration without worktree tracking-file drift.
 
 ### User Value
 
-- **Value proposition:** Converts PRD intent into executable feature scope.
+- **Priority:** P0
 - **Expected impact:** Reliable role collaboration without worktree tracking-file drift.
-- **Priority:** P0.
+- **Source notes:** No `feature-worktrees.json`; deterministic recovery
 
 ## Feature Requirements
 
@@ -44,14 +44,18 @@ Reliable role collaboration without worktree tracking-file drift.
 
 #### Core Functionality
 
-- **Requirement 1:** Implement `Single-worktree orchestration + template-drift hardening` according to PRD priority `P0`.
-- **Requirement 2:** Keep behavior deterministic and idempotent on reruns.
-- **Requirement 3:** Document boundaries, success criteria, and evidence paths.
+- [ ] **FR-014:** Harden template drift detection and scoped autofix recovery.
+  - **Acceptance link:** Workflow detects template/living-file drift, attempts deterministic scoped repairs, re-stages only allowed files, and fails with explicit remediation when unresolved.
+- [ ] **FR-017:** Enforce token budget guardrails with compact summaries.
+  - **Acceptance link:** Each role step records concise summaries, offloads overflow output, and reports deterministic remediation when budget guardrails are exceeded.
+- [ ] **FR-018:** Expand deterministic auto-fix and auto-recovery for common failure classes.
+  - **Acceptance link:** Sync/formatting/staging/retry-safe rerun failures attempt scoped deterministic repair first; unresolved cases fail closed with explicit remediation.
 
 #### Edge Cases
 
 - Missing or ambiguous PRD details require explicit PO clarification.
 - Existing implementation artifacts must not be overwritten destructively.
+- Dependency preconditions must fail closed with actionable errors.
 
 ### Product Surfaces
 
@@ -64,10 +68,13 @@ Reliable role collaboration without worktree tracking-file drift.
 
 ## Acceptance Criteria
 
-- Feature folder content is specific to this PRD item, not template placeholders.
-- Functional behavior and tests are defined before patching.
-- Scope boundaries and non-goals are explicit.
+- Generated docs contain no unresolved feature-template placeholders.
+- Feature requirements in this spec map to executable tasks and tests.
+- Dependencies and scope boundaries remain explicit and testable.
 - Validation evidence is captured in work-item logs.
+- `FR-014` acceptance satisfied: Workflow detects template/living-file drift, attempts deterministic scoped repairs, re-stages only allowed files, and fails with explicit remediation when unresolved.
+- `FR-017` acceptance satisfied: Each role step records concise summaries, offloads overflow output, and reports deterministic remediation when budget guardrails are exceeded.
+- `FR-018` acceptance satisfied: Sync/formatting/staging/retry-safe rerun failures attempt scoped deterministic repair first; unresolved cases fail closed with explicit remediation.
 
 ## Scope
 
@@ -90,6 +97,7 @@ Reliable role collaboration without worktree tracking-file drift.
 - `docs/01-product/prd.md`
 - `docs/02-features/AGENTS.md`
 - `docs/04-process/ticket-execution-protocol.md`
+- (none)
 
 ### Blocks
 
@@ -99,30 +107,3 @@ Reliable role collaboration without worktree tracking-file drift.
 
 - Source notes: No `feature-worktrees.json`; deterministic recovery
 - Ambiguous acceptance criteria can cause rework if not clarified during planning.
-
-## Automated Review Summary
-
-<!-- review-findings:start -->
-
-### Security Constraints
-
-- `SEC-26-002` Access-control expectations are missing for feature scope
-  - Specification constraint: Document required authorization expectations and denied-path behavior for feature actions that can change protected state.
-  - Blocking: Yes
-- `SEC-26-003` Sensitive-data redaction is undefined for feature logging/output
-  - Specification constraint: If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.
-  - Blocking: Yes
-- `SEC-26-004` Path-safety constraints are missing for feature file operations
-  - Specification constraint: Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.
-  - Blocking: Yes
-
-### Product Constraints
-
-- `PROD-26-002` User journey details are missing
-  - Specification constraint: Describe the user journey for this feature including entry point, completion state, and error path expectation.
-  - Blocking: Yes
-- `PROD-26-005` Acceptance criteria are not measurable
-  - Specification constraint: Define measurable acceptance outcomes for this feature so completion can be verified objectively.
-  - Blocking: No
-
-<!-- review-findings:end -->

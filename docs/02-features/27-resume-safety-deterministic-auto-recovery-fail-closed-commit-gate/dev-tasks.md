@@ -12,7 +12,7 @@ Priority: P0
 
 Status: Not Started
 
-Last Updated: 2026-02-19
+Last Updated: 2026-02-20
 
 Product Surfaces: CLI
 
@@ -38,55 +38,40 @@ Record each execution round here. Link any related logs in `docs/03-logs/`.
 When execution starts, add a new work-item entry using
 `docs/02-features/feature-template/dev-tasks.md` format.
 
-## Review Findings Backlog
-
-<!-- review-backlog:start -->
-
-### Patcher Tasks
-
-- [ ] `SEC-27-002` Access-control expectations are missing for feature scope
-  - Action: Add explicit authN/authZ requirements and denied-path behavior for this feature where privileged actions are possible.
-  - Acceptance: Feature docs and tests include at least one denied-path scenario proving unauthorized access is blocked.
-- [ ] `SEC-27-003` Sensitive-data redaction is undefined for feature logging/output
-  - Action: Define and enforce redaction/masking rules before feature-owned log or offload writes, and add regression coverage with synthetic secret values.
-  - Acceptance: Validation evidence proves sensitive tokens are masked in feature-generated logs/offload artifacts.
-- [ ] `SEC-27-004` Path-safety constraints are missing for feature file operations
-  - Action: Add explicit path-safety rules (allowlist + canonical containment checks) for feature file paths and cover traversal attempts in tests.
-  - Acceptance: Tests include traversal/absolute-path attempts and verify the feature fails closed without writing outside allowed roots.
-- [ ] `PROD-27-002` User journey details are missing
-  - Action: Add explicit user journey steps for this feature (entry, critical action, completion, and failure behavior).
-  - Acceptance: Feature spec includes a concrete journey with deterministic completion and error-state expectations.
-- [ ] `PROD-27-005` Acceptance criteria are not measurable
-  - Action: Add measurable acceptance criteria for this feature with deterministic observable outputs/evidence.
-  - Acceptance: Acceptance criteria include measurable checks that can be validated without subjective interpretation.
-
-### Human Validation Requests (Product Owner / end-user)
-
-- [ ] No human-validation requests.
-
-<!-- review-backlog:end -->
-
 ## Task Breakdown
 
 ### Discovery and Spec Sync
 
 - [ ] **TASK-001: Confirm requirements for `Resume safety + deterministic auto-recovery + fail-closed commit gate`**
-  - Align acceptance criteria with PRD priority `P0`.
+  - Align acceptance criteria with PRD priority `P0` and requirements `FR-018, FR-011, FR-012`.
   - Document scope boundaries and non-goals before coding.
   - **Acceptance:** Scope and success criteria are explicit.
+
+### Requirement Mapping
+
+- [ ] **TASK-27-REQ-FR-018: map requirement to implementation**
+  - Requirement: Expand deterministic auto-fix and auto-recovery for common failure classes.
+  - Acceptance evidence: Sync/formatting/staging/retry-safe rerun failures attempt scoped deterministic repair first; unresolved cases fail closed with explicit remediation.
+- [ ] **TASK-27-REQ-FR-011: map requirement to implementation**
+  - Requirement: Post-run improvement proposals with human gate.
+  - Acceptance evidence: Failures log errors with `WI/agent/step`, propose a patch (not auto-applied), and record in `docs/possible-improvements.md`.
+- [ ] **TASK-27-REQ-FR-012: map requirement to implementation**
+  - Requirement: Resume in-progress work items deterministically.
+  - Acceptance evidence: Existing execution log resumes automatically, completed stages are skipped safely, tests/CI are re-run, and startup does not discard dirty active-worktree state unless explicitly requested.
 
 ### Implementation
 
 - [ ] **TASK-002: Implement `Resume safety + deterministic auto-recovery + fail-closed commit gate` capability**
-  - Build minimum required behavior for surfaces: CLI.
+  - Implement PRD outcome: Interrupted runs resume safely; common deterministic failures self-heal safely.
+  - Target product surfaces: CLI.
   - Keep behavior deterministic and idempotent on reruns.
-  - **Acceptance:** Primary workflow works end-to-end.
+  - **Acceptance:** Primary workflow works end-to-end with documented constraints.
 
 ### Testing
 
 - [ ] **TASK-003: Add tests before patch completion**
   - Add failing tests first, then implement the smallest passing patch.
-  - Cover happy path and at least one edge condition.
+  - Cover requirement refs `FR-018, FR-011, FR-012` plus at least one edge condition.
   - **Acceptance:** Tests guard against regressions.
 
 ### Validation and Reporting

@@ -2,7 +2,7 @@
 
 > Machine-managed by `tools/pc-prepare-features`.
 
-**Generated At (UTC):** 2026-02-19T17:04:54Z
+**Generated At (UTC):** 2026-02-20T15:22:36Z
 
 ## Ordered features
 
@@ -20,12 +20,12 @@
 
 ## Decisions
 
-- `bootstrap-safe-template-reapply`: depends_on=(none); rationale: Carry forward prior ordering: bootstrap remains the single root capability and deterministic entrypoint for all downstream features.
-- `output-offload-token-budget-guardrails-structured-logs-shared-runner`: depends_on=bootstrap-safe-template-reapply; rationale: Offload, logging, token guardrails, and shared runner are prerequisite infrastructure for deterministic execution and later recovery/governance layers.
-- `deterministic-work-item-execution-with-explicit-gates-zero-input-defaults`: depends_on=bootstrap-safe-template-reapply, output-offload-token-budget-guardrails-structured-logs-shared-runner; rationale: Core Plan->Patch->Test->Report gate behavior depends on both template baseline and shared infra/telemetry being in place.
-- `single-worktree-orchestration-template-drift-hardening`: depends_on=bootstrap-safe-template-reapply, output-offload-token-budget-guardrails-structured-logs-shared-runner, deterministic-work-item-execution-with-explicit-gates-zero-input-defaults; rationale: Single-worktree and drift-hardening controls are sequenced after execution semantics and observability are stable.
-- `resume-safety-deterministic-auto-recovery-fail-closed-commit-gate`: depends_on=output-offload-token-budget-guardrails-structured-logs-shared-runner, deterministic-work-item-execution-with-explicit-gates-zero-input-defaults, single-worktree-orchestration-template-drift-hardening; rationale: Resume and deterministic auto-recovery require prior execution state model, drift controls, and evidence infrastructure.
-- `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`: depends_on=deterministic-work-item-execution-with-explicit-gates-zero-input-defaults; rationale: Role partitioning and plan-review governance are layered on top of deterministic execution core behavior.
-- `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`: depends_on=deterministic-work-item-execution-with-explicit-gates-zero-input-defaults, orchestrator-roles-plan-reviewer-gate-role-specific-prompts; rationale: Anti-hardcode enforcement and synthetic smoke testing depend on established gated execution and role-governed handoffs.
-- `incremental-prd-to-features-post-run-learning-loop`: depends_on=bootstrap-safe-template-reapply, single-worktree-orchestration-template-drift-hardening, resume-safety-deterministic-auto-recovery-fail-closed-commit-gate; rationale: Incremental reconciliation and learning-loop proposals are sequenced after bootstrap, drift hardening, and resume integrity are stable.
-- `workflow-complexity-reduction-skill-inventory-pruning`: depends_on=deterministic-work-item-execution-with-explicit-gates-zero-input-defaults, orchestrator-roles-plan-reviewer-gate-role-specific-prompts, incremental-prd-to-features-post-run-learning-loop; rationale: Complexity reduction is intentionally last to avoid destabilizing required gates before execution reliability and doc-evolution flows are in place.
+- `bootstrap-safe-template-reapply`: depends_on=(none); rationale: Retained as the sole root capability to preserve idempotent bootstrap baseline for all downstream features.
+- `output-offload-token-budget-guardrails-structured-logs-shared-runner`: depends_on=bootstrap-safe-template-reapply; rationale: Shared runner, offload, and observability infrastructure must exist before orchestration and recovery layers.
+- `deterministic-work-item-execution-with-explicit-gates-zero-input-defaults`: depends_on=bootstrap-safe-template-reapply, output-offload-token-budget-guardrails-structured-logs-shared-runner; rationale: Deterministic Plan->Patch->Test->Report and zero-input policy are sequenced after baseline and telemetry/offload primitives.
+- `single-worktree-orchestration-template-drift-hardening`: depends_on=bootstrap-safe-template-reapply, output-offload-token-budget-guardrails-structured-logs-shared-runner, deterministic-work-item-execution-with-explicit-gates-zero-input-defaults; rationale: Worktree policy and drift hardening are applied after core execution semantics and shared infra are stable.
+- `resume-safety-deterministic-auto-recovery-fail-closed-commit-gate`: depends_on=output-offload-token-budget-guardrails-structured-logs-shared-runner, deterministic-work-item-execution-with-explicit-gates-zero-input-defaults, single-worktree-orchestration-template-drift-hardening; rationale: Resume/auto-recovery and fail-closed commit decisions require prior execution model, drift controls, and evidence/log substrate.
+- `orchestrator-roles-plan-reviewer-gate-role-specific-prompts`: depends_on=deterministic-work-item-execution-with-explicit-gates-zero-input-defaults; rationale: Role partitioning and plan-review governance are layered on deterministic execution behavior.
+- `anti-hardcode-test-policy-synthetic-end-to-end-smoke-feature`: depends_on=deterministic-work-item-execution-with-explicit-gates-zero-input-defaults, orchestrator-roles-plan-reviewer-gate-role-specific-prompts; rationale: Policy-driven validation and synthetic smoke coverage depend on established gated execution and role handoffs.
+- `incremental-prd-to-features-post-run-learning-loop`: depends_on=bootstrap-safe-template-reapply, single-worktree-orchestration-template-drift-hardening, resume-safety-deterministic-auto-recovery-fail-closed-commit-gate; rationale: Incremental doc evolution and learning-loop proposals require stable bootstrap, drift controls, and recovery integrity.
+- `workflow-complexity-reduction-skill-inventory-pruning`: depends_on=deterministic-work-item-execution-with-explicit-gates-zero-input-defaults, orchestrator-roles-plan-reviewer-gate-role-specific-prompts, incremental-prd-to-features-post-run-learning-loop; rationale: Complexity reduction is last to avoid destabilizing required gates before reliability and doc-evolution flows are established.

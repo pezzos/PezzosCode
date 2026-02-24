@@ -6,11 +6,11 @@
 
 ## Overview
 
-**Feature ID:** `F-05`
+**Feature ID:** `F-27`
 
 **Owner:** Developer/PO
 
-**Last Updated:** 2026-02-19
+**Last Updated:** 2026-02-20
 
 ### Summary
 
@@ -21,22 +21,22 @@ Interrupted runs resume safely; common deterministic failures self-heal safely.
 ### Who is this for?
 
 - **Primary users:** Developer/PO
-- **User goals:** Deliver `Resume safety + deterministic auto-recovery + fail-closed commit gate` with deterministic behavior.
-- **Current pain:** PRD intent exists, but feature-level execution details are missing.
+- **User goals:** Deliver `Resume safety + deterministic auto-recovery + fail-closed commit gate` in line with PRD scope and constraints.
+- **Current pain:** Interrupted runs resume safely; common deterministic failures self-heal safely.
 
 ### Why do they need it?
 
-**As a** developer/PO
+**As a** Developer/PO
 
 **I want to** implement `Resume safety + deterministic auto-recovery + fail-closed commit gate`
 
-**So that** the prioritized PRD outcome is delivered reliably.
+**So that** interrupted runs resume safely; common deterministic failures self-heal safely.
 
 ### User Value
 
-- **Value proposition:** Converts PRD intent into executable feature scope.
+- **Priority:** P0
 - **Expected impact:** Interrupted runs resume safely; common deterministic failures self-heal safely.
-- **Priority:** P0.
+- **Source notes:** Active-WIP preserve by default; strict commit gate
 
 ## Feature Requirements
 
@@ -44,14 +44,18 @@ Interrupted runs resume safely; common deterministic failures self-heal safely.
 
 #### Core Functionality
 
-- **Requirement 1:** Implement `Resume safety + deterministic auto-recovery + fail-closed commit gate` according to PRD priority `P0`.
-- **Requirement 2:** Keep behavior deterministic and idempotent on reruns.
-- **Requirement 3:** Document boundaries, success criteria, and evidence paths.
+- [ ] **FR-018:** Expand deterministic auto-fix and auto-recovery for common failure classes.
+  - **Acceptance link:** Sync/formatting/staging/retry-safe rerun failures attempt scoped deterministic repair first; unresolved cases fail closed with explicit remediation.
+- [ ] **FR-011:** Post-run improvement proposals with human gate.
+  - **Acceptance link:** Failures log errors with `WI/agent/step`, propose a patch (not auto-applied), and record in `docs/possible-improvements.md`.
+- [ ] **FR-012:** Resume in-progress work items deterministically.
+  - **Acceptance link:** Existing execution log resumes automatically, completed stages are skipped safely, tests/CI are re-run, and startup does not discard dirty active-worktree state unless explicitly requested.
 
 #### Edge Cases
 
 - Missing or ambiguous PRD details require explicit PO clarification.
 - Existing implementation artifacts must not be overwritten destructively.
+- Dependency preconditions must fail closed with actionable errors.
 
 ### Product Surfaces
 
@@ -64,10 +68,13 @@ Interrupted runs resume safely; common deterministic failures self-heal safely.
 
 ## Acceptance Criteria
 
-- Feature folder content is specific to this PRD item, not template placeholders.
-- Functional behavior and tests are defined before patching.
-- Scope boundaries and non-goals are explicit.
+- Generated docs contain no unresolved feature-template placeholders.
+- Feature requirements in this spec map to executable tasks and tests.
+- Dependencies and scope boundaries remain explicit and testable.
 - Validation evidence is captured in work-item logs.
+- `FR-018` acceptance satisfied: Sync/formatting/staging/retry-safe rerun failures attempt scoped deterministic repair first; unresolved cases fail closed with explicit remediation.
+- `FR-011` acceptance satisfied: Failures log errors with `WI/agent/step`, propose a patch (not auto-applied), and record in `docs/possible-improvements.md`.
+- `FR-012` acceptance satisfied: Existing execution log resumes automatically, completed stages are skipped safely, tests/CI are re-run, and startup does not discard dirty active-worktree state unless explicitly requested.
 
 ## Scope
 
@@ -90,6 +97,7 @@ Interrupted runs resume safely; common deterministic failures self-heal safely.
 - `docs/01-product/prd.md`
 - `docs/02-features/AGENTS.md`
 - `docs/04-process/ticket-execution-protocol.md`
+- (none)
 
 ### Blocks
 
@@ -99,30 +107,3 @@ Interrupted runs resume safely; common deterministic failures self-heal safely.
 
 - Source notes: Active-WIP preserve by default; strict commit gate
 - Ambiguous acceptance criteria can cause rework if not clarified during planning.
-
-## Automated Review Summary
-
-<!-- review-findings:start -->
-
-### Security Constraints
-
-- `SEC-27-002` Access-control expectations are missing for feature scope
-  - Specification constraint: Document required authorization expectations and denied-path behavior for feature actions that can change protected state.
-  - Blocking: Yes
-- `SEC-27-003` Sensitive-data redaction is undefined for feature logging/output
-  - Specification constraint: If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.
-  - Blocking: Yes
-- `SEC-27-004` Path-safety constraints are missing for feature file operations
-  - Specification constraint: Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.
-  - Blocking: Yes
-
-### Product Constraints
-
-- `PROD-27-002` User journey details are missing
-  - Specification constraint: Describe the user journey for this feature including entry point, completion state, and error path expectation.
-  - Blocking: Yes
-- `PROD-27-005` Acceptance criteria are not measurable
-  - Specification constraint: Define measurable acceptance outcomes for this feature so completion can be verified objectively.
-  - Blocking: No
-
-<!-- review-findings:end -->

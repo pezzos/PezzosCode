@@ -6,11 +6,11 @@
 
 ## Overview
 
-**Feature ID:** `F-09`
+**Feature ID:** `F-31`
 
 **Owner:** Developer/PO
 
-**Last Updated:** 2026-02-19
+**Last Updated:** 2026-02-20
 
 ### Summary
 
@@ -21,22 +21,22 @@ Lower maintenance overhead with fewer fragile execution paths.
 ### Who is this for?
 
 - **Primary users:** Developer/PO
-- **User goals:** Deliver `Workflow complexity reduction + skill inventory pruning` with deterministic behavior.
-- **Current pain:** PRD intent exists, but feature-level execution details are missing.
+- **User goals:** Deliver `Workflow complexity reduction + skill inventory pruning` in line with PRD scope and constraints.
+- **Current pain:** Lower maintenance overhead with fewer fragile execution paths.
 
 ### Why do they need it?
 
-**As a** developer/PO
+**As a** Developer/PO
 
 **I want to** implement `Workflow complexity reduction + skill inventory pruning`
 
-**So that** the prioritized PRD outcome is delivered reliably.
+**So that** lower maintenance overhead with fewer fragile execution paths.
 
 ### User Value
 
-- **Value proposition:** Converts PRD intent into executable feature scope.
+- **Priority:** P1
 - **Expected impact:** Lower maintenance overhead with fewer fragile execution paths.
-- **Priority:** P1.
+- **Source notes:** Remove/archive low-value skills and redundant script/config paths
 
 ## Feature Requirements
 
@@ -44,14 +44,18 @@ Lower maintenance overhead with fewer fragile execution paths.
 
 #### Core Functionality
 
-- **Requirement 1:** Implement `Workflow complexity reduction + skill inventory pruning` according to PRD priority `P1`.
-- **Requirement 2:** Keep behavior deterministic and idempotent on reruns.
-- **Requirement 3:** Document boundaries, success criteria, and evidence paths.
+- [ ] **FR-104:** Prune low-value skill inventory regularly.
+  - **Acceptance link:** Workflow includes periodic review to remove/archive unused or redundant skills while preserving required execution capabilities.
+- [ ] **FR-105:** Reduce redundant execution paths and configuration complexity.
+  - **Acceptance link:** Equivalent behavior is maintained while consolidating redundant paths; removed paths are documented with rollback notes.
+- [ ] **FR-005:** Provide a shared runner library for tool/script execution.
+  - **Acceptance link:** Tools can call a shared runner that injects `work_item_id`, `agent_name`, `run_id` and logging helpers.
 
 #### Edge Cases
 
 - Missing or ambiguous PRD details require explicit PO clarification.
 - Existing implementation artifacts must not be overwritten destructively.
+- Dependency preconditions must fail closed with actionable errors.
 
 ### Product Surfaces
 
@@ -64,10 +68,13 @@ Lower maintenance overhead with fewer fragile execution paths.
 
 ## Acceptance Criteria
 
-- Feature folder content is specific to this PRD item, not template placeholders.
-- Functional behavior and tests are defined before patching.
-- Scope boundaries and non-goals are explicit.
+- Generated docs contain no unresolved feature-template placeholders.
+- Feature requirements in this spec map to executable tasks and tests.
+- Dependencies and scope boundaries remain explicit and testable.
 - Validation evidence is captured in work-item logs.
+- `FR-104` acceptance satisfied: Workflow includes periodic review to remove/archive unused or redundant skills while preserving required execution capabilities.
+- `FR-105` acceptance satisfied: Equivalent behavior is maintained while consolidating redundant paths; removed paths are documented with rollback notes.
+- `FR-005` acceptance satisfied: Tools can call a shared runner that injects `work_item_id`, `agent_name`, `run_id` and logging helpers.
 
 ## Scope
 
@@ -90,6 +97,7 @@ Lower maintenance overhead with fewer fragile execution paths.
 - `docs/01-product/prd.md`
 - `docs/02-features/AGENTS.md`
 - `docs/04-process/ticket-execution-protocol.md`
+- (none)
 
 ### Blocks
 
@@ -99,30 +107,3 @@ Lower maintenance overhead with fewer fragile execution paths.
 
 - Source notes: Remove/archive low-value skills and redundant script/config paths
 - Ambiguous acceptance criteria can cause rework if not clarified during planning.
-
-## Automated Review Summary
-
-<!-- review-findings:start -->
-
-### Security Constraints
-
-- `SEC-31-002` Access-control expectations are missing for feature scope
-  - Specification constraint: Document required authorization expectations and denied-path behavior for feature actions that can change protected state.
-  - Blocking: Yes
-- `SEC-31-003` Sensitive-data redaction is undefined for feature logging/output
-  - Specification constraint: If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.
-  - Blocking: Yes
-- `SEC-31-004` Path-safety constraints are missing for feature file operations
-  - Specification constraint: Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.
-  - Blocking: Yes
-
-### Product Constraints
-
-- `PROD-31-002` User journey details are missing
-  - Specification constraint: Describe the user journey for this feature including entry point, completion state, and error path expectation.
-  - Blocking: Yes
-- `PROD-31-005` Acceptance criteria are not measurable
-  - Specification constraint: Define measurable acceptance outcomes for this feature so completion can be verified objectively.
-  - Blocking: No
-
-<!-- review-findings:end -->

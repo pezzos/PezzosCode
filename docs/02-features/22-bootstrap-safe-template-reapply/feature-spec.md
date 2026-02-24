@@ -6,11 +6,11 @@
 
 ## Overview
 
-**Feature ID:** `F-01`
+**Feature ID:** `F-22`
 
 **Owner:** Developer/PO
 
-**Last Updated:** 2026-02-19
+**Last Updated:** 2026-02-20
 
 ### Summary
 
@@ -21,22 +21,22 @@ New/existing repos become execution-ready with idempotent reruns.
 ### Who is this for?
 
 - **Primary users:** Developer/PO
-- **User goals:** Deliver `Bootstrap + safe template reapply` with deterministic behavior.
-- **Current pain:** PRD intent exists, but feature-level execution details are missing.
+- **User goals:** Deliver `Bootstrap + safe template reapply` in line with PRD scope and constraints.
+- **Current pain:** New/existing repos become execution-ready with idempotent reruns.
 
 ### Why do they need it?
 
-**As a** developer/PO
+**As a** Developer/PO
 
 **I want to** implement `Bootstrap + safe template reapply`
 
-**So that** the prioritized PRD outcome is delivered reliably.
+**So that** new/existing repos become execution-ready with idempotent reruns.
 
 ### User Value
 
-- **Value proposition:** Converts PRD intent into executable feature scope.
+- **Priority:** P0
 - **Expected impact:** New/existing repos become execution-ready with idempotent reruns.
-- **Priority:** P0.
+- **Source notes:** Conflict handling: overwrite/merge/skip
 
 ## Feature Requirements
 
@@ -44,14 +44,18 @@ New/existing repos become execution-ready with idempotent reruns.
 
 #### Core Functionality
 
-- **Requirement 1:** Implement `Bootstrap + safe template reapply` according to PRD priority `P0`.
-- **Requirement 2:** Keep behavior deterministic and idempotent on reruns.
-- **Requirement 3:** Document boundaries, success criteria, and evidence paths.
+- [ ] **FR-101:** Reapply templates to existing repos safely.
+  - **Acceptance link:** Conflicts handled by overwrite/merge/skip; idempotent reruns.
+- [ ] **FR-003:** Require ticket-specific Definition of Done before coding.
+  - **Acceptance link:** Ticket template includes explicit work-item DoD; execution blocks patching until DoD, tests, and report sections are defined.
+- [ ] **FR-012:** Resume in-progress work items deterministically.
+  - **Acceptance link:** Existing execution log resumes automatically, completed stages are skipped safely, tests/CI are re-run, and startup does not discard dirty active-worktree state unless explicitly requested.
 
 #### Edge Cases
 
 - Missing or ambiguous PRD details require explicit PO clarification.
 - Existing implementation artifacts must not be overwritten destructively.
+- Dependency preconditions must fail closed with actionable errors.
 
 ### Product Surfaces
 
@@ -64,10 +68,13 @@ New/existing repos become execution-ready with idempotent reruns.
 
 ## Acceptance Criteria
 
-- Feature folder content is specific to this PRD item, not template placeholders.
-- Functional behavior and tests are defined before patching.
-- Scope boundaries and non-goals are explicit.
+- Generated docs contain no unresolved feature-template placeholders.
+- Feature requirements in this spec map to executable tasks and tests.
+- Dependencies and scope boundaries remain explicit and testable.
 - Validation evidence is captured in work-item logs.
+- `FR-101` acceptance satisfied: Conflicts handled by overwrite/merge/skip; idempotent reruns.
+- `FR-003` acceptance satisfied: Ticket template includes explicit work-item DoD; execution blocks patching until DoD, tests, and report sections are defined.
+- `FR-012` acceptance satisfied: Existing execution log resumes automatically, completed stages are skipped safely, tests/CI are re-run, and startup does not discard dirty active-worktree state unless explicitly requested.
 
 ## Scope
 
@@ -90,6 +97,7 @@ New/existing repos become execution-ready with idempotent reruns.
 - `docs/01-product/prd.md`
 - `docs/02-features/AGENTS.md`
 - `docs/04-process/ticket-execution-protocol.md`
+- (none)
 
 ### Blocks
 
@@ -99,30 +107,3 @@ New/existing repos become execution-ready with idempotent reruns.
 
 - Source notes: Conflict handling: overwrite/merge/skip
 - Ambiguous acceptance criteria can cause rework if not clarified during planning.
-
-## Automated Review Summary
-
-<!-- review-findings:start -->
-
-### Security Constraints
-
-- `SEC-22-002` Access-control expectations are missing for feature scope
-  - Specification constraint: Document required authorization expectations and denied-path behavior for feature actions that can change protected state.
-  - Blocking: Yes
-- `SEC-22-003` Sensitive-data redaction is undefined for feature logging/output
-  - Specification constraint: If this feature writes logs/offload/output artifacts, define redaction rules for secrets and sensitive tokens.
-  - Blocking: Yes
-- `SEC-22-004` Path-safety constraints are missing for feature file operations
-  - Specification constraint: Where feature behavior constructs file paths, define canonicalization, containment checks, and traversal rejection.
-  - Blocking: Yes
-
-### Product Constraints
-
-- `PROD-22-002` User journey details are missing
-  - Specification constraint: Describe the user journey for this feature including entry point, completion state, and error path expectation.
-  - Blocking: Yes
-- `PROD-22-005` Acceptance criteria are not measurable
-  - Specification constraint: Define measurable acceptance outcomes for this feature so completion can be verified objectively.
-  - Blocking: No
-
-<!-- review-findings:end -->
