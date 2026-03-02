@@ -183,7 +183,7 @@ class BootstrapIntoLogTests(unittest.TestCase):
                     f"{rel_path.name} should be listed exactly once",
                 )
 
-    def test_root_templates_and_skills_receive_markers(self):
+    def test_root_templates_receive_markers(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)
             result = run_bootstrap_into([tmp_dir])
@@ -197,16 +197,6 @@ class BootstrapIntoLogTests(unittest.TestCase):
                     target.read_text(encoding="utf-8"),
                     f"{name} should not include a legacy marker footer",
                 )
-
-            skill_path = (
-                Path(tmp_dir) / ".codex" / "skills" / "context-to-product" / "SKILL.md"
-            )
-            self.assertTrue(skill_path.exists(), "skill should be present")
-            self.assertNotIn(
-                LEGACY_BOOTSTRAP_MARKER,
-                skill_path.read_text(encoding="utf-8"),
-                "Skill files should not include legacy marker footers",
-            )
 
     def test_deploys_prompt_templates_as_living_prompts_only(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

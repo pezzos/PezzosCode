@@ -1,9 +1,0 @@
-interface:
-  display_name: "README Sync"
-  short_description: "Deduplicate and refresh README docs"
-  default_prompt: "Use $readme-sync to reconcile in-scope README files against context/log sources and remove duplication."
-dependencies:
-  tools:
-    - type: "mcp"
-      value: "serena"
-      description: "Serena MCP server for symbol-aware navigation and edits"

@@ -2708,3 +2708,34 @@ Overall, this was a successful launch with clear areas for improvement. The core
 - Result: PASS (offload id `739b873861b2fe0582505dde940f6b8b34a54f0ef31e741db2d7dcf71b898a04`).
 - Command: `tools/offload-proxy/pp python -m unittest discover -s tests -p "test_codex_exec_sandbox.py"`
 - Result: PASS (`5` tests; offload id `464e0ee629edf74de09ef21e4232fbcedc26588ff7cc23c470f47fe2da88c255`).
+
+## 2026-03-02 - Validate global-skill migration and bootstrap/tooling alignment
+
+- Global skill validation:
+  - Command: `python3 /Users/alexandrepezzotta/.codex/skills/.system/skill-creator/scripts/quick_validate.py <skill-dir>` over six new skills (`build-prd-from-context`, `execute-approved-plan-safely`, `reconcile-readmes`, `sync-root-files-from-docs`, `refresh-context-docs`, `update-project-logs`)
+  - Result: PASS (all returned `Skill is valid!`).
+- Global `openai.yaml` policy/contract checks:
+  - Command: `python3 - <<'PY' ...` (validated `short_description` length 25..64, `default_prompt` contains `$skill-name`, and expected `allow_implicit_invocation` values)
+  - Result: PASS (`openai.yaml checks: ok`).
+- Deterministic helper scripts (`--help`, nominal, missing-prereq):
+  - Command: `python3 ~/.codex/skills/*/scripts/*.py --help`
+  - Result: PASS (all helpers).
+  - Command: nominal probes against `/Users/alexandrepezzotta/repos/PezzosCode`
+  - Result: PASS (`discover_inputs`, `inventory_readmes`, `discover_root_targets`, `detect_context_mode`, `new_log_entry`).
+  - Command: missing-prereq probes against empty temp directory
+  - Result: PASS (all helpers returned non-zero as expected).
+- Bootstrap regression tests:
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests -p "test_bootstrap_into.py"`
+  - Result: PASS (`20` tests; offload id `348286c38a2ff0669dab1207b0c09d6bbb1a6f4058138352aa6f9e616049c4cb`).
+  - Command: `tools/offload-proxy/pp python3 -m unittest discover -s tests_extra -p "test_bootstrap_into_extra.py"`
+  - Result: PASS (`10` tests; offload id `b491f088ff32b52a3c9d42efac080fc6bc42774f73e33a0edf7acf0a5d55ee40`).
+- Repo gate checks:
+  - Command: `tools/offload-proxy/pp make test`
+  - Result: FAIL first attempt (offload id `13c84b324eea54c44c60fe96b02459d61766ac5fbd9190530d4a57f4e3d43052`) due residual empty legacy skill directories causing `skills-check: context-to-product missing SKILL.md`.
+  - Remediation: removed residual empty legacy directories under `.codex/skills/`.
+  - Command: `tools/offload-proxy/pp make test`
+  - Result: PASS (offload id `5b9b6c4db9d2b313490181a259b026db0c36019465527b90bd887c30fc66728e`).
+  - Command: `tools/offload-proxy/pp make ci`
+  - Result: PASS (offload id `d8de8b67937bbd077ceb20932d93de49f39d7363b1a2506ce68e93023e90570e`).
+  - Command: `python3 -S tools/pc-skills-metadata-check --verbose`
+  - Result: PASS (`pc-skills-metadata-check: ok (9 skills)`).

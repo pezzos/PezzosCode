@@ -10,7 +10,7 @@
 ┌──────────────┐   bootstrap/update   ┌──────────────────────┐
 │  User (PO)   │────────────────────▶│  Target Project Repo  │
 └──────────────┘                      │  (bootstrapped docs, │
-          │                           │   tools, skills)     │
+          │                           │   tools)             │
           │ execute tickets           └──────────────────────┘
           ▼
 ┌────────────────────────┐
@@ -47,8 +47,8 @@
 
 ### Skills (Codex helpers)
 
-- **Technology:** Markdown skill files in `.codex/skills/`.
-- **Entry Points:** `context-to-product`, `prd-to-features`, `feature-status-audit`, `sync-root-from-context`, `update-context`, etc.
+- **Technology:** Markdown skill files in global `~/.codex/skills/`.
+- **Entry Points:** `build-prd-from-context`, `reconcile-readmes`, `sync-root-files-from-docs`, `refresh-context-docs`, `update-project-logs`, `execute-approved-plan-safely`, etc.
 
 ### External Services
 
@@ -63,8 +63,8 @@
 
 1. **Bootstrap a project**
    - User action: run bootstrap/update command.
-   - System flow: tools/bootstrap-into → target repo docs/tools/skills/root files.
-   - Data touched: template files, docs, tools, skills, root templates.
+   - System flow: tools/bootstrap-into → target repo docs/tools/root files.
+   - Data touched: template files, docs, tools, root templates.
 
 2. **Execute approved work items**
    - User action: execute work items from `dev-tasks.md` in the bootstrapped repo.

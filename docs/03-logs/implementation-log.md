@@ -8649,3 +8649,51 @@ with `pc-feature: missing section Patch in entry ...`.
 
 - Role prompts are analysis tasks; they should not have write capability.
 - Deterministic default for `review-features` reduces runtime variability and eliminates implicit writable nested sessions unless explicitly requested.
+
+### 2026-03-02 - Migrate six repo-local skills to standardized global skills in `~/.codex/skills`
+
+**Feature/Bug:** Standardize and externalize six Codex skills so they are reusable across repositories without bootstrapped repo-local copies.
+
+**Changed Files:**
+
+- `/Users/alexandrepezzotta/.codex/skills/build-prd-from-context/*`
+- `/Users/alexandrepezzotta/.codex/skills/execute-approved-plan-safely/*`
+- `/Users/alexandrepezzotta/.codex/skills/reconcile-readmes/*`
+- `/Users/alexandrepezzotta/.codex/skills/sync-root-files-from-docs/*`
+- `/Users/alexandrepezzotta/.codex/skills/refresh-context-docs/*`
+- `/Users/alexandrepezzotta/.codex/skills/update-project-logs/*`
+- `tools/bootstrap-into`
+- `tests/test_bootstrap_into.py`
+- `tests_extra/test_bootstrap_into_extra.py`
+- `Makefile`
+- `tools/templates/root/Makefile`
+- `README.md`
+- `tools/README.md`
+- `docs/00-context/system-map.md`
+- `docs/04-process/dev-workflow.md`
+- `tools/templates/docs/04-process/dev-workflow.md`
+- removed legacy repo-local skills under:
+  - `.codex/skills/context-to-product/`
+  - `.codex/skills/implement-plan-safe/`
+  - `.codex/skills/readme-sync/`
+  - `.codex/skills/sync-root-from-context/`
+  - `.codex/skills/update-context/`
+  - `.codex/skills/update-docs/`
+
+**What Changed:**
+
+- Created six new standardized skills in `~/.codex/skills` with uniform `SKILL.md` contracts (`Overview`, `Input Contract`, `Preflight`, `Workflow`, `Deterministic Helpers`, `Output Contract`, `Failure Modes`, `Validation`).
+- Added deterministic helper scripts for five skills (`discover_inputs.py`, `inventory_readmes.py`, `discover_root_targets.py`, `detect_context_mode.py`, `new_log_entry.py`) with explicit non-zero failure on missing prerequisites.
+- Applied mixed implicit invocation policy in each `agents/openai.yaml`:
+  - implicit: `build-prd-from-context`, `reconcile-readmes`, `update-project-logs`
+  - explicit-only: `execute-approved-plan-safely`, `sync-root-files-from-docs`, `refresh-context-docs`
+- Updated bootstrap behavior to stop copying repo-local `.codex/skills` into target repositories.
+- Updated bootstrap regression tests to validate root template copy behavior only (no skill copy assertions).
+- Updated live/template docs and tooling docs to reference global skill location and new skill names.
+- Updated `skills-check` behavior in live/template Makefiles to skip cleanly when local `.codex/skills` is absent.
+
+**Why:**
+
+- Reduce repository coupling to local skill inventory and make skills portable as canonical global assets.
+- Improve reliability via deterministic helper scripts with explicit preflight failures.
+- Keep bootstrap focused on docs/tools runtime assets while skills are managed at user-global Codex scope.

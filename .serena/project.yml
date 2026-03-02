@@ -17,8 +17,6 @@ base_modes:
 default_modes:
   - interactive
   - editing
-
-# prevent Serena from opening the web dashboard on launch for this project
 web_dashboard_open_on_launch: false
 
 # list of tool names to exclude. We recommend not excluding any tools, see the readme for more details.
@@ -89,7 +87,6 @@ initial_prompt: |
   Sources of truth: docs/00-context/ and docs/03-logs/.
   Follow docs/04-process/ticket-execution-protocol.md and docs/04-process/human-orchestration-workflow.md.
   Use tools/offload-proxy/pp for large-output reads, keep diffs small, and ask if context is missing.
-
 # the encoding used by text files in the project
 # For a list of possible encodings, see https://docs.python.org/3.11/library/codecs.html#standard-encodings
 encoding: utf-8
@@ -124,3 +121,16 @@ languages:
   - yaml
   - toml
   - bash
+
+# time budget (seconds) per tool call for the retrieval of additional symbol information
+# such as docstrings or parameter information.
+# This overrides the corresponding setting in the global configuration; see the documentation there.
+# If null or missing, use the setting from the global configuration.
+symbol_info_budget:
+
+# The language backend to use for this project.
+# If not set, the global setting from serena_config.yml is used.
+# Valid values: LSP, JetBrains
+# Note: the backend is fixed at startup. If a project with a different backend
+# is activated post-init, an error will be returned.
+language_backend:

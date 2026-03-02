@@ -6,7 +6,7 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 
 ## Structure / Map
 
-- `tools/bootstrap-into` - Seed a target repo with templates, docs, tools, and skills.
+- `tools/bootstrap-into` - Seed a target repo with templates, docs, and tools.
 - `tools/pc-context-check` - Validate context clarity and expected-feature completeness before PRD generation.
 - `tools/pc-write-prd` - Refresh PRD in place from context/process docs through Product Manager review.
 - `tools/pc-prepare-features` - Generate global design/UX/security/dependency-order artifacts and run feature generation.

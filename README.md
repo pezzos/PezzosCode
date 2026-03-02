@@ -6,7 +6,7 @@
 
 ## Purpose
 
-- Bootstrap a repo with the PezzosCode docs, tools, and skills.
+- Bootstrap a repo with the PezzosCode docs and tools.
 - Keep execution predictable with a CLI-only operating model.
 - Preserve traceability through context docs and chronological logs.
 
@@ -25,7 +25,7 @@
 
 - `docs/` - Context, product, features, logs, and process docs.
 - `tools/` - Workflow scripts (`bootstrap-into`, `pc-prepare-features`, `pc-review-features`, `pc-feature`, `pc-commit`, offload proxy).
-- `.codex/skills/` - Reusable Codex skills.
+- `~/.codex/skills/` - Canonical reusable Codex skills (global, not bootstrapped).
 - `AGENTS.md` - Repo execution rules for AI agents.
 
 ## Related Docs

@@ -96,7 +96,7 @@ skills-check:
 	@bash -euo pipefail -c '\
 		root=".codex/skills"; \
 		if [[ ! -d "$$root" ]]; then \
-			echo "skills-check: missing $$root"; exit 1; \
+			echo "skills-check: skipping (no local $$root; canonical skills live in ~/.codex/skills)"; exit 0; \
 		fi; \
 		if find "$$root" -maxdepth 1 -type f | grep -q .; then \
 			echo "skills-check: unexpected files in $$root"; \

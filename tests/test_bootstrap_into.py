@@ -309,7 +309,7 @@ class TestBootstrapInto(unittest.TestCase):
                     f"{rel_path} should keep its canonical header",
                 )
 
-    def test_bootstrap_into_copies_root_templates_and_skills(self):
+    def test_bootstrap_into_copies_root_templates_only(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)
             result = run_bootstrap_into([tmp_dir])
@@ -323,10 +323,6 @@ class TestBootstrapInto(unittest.TestCase):
                 {
                     "rel": Path("pp.yml"),
                     "header": "threshold_lines: 200",
-                },
-                {
-                    "rel": Path(".codex/skills/context-to-product/SKILL.md"),
-                    "header_contains": "name: context-to-product",
                 },
             ]
 
@@ -364,11 +360,7 @@ class TestBootstrapInto(unittest.TestCase):
                         f"{rel_path} should retain its identifying signature",
                     )
 
-            for snippet in (
-                "AGENTS.md",
-                "pp.yml",
-                "context-to-product/SKILL.md",
-            ):
+            for snippet in ("AGENTS.md", "pp.yml"):
                 self.assertIn(
                     snippet,
                     stdout,

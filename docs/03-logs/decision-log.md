@@ -3067,3 +3067,24 @@ When a decision is reversed or replaced, document it here:
   - Role reviewers can no longer modify repository files during prompt-driven evaluation.
   - `make review-features` is deterministic and side-effect safer by default.
   - Unsafe command-construction regressions are now covered by automated tests.
+
+### DEC-086 - Standardize six repo-local skills as global canonical skills in `~/.codex/skills`
+
+- **Date:** 2026-03-02
+- **Status:** Accepted
+- **Context:** Six skills were maintained under repository-local `.codex/skills`, creating coupling between bootstrap behavior and skill lifecycle. The migration objective required globally reusable, standardized skills with deterministic helpers and explicit preflight failure behavior.
+- **Decision:**
+  - Make `~/.codex/skills` the canonical location for six renamed skills:
+    - `build-prd-from-context`
+    - `execute-approved-plan-safely`
+    - `reconcile-readmes`
+    - `sync-root-files-from-docs`
+    - `refresh-context-docs`
+    - `update-project-logs`
+  - Keep no backward-compatibility aliases for old names.
+  - Stop bootstrapping `.codex/skills` into target repositories.
+  - Use mixed implicit invocation policy by risk level (implicit only for low-risk doc maintenance skills).
+- **Consequences:**
+  - Bootstrap target repositories no longer receive repo-local skill files.
+  - Tooling/tests/docs were updated to remove assumptions about `.codex/skills/context-to-product` presence in bootstrap output.
+  - Deterministic helper scripts now enforce explicit non-zero failures when repository prerequisites are missing.

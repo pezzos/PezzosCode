@@ -50,7 +50,7 @@ Use this sequence when starting a new project with this template:
 
 When project context or the PRD changes, update the live root files (e.g. `AGENTS.md`,
 `.codex.toml`, `.serena/project.yml`) to match the real project. Use the
-`sync-root-from-context` skill to read `docs/00-context/` and `docs/01-product/prd.md`,
+`sync-root-files-from-docs` skill to read `docs/00-context/` and `docs/01-product/prd.md`,
 then align the live root files without modifying templates.
 
 ## Work Item Scope (Hard Rule)
