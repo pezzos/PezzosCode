@@ -42,7 +42,7 @@ file_opener = "cursor"
 
 # External notifier program (argv array). When unset: disabled.
 # Example: notify = ["notify-send", "Codex"]
-notify=[ ]
+notify = ["python3", "/Users/alexandrepezzotta/.codex/scripts/pushcut_notifier.py", "notify"]
 
 [profiles.Default]
 model = "gpt-5.3-codex"

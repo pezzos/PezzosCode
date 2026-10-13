@@ -8,6 +8,11 @@ always_offload:
   - sed
   - python3 -m unittest
   - python -m unittest
+  - make fmt
+  - make lint
+  - make accept
   - make test
+  - make check
   - make ci
+  - make build
   - pre-commit run

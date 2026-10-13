@@ -3,31 +3,103 @@
 ## Purpose
 
 - Capture project context and execution memory for human + AI collaboration.
-- Keep `docs/00-context/` and `docs/03-logs/` as the factual anchors for project statements.
-- Provide feature-level specs/tasks/tests and the process rules used to execute them.
+- Provide a simple, complete documentation system for autonomous orchestration.
 
-## Structure / Map
+## Structure
 
-- `docs/00-context/` - Vision, users, assumptions, system map, boundaries, expected features.
-- `docs/01-product/` - PRD plus global architecture (`design.md`), UX (`ux-ui.md`), and security (`security.md`) blueprints.
-- `docs/02-features/` - Dependency-ordered feature plan plus per-feature spec, technical design, tasks, and test plan.
-- `docs/03-logs/` - Implementation, decisions, bugs, validation outcomes, and insights.
-- `docs/04-process/` - Execution protocol, orchestration workflow, and quality standards.
+- `docs/AGENTS.md`: global documentation rules.
+- `docs/00-context/`: product framing before implementation.
+- `docs/01-product/`: formalized product bundle (`prd.md`, `design.md`, `ux-ui.md`,
+  `security.md`, `visual-guidelines.md`, `brand-content.md`, `journey-messaging.md`,
+  `infra-delivery.md`).
+- `docs/02-work-items/`: orchestrator working memory.
+- `docs/03-logs/`: accepted decisions and validation traces.
+- `docs/04-process/`: orchestration rules and role playbooks. Includes
+  `codex-runtime-maintenance.md` for global `~/.codex` runtime cleanup.
 
-## Workflow
+## Recommended flow
 
-1. Start from `docs/00-context/` before changing product or feature docs.
-2. Run `make context-check` (or rely on the automatic preflight in `make write-prd`) to validate context clarity and expected-feature completeness; review `docs/03-logs/context-clarity-report.json` when blocked.
-3. Run `make write-prd` to update `docs/01-product/prd.md` in place from context/process inputs and write `docs/03-logs/write-prd-report.json` plus `docs/03-logs/write-prd-state.json`.
-4. Run `make prepare-features` before feature generation to refresh design/UX/security/order artifacts and write `docs/03-logs/prepare-features-state.json` plus `docs/03-logs/prepare-features-pm-todo.md` (use `INCLUDE_PROCESS_FEATURES=1` only when process features should be generated; use `SNAPSHOT_RUNS=1` for per-run snapshots).
-5. Run `make review-features` after generation to inject Security Expert/Product Manager findings for open/in-progress features (use `INCLUDE_COMPLETED=1` only for explicit audits); actionable tasks are written in `dev-tasks.md`, summary constraints in `feature-spec.md`, and the run report in `docs/03-logs/review-features-report.json`. Feature status is tracked only in `dev-tasks.md` as `Status: Not Started | In Progress | Done`.
-6. Follow `Plan -> Patch -> Test -> Report` for each work item via `make feature`.
-7. Run `make release-readiness` when you want a PM go/no-go and follow-up plan; it writes `docs/03-logs/release-readiness-report.json` and updates the machine-managed release-readiness block in `docs/00-context/expected-features.md`.
-8. Record meaningful changes, decisions, bugs, validations, and insights in `docs/03-logs/`.
+1. Start from `orchestrator-governance`.
+1. Let the orchestrator run a quick context/product-doc drift pass and propose
+   maintenance when needed.
+1. Keep one canonical delivery phase (`POC`, `MVP`, or `custom`) documented in
+   `docs/00-context/*`, `docs/01-product/prd.md`, and
+   `.orchestrator/project-profile.json`.
+1. Use `orchestrator-proposal-mode` for idea refinement, `orchestrator-investigate-mode`
+   for diagnosis, or `orchestrator-plan-mode` for decision-complete planning.
+1. Refresh context/product/root docs only when the orchestrator or maintainer has a
+   concrete reason to do so.
+1. Execute the approved plan through orchestrated delegation.
+1. Update logs after acceptance (`docs/03-logs/*`).
+1. Let the orchestrator append notable retrospective feedback into
+   `.orchestrator/feedback/pending.json`; maintainers harvest that queue later from the
+   skills repo rather than reopening old sessions.
+1. Use `maintainer-feedback-to-backlog` when a maintainer should convert harvested
+   feedback into prepared backlog tasks and acknowledge the converted digests in source
+   repos.
+1. Treat the richer `docs/01-product` bundle as a phased workflow:
+   - deploy the managed bundle shape,
+   - enrich the docs per repo with the right domain experts,
+   - then run `docs-converge-implementation`, which applies the shared convergence
+     contract so implementation gaps become backlog tasks instead of silent drift.
 
-## Related Docs
+## Skills to know
 
-- `docs/00-context/context-boundaries-operating-model.md`
-- `docs/03-logs/AGENTS.md`
-- `docs/04-process/human-orchestration-workflow.md`
-- `docs/04-process/ticket-execution-protocol.md`
+Shared skills are provided globally from `~/.codex/skills`; this repository does not
+need local copies of them.
+
+- `orchestrator-governance`: default orchestration gateway, routing, guardrails, and
+  lightweight doc-drift check.
+- `orchestrator-proposal-mode`: idea refinement, specialist challenge, and
+  recommendation before planning.
+- `orchestrator-investigate-mode`: delegation-first diagnosis for long investigations.
+- `orchestrator-plan-mode`: delegation-first planning entrypoint for orchestrator
+  sessions.
+- `orchestrator-execute-approved-plan`: approved-plan execution entrypoint.
+- `maintainer-feedback-to-backlog`: maintainer sweep that harvests orchestrator
+  feedback, creates prepared backlog tasks in `Skills-Lab`, and acknowledges the
+  converted queue entries in source repos.
+- `docs-refresh-context`: context refresh when explicitly requested or proposed by the
+  orchestrator.
+- `docs-build-definition`: product formalization when explicitly requested or proposed
+  by the orchestrator and the source of the managed 8-file product bundle.
+- `docs-review-product`: specialist review of product docs.
+- `docs-converge-implementation`: read-only convergence pass that compares the enriched
+  product bundle against implementation and emits prepared backlog work only when the
+  shared convergence contract justifies it.
+- `docs-sync-root-files`: root operational file realignment as targeted maintenance.
+- `docs-reconcile-readmes`: README deduplication and cleanup as targeted maintenance.
+- `docs-update-project-logs`: canonical project-memory update.
+- `audit-suite`: generic audit entrypoint.
+- `audit-ui`: UI and simplicity audit for a page, site, or element.
+- `audit-user-flow`: targeted audit for login/signup/onboarding and similar flows.
+- `audit-brand-coherence`: branding, wording, and tone coherence audit.
+- `audit-user-journey`: global UX/content/tone/navigation journey audit.
+- `audit-security`: security implementation audit.
+- `audit-performance`: performance audit.
+- `audit-seo`: SEO and content audit.
+
+## Manual maintenance order
+
+For a repo that was already bootstrapped and needs a clean refresh:
+
+1. Re-seed with `repo-init-orchestrated`.
+1. Refresh `docs/00-context` with `docs-refresh-context`.
+1. Rebuild `docs/01-product` with `docs-build-definition`.
+1. If the richer bundle is active for the repo, run the expert enrichment pass before
+   treating the product docs as implementation-ready source of truth.
+1. Run `docs-converge-implementation` when enriched product docs should now be checked
+   against implementation and converted into bounded backlog work.
+1. Realign root operational files with `docs-sync-root-files` if docs changed
+   materially.
+1. Optionally run `docs-review-product` when you want specialist challenge before
+   planning.
+1. Start orchestration from `orchestrator-governance`.
+
+## Ownership model
+
+- Context/product/work-items: human + orchestrator.
+- Logs: orchestrator-owned after acceptance.
+- Specialist profiles: invocable everywhere, but mapped by orchestrator to native Codex
+  roles.
+- Native roles: repo-local implementation/review outputs, not global log writing.

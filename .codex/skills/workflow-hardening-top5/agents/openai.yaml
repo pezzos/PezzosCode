@@ -1,4 +1,0 @@
-interface:
-  display_name: "Workflow Hardening Top 5"
-  short_description: "Prioritize robust workflow fixes"
-  default_prompt: "Use $workflow-hardening-top5 to analyze docs/possible-improvements.md and return up to five prioritized workflow-hardening recommendations."
