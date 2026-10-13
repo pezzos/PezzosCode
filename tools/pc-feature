@@ -16,6 +16,7 @@ PROMPTS_DIR = ROOT / "prompts"
 sys.path.insert(0, str(ROOT))
 
 from lib import (  # noqa: E402
+    codex_exec as codex_cli,
     commit_evidence_gate,
     devtasks_status,
     log_compaction,
@@ -1090,48 +1091,23 @@ def codex_overrides() -> List[str]:
 
 
 def parse_auth_last_refresh(path: str) -> Optional[datetime]:
-    try:
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
-    except Exception:
-        return None
-    raw = payload.get("last_refresh")
-    if not isinstance(raw, str) or not raw.strip():
-        return None
-    try:
-        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        return None
+    return codex_cli.parse_last_refresh(Path(path))
 
 
 def source_auth_is_newer(auth_src: str, auth_dst: str) -> bool:
-    src_refresh = parse_auth_last_refresh(auth_src)
-    dst_refresh = parse_auth_last_refresh(auth_dst)
-    if src_refresh and dst_refresh:
-        return src_refresh > dst_refresh
-    if src_refresh and not dst_refresh:
-        return True
-    if not src_refresh and dst_refresh:
-        return False
-    return os.path.getmtime(auth_src) > os.path.getmtime(auth_dst)
+    return codex_cli.source_auth_is_newer(Path(auth_src), Path(auth_dst))
 
 
 def sync_codex_auth(auth_src: str, auth_dst: str, *, force: bool = False) -> bool:
-    if not os.path.exists(auth_src):
-        return False
-    should_copy = force or not os.path.exists(auth_dst)
-    if not should_copy and os.path.exists(auth_dst):
-        should_copy = source_auth_is_newer(auth_src, auth_dst)
-    if not should_copy:
-        return False
     try:
-        shutil.copy2(auth_src, auth_dst)
-        return True
-    except Exception as exc:
-        print(
-            f"pc-feature: failed to copy auth.json: {exc}",
-            file=sys.stderr,
+        return codex_cli.sync_auth_file(
+            Path(auth_src),
+            Path(auth_dst),
+            force=force,
+            error_prefix="pc-feature",
         )
-        return False
+    except codex_cli.CodexEnvError as exc:
+        die(str(exc))
 
 
 def is_auth_refresh_error(output: str) -> bool:
@@ -1148,27 +1124,17 @@ def codex_exec_once(
     if shutil.which("codex") is None:
         die("pc-feature: codex CLI not found in PATH")
     project_root = git_repo_root(cwd)
-    codex_home = os.path.join(project_root, ".codex_subagent")
-    os.makedirs(codex_home, exist_ok=True)
-    config_path = os.path.join(codex_home, "config.toml")
-    if not os.path.exists(config_path):
-        with open(config_path, "w", encoding="utf-8") as handle:
-            handle.write(
-                'approval_policy = "never"\n'
-                'sandbox_mode = "workspace-write"\n'
-                "network_access = false\n"
-            )
-    auth_src = os.path.join(os.path.expanduser("~"), ".codex", "auth.json")
-    auth_dst = os.path.join(codex_home, "auth.json")
-    sync_codex_auth(auth_src, auth_dst)
-    if not os.path.exists(auth_dst):
-        print(
-            "pc-feature: warning: auth.json missing; codex exec may fail.",
-            file=sys.stderr,
+    try:
+        prepared = codex_cli.prepare_codex_env(
+            Path(project_root),
+            ".codex_subagent",
+            error_prefix="pc-feature",
         )
-    env = os.environ.copy()
-    env.pop("OPENAI_API_KEY", None)
-    env["CODEX_HOME"] = codex_home
+    except codex_cli.CodexEnvError as exc:
+        die(str(exc))
+    auth_src = str(prepared.auth_src)
+    auth_dst = str(prepared.auth_dst)
+    env = prepared.env
     codex_profile = profile or os.environ.get("CODEX_PROFILE", "Default")
     cmd = [
         "codex",

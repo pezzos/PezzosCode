@@ -11,4 +11,3 @@ always_offload:
   - make test
   - make ci
   - pre-commit run
-index_path: .offload/index.jsonl

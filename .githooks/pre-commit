@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-tools/pc-precommit
+tools/git_precommit

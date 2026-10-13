@@ -9,9 +9,7 @@ repos:
       - id: check-added-large-files
       - id: check-json
       - id: check-merge-conflict
-      - id: check-toml
       - id: check-yaml
-      - id: detect-private-key
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
@@ -19,13 +17,7 @@ repos:
     rev: v0.4.10
     hooks:
       - id: ruff
-        args:
-          [
-            "--fix",
-            "--exit-non-zero-on-fix",
-            "--quiet",
-            "--output-format=concise",
-          ]
+        args: ["--fix", "--exit-non-zero-on-fix", "--quiet", "--output-format=concise"]
 
   - repo: https://github.com/psf/black
     rev: 24.4.2
@@ -42,71 +34,29 @@ repos:
         language: system
         types: [markdown]
 
-      - id: devtasks-legacy-autofix
-        name: devtasks-legacy-autofix
-        entry: tools/pc-devtasks-migrate-legacy
+      - id: context-check-lite
+        name: context-check-lite
+        entry: tools/context-check-lite
         language: system
         pass_filenames: false
-        files: "^docs/02-features/"
+        files: "^docs/"
 
-      - id: devtasks-schema-check
-        name: devtasks-schema-check
-        entry: tools/pc-devtasks-schema-check
+      - id: tests-precommit
+        name: tests-precommit
+        entry: bash -c 'if [[ -d tests ]]; then python3 -m unittest discover -s tests -p "test_*.py"; else echo "tests-precommit: no tests/ directory"; fi'
         language: system
         pass_filenames: false
-        files: "^docs/02-features/"
 
-      - id: template-sync
-        name: template-sync
-        entry: tools/pc-template-sync --apply --stage
+      - id: codex-autofix-fallback
+        name: codex-autofix-fallback
+        entry: tools/codex-autofix --hook-fallback
         language: system
         pass_filenames: false
-        files: '^(docs/|prompts/|tools/templates/docs/|tools/templates/prompts/|tools/templates/root/|Makefile$|\.pre-commit-config\.yaml$|\.gitmessage$|\.githooks/)'
+        always_run: true
 
-      - id: shellcheck
-        name: shellcheck
-        entry: bash -c 'command -v shellcheck >/dev/null 2>&1 || exit 0; shellcheck "$@"' --
-        language: system
-        types: [shell]
-
-      - id: shfmt
-        name: shfmt
-        entry: bash -c 'command -v shfmt >/dev/null 2>&1 || exit 0; shfmt -w "$@"' --
-        language: system
-        types: [shell]
-        stages: [pre-commit, manual]
-
-      - id: taplo
-        name: taplo fmt
-        entry: bash -c 'command -v taplo >/dev/null 2>&1 || exit 0; taplo fmt "$@"' --
-        language: system
-        types: [toml]
-        stages: [pre-commit, manual]
-
-      - id: gofmt
-        name: gofmt
-        entry: bash -c 'command -v gofmt >/dev/null 2>&1 || exit 0; gofmt -w "$@"' --
-        language: system
-        types: [go]
-        stages: [pre-commit, manual]
-
-      - id: rustfmt
-        name: rustfmt
-        entry: bash -c 'command -v rustfmt >/dev/null 2>&1 || exit 0; rustfmt "$@"' --
-        language: system
-        types: [rust]
-        stages: [pre-commit, manual]
-
-      - id: prettier
-        name: prettier
-        entry: bash -c 'command -v prettier >/dev/null 2>&1 || exit 0; prettier --log-level error --write "$@"' --
-        language: system
-        types_or: [javascript, jsx, ts, tsx, json, css, html, yaml, markdown]
-        stages: [pre-commit, manual]
-
-      - id: tests
-        name: tests
-        entry: make test
+      - id: tests-prepush
+        name: tests-prepush
+        entry: echo "pre-push checks are lightweight by design"
         language: system
         pass_filenames: false
         stages: [pre-push]

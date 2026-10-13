@@ -28,6 +28,12 @@ CLI helpers for bootstrapping repos and running the PezzosCode execution workflo
 8. Use `pc-commit` to finalize scoped commits.
 9. Use `tools/offload-proxy/pp` for large-output read commands.
 
+## Codex Auth Guardrails
+
+- Scripted `codex exec` wrappers require `~/.codex/auth.json` with `auth_mode: "chatgpt"`.
+- Scripted `codex exec` wrappers force an isolated repo-local `CODEX_HOME` and do not inherit parent OpenAI API variables.
+- If ChatGPT auth is missing, invalid, or not in ChatGPT mode, wrappers fail closed instead of falling back.
+
 ## Generated Artifacts
 
 - `pc-context-check` writes `docs/03-logs/context-clarity-report.json` (required context quality gate status before PRD updates).

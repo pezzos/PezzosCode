@@ -13,7 +13,7 @@ from typing import Optional
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from lib import pc_runner  # noqa: E402
+from lib import codex_exec as codex_cli, pc_runner  # noqa: E402
 
 FORBIDDEN_PREFIXES = (
     "docs/03-logs/",
@@ -32,45 +32,23 @@ def die(message: str) -> None:
 
 
 def parse_last_refresh(path: Path) -> Optional[datetime]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
-    raw = payload.get("last_refresh")
-    if not isinstance(raw, str) or not raw.strip():
-        return None
-    try:
-        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        return None
+    return codex_cli.parse_last_refresh(path)
 
 
 def source_auth_is_newer(auth_src: Path, auth_dst: Path) -> bool:
-    src_refresh = parse_last_refresh(auth_src)
-    dst_refresh = parse_last_refresh(auth_dst)
-    if src_refresh and dst_refresh:
-        return src_refresh > dst_refresh
-    if src_refresh and not dst_refresh:
-        return True
-    if not src_refresh and dst_refresh:
-        return False
-    return auth_src.stat().st_mtime > auth_dst.stat().st_mtime
+    return codex_cli.source_auth_is_newer(auth_src, auth_dst)
 
 
 def sync_auth_file(auth_src: Path, auth_dst: Path, *, force: bool = False) -> bool:
-    if not auth_src.exists():
-        return False
-    should_copy = force or not auth_dst.exists()
-    if not should_copy and auth_dst.exists():
-        should_copy = source_auth_is_newer(auth_src, auth_dst)
-    if not should_copy:
-        return False
     try:
-        shutil.copy2(auth_src, auth_dst)
-        return True
-    except Exception as exc:
-        print(f"pc-autofix: failed to copy auth.json: {exc}", file=sys.stderr)
-        return False
+        return codex_cli.sync_auth_file(
+            auth_src,
+            auth_dst,
+            force=force,
+            error_prefix="pc-autofix",
+        )
+    except codex_cli.CodexEnvError as exc:
+        die(str(exc))
 
 
 def is_auth_refresh_error(output: str) -> bool:
@@ -97,27 +75,15 @@ def git_root() -> Path:
 
 
 def codex_env(root: Path) -> tuple[dict, Path, Path]:
-    env = os.environ.copy()
-    env.pop("OPENAI_API_KEY", None)
-    codex_home = root / ".codex_precommit"
-    codex_home.mkdir(parents=True, exist_ok=True)
-    config_path = codex_home / "config.toml"
-    config_path.write_text(
-        'approval_policy = "never"\n'
-        'sandbox_mode = "workspace-write"\n'
-        "network_access = false\n",
-        encoding="utf-8",
-    )
-    auth_src = Path.home() / ".codex" / "auth.json"
-    auth_dst = codex_home / "auth.json"
-    sync_auth_file(auth_src, auth_dst)
-    if not auth_dst.exists():
-        print(
-            "pc-autofix: warning: auth.json missing; codex exec may fail.",
-            file=sys.stderr,
+    try:
+        prepared = codex_cli.prepare_codex_env(
+            root,
+            ".codex_precommit",
+            error_prefix="pc-autofix",
         )
-    env["CODEX_HOME"] = str(codex_home)
-    return env, auth_src, auth_dst
+    except codex_cli.CodexEnvError as exc:
+        die(str(exc))
+    return prepared.env, prepared.auth_src, prepared.auth_dst
 
 
 def codex_profile() -> str:

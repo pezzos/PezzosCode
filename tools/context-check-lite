@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+ROOT = Path.cwd()
+REPORT_PATH = ROOT / "docs/03-logs/context-check-lite.json"
+REQUIRED = [
+    ROOT / "docs/00-context/vision.md",
+    ROOT / "docs/00-context/users.md",
+    ROOT / "docs/00-context/system-map.md",
+    ROOT / "docs/00-context/context-boundaries-operating-model.md",
+    ROOT / "docs/00-context/expected-features.md",
+    ROOT / "docs/01-product/prd.md",
+]
+PLACEHOLDERS = [r"\[TODO\]", r"\[TBD\]", r"<TODO>", r"<TBD>"]
+
+
+def main() -> int:
+    issues: list[dict[str, str]] = []
+    for path in REQUIRED:
+        rel = str(path.relative_to(ROOT))
+        if not path.exists():
+            issues.append({"path": rel, "issue": "missing file"})
+            continue
+        text = path.read_text(encoding="utf-8")
+        if not text.strip():
+            issues.append({"path": rel, "issue": "empty file"})
+        for marker in PLACEHOLDERS:
+            if re.search(marker, text):
+                issues.append({"path": rel, "issue": f"placeholder marker {marker}"})
+
+    report = {
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "decision": "PASS" if not issues else "BLOCK",
+        "issue_count": len(issues),
+        "issues": issues,
+    }
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    REPORT_PATH.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+    if issues:
+        print("context-check-lite: BLOCK")
+        for issue in issues:
+            print(f"- {issue['path']}: {issue['issue']}")
+        return 1
+
+    print("context-check-lite: PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

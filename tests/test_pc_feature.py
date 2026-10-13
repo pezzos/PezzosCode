@@ -10792,6 +10792,93 @@ class ProposalGenerationTests(unittest.TestCase):
             self.assertIsNone(action)
             self.assertEqual(before, after)
 
+    def test_codex_exec_once_uses_sanitized_env(self):
+        pc_feature = load_pc_feature()
+        prepared = SimpleNamespace(
+            env={"KEEP": "ok", "CODEX_HOME": "/tmp/project/.codex_subagent"},
+            auth_src=Path("/tmp/home/.codex/auth.json"),
+            auth_dst=Path("/tmp/project/.codex_subagent/auth.json"),
+        )
+        with mock.patch.object(
+            pc_feature.shutil, "which", return_value="/usr/bin/codex"
+        ), mock.patch.object(
+            pc_feature, "git_repo_root", return_value="/tmp/project"
+        ), mock.patch.object(
+            pc_feature.codex_cli, "prepare_codex_env", return_value=prepared
+        ) as prepare_mock, mock.patch.object(
+            pc_feature, "codex_overrides", return_value=[]
+        ), mock.patch.object(
+            pc_feature.subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(
+                args=["codex"],
+                returncode=0,
+                stdout="ok",
+                stderr="",
+            ),
+        ) as run_mock:
+            output = pc_feature.codex_exec_once(
+                "do work",
+                cwd="/tmp/project",
+                profile="Default",
+            )
+
+        self.assertEqual(output, "ok")
+        prepare_mock.assert_called_once()
+        self.assertEqual(run_mock.call_args.kwargs["env"], prepared.env)
+
+    def test_codex_exec_once_retries_after_auth_refresh_error_with_sanitized_env(self):
+        pc_feature = load_pc_feature()
+        prepared = SimpleNamespace(
+            env={"KEEP": "ok", "CODEX_HOME": "/tmp/project/.codex_subagent"},
+            auth_src=Path("/tmp/home/.codex/auth.json"),
+            auth_dst=Path("/tmp/project/.codex_subagent/auth.json"),
+        )
+        run_results = [
+            subprocess.CompletedProcess(
+                args=["codex"],
+                returncode=1,
+                stdout="",
+                stderr="access token could not be refreshed",
+            ),
+            subprocess.CompletedProcess(
+                args=["codex"],
+                returncode=0,
+                stdout="ok after retry",
+                stderr="",
+            ),
+        ]
+        with mock.patch.object(
+            pc_feature.shutil, "which", return_value="/usr/bin/codex"
+        ), mock.patch.object(
+            pc_feature, "git_repo_root", return_value="/tmp/project"
+        ), mock.patch.object(
+            pc_feature.codex_cli, "prepare_codex_env", return_value=prepared
+        ), mock.patch.object(
+            pc_feature, "codex_overrides", return_value=[]
+        ), mock.patch.object(
+            pc_feature, "sync_codex_auth", return_value=True
+        ) as sync_mock, mock.patch.object(
+            pc_feature.subprocess,
+            "run",
+            side_effect=run_results,
+        ) as run_mock:
+            output = pc_feature.codex_exec_once(
+                "do work",
+                cwd="/tmp/project",
+                profile="Default",
+            )
+
+        self.assertEqual(output, "ok after retry")
+        sync_mock.assert_called_once_with(
+            str(prepared.auth_src),
+            str(prepared.auth_dst),
+            force=True,
+        )
+        self.assertEqual(run_mock.call_count, 2)
+        for call in run_mock.call_args_list:
+            self.assertEqual(call.kwargs["env"], prepared.env)
+
 
 if __name__ == "__main__":
     unittest.main()

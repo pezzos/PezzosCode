@@ -158,6 +158,21 @@ class TestBootstrapInto(unittest.TestCase):
             )
             self.assertIn("lib/pc_runner.py", result.stdout)
 
+    def test_bootstrap_into_copies_codex_exec_runtime_helper(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            init_git_repo(tmp_dir)
+            result = run_bootstrap_into([tmp_dir])
+            self.assertEqual(result.returncode, 0)
+
+            helper_path = Path(tmp_dir) / "lib" / "codex_exec.py"
+            self.assertTrue(
+                helper_path.exists(),
+                "Codex exec hardening helper should land in lib/ for wrapper imports.",
+            )
+            helper_content = helper_path.read_text(encoding="utf-8")
+            self.assertIn("OPENAI_ENV_VARS", helper_content)
+            self.assertIn("auth_mode", helper_content)
+
     def test_bootstrap_into_keeps_json_configs_valid(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             init_git_repo(tmp_dir)

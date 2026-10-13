@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
+from unittest import mock
 
 
 def load_module(path: Path, name: str):
@@ -93,12 +94,14 @@ class PcAutofixTests(unittest.TestCase):
             src = Path(tmpdir) / "src-auth.json"
             dst = Path(tmpdir) / "dst-auth.json"
             source_payload = {
+                "auth_mode": "chatgpt",
                 "last_refresh": "2026-02-15T08:00:00.000000Z",
                 "tokens": {"refresh_token": "src"},
             }
             dst.write_text(
                 json.dumps(
                     {
+                        "auth_mode": "chatgpt",
                         "last_refresh": "2026-02-10T08:00:00.000000Z",
                         "tokens": {"refresh_token": "dst"},
                     }
@@ -121,6 +124,36 @@ class PcAutofixTests(unittest.TestCase):
             )
         )
         self.assertFalse(self.mod.is_auth_refresh_error("some unrelated codex failure"))
+
+    def test_codex_env_sanitizes_all_openai_variables(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            source_auth = root / "source-auth.json"
+            source_auth.write_text(
+                json.dumps({"auth_mode": "chatgpt"}),
+                encoding="utf-8",
+            )
+            fake_env = {
+                "OPENAI_API_KEY": "1",
+                "OPENAI_BILLING_API_KEY": "2",
+                "OPENAI_BASE_URL": "3",
+                "OPENAI_ORG_ID": "4",
+                "OPENAI_ORGANIZATION": "5",
+                "OPENAI_PROJECT": "6",
+                "KEEP_ME": "ok",
+            }
+            with mock.patch.object(
+                self.mod.codex_cli,
+                "auth_source_path",
+                return_value=source_auth,
+            ), mock.patch.dict(self.mod.os.environ, fake_env, clear=True):
+                env, _, auth_dst = self.mod.codex_env(root)
+                self.assertTrue(auth_dst.exists())
+
+        self.assertEqual(env["KEEP_ME"], "ok")
+        self.assertEqual(env["CODEX_HOME"], str(root / ".codex_precommit"))
+        for var_name in self.mod.codex_cli.OPENAI_ENV_VARS:
+            self.assertNotIn(var_name, env)
 
 
 if __name__ == "__main__":
